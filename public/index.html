@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sensor dashboard</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --bg: #f5f4f0; --card: #ffffff; --ink: #1c1c1a; --ink2: #5c5b57; --line: rgba(0,0,0,.12);
+    --ok: #0f7b3f; --bad: #b3261e; --warn-bg: #fff4d6; --warn-ink: #6b4e00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151514; --card: #1f1f1d; --ink: #f0efec; --ink2: #b4b2a9; --line: rgba(255,255,255,.14);
+      --ok: #4cc27f; --bad: #f2877f; --warn-bg: #3a2f10; --warn-ink: #f3d68a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 16px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+  h1 { font-size: 18px; font-weight: 500; margin: 0 auto 0 0; }
+  select, button { background: var(--card); color: var(--ink); border: 0.5px solid var(--line); border-radius: 8px; padding: 6px 10px; font: inherit; cursor: pointer; }
+  .banner { background: var(--warn-bg); color: var(--warn-ink); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; display: none; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .card { background: var(--card); border: 0.5px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+  .card .label { color: var(--ink2); font-size: 12px; }
+  .card .big { font-size: 22px; font-weight: 500; }
+  .panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 8px; margin-bottom: 8px; }
+  .panel h2 { font-size: 14px; font-weight: 500; margin: 0 0 8px; }
+  #map { height: 300px; border-radius: 8px; }
+  .chartbox { position: relative; height: 300px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; color: var(--ink2); font-weight: 400; font-size: 12px; padding: 4px 6px; border-bottom: 0.5px solid var(--line); }
+  td { padding: 7px 6px; border-bottom: 0.5px solid var(--line); }
+  tr.dev { cursor: pointer; }
+  tr.dev:hover td { background: rgba(127,127,127,.08); }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: var(--line); }
+  .ok { color: var(--ok); } .bad { color: var(--bad); }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--ink2); margin-top: 6px; }
+  .scale { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink2); margin-top: 6px; }
+  .scale i { flex: 0 0 120px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, #cfe3f8, #2a78d6, #0c2f5c); }
+  #err { color: var(--bad); margin: 8px 0; display: none; }
+  @media (max-width: 520px) { th:nth-child(5), td:nth-child(5) { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Sensor dashboard</h1>
+    <select id="group" aria-label="Group"></select>
+    <select id="measure" aria-label="Measurement"></select>
+    <select id="range" aria-label="Time range">
+      <option value="1">Last 24 hours</option>
+      <option value="7" selected>Last 7 days</option>
+      <option value="30">Last 30 days</option>
+    </select>
+    <button id="csv">Download CSV</button>
+    <button id="refresh">Refresh</button>
+  </header>
+  <div class="banner" id="demoBanner">Showing demo data. Add SENSECAP_API_ID and SENSECAP_API_KEY on the server to see your real sensors.</div>
+  <div id="err"></div>
+
+  <div class="cards">
+    <div class="card"><div class="label">Sensors online</div><div class="big" id="kOnline">–</div></div>
+    <div class="card"><div class="label" id="kAvgLabel">Average</div><div class="big" id="kAvg">–</div></div>
+    <div class="card"><div class="label">Lowest to highest</div><div class="big" id="kRange">–</div></div>
+    <div class="card"><div class="label">Last update</div><div class="big" id="kUpdate">–</div></div>
+  </div>
+
+  <div class="panels">
+    <div class="card panel">
+      <h2>Map, latest <span id="mapMeasure"></span></h2>
+      <div id="map"></div>
+      <div class="scale"><span id="scaleLo"></span><i></i><span id="scaleHi"></span></div>
+    </div>
+    <div class="card panel">
+      <h2>History, <span id="chartMeasure"></span></h2>
+      <div class="chartbox"><canvas id="chart" role="img" aria-label="Line chart of the selected measurement over time for the selected devices"></canvas></div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </div>
+
+  <div class="card panel">
+    <h2>Devices <span style="color:var(--ink2); font-weight:400">(click a row to add or remove it from the chart)</span></h2>
+    <table>
+      <thead><tr><th>Device</th><th>Group</th><th>Status</th><th>Latest</th><th>Last reading</th><th>Battery</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+const PALETTE = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'];
+const state = { cfg: null, devices: [], latest: {}, selected: new Set(), seriesData: {}, group: 'all', mid: null, days: 7 };
+let map, markerLayer, chart;
+
+const $ = (id) => document.getElementById(id);
+const nameOf = (mid) => (state.cfg.names[mid] ? state.cfg.names[mid][0] : 'Measurement ' + mid);
+const unitOf = (mid) => (state.cfg.names[mid] ? state.cfg.names[mid][1] : '');
+const fmt = (v) => (v == null ? '–' : Math.abs(v) >= 100 ? Math.round(v).toString() : (Math.round(v * 10) / 10).toString());
+const ago = (iso) => {
+  if (!iso) return 'no data';
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return m + ' min ago';
+  if (m < 1440) return Math.round(m / 60) + ' h ago';
+  return Math.round(m / 1440) + ' d ago';
+};
+const visibleDevices = () => state.devices.filter((d) => state.group === 'all' || d.group === state.group);
+const valueFor = (d) => { const l = state.latest[d.eui]; return l && l[state.mid] ? l[state.mid].v : null; };
+
+async function getJson(url) {
+  const r = await fetch(url);
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || 'Request failed');
+  return j;
+}
+function showError(msg) { const e = $('err'); e.textContent = msg || ''; e.style.display = msg ? 'block' : 'none'; }
+
+async function load() {
+  showError('');
+  try {
+    if (!state.cfg) {
+      state.cfg = await getJson('/api/config');
+      $('demoBanner').style.display = state.cfg.demo ? 'block' : 'none';
+    }
+    [state.devices, state.latest] = await Promise.all([getJson('/api/devices'), getJson('/api/latest')]);
+  } catch (e) {
+    showError('Could not load sensor data: ' + e.message);
+    return;
+  }
+  fillFilters();
+  if (state.selected.size === 0) visibleDevices().slice(0, 3).forEach((d) => state.selected.add(d.eui));
+  render();
+  await loadSeries();
+}
+
+function fillFilters() {
+  const groups = ['all', ...new Set(state.devices.map((d) => d.group))];
+  const g = $('group');
+  g.innerHTML = groups.map((x) => `<option value="${x}">${x === 'all' ? 'All groups' : x}</option>`).join('');
+  g.value = groups.includes(state.group) ? state.group : 'all';
+  const gps = state.cfg.gps;
+  const mids = [...new Set(state.devices.flatMap((d) => d.measurements))].filter((m) => !gps.includes(m));
+  const m = $('measure');
+  m.innerHTML = mids.map((x) => `<option value="${x}">${nameOf(x)}${unitOf(x) ? ' (' + unitOf(x) + ')' : ''}</option>`).join('');
+  if (!mids.includes(state.mid)) state.mid = mids[0] || null;
+  m.value = state.mid || '';
+}
+
+function colorScale(v, lo, hi) {
+  if (v == null) return '#9a9890';
+  const t = hi === lo ? 0.5 : (v - lo) / (hi - lo);
+  const stops = [[207, 227, 248], [42, 120, 214], [12, 47, 92]];
+  const [a, b, f] = t < 0.5 ? [stops[0], stops[1], t * 2] : [stops[1], stops[2], (t - 0.5) * 2];
+  return `rgb(${a.map((x, i) => Math.round(x + (b[i] - x) * f)).join(',')})`;
+}
+
+function render() {
+  const devs = visibleDevices();
+  const vals = devs.map(valueFor).filter((v) => v != null);
+  const lo = vals.length ? Math.min(...vals) : null;
+  const hi = vals.length ? Math.max(...vals) : null;
+  const unit = state.mid ? unitOf(state.mid) : '';
+  const name = state.mid ? nameOf(state.mid) : '';
+
+  $('kOnline').textContent = devs.filter((d) => d.online).length + ' / ' + devs.length;
+  $('kAvgLabel').textContent = 'Average ' + name.toLowerCase();
+  $('kAvg').textContent = vals.length ? fmt(vals.reduce((a, b) => a + b, 0) / vals.length) + ' ' + unit : '–';
+  $('kRange').textContent = vals.length ? fmt(lo) + ' to ' + fmt(hi) : '–';
+  const times = devs.map((d) => d.lastSeen).filter(Boolean).sort();
+  $('kUpdate').textContent = times.length ? ago(times[times.length - 1]) : '–';
+  $('mapMeasure').textContent = name ? name.toLowerCase() : '';
+  $('chartMeasure').textContent = name ? name.toLowerCase() + (unit ? ' (' + unit + ')' : '') : '';
+  $('scaleLo').textContent = lo == null ? '' : fmt(lo) + ' ' + unit;
+  $('scaleHi').textContent = hi == null ? '' : fmt(hi) + ' ' + unit;
+
+  $('rows').innerHTML = devs.map((d) => {
+    const idx = [...state.selected].indexOf(d.eui);
+    const sw = idx >= 0 ? `style="background:${PALETTE[idx % PALETTE.length]}"` : '';
+    const v = valueFor(d);
+    return `<tr class="dev" data-eui="${d.eui}">
+      <td><span class="sw" ${sw}></span>${d.name}</td><td>${d.group}</td>
+      <td class="${d.online ? 'ok' : 'bad'}">${d.online ? 'Online' : 'Offline'}</td>
+      <td>${v == null ? '–' : fmt(v) + ' ' + unit}</td>
+      <td>${ago(d.lastSeen)}</td><td>${d.battery == null ? '–' : d.battery + '%'}</td></tr>`;
+  }).join('') || '<tr><td colspan="6">No devices found.</td></tr>';
+
+  renderMap(devs, lo, hi, unit);
+}
+
+function renderMap(devs, lo, hi, unit) {
+  if (!map) {
+    map = L.map('map').setView([35.0, 33.2], 8);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors', maxZoom: 18 }).addTo(map);
+    markerLayer = L.layerGroup().addTo(map);
+  }
+  markerLayer.clearLayers();
+  const pts = [];
+  const [latId, lngId] = state.cfg.gps;
+  devs.forEach((d) => {
+    const l = state.latest[d.eui] || {};
+    const lat = l[latId] ? Number(l[latId].v) : d.lat;
+    const lng = l[lngId] ? Number(l[lngId].v) : d.lng;
+    if (lat == null || lng == null || !isFinite(lat) || !isFinite(lng) || (lat === 0 && lng === 0)) return;
+    const v = valueFor(d);
+    const m = L.circleMarker([lat, lng], { radius: 9, color: d.online ? '#ffffff' : '#555', weight: 2, fillColor: colorScale(v, lo, hi), fillOpacity: 0.95 });
+    m.bindTooltip(`${d.name}<br>${v == null ? 'no reading' : fmt(v) + ' ' + unit}`);
+    m.on('click', () => toggle(d.eui));
+    m.addTo(markerLayer);
+    pts.push([lat, lng]);
+  });
+  if (pts.length) map.fitBounds(pts, { padding: [30, 30], maxZoom: 14 });
+  setTimeout(() => map.invalidateSize(), 50);
+}
+
+async function loadSeries() {
+  if (!state.mid) return;
+  const key = (eui) => `${eui}|${state.mid}|${state.days}`;
+  const need = [...state.selected].filter((e) => !state.seriesData[key(e)]);
+  await Promise.all(need.map(async (eui) => {
+    try { state.seriesData[key(eui)] = await getJson(`/api/series?eui=${eui}&mid=${state.mid}&days=${state.days}`); }
+    catch (e) { state.seriesData[key(eui)] = []; showError('Some history could not be loaded: ' + e.message); }
+  }));
+  drawChart();
+}
+
+function drawChart() {
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const ink = dark ? '#b4b2a9' : '#5c5b57';
+  const grid = dark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.08)';
+  const sel = [...state.selected].map((e) => state.devices.find((d) => d.eui === e)).filter(Boolean);
+  const datasets = sel.map((d, i) => ({
+    label: d.name,
+    data: (state.seriesData[`${d.eui}|${state.mid}|${state.days}`] || []).map((p) => ({ x: new Date(p.t).getTime(), y: p.v })),
+    borderColor: PALETTE[i % PALETTE.length], backgroundColor: PALETTE[i % PALETTE.length],
+    borderWidth: 2, pointRadius: 0, tension: 0.25, borderDash: i % 2 ? [6, 3] : [],
+  }));
+  $('legend').innerHTML = sel.map((d, i) => `<span><span class="sw" style="background:${PALETTE[i % PALETTE.length]}"></span>${d.name}</span>`).join('');
+  if (chart) chart.destroy();
+  chart = new Chart($('chart'), {
+    type: 'line', data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, parsing: false, animation: false,
+      interaction: { mode: 'nearest', axis: 'x', intersect: false },
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { type: 'linear', ticks: { color: ink, maxTicksLimit: 6, callback: (v) => { const d = new Date(v); return state.days <= 1 ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString([], { day: 'numeric', month: 'short' }); } }, grid: { display: false } },
+        y: { ticks: { color: ink }, grid: { color: grid }, title: { display: !!unitOf(state.mid), text: unitOf(state.mid), color: ink } },
+      },
+    },
+  });
+  render();
+}
+
+function toggle(eui) {
+  if (state.selected.has(eui)) state.selected.delete(eui);
+  else if (state.selected.size < 8) state.selected.add(eui);
+  render();
+  loadSeries();
+}
+
+function downloadCsv() {
+  const rows = [['device', 'device_eui', 'measurement', 'unit', 'time', 'value']];
+  [...state.selected].forEach((eui) => {
+    const d = state.devices.find((x) => x.eui === eui);
+    (state.seriesData[`${eui}|${state.mid}|${state.days}`] || []).forEach((p) => rows.push([d.name, eui, nameOf(state.mid), unitOf(state.mid), p.t, p.v]));
+  });
+  if (rows.length === 1) { showError('Select at least one device with data first.'); return; }
+  const csv = rows.map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = `sensors-${nameOf(state.mid).toLowerCase().replace(/\W+/g, '-')}-${state.days}d.csv`;
+  a.click();
+}
+
+$('group').onchange = (e) => { state.group = e.target.value; state.selected = new Set(visibleDevices().slice(0, 3).map((d) => d.eui)); render(); loadSeries(); };
+$('measure').onchange = (e) => { state.mid = e.target.value; render(); loadSeries(); };
+$('range').onchange = (e) => { state.days = Number(e.target.value); loadSeries(); };
+$('csv').onclick = downloadCsv;
+$('refresh').onclick = async () => { state.seriesData = {}; await fetch('/api/config'); await load(); };
+$('rows').onclick = (e) => { const tr = e.target.closest('tr.dev'); if (tr) toggle(tr.dataset.eui); };
+load();
+setInterval(() => { state.seriesData = {}; load(); }, 5 * 60 * 1000);
+</script>
+</body>
+</html>
