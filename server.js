@@ -529,6 +529,110 @@ function metar() {
   });
 }
 
+/* ---------- Cyprus Department of Meteorology automatic stations (official open data) ---------- */
+
+const CYDOM_URL = process.env.CYDOM_URL || 'https://www.dom.org.cy/AWS/OpenData/CyDoM.xml';
+const xmlText = (s) => String(s).replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+const xmlTag = (block, name) => {
+  const m = new RegExp('<' + name + '>([\\s\\S]*?)</' + name + '>').exec(block);
+  return m ? xmlText(m[1]) : null;
+};
+const numOrNull = (v) => {
+  const n = Number(String(v).replace(',', '.'));
+  return v === null || v === '' || !isFinite(n) ? null : n;
+};
+const niceStation = (code) => String(code).replace(/_/g, ' ').toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+
+// The feed says "2026-10-25 14:20 (Local Time)", which is Cyprus time, so turn it into a real instant.
+function nicosiaIso(text) {
+  const m = /(\d{4})-(\d\d)-(\d\d)[ T](\d\d):(\d\d)/.exec(text || '');
+  if (!m) return null;
+  const asUtc = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+  const f = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Nicosia', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const local = (ms) => {
+    const p = Object.fromEntries(f.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+    return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute);
+  };
+  return new Date(asUtc - (local(asUtc) - asUtc)).toISOString();
+}
+
+function parseCydom(xml) {
+  const stations = new Map();
+  for (const m of xml.matchAll(/<station>([\s\S]*?)<\/station>/g)) {
+    const code = xmlTag(m[1], 'station_code');
+    const lat = numOrNull(xmlTag(m[1], 'station_latitude'));
+    const lng = numOrNull(xmlTag(m[1], 'station_longitude'));
+    if (code && lat != null && lng != null) stations.set(code, { id: code, name: niceStation(code), lat, lng });
+  }
+  const latest = new Map(); // newest observation block per station
+  for (const m of xml.matchAll(/<observations>([\s\S]*?)<\/observations>/g)) {
+    const code = xmlTag(m[1], 'station_code');
+    const timeText = xmlTag(m[1], 'date_time');
+    const iso = nicosiaIso(timeText);
+    if (!code || !stations.has(code)) continue;
+    const prev = latest.get(code);
+    if (prev && prev.iso && iso && prev.iso >= iso) continue;
+    const obs = [];
+    for (const o of m[1].matchAll(/<observation>([\s\S]*?)<\/observation>/g)) {
+      const name = xmlTag(o[1], 'observation_name');
+      const value = numOrNull(xmlTag(o[1], 'observation_value'));
+      if (name && value != null) obs.push({ name, value, unit: xmlTag(o[1], 'observation_unit') || '' });
+    }
+    latest.set(code, { iso, obs });
+  }
+  const find = (obs, names, startsWith) => {
+    const lower = names.map((n) => n.toLowerCase());
+    let hit = obs.find((o) => lower.includes(o.name.toLowerCase()));
+    if (!hit && startsWith) hit = obs.find((o) => o.name.toLowerCase().startsWith(startsWith.toLowerCase()));
+    return hit || null;
+  };
+  const points = [];
+  for (const [code, st] of stations) {
+    const l = latest.get(code);
+    if (!l) continue;
+    const o = l.obs;
+    const wind10 = find(o, ['Wind Speed (10m)'], 'Wind Speed (10m)');
+    const wind2 = find(o, ['Wind Speed (2m)']);
+    const wdir = find(o, ['Wind Direction (10m)'], 'Wind Direction (10m)');
+    const pick = (names, sw) => { const h = find(o, names, sw); return h ? h.value : null; };
+    const r1 = (v) => (v == null ? null : Math.round(v * 10) / 10);
+    points.push({
+      ...st,
+      temp: pick(['Air Temperature (1.2m)']),
+      tmax: pick(['Extreme Day Max. Temp.']),
+      tmin: pick(['Extreme Day Min. Temp.']),
+      hum: pick(['Relative Humidity (1.2m)']),
+      ws: wind10 ? r1(wind10.value * (/knot/i.test(wind10.unit) ? 0.5144 : 1)) : wind2 ? r1(wind2.value) : null,
+      wd: wdir ? wdir.value : null,
+      rain10: pick(['Accumulated Rainfall (10 min.)']),
+      rain24: pick(['Accumulated Rainfall (24 hours)']),
+      pmsl: pick(['Atmospheric Pressure (Mean Sea Level)']),
+      solar: pick(['Global Radiation']),
+      time: l.iso,
+      obs: o,
+    });
+  }
+  const times = points.map((p) => p.time).filter(Boolean).sort();
+  return { points, stationCount: stations.size, feedTime: times.length ? times[times.length - 1] : null, copyright: xmlTag(xml, 'copyright') || 'Weather Data Copyright The Cyprus Department of Meteorology' };
+}
+
+function cydom() {
+  return cached('cydom', 600000, async () => {
+    if (MOCK) {
+      const t = new Date().toISOString();
+      return { points: [
+        { id: 'ACHNA', name: 'Achna', lat: 35.0255, lng: 33.7744, temp: 26.6, tmax: 29.8, tmin: 15.8, hum: 51, ws: 2.1, wd: 181, rain10: 0, rain24: 0, pmsl: 1015, solar: 481, time: t, obs: [{ name: 'Air Temperature (1.2m)', value: 26.6, unit: 'Celcius' }] },
+        { id: 'AGROS', name: 'Agros', lat: 34.9149, lng: 33.0157, temp: 22.7, tmax: 24.9, tmin: 12.9, hum: 42, ws: 2.2, wd: 174, rain10: 0, rain24: 0, pmsl: 1015, solar: 481, time: t, obs: [] },
+      ], stationCount: 2, feedTime: t, copyright: 'Weather Data Copyright The Cyprus Department of Meteorology', updated: t };
+    }
+    const r = await fetch(CYDOM_URL, { signal: AbortSignal.timeout(25000) });
+    if (!r.ok) throw new Error(`Met Office feed returned HTTP ${r.status}`);
+    const out = parseCydom(await r.text());
+    if (!out.points.length) throw new Error('Met Office feed had no readable stations');
+    return { ...out, updated: new Date().toISOString() };
+  });
+}
+
 /* ---------- http ---------- */
 
 function sendJson(res, status, obj) {
@@ -577,7 +681,7 @@ const server = http.createServer(async (req, res) => {
       const st = terrainStatus();
       return st.ready ? sendJson(res, 200, st.data) : sendJson(res, 202, { loading: true, progress: st.progress, error: st.error });
     }
-    const extra = { '/api/weather': weather, '/api/air': air, '/api/sea': sea, '/api/opensensors': openSensors, '/api/metar': metar }[url.pathname];
+    const extra = { '/api/weather': weather, '/api/air': air, '/api/sea': sea, '/api/opensensors': openSensors, '/api/metar': metar, '/api/cydom': cydom }[url.pathname];
     if (extra) return sendJson(res, 200, await extra());
     let file = url.pathname === '/' ? '/index.html' : url.pathname;
     const full = path.join(__dirname, 'public', path.normalize(file));
