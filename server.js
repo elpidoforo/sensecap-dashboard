@@ -613,7 +613,7 @@ function openSensors() {
         { id: 'm2', lat: 34.68, lng: 33.04, pm25: 12.5, pm10: 24, temp: 27.2, hum: 58, time: new Date().toISOString() },
       ], updated: new Date().toISOString() };
     }
-    const r = await fetch('https://data.sensor.community/airrohr/v1/filter?area=35.0,33.25,150', { signal: AbortSignal.timeout(25000) });
+    const r = await fetch('https://data.sensor.community/airrohr/v1/filter/area=35.0,33.25,150', { signal: AbortSignal.timeout(25000) });
     if (!r.ok) throw new Error(`Sensor.Community returned HTTP ${r.status}`);
     const rows = await r.json();
     const byLoc = new Map();
