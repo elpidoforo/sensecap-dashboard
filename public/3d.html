@@ -8,7 +8,7 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: #0b1220; color: #e8eaed; font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
   #view { position: fixed; inset: 0; }
-  .panel { position: fixed; background: rgba(16,24,40,.88); border: 0.5px solid rgba(255,255,255,.16); border-radius: 10px; padding: 10px 12px; }
+  .panel { position: fixed; z-index: 3; background: rgba(16,24,40,.88); border: 0.5px solid rgba(255,255,255,.16); border-radius: 10px; padding: 10px 12px; }
   #controls { top: 12px; left: 12px; width: 250px; max-height: calc(100% - 100px); overflow: auto; }
   h1 { font-size: 15px; font-weight: 500; margin: 0 0 6px; display: flex; align-items: center; gap: 8px; }
   .live { font-size: 11px; font-weight: 400; padding: 1px 8px; border-radius: 10px; background: #12351f; color: #6fe3a0; }
@@ -25,12 +25,33 @@
   #tip { position: fixed; pointer-events: none; display: none; background: rgba(16,24,40,.95); border: 0.5px solid rgba(255,255,255,.25); border-radius: 8px; padding: 6px 10px; font-size: 12px; z-index: 5; max-width: 260px; }
   #msg { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; background: #0b1220; z-index: 10; }
   #err { color: #f2877f; margin-top: 6px; }
-  @media (max-width: 640px) { #controls { width: calc(100% - 24px); max-height: 45%; } #legend { display: none; } }
+  #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
+  .lb { position: absolute; left: 0; top: 0; white-space: nowrap; padding: 1px 8px; border-radius: 11px; font-size: 12px; background: rgba(16,24,40,.84); border: 1.5px solid var(--c, #888); color: #fff; will-change: transform; }
+  .lb b { font-weight: 500; margin-right: 5px; }
+  .lb i { font-style: normal; color: #9aa4b2; margin-left: 5px; }
+  .lb.off { color: #9aa4b2; }
+  .lb.hot { background: rgba(255,255,255,.95); color: #101828; font-size: 13px; z-index: 3; }
+  .lb.hot i { color: #475467; }
+  #list { top: 12px; right: 12px; width: 250px; max-height: calc(100% - 100px); overflow: auto; }
+  #list h2 { margin-top: 0; }
+  #list .tools { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  #list select { padding: 3px 6px; font-size: 12px; }
+  .row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
+  .row:hover, .row.sel { background: rgba(255,255,255,.12); }
+  .row.none { cursor: default; color: #9aa4b2; }
+  .row .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--c, #888); }
+  .row .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .vl { font-variant-numeric: tabular-nums; color: #cfd6e0; }
+  @media (max-width: 640px) {
+    #controls { width: calc(100% - 24px); max-height: 38%; } #legend { display: none; }
+    #list { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; max-height: 30%; }
+  }
 </style>
 </head>
 <body>
 <div id="msg">Building the island…</div>
 <canvas id="view"></canvas>
+<div id="labels"></div>
 <div class="panel" id="controls">
   <h1>Cyprus 3D <span class="live" id="live">Live</span></h1>
   <a href="/">Back to dashboard</a> · <a href="/map.html">Map with roads and satellite</a>
@@ -43,15 +64,24 @@
   <label><input type="checkbox" id="lWind" checked> Wind</label>
   <label><input type="checkbox" id="lCloud" checked> Clouds and rain</label>
   <label><input type="checkbox" id="lSensor" checked> Sensors</label>
+  <label><input type="checkbox" id="lList" checked> Sensor list</label>
   <label><input type="checkbox" id="lSea" checked> Sea conditions</label>
   <h2>Sensor columns show</h2>
   <select id="measure"></select>
+  <h2>Numbers on the columns</h2>
+  <select id="labelMode">
+    <option value="name" selected>Name and value</option>
+    <option value="value">Value only</option>
+    <option value="diff">Value and difference from weather model</option>
+    <option value="off">Off</option>
+  </select>
   <h2>Height of mountains</h2>
   <input type="range" id="exag" min="1" max="20" value="8">
   <h2>Data</h2>
   <div id="status"></div>
   <div id="err"></div>
 </div>
+<div class="panel" id="list"><h2 id="listT">Sensors</h2><div class="tools"><select id="listSort" aria-label="Sort"><option value="high" selected>Highest first</option><option value="low">Lowest first</option><option value="name">By name</option></select></div><div id="rows"></div></div>
 <div class="panel" id="legend"><div id="lt">Temperature</div><div id="bar"></div><div id="lr"><span id="lo"></span><span id="hi"></span></div></div>
 <div id="tip"></div>
 
@@ -285,9 +315,11 @@ function syncSensors() {
     s.markerTarget = wv == null ? null : 3 + clamp((wv - lo) / (hi - lo || 1), 0, 1) * 30;
   });
   for (const [eui, s] of sensors) {
-    if (!seen.has(eui)) { sensorGroup.remove(s.mesh); sensorGroup.remove(s.cap); sensors.delete(eui); }
+    if (!seen.has(eui)) { sensorGroup.remove(s.mesh); sensorGroup.remove(s.cap); if (s.label) s.label.remove(); sensors.delete(eui); }
   }
   refreshHeights();
+  syncLabels();
+  syncList();
 }
 
 function refreshHeights() {
@@ -298,6 +330,123 @@ function refreshHeights() {
   }
   for (const b of buoys) b.mesh.position.y = b.h / 2;
 }
+
+/* ---------- numbers on the columns and the sensor list ---------- */
+const labelsEl = $('labels');
+const fmt = (v) => Math.round(v * 10) / 10;
+const unitOf = (m) => (state.cfg && state.cfg.names[m] ? state.cfg.names[m][1] : '');
+const nameOf = (m) => (state.cfg && state.cfg.names[m] ? state.cfg.names[m][0] : 'Measurement ' + m);
+const cssColor = (c) => `rgb(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)})`;
+const valueText = (s) => (!s.d.online ? 'offline' : s.v == null ? 'no reading' : `${fmt(s.v)} ${unitOf(state.mid)}`.trim());
+function labelParts(s, mode) {
+  const live = s.d.online && s.v != null;
+  let extra = '';
+  if (mode === 'diff' && live && s.wv != null) extra = `${s.v - s.wv > 0 ? '+' : ''}${fmt(s.v - s.wv)} vs model`;
+  return { name: mode === 'name' ? s.d.name : '', value: valueText(s), extra, live };
+}
+function syncLabels() {
+  const mode = $('labelMode').value;
+  for (const [eui, s] of sensors) {
+    if (mode === 'off') { if (s.label) { s.label.remove(); s.label = null; } continue; }
+    if (!s.label) {
+      s.label = document.createElement('div');
+      s.label.className = 'lb';
+      labelsEl.appendChild(s.label);
+    }
+    const parts = labelParts(s, mode);
+    s.label.textContent = '';
+    if (parts.name) { const b = document.createElement('b'); b.textContent = parts.name; s.label.appendChild(b); }
+    s.label.appendChild(document.createTextNode(parts.value));
+    if (parts.extra) { const i = document.createElement('i'); i.textContent = parts.extra; s.label.appendChild(i); }
+    s.label.classList.toggle('off', !parts.live);
+    s.label.style.setProperty('--c', parts.live ? cssColor(s.tcolor) : '#777');
+    s.label.dataset.eui = eui;
+  }
+}
+const tmpV = new THREE.Vector3();
+function placeLabels() {
+  const show = $('lSensor').checked && $('labelMode').value !== 'off';
+  const w = innerWidth, h = innerHeight;
+  for (const s of sensors.values()) {
+    if (!s.label) continue;
+    tmpV.set(toX(s.lng), s.baseY + Math.max(s.h, s.cap.visible ? s.markerH : 0) + 2, toZ(s.lat)).project(camera);
+    const inView = show && tmpV.z > -1 && tmpV.z < 1 && Math.abs(tmpV.x) < 1.15 && tmpV.y > -1.1 && tmpV.y < 1.1;
+    if (!inView) { s.label.style.display = 'none'; continue; }
+    s.label.style.display = 'block';
+    s.label.style.transform = `translate(${((tmpV.x + 1) / 2) * w}px, ${((1 - tmpV.y) / 2) * h}px) translate(-50%, -100%)`;
+    s.label.style.zIndex = String(Math.round((1 - tmpV.z) * 1000));   // nearer labels on top
+    s.label.classList.toggle('hot', s.d.eui === selEui);
+  }
+}
+let selEui = null, lastRows = '';
+function rowsFor(sort) {
+  const list = [...sensors.values()];
+  const live = list.filter((s) => s.d.online && s.v != null);
+  const rest = list.filter((s) => !(s.d.online && s.v != null));
+  const byName = (a, b) => a.d.name.localeCompare(b.d.name);
+  if (sort === 'name') list.sort(byName);
+  else { live.sort((a, b) => (sort === 'low' ? a.v - b.v : b.v - a.v) || byName(a, b)); rest.sort(byName); }
+  return sort === 'name' ? list : [...live, ...rest];
+}
+function syncList() {
+  $('listT').textContent = `Sensors: ${nameOf(state.mid)}`;
+  const rows = $('rows');
+  const sig = [selEui, $('listSort').value, state.mid, ...rowsFor($('listSort').value).map((s) => `${s.d.eui}|${s.d.name}|${valueText(s)}|${s.d.online}|${cssColor(s.tcolor)}`),
+    ...state.devices.filter((d) => !sensors.has(d.eui)).map((d) => d.eui)].join('~');
+  if (sig === lastRows) return;
+  lastRows = sig;
+  rows.textContent = '';
+  rowsFor($('listSort').value).forEach((s) => {
+    const r = document.createElement('div');
+    r.className = 'row' + (s.d.eui === selEui ? ' sel' : '');
+    r.dataset.eui = s.d.eui;
+    r.style.setProperty('--c', s.d.online && s.v != null ? cssColor(s.tcolor) : '#777');
+    const dot = document.createElement('span'); dot.className = 'dot';
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = s.d.name;
+    const vl = document.createElement('span'); vl.className = 'vl'; vl.textContent = valueText(s);
+    r.append(dot, nm, vl);
+    rows.appendChild(r);
+  });
+  state.devices.filter((d) => !sensors.has(d.eui)).forEach((d) => {
+    const r = document.createElement('div');
+    r.className = 'row none';
+    r.title = 'No GPS position yet';
+    const dot = document.createElement('span'); dot.className = 'dot';
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = d.name;
+    const vl = document.createElement('span'); vl.className = 'vl'; vl.textContent = 'no position';
+    r.append(dot, nm, vl);
+    rows.appendChild(r);
+  });
+}
+let fly = null;
+function flyTo(eui) {
+  const s = sensors.get(eui);
+  if (!s) return;
+  selEui = eui;
+  const target = new THREE.Vector3(toX(s.lng), s.baseY + s.target * 0.5, toZ(s.lat));
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  dir.y = clamp(dir.y, 0.4, 0.8);
+  dir.normalize();
+  fly = { at: performance.now(), dur: 1300, p0: camera.position.clone(), p1: target.clone().addScaledVector(dir, 55), t0: controls.target.clone(), t1: target };
+  lastRows = '';
+  syncList();
+}
+function stepFly(now) {
+  if (!fly) return;
+  const f = clamp((now - fly.at) / fly.dur, 0, 1);
+  const e = f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+  camera.position.lerpVectors(fly.p0, fly.p1, e);
+  controls.target.lerpVectors(fly.t0, fly.t1, e);
+  if (f >= 1) fly = null;
+}
+controls.addEventListener('start', () => { fly = null; if (selEui) { selEui = null; lastRows = ''; syncList(); } });
+$('rows').addEventListener('click', (e) => {
+  const row = e.target.closest('.row');
+  if (row && row.dataset.eui && sensors.has(row.dataset.eui)) flyTo(row.dataset.eui);
+});
+$('listSort').addEventListener('change', syncList);
+$('labelMode').addEventListener('change', () => { syncLabels(); });
+$('lList').addEventListener('change', () => { $('list').style.display = $('lList').checked ? '' : 'none'; });
 
 /* ---------- sea buoys ---------- */
 const seaGroup = new THREE.Group();
@@ -493,7 +642,9 @@ function frame() {
   seaGroup.visible = $('lSea').checked;
   if (windLines.visible) stepWind(dt);
   if (cloudGroup.visible) stepRain(dt);
+  stepFly(performance.now());
   controls.update();
+  placeLabels();
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
