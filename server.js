@@ -254,9 +254,23 @@ const SEA_POINTS = [
 ];
 
 async function omJson(url) {
-  const r = await fetch(url, { signal: AbortSignal.timeout(25000) });
-  if (!r.ok) throw new Error(`Open-Meteo returned HTTP ${r.status}`);
-  return r.json();
+  let lastErr;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(25000) });
+      if (r.ok) return await r.json();
+      lastErr = new Error(`Open-Meteo returned HTTP ${r.status}`);
+      lastErr.status = r.status;
+      if (r.status !== 429 && r.status < 500) throw lastErr;
+      const ra = Number(r.headers.get('retry-after'));
+      await new Promise((ok) => setTimeout(ok, (isFinite(ra) && ra > 0 ? Math.min(ra, 30) : 3 * 2 ** attempt) * 1000));
+    } catch (e) {
+      if (e === lastErr && lastErr.status && lastErr.status !== 429 && lastErr.status < 500) throw e;
+      lastErr = e;
+      await new Promise((ok) => setTimeout(ok, 3000));
+    }
+  }
+  throw lastErr;
 }
 const asArray = (j) => (Array.isArray(j) ? j : [j]);
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -281,34 +295,67 @@ function mockElevation(lat, lng) {
   return 5 + tro + kyr;
 }
 
-function terrain() {
-  return cached('terrain', 24 * 3600000, async () => {
-    const rows = Math.round((B.lat1 - B.lat0) / B.step) + 1;
-    const cols = Math.round((B.lng1 - B.lng0) / B.step) + 1;
-    const lats = [];
-    const lngs = [];
+const TERRAIN_STEP = 0.05;
+const T = { done: null, elev: null, next: 0, running: false, error: null, retryAt: 0, lats: [], lngs: [], rows: 0, cols: 0 };
+
+function prepareTerrain() {
+  T.rows = Math.round((B.lat1 - B.lat0) / TERRAIN_STEP) + 1;
+  T.cols = Math.round((B.lng1 - B.lng0) / TERRAIN_STEP) + 1;
+  T.lats = [];
+  T.lngs = [];
+  for (let r = 0; r < T.rows; r++) {
+    for (let c = 0; c < T.cols; c++) {
+      T.lats.push(r2(B.lat0 + r * TERRAIN_STEP));
+      T.lngs.push(r2(B.lng0 + c * TERRAIN_STEP));
+    }
+  }
+  T.elev = new Array(T.rows * T.cols).fill(0);
+  T.next = 0;
+}
+
+async function terrainJob() {
+  T.running = true;
+  T.error = null;
+  try {
+    while (T.next < T.lats.length) {
+      const i = T.next;
+      const j = await omJson(
+        `https://api.open-meteo.com/v1/elevation?latitude=${T.lats.slice(i, i + 100).join(',')}&longitude=${T.lngs.slice(i, i + 100).join(',')}`
+      );
+      (j.elevation || []).forEach((v, k) => {
+        const n = Number(v);
+        T.elev[i + k] = isFinite(n) && n > 0 ? n : 0;
+      });
+      T.next = i + 100;
+      await new Promise((ok) => setTimeout(ok, 1500));
+    }
+    T.done = {
+      rows: T.rows, cols: T.cols, lat0: B.lat0, lat1: B.lat1, lng0: B.lng0, lng1: B.lng1,
+      elev: T.elev.map((v) => Math.round(v)), mock: false,
+    };
+  } catch (e) {
+    T.error = e.message;
+    T.retryAt = Date.now() + 30000;
+    console.warn('Terrain download paused:', e.message);
+  } finally {
+    T.running = false;
+  }
+}
+
+function terrainStatus() {
+  if (MOCK) {
+    const rows = Math.round((B.lat1 - B.lat0) / TERRAIN_STEP) + 1;
+    const cols = Math.round((B.lng1 - B.lng0) / TERRAIN_STEP) + 1;
+    const elev = [];
     for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        lats.push(r2(B.lat0 + r * B.step));
-        lngs.push(r2(B.lng0 + c * B.step));
-      }
+      for (let c = 0; c < cols; c++) elev.push(Math.round(mockElevation(B.lat0 + r * TERRAIN_STEP, B.lng0 + c * TERRAIN_STEP)));
     }
-    let elev = new Array(rows * cols).fill(0);
-    if (MOCK) {
-      elev = lats.map((la, i) => mockElevation(la, lngs[i]));
-    } else {
-      for (let i = 0; i < lats.length; i += 100) {
-        const j = await omJson(
-          `https://api.open-meteo.com/v1/elevation?latitude=${lats.slice(i, i + 100).join(',')}&longitude=${lngs.slice(i, i + 100).join(',')}`
-        );
-        (j.elevation || []).forEach((v, k) => {
-          const n = Number(v);
-          elev[i + k] = isFinite(n) && n > 0 ? n : 0;
-        });
-      }
-    }
-    return { rows, cols, lat0: B.lat0, lat1: B.lat1, lng0: B.lng0, lng1: B.lng1, elev: elev.map((v) => Math.round(v)), mock: MOCK };
-  });
+    return { ready: true, data: { rows, cols, lat0: B.lat0, lat1: B.lat1, lng0: B.lng0, lng1: B.lng1, elev, mock: true } };
+  }
+  if (T.done) return { ready: true, data: T.done };
+  if (!T.elev) prepareTerrain();
+  if (!T.running && Date.now() >= T.retryAt) terrainJob();
+  return { ready: false, progress: Math.min(1, T.next / T.lats.length), error: T.error };
 }
 
 function mockWeather(p, i) {
@@ -422,7 +469,11 @@ const server = http.createServer(async (req, res) => {
       if (!dev) return sendJson(res, 404, { error: 'Unknown device' });
       return sendJson(res, 200, await liveSeries(eui, mid, dev.channelOf[mid] || 1, days));
     }
-    const extra = { '/api/terrain': terrain, '/api/weather': weather, '/api/air': air, '/api/sea': sea }[url.pathname];
+    if (url.pathname === '/api/terrain') {
+      const st = terrainStatus();
+      return st.ready ? sendJson(res, 200, st.data) : sendJson(res, 202, { loading: true, progress: st.progress, error: st.error });
+    }
+    const extra = { '/api/weather': weather, '/api/air': air, '/api/sea': sea }[url.pathname];
     if (extra) return sendJson(res, 200, await extra());
     let file = url.pathname === '/' ? '/index.html' : url.pathname;
     const full = path.join(__dirname, 'public', path.normalize(file));
@@ -445,5 +496,8 @@ const server = http.createServer(async (req, res) => {
 });
 
 loadMeasurementNames().finally(() => {
-  server.listen(PORT, () => console.log(`Dashboard on port ${PORT}${DEMO ? ' (demo data)' : ''}`));
+  server.listen(PORT, () => {
+    console.log(`Dashboard on port ${PORT}${DEMO ? ' (demo data)' : ''}`);
+    if (!MOCK) terrainStatus();
+  });
 });

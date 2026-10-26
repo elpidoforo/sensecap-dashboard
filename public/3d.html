@@ -548,10 +548,23 @@ document.querySelectorAll('input[name=surf]').forEach((r) => r.addEventListener(
 $('measure').addEventListener('change', (e) => { state.mid = e.target.value; for (const s of sensors.values()) s.markerH = 0; syncSensors(); });
 $('exag').addEventListener('input', (e) => { state.exag = Number(e.target.value); applyExaggeration(); });
 
+async function loadTerrain() {
+  for (;;) {
+    const r = await fetch('/api/terrain');
+    const j = await r.json();
+    if (r.status === 200) return j;
+    if (r.status !== 202) throw new Error(j.error || 'Request failed');
+    const pct = Math.round((j.progress || 0) * 100);
+    $('msg').innerHTML = `Building the island from elevation data… ${pct}%` +
+      (j.error ? `<div id="err">Open-Meteo asked us to slow down (${j.error}). Retrying automatically.</div>` : '');
+    await new Promise((ok) => setTimeout(ok, 4000));
+  }
+}
+
 (async function start() {
   try {
     state.cfg = await getJson('/api/config');
-    state.terrain = await getJson('/api/terrain');
+    state.terrain = await loadTerrain();
   } catch (e) {
     $('msg').innerHTML = 'Could not load the island data.<div id="err">' + e.message + '</div><p><a href="/">Back to dashboard</a></p>';
     return;
