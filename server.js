@@ -472,6 +472,63 @@ function sea() {
   });
 }
 
+/* ---------- open data: Sensor.Community and airport weather (METAR) ---------- */
+
+const OPEN_BOUNDS = { lat0: 34.4, lat1: 35.9, lng0: 31.9, lng1: 34.9 };
+
+function openSensors() {
+  return cached('opensensors', 300000, async () => {
+    if (MOCK) {
+      return { points: [
+        { id: 'm1', lat: 34.92, lng: 33.62, pm25: 9.1, pm10: 18.4, temp: 28.1, hum: 52, time: new Date().toISOString() },
+        { id: 'm2', lat: 34.68, lng: 33.04, pm25: 12.5, pm10: 24, temp: 27.2, hum: 58, time: new Date().toISOString() },
+      ], updated: new Date().toISOString() };
+    }
+    const r = await fetch('https://data.sensor.community/airrohr/v1/filter?area=35.0,33.25,150', { signal: AbortSignal.timeout(25000) });
+    if (!r.ok) throw new Error(`Sensor.Community returned HTTP ${r.status}`);
+    const rows = await r.json();
+    const byLoc = new Map();
+    for (const e of rows) {
+      const loc = e.location || {};
+      const lat = Number(loc.latitude), lng = Number(loc.longitude);
+      if (!isFinite(lat) || !isFinite(lng)) continue;
+      if (lat < OPEN_BOUNDS.lat0 || lat > OPEN_BOUNDS.lat1 || lng < OPEN_BOUNDS.lng0 || lng > OPEN_BOUNDS.lng1) continue;
+      const p = byLoc.get(loc.id) || { id: String(loc.id), lat, lng, pm25: null, pm10: null, temp: null, hum: null, time: e.timestamp };
+      for (const v of e.sensordatavalues || []) {
+        const n = Number(v.value);
+        if (!isFinite(n)) continue;
+        // volunteer sensors sometimes report garbage, so keep only plausible values
+        if (v.value_type === 'P2' && n >= 0 && n <= 1000) p.pm25 = n;
+        else if (v.value_type === 'P1' && n >= 0 && n <= 2000) p.pm10 = n;
+        else if (v.value_type === 'temperature' && n > -30 && n < 60) p.temp = n;
+        else if (v.value_type === 'humidity' && n >= 0 && n <= 100) p.hum = n;
+      }
+      byLoc.set(loc.id, p);
+    }
+    return { points: [...byLoc.values()], updated: new Date().toISOString() };
+  });
+}
+
+const AIRPORTS = { LCLK: 'Larnaca airport', LCPH: 'Paphos airport', LCEN: 'Ercan airport', LCRA: 'Akrotiri air base' };
+function metar() {
+  return cached('metar', 600000, async () => {
+    if (MOCK) {
+      return { points: [{ id: 'LCLK', name: 'Larnaca airport', lat: 34.88, lng: 33.62, temp: 29, ws: 4.1, wd: 250, time: new Date().toISOString() }], updated: new Date().toISOString() };
+    }
+    const r = await fetch(`https://aviationweather.gov/api/data/metar?ids=${Object.keys(AIRPORTS).join(',')}&format=json`, { signal: AbortSignal.timeout(25000) });
+    if (!r.ok) throw new Error(`Airport weather returned HTTP ${r.status}`);
+    const rows = await r.json();
+    const points = (Array.isArray(rows) ? rows : []).filter((m) => isFinite(Number(m.lat)) && isFinite(Number(m.lon))).map((m) => ({
+      id: m.icaoId, name: AIRPORTS[m.icaoId] || m.icaoId, lat: Number(m.lat), lng: Number(m.lon),
+      temp: m.temp == null ? null : Number(m.temp),
+      ws: m.wspd == null ? null : Math.round(Number(m.wspd) * 0.5144 * 10) / 10,
+      wd: typeof m.wdir === 'number' ? m.wdir : null,
+      time: m.obsTime ? new Date(Number(m.obsTime) * 1000).toISOString() : null,
+    }));
+    return { points, updated: new Date().toISOString() };
+  });
+}
+
 /* ---------- http ---------- */
 
 function sendJson(res, status, obj) {
@@ -520,7 +577,7 @@ const server = http.createServer(async (req, res) => {
       const st = terrainStatus();
       return st.ready ? sendJson(res, 200, st.data) : sendJson(res, 202, { loading: true, progress: st.progress, error: st.error });
     }
-    const extra = { '/api/weather': weather, '/api/air': air, '/api/sea': sea }[url.pathname];
+    const extra = { '/api/weather': weather, '/api/air': air, '/api/sea': sea, '/api/opensensors': openSensors, '/api/metar': metar }[url.pathname];
     if (extra) return sendJson(res, 200, await extra());
     let file = url.pathname === '/' ? '/index.html' : url.pathname;
     const full = path.join(__dirname, 'public', path.normalize(file));
@@ -545,6 +602,5 @@ const server = http.createServer(async (req, res) => {
 loadMeasurementNames().finally(() => {
   server.listen(PORT, () => {
     console.log(`Dashboard on port ${PORT}${DEMO ? ' (demo data)' : ''}`);
-    if (!MOCK) terrainStatus();
   });
 });

@@ -38,3 +38,28 @@ Never commit real keys. `.env` is ignored by git.
 Outside data comes from [Open-Meteo](https://open-meteo.com) (free, no key, non-commercial use): elevation, weather, air quality and marine conditions. Sensors are compared with the weather model for temperature and humidity.
 
 `OPEN_METEO_MOCK=1` serves synthetic terrain and weather for offline testing only.
+
+## Layered map
+
+`/map.html` is a real map (MapLibre GL JS) with layers that can be switched on and off, each with its own source and last-update time in the Data status box:
+
+| Layer | Source |
+| --- | --- |
+| Map, Terrain, Dark basemaps | OpenStreetMap, OpenTopoMap, CARTO |
+| Satellite basemaps | Sentinel-2 cloudless by EOX, Esri World Imagery |
+| 3D terrain and hillshade | AWS Terrain Tiles (Mapzen) |
+| Roads overlay, place names | OpenStreetMap, CARTO labels |
+| Our sensors (dots and 3D columns, 24 h history, comparison with the weather model) | SenseCAP |
+| Temperature, humidity, cloud, rain, PM2.5, dust surface; wind arrows | Open-Meteo |
+| Open air sensors (PM2.5, PM10, temperature, humidity) | Sensor.Community volunteers |
+| Airport stations (temperature, wind) | aviationweather.gov METAR |
+| Sea temperature and waves | Open-Meteo marine |
+| True colour photo, land surface temperature, aerosols (any date) | NASA GIBS |
+
+Click one of our sensors for its detail card: current value, the weather model value for the same place, the nearest airport and the nearest open sensor.
+
+Notes:
+
+- Check each provider's terms before using the map outside a classroom (Esri imagery, OpenStreetMap tile servers and Open-Meteo all have fair-use limits).
+- A failing source shows an error line in Data status and the other layers keep working.
+- The map loads MapLibre from unpkg and tiles from the providers above, so the browser needs internet access to those hosts.

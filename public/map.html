@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sensor map</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+  :root { --card: rgba(255,255,255,.94); --ink: #1c1c1a; --ink2: #5c5b57; --line: rgba(0,0,0,.14); --acc: #2a78d6; --accbg: #e6f1fb; --ok: #0f7b3f; --bad: #b3261e; }
+  @media (prefers-color-scheme: dark) { :root { --card: rgba(28,28,26,.94); --ink: #f0efec; --ink2: #b4b2a9; --line: rgba(255,255,255,.16); --accbg: #12304f; --ok: #4cc27f; --bad: #f2877f; } }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); }
+  #map { position: fixed; inset: 0; }
+  .panel { position: fixed; z-index: 3; background: var(--card); border: 0.5px solid var(--line); border-radius: 10px; backdrop-filter: blur(6px); }
+  #layers { top: 12px; left: 12px; width: 264px; max-height: calc(100% - 96px); overflow: auto; padding: 10px 12px; }
+  #layers.closed .body { display: none; }
+  .head { display: flex; align-items: center; gap: 8px; }
+  .head h1 { font-size: 15px; font-weight: 500; margin: 0; flex: 1; }
+  .live { font-size: 11px; padding: 1px 8px; border-radius: 10px; background: #12351f; color: #6fe3a0; }
+  .live.stale { background: #3a2f10; color: #f3d68a; }
+  .nav a { color: var(--acc); text-decoration: none; margin-right: 10px; }
+  h2 { font-size: 11px; font-weight: 500; color: var(--ink2); text-transform: uppercase; letter-spacing: .04em; margin: 12px 0 3px; }
+  label { display: flex; align-items: flex-start; gap: 7px; padding: 2px 0; cursor: pointer; }
+  label small { display: block; color: var(--ink2); font-size: 11px; }
+  select, input[type=date] { width: 100%; background: transparent; color: inherit; border: 0.5px solid var(--line); border-radius: 6px; padding: 4px 6px; font: inherit; }
+  input[type=range] { width: 100%; }
+  #base { top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; padding: 3px; }
+  #base button { border: 0; background: transparent; color: var(--ink2); padding: 5px 10px; border-radius: 7px; font: inherit; cursor: pointer; }
+  #base button.on { background: var(--accbg); color: var(--acc); }
+  #legend { left: 12px; bottom: 12px; width: 264px; padding: 8px 12px; }
+  #legend .bar { height: 8px; border-radius: 4px; margin: 4px 0 2px; }
+  #legend .row { display: flex; justify-content: space-between; color: var(--ink2); font-size: 12px; }
+  #detail { top: 56px; right: 12px; width: 280px; max-height: calc(100% - 80px); overflow: auto; padding: 10px 12px; display: none; }
+  #detail .x { float: right; cursor: pointer; color: var(--ink2); border: 0; background: none; font-size: 16px; }
+  #detail .big { font-size: 24px; font-weight: 500; }
+  #detail table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  #detail td { padding: 2px 0; border-top: 0.5px solid var(--line); }
+  #detail td:last-child { text-align: right; }
+  .cmp { color: var(--ink2); margin-top: 6px; }
+  .st { font-size: 12px; color: var(--ink2); }
+  .st .e { color: var(--bad); }
+  #toggle { display: none; }
+  .maplibregl-popup-content { font: 12px/1.4 system-ui, sans-serif; color: #1c1c1a; }
+  @media (max-width: 700px) {
+    #layers { width: calc(100% - 24px); max-height: 52%; }
+    #base { top: auto; bottom: 12px; left: 12px; transform: none; right: 12px; justify-content: center; }
+    #legend { display: none; }
+    #detail { top: auto; bottom: 64px; left: 12px; right: 12px; width: auto; max-height: 40%; }
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div class="panel" id="layers">
+  <div class="head"><h1>Sensor map</h1><span class="live stale" id="live">Waiting</span><button id="fold" style="border:0;background:none;color:inherit;cursor:pointer;font-size:16px" aria-label="Show or hide layers">&#9776;</button></div>
+  <div class="body">
+    <div class="nav"><a href="/">Dashboard</a><a href="/3d.html">3D island</a></div>
+
+    <h2>Our sensors</h2>
+    <label><input type="checkbox" id="lDots" checked><span>Sensor dots</span></label>
+    <label><input type="checkbox" id="lCols" checked><span>3D columns<small>Height shows the value. Tilt the map to see them.</small></span></label>
+    <select id="measure" aria-label="Measurement"></select>
+
+    <h2>Map</h2>
+    <label><input type="checkbox" id="lTerrain" checked><span>3D terrain</span></label>
+    <input type="range" id="exag" min="0.5" max="4" step="0.1" value="1.5" aria-label="Terrain height">
+    <label><input type="checkbox" id="lHill" checked><span>Hillshade</span></label>
+    <label><input type="checkbox" id="lRoads"><span>Roads overlay<small>OpenStreetMap, useful on satellite</small></span></label>
+    <label><input type="checkbox" id="lLabels"><span>Place names</span></label>
+
+    <h2>Weather surface</h2>
+    <label><input type="radio" name="surf" value="off" checked><span>Off</span></label>
+    <label><input type="radio" name="surf" value="t"><span>Temperature<small>Open-Meteo model</small></span></label>
+    <label><input type="radio" name="surf" value="rh"><span>Humidity</span></label>
+    <label><input type="radio" name="surf" value="cloud"><span>Cloud cover</span></label>
+    <label><input type="radio" name="surf" value="rain"><span>Rain</span></label>
+    <label><input type="radio" name="surf" value="pm25"><span>PM2.5<small>Open-Meteo air quality</small></span></label>
+    <label><input type="radio" name="surf" value="dust"><span>Dust</span></label>
+    <input type="range" id="surfOp" min="0.1" max="1" step="0.05" value="0.6" aria-label="Surface opacity">
+    <label><input type="checkbox" id="lWind" checked><span>Wind arrows</span></label>
+
+    <h2>Open data</h2>
+    <label><input type="checkbox" id="lOpen" checked><span>Open air sensors<small>Sensor.Community volunteers</small></span></label>
+    <label><input type="checkbox" id="lMetar" checked><span>Airport stations<small>Aviation weather (METAR)</small></span></label>
+    <label><input type="checkbox" id="lSea" checked><span>Sea conditions<small>Open-Meteo marine</small></span></label>
+
+    <h2>NASA satellite</h2>
+    <label><input type="radio" name="nasa" value="off" checked><span>Off</span></label>
+    <label><input type="radio" name="nasa" value="rgb"><span>True colour photo</span></label>
+    <label><input type="radio" name="nasa" value="lst"><span>Land surface temperature</span></label>
+    <label><input type="radio" name="nasa" value="aod"><span>Aerosols (dust and haze)</span></label>
+    <input type="date" id="nasaDate" aria-label="Satellite date">
+    <input type="range" id="nasaOp" min="0.1" max="1" step="0.05" value="0.8" aria-label="Satellite opacity">
+
+    <h2>Data status</h2>
+    <div class="st" id="status"></div>
+  </div>
+</div>
+
+<div class="panel" id="base">
+  <button data-b="osm" class="on">Map</button><button data-b="eox">Satellite</button><button data-b="esri">Satellite HD</button><button data-b="topo">Terrain</button><button data-b="dark">Dark</button>
+</div>
+
+<div class="panel" id="legend"><div id="lgT"></div><div class="bar" id="lgBar"></div><div class="row"><span id="lgLo"></span><span id="lgHi"></span></div></div>
+<div class="panel" id="detail"></div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const state = { cfg: null, devices: [], latest: {}, weather: null, air: null, sea: null, open: null, metar: null, mid: '4097', lastOk: {}, errors: {}, selected: null };
+const BOUNDS = { w: 31.9, e: 34.9, s: 34.3, n: 35.95 };
+
+/* ---------- colours ---------- */
+const TEMP = [[0, [42, 120, 214]], [0.35, [27, 175, 122]], [0.65, [237, 161, 0]], [1, [227, 73, 72]]];
+const SCALES = {
+  t: { stops: TEMP, unit: '°C', name: 'Temperature (model)', range: () => { const v = state.weather ? state.weather.points.map((p) => p.t) : [10, 35]; return [Math.floor(Math.min(...v)), Math.ceil(Math.max(...v))]; } },
+  rh: { stops: [[0, [237, 161, 0]], [0.5, [27, 175, 122]], [1, [42, 120, 214]]], unit: '%', name: 'Humidity (model)', range: () => [0, 100] },
+  cloud: { stops: [[0, [255, 255, 255]], [1, [255, 255, 255]]], unit: '%', name: 'Cloud cover (model)', range: () => [0, 100], alpha: (t) => t * 0.9 },
+  rain: { stops: [[0, [120, 180, 255]], [1, [30, 70, 200]]], unit: 'mm', name: 'Rain (model)', range: () => [0, 2], alpha: (t) => Math.min(1, t * 1.4) },
+  pm25: { stops: [[0, [27, 175, 122]], [0.4, [237, 161, 0]], [1, [227, 73, 72]]], unit: 'µg/m³', name: 'PM2.5 (model)', range: () => [0, 35] },
+  dust: { stops: [[0, [27, 175, 122]], [0.4, [237, 161, 0]], [1, [150, 60, 40]]], unit: 'µg/m³', name: 'Dust (model)', range: () => [0, 200] },
+};
+function rampAt(stops, t) {
+  t = clamp(t, 0, 1);
+  for (let i = 1; i < stops.length; i++) {
+    if (t <= stops[i][0]) {
+      const [t0, c0] = stops[i - 1], [t1, c1] = stops[i];
+      const f = (t - t0) / (t1 - t0 || 1);
+      return c0.map((v, k) => Math.round(v + (c1[k] - v) * f));
+    }
+  }
+  return stops[stops.length - 1][1].slice();
+}
+const rgb = (c) => `rgb(${c[0]},${c[1]},${c[2]})`;
+function gradientCss(stops) { return 'linear-gradient(90deg,' + [0, 0.25, 0.5, 0.75, 1].map((q) => rgb(rampAt(stops, q))).join(',') + ')'; }
+
+/* ---------- helpers ---------- */
+function sampleGrid(grid, field, lat, lng) {
+  if (!grid) return null;
+  const fy = clamp((lat - grid.lat0) / grid.latStep, 0, grid.rows - 1);
+  const fx = clamp((lng - grid.lng0) / grid.lngStep, 0, grid.cols - 1);
+  const r0 = Math.floor(fy), c0 = Math.floor(fx), r1 = Math.min(r0 + 1, grid.rows - 1), c1 = Math.min(c0 + 1, grid.cols - 1);
+  const ty = fy - r0, tx = fx - c0;
+  const g = (r, c) => grid.points[r * grid.cols + c][field];
+  const a = g(r0, c0), b = g(r0, c1), c = g(r1, c0), d = g(r1, c1);
+  if ([a, b, c, d].some((v) => v == null || isNaN(v))) return null;
+  return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
+}
+const km = (a, b) => {
+  const R = 6371, toR = Math.PI / 180;
+  const dLa = (b[0] - a[0]) * toR, dLn = (b[1] - a[1]) * toR;
+  const h = Math.sin(dLa / 2) ** 2 + Math.cos(a[0] * toR) * Math.cos(b[0] * toR) * Math.sin(dLn / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+};
+const r1 = (n) => Math.round(n * 10) / 10;
+const ago = (iso) => {
+  if (!iso) return 'no data';
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return m + ' min ago';
+  if (m < 1440) return Math.round(m / 60) + ' h ago';
+  return Math.round(m / 1440) + ' d ago';
+};
+const nameOf = (m) => (state.cfg.names[m] ? state.cfg.names[m][0] : 'Measurement ' + m);
+const unitOf = (m) => (state.cfg.names[m] ? state.cfg.names[m][1] : '');
+async function getJson(url) {
+  const r = await fetch(url);
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || 'Request failed');
+  return j;
+}
+const EMPTY = { type: 'FeatureCollection', features: [] };
+const pt = (lng, lat, props) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] }, properties: props });
+
+/* ---------- map style ---------- */
+const OSM_ATTR = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+const style = {
+  version: 8,
+  glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+  sources: {
+    osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: OSM_ATTR },
+    eox: { type: 'raster', tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2021_3857/default/g/{z}/{y}/{x}.jpg'], tileSize: 256, maxzoom: 13, attribution: 'Sentinel-2 cloudless by <a href="https://s2maps.eu">EOX</a> (contains modified Copernicus Sentinel data 2021)' },
+    esri: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, maxzoom: 18, attribution: 'Imagery © Esri, Maxar, Earthstar Geographics' },
+    topo: { type: 'raster', tiles: ['https://a.tile.opentopomap.org/{z}/{x}/{y}.png', 'https://b.tile.opentopomap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 17, attribution: '© OpenTopoMap (CC-BY-SA), OpenStreetMap contributors' },
+    dark: { type: 'raster', tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: '© CARTO, OpenStreetMap contributors' },
+    labels: { type: 'raster', tiles: ['https://a.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: '© CARTO' },
+    dem: { type: 'raster-dem', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 14, encoding: 'terrarium', attribution: 'Terrain: Mapzen / AWS Open Data' },
+  },
+  layers: [
+    { id: 'base-osm', type: 'raster', source: 'osm' },
+    { id: 'base-eox', type: 'raster', source: 'eox', layout: { visibility: 'none' } },
+    { id: 'base-esri', type: 'raster', source: 'esri', layout: { visibility: 'none' } },
+    { id: 'base-topo', type: 'raster', source: 'topo', layout: { visibility: 'none' } },
+    { id: 'base-dark', type: 'raster', source: 'dark', layout: { visibility: 'none' } },
+    { id: 'hillshade', type: 'hillshade', source: 'dem', paint: { 'hillshade-exaggeration': 0.45, 'hillshade-shadow-color': '#1a1a1a', 'hillshade-highlight-color': '#ffffff' } },
+    { id: 'roads', type: 'raster', source: 'osm', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.45 } },
+    { id: 'labels', type: 'raster', source: 'labels', layout: { visibility: 'none' } },
+  ],
+};
+const BASES = ['osm', 'eox', 'esri', 'topo', 'dark'];
+
+const map = new maplibregl.Map({
+  container: 'map', style, center: [33.25, 35.0], zoom: 8, pitch: 55, bearing: -8, maxPitch: 80,
+  attributionControl: { compact: true },
+});
+const mapErrors = new Set();
+map.on('error', (e) => {
+  const m = (e && e.error && e.error.message) || 'Map layer problem';
+  if (mapErrors.size < 3 && !mapErrors.has(m)) { mapErrors.add(m); state.errors.map = m.slice(0, 90); showStatus(); }
+});
+map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
+map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
+
+/* ---------- NASA GIBS ---------- */
+const GIBS = {
+  rgb: { layer: 'VIIRS_SNPP_CorrectedReflectance_TrueColor', set: 'GoogleMapsCompatible_Level9', ext: 'jpg', max: 9 },
+  lst: { layer: 'MODIS_Terra_Land_Surface_Temp_Day', set: 'GoogleMapsCompatible_Level7', ext: 'png', max: 7 },
+  aod: { layer: 'MODIS_Terra_Aerosol', set: 'GoogleMapsCompatible_Level6', ext: 'png', max: 6 },
+};
+function gibsUrl(k, date) {
+  const g = GIBS[k];
+  return `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${g.layer}/default/${date}/${g.set}/{z}/{y}/{x}.${g.ext}`;
+}
+function applyNasa() {
+  const sel = document.querySelector('input[name=nasa]:checked').value;
+  const date = $('nasaDate').value;
+  for (const k of Object.keys(GIBS)) {
+    const id = 'nasa-' + k;
+    if (map.getLayer(id)) map.removeLayer(id);
+    if (map.getSource(id)) map.removeSource(id);
+  }
+  if (sel === 'off' || !date) return;
+  const id = 'nasa-' + sel;
+  map.addSource(id, { type: 'raster', tiles: [gibsUrl(sel, date)], tileSize: 256, maxzoom: GIBS[sel].max, attribution: 'Imagery: NASA GIBS / EOSDIS' });
+  map.addLayer({ id, type: 'raster', source: id, paint: { 'raster-opacity': Number($('nasaOp').value) } }, 'surface-layer');
+}
+
+/* ---------- weather surface (canvas image) ---------- */
+const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+const invMerc = (y) => ((2 * Math.atan(Math.exp(y)) - Math.PI / 2) * 180) / Math.PI;
+const FIELD_BOX = { lat0: 34.5, lat1: 35.75, lng0: 32.3, lng1: 34.55 };
+function renderSurface() {
+  const kind = document.querySelector('input[name=surf]:checked').value;
+  const src = map.getSource('surface');
+  if (!src) return;
+  if (kind === 'off') {
+    map.setLayoutProperty('surface-layer', 'visibility', 'none');
+    $('lgT').textContent = 'Sensor columns';
+    return updateLegend();
+  }
+  const sc = SCALES[kind];
+  const grid = kind === 'pm25' || kind === 'dust' ? state.air : state.weather;
+  const field = kind;
+  if (!grid) { map.setLayoutProperty('surface-layer', 'visibility', 'none'); return updateLegend(); }
+  const [lo, hi] = sc.range();
+  const W = 200, H = 120;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  const img = ctx.createImageData(W, H);
+  const yTop = mercY(FIELD_BOX.lat1), yBot = mercY(FIELD_BOX.lat0);
+  for (let y = 0; y < H; y++) {
+    const lat = invMerc(yTop + (yBot - yTop) * (y / (H - 1)));
+    for (let x = 0; x < W; x++) {
+      const lng = FIELD_BOX.lng0 + (FIELD_BOX.lng1 - FIELD_BOX.lng0) * (x / (W - 1));
+      const v = sampleGrid(grid, field === 't' ? 't' : field, lat, lng);
+      const i = (y * W + x) * 4;
+      if (v == null) { img.data[i + 3] = 0; continue; }
+      const t = (v - lo) / (hi - lo || 1);
+      const c = rampAt(sc.stops, t);
+      img.data[i] = c[0]; img.data[i + 1] = c[1]; img.data[i + 2] = c[2];
+      img.data[i + 3] = Math.round(255 * (sc.alpha ? clamp(sc.alpha(clamp(t, 0, 1)), 0, 1) : 0.92));
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  src.updateImage({ url: cv.toDataURL('image/png'), coordinates: [[FIELD_BOX.lng0, FIELD_BOX.lat1], [FIELD_BOX.lng1, FIELD_BOX.lat1], [FIELD_BOX.lng1, FIELD_BOX.lat0], [FIELD_BOX.lng0, FIELD_BOX.lat0]] });
+  map.setLayoutProperty('surface-layer', 'visibility', 'visible');
+  map.setPaintProperty('surface-layer', 'raster-opacity', Number($('surfOp').value));
+  updateLegend();
+}
+
+/* ---------- sensors ---------- */
+const WEATHER_FIELD = { 4097: 't', 4098: 'rh' };
+function mRange(mid, vals) {
+  if (mid === '4097') return [10, 40];
+  if (mid === '4098') return [0, 100];
+  if (!vals.length) return [0, 1];
+  const lo = Math.min(...vals), hi = Math.max(...vals), pad = (hi - lo) * 0.1 || 1;
+  return [lo - pad, hi + pad];
+}
+function devicePos(d) {
+  const l = state.latest[d.eui] || {};
+  const [latId, lngId] = state.cfg.gps;
+  const lat = l[latId] ? Number(l[latId].v) : d.lat;
+  const lng = l[lngId] ? Number(l[lngId].v) : d.lng;
+  return isFinite(lat) && isFinite(lng) && lat && lng ? [lat, lng] : null;
+}
+function deviceValue(d) { const l = state.latest[d.eui]; return l && l[state.mid] ? l[state.mid].v : null; }
+function square(lng, lat, h) {
+  const dl = 0.0022, dn = dl / Math.cos((lat * Math.PI) / 180);
+  return [[lng - dn, lat - dl], [lng + dn, lat - dl], [lng + dn, lat + dl], [lng - dn, lat + dl], [lng - dn, lat - dl]];
+}
+function updateSensors() {
+  const vals = state.devices.map(deviceValue).filter((v) => v != null);
+  const [lo, hi] = mRange(state.mid, vals);
+  const dots = [], cols = [];
+  state.devices.forEach((d) => {
+    const p = devicePos(d);
+    if (!p) return;
+    const v = deviceValue(d);
+    const ok = d.online && v != null;
+    const t = ok ? (v - lo) / (hi - lo || 1) : 0;
+    const color = ok ? rgb(rampAt(TEMP, t)) : 'rgb(130,130,130)';
+    const props = { eui: d.eui, name: d.name, color, label: v == null ? d.name : `${r1(v)} ${unitOf(state.mid)}`.trim() };
+    dots.push(pt(p[1], p[0], props));
+    cols.push({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [square(p[1], p[0])] }, properties: { ...props, h: ok ? 600 + clamp(t, 0, 1) * 9000 : 200 } });
+  });
+  map.getSource('sensors').setData({ type: 'FeatureCollection', features: dots });
+  map.getSource('columns').setData({ type: 'FeatureCollection', features: cols });
+  updateLegend();
+  if (state.selected) showDetail(state.selected, false);
+}
+function updateLegend() {
+  const kind = document.querySelector('input[name=surf]:checked').value;
+  if (kind !== 'off') {
+    const sc = SCALES[kind], [lo, hi] = sc.range();
+    $('lgT').textContent = sc.name;
+    $('lgBar').style.background = gradientCss(sc.stops.length === 2 && kind === 'cloud' ? [[0, [20, 20, 20]], [1, [255, 255, 255]]] : sc.stops);
+    $('lgLo').textContent = `${lo} ${sc.unit}`; $('lgHi').textContent = `${hi} ${sc.unit}`;
+  } else {
+    const vals = state.devices.map(deviceValue).filter((v) => v != null);
+    const [lo, hi] = mRange(state.mid, vals);
+    $('lgT').textContent = `Our sensors: ${nameOf(state.mid)}`;
+    $('lgBar').style.background = gradientCss(TEMP);
+    $('lgLo').textContent = `${r1(lo)} ${unitOf(state.mid)}`; $('lgHi').textContent = `${r1(hi)} ${unitOf(state.mid)}`;
+  }
+}
+
+/* ---------- other data layers ---------- */
+function updateWeather() {
+  const w = state.weather;
+  if (!w) return;
+  map.getSource('wind').setData({ type: 'FeatureCollection', features: w.points.map((p) => pt(p.lng, p.lat, { ws: p.ws, to: ((p.wd + 180) % 360), t: p.t, label: `${r1(p.t)}°` })) });
+  renderSurface();
+  updateSensors();
+}
+function updateOpen() {
+  if (!state.open) return;
+  map.getSource('open').setData({ type: 'FeatureCollection', features: state.open.points.map((p) => pt(p.lng, p.lat, { ...p, label: p.pm25 != null ? `PM2.5 ${r1(p.pm25)}` : p.temp != null ? `${r1(p.temp)}°` : '' })) });
+}
+function updateMetar() {
+  if (!state.metar) return;
+  map.getSource('metar').setData({ type: 'FeatureCollection', features: state.metar.points.map((p) => pt(p.lng, p.lat, { ...p, label: p.temp != null ? `${r1(p.temp)}°` : p.id })) });
+}
+function updateSea() {
+  if (!state.sea) return;
+  map.getSource('sea').setData({ type: 'FeatureCollection', features: state.sea.points.filter((p) => p.sst != null).map((p) => pt(p.lng, p.lat, { ...p, label: `${r1(p.sst)}°` })) });
+}
+
+/* ---------- detail card ---------- */
+function nearest(list, lat, lng, ok) {
+  let best = null;
+  (list || []).forEach((p) => {
+    if (!ok(p)) return;
+    const d = km([lat, lng], [p.lat, p.lng]);
+    if (!best || d < best.d) best = { p, d };
+  });
+  return best;
+}
+async function showDetail(eui, fresh = true) {
+  const d = state.devices.find((x) => x.eui === eui);
+  if (!d) return;
+  state.selected = eui;
+  const pos = devicePos(d);
+  const l = state.latest[eui] || {};
+  const v = deviceValue(d);
+  let html = `<button class="x" id="dx" aria-label="Close">&times;</button><b>${d.name}</b><div class="st">${d.group} · <span style="color:${d.online ? 'var(--ok)' : 'var(--bad)'}">${d.online ? 'online' : 'offline'}</span> · ${ago(d.lastSeen)}${d.battery != null ? ' · battery ' + d.battery + '%' : ''}</div>`;
+  html += `<div class="big">${v == null ? '–' : r1(v) + ' ' + unitOf(state.mid)}</div><div class="st">${nameOf(state.mid)}</div>`;
+  const cmp = [];
+  if (pos && v != null) {
+    const wf = WEATHER_FIELD[state.mid];
+    const wv = wf ? sampleGrid(state.weather, wf, pos[0], pos[1]) : null;
+    if (wv != null) cmp.push(`Weather model: ${r1(wv)} ${unitOf(state.mid)} (difference ${v - wv > 0 ? '+' : ''}${r1(v - wv)})`);
+    if (state.mid === '4097') {
+      const m = nearest(state.metar && state.metar.points, pos[0], pos[1], (p) => p.temp != null);
+      if (m) cmp.push(`${m.p.name}: ${r1(m.p.temp)} °C, ${Math.round(m.d)} km away`);
+      const o = nearest(state.open && state.open.points, pos[0], pos[1], (p) => p.temp != null && km([pos[0], pos[1]], [p.lat, p.lng]) < 40);
+      if (o) cmp.push(`Open sensor ${o.p.id}: ${r1(o.p.temp)} °C, ${Math.round(o.d)} km away`);
+    }
+  }
+  if (cmp.length) html += '<div class="cmp">' + cmp.join('<br>') + '</div>';
+  html += '<div id="spark" class="st" style="margin-top:6px">Loading history…</div>';
+  const rows = Object.keys(l).filter((m) => !state.cfg.gps.includes(m)).map((m) => `<tr><td>${nameOf(m)}</td><td>${r1(l[m].v)} ${unitOf(m)}</td></tr>`).join('');
+  if (rows) html += `<table>${rows}</table>`;
+  html += `<p><a href="/#${eui}" style="color:var(--acc)">Open full history and CSV</a></p>`;
+  const box = $('detail');
+  box.innerHTML = html;
+  box.style.display = 'block';
+  $('dx').onclick = () => { box.style.display = 'none'; state.selected = null; };
+  if (fresh && pos) map.easeTo({ center: [pos[1], pos[0]], zoom: Math.max(map.getZoom(), 10), duration: 800 });
+  try {
+    const s = await getJson(`/api/series?eui=${eui}&mid=${state.mid}&days=1`);
+    if (state.selected !== eui || !$('spark')) return;
+    if (!s.length) { $('spark').textContent = 'No history in the last 24 hours.'; return; }
+    const ys = s.map((p) => p.v), mn = Math.min(...ys), mx = Math.max(...ys);
+    const pts = s.map((p, i) => `${(i / (s.length - 1 || 1)) * 250},${34 - ((p.v - mn) / (mx - mn || 1)) * 30}`).join(' ');
+    $('spark').innerHTML = `<svg viewBox="0 0 250 38" width="100%"><polyline points="${pts}" fill="none" stroke="#2a78d6" stroke-width="2"/></svg><div class="st">Last 24 hours: ${r1(mn)} to ${r1(mx)} ${unitOf(state.mid)}</div>`;
+  } catch (e) { if ($('spark')) $('spark').textContent = 'History unavailable.'; }
+}
+
+/* ---------- data loading ---------- */
+function showStatus() {
+  const items = [['sensors', 'Our sensors'], ['weather', 'Weather'], ['air', 'Air quality'], ['sea', 'Sea'], ['open', 'Open sensors'], ['metar', 'Airports']];
+  if (state.errors.map) items.push(['map', 'Map tiles']);
+  const countOf = { sensors: state.devices.length, open: state.open ? state.open.points.length : 0, metar: state.metar ? state.metar.points.length : 0, sea: state.sea ? state.sea.points.length : 0 };
+  $('status').innerHTML = items.map(([k, n]) => {
+    if (state.errors[k]) return `<div class="e">${n}: ${state.errors[k]}</div>`;
+    const t = state.lastOk[k] ? new Date(state.lastOk[k]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'waiting';
+    return `<div>${n}: ${t}${countOf[k] != null ? ' · ' + countOf[k] + ' found' : ''}</div>`;
+  }).join('') + (state.cfg && state.cfg.demo ? '<div>Demo sensors shown</div>' : '');
+  const stale = !state.lastOk.sensors || Date.now() - state.lastOk.sensors > 120000;
+  $('live').textContent = stale ? 'Waiting' : 'Live';
+  $('live').classList.toggle('stale', stale);
+}
+async function refresh(kind) {
+  try {
+    if (kind === 'sensors') {
+      [state.devices, state.latest] = await Promise.all([getJson('/api/devices'), getJson('/api/latest')]);
+      fillMeasures();
+      updateSensors();
+    } else {
+      const url = { weather: '/api/weather', air: '/api/air', sea: '/api/sea', open: '/api/opensensors', metar: '/api/metar' }[kind];
+      state[kind] = await getJson(url);
+      ({ weather: updateWeather, air: renderSurface, sea: updateSea, open: updateOpen, metar: updateMetar })[kind]();
+    }
+    state.lastOk[kind] = Date.now();
+    delete state.errors[kind];
+  } catch (e) {
+    state.errors[kind] = e.message;
+  }
+  showStatus();
+}
+function fillMeasures() {
+  const sel = $('measure');
+  const gps = state.cfg.gps;
+  const mids = [...new Set(state.devices.flatMap((d) => d.measurements))].filter((m) => !gps.includes(m));
+  const key = mids.join(',');
+  if (sel.dataset.key === key) return;
+  sel.dataset.key = key;
+  sel.innerHTML = mids.map((m) => `<option value="${m}">${nameOf(m)}${unitOf(m) ? ' (' + unitOf(m) + ')' : ''}</option>`).join('');
+  if (!mids.includes(state.mid)) state.mid = mids[0] || '4097';
+  sel.value = state.mid;
+}
+
+/* ---------- controls ---------- */
+function setBase(b) {
+  BASES.forEach((k) => map.setLayoutProperty('base-' + k, 'visibility', k === b ? 'visible' : 'none'));
+  document.querySelectorAll('#base button').forEach((x) => x.classList.toggle('on', x.dataset.b === b));
+  const sat = b === 'eox' || b === 'esri';
+  if (sat) { $('lRoads').checked = true; $('lLabels').checked = true; } else if (b === 'dark') { $('lLabels').checked = false; }
+  applyToggles();
+}
+function vis(id, on) { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'); }
+function applyToggles() {
+  vis('sensors-dots', $('lDots').checked); vis('sensors-labels', $('lDots').checked);
+  vis('columns', $('lCols').checked);
+  vis('hillshade', $('lHill').checked);
+  vis('roads', $('lRoads').checked); vis('labels', $('lLabels').checked);
+  vis('wind-arrows', $('lWind').checked);
+  vis('open-dots', $('lOpen').checked); vis('open-labels', $('lOpen').checked);
+  vis('metar-dots', $('lMetar').checked); vis('metar-labels', $('lMetar').checked);
+  vis('sea-dots', $('lSea').checked); vis('sea-labels', $('lSea').checked);
+  if ($('lTerrain').checked) map.setTerrain({ source: 'dem', exaggeration: Number($('exag').value) }); else map.setTerrain(null);
+}
+
+map.on('load', () => {
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  $('nasaDate').value = yesterday;
+  $('nasaDate').max = new Date().toISOString().slice(0, 10);
+
+  const blank = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+  map.addSource('surface', { type: 'image', url: blank, coordinates: [[FIELD_BOX.lng0, FIELD_BOX.lat1], [FIELD_BOX.lng1, FIELD_BOX.lat1], [FIELD_BOX.lng1, FIELD_BOX.lat0], [FIELD_BOX.lng0, FIELD_BOX.lat0]] });
+  map.addLayer({ id: 'surface-layer', type: 'raster', source: 'surface', layout: { visibility: 'none' }, paint: { 'raster-resampling': 'linear', 'raster-opacity': 0.6 } });
+
+  ['sensors', 'columns', 'wind', 'open', 'metar', 'sea'].forEach((s) => map.addSource(s, { type: 'geojson', data: EMPTY }));
+
+  const arrow = document.createElement('canvas');
+  arrow.width = 32; arrow.height = 32;
+  const a = arrow.getContext('2d');
+  a.fillStyle = '#ffffff'; a.strokeStyle = '#1c1c1a'; a.lineWidth = 2;
+  a.beginPath(); a.moveTo(16, 3); a.lineTo(26, 28); a.lineTo(16, 22); a.lineTo(6, 28); a.closePath(); a.fill(); a.stroke();
+  map.addImage('arrow', a.getImageData(0, 0, 32, 32));
+
+  const text = { 'text-font': ['Open Sans Regular'], 'text-size': 11, 'text-offset': [0, 1.4], 'text-anchor': 'top', 'text-optional': true };
+  const halo = { 'text-color': '#1c1c1a', 'text-halo-color': 'rgba(255,255,255,.9)', 'text-halo-width': 1.5 };
+
+  map.addLayer({ id: 'wind-arrows', type: 'symbol', source: 'wind', layout: { 'icon-image': 'arrow', 'icon-rotate': ['get', 'to'], 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-size': ['interpolate', ['linear'], ['get', 'ws'], 0, 0.45, 14, 1.1] }, paint: { 'icon-opacity': 0.85 } });
+  map.addLayer({ id: 'sea-dots', type: 'circle', source: 'sea', paint: { 'circle-radius': 7, 'circle-color': ['interpolate', ['linear'], ['get', 'sst'], 16, '#2a78d6', 22, '#1baf7a', 28, '#e34948'], 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5, 'circle-pitch-alignment': 'map' } });
+  map.addLayer({ id: 'sea-labels', type: 'symbol', source: 'sea', layout: { 'text-field': ['get', 'label'], ...text }, paint: halo });
+  map.addLayer({ id: 'open-dots', type: 'circle', source: 'open', paint: { 'circle-radius': 6, 'circle-color': ['case', ['!=', ['get', 'pm25'], null], ['interpolate', ['linear'], ['get', 'pm25'], 0, '#1baf7a', 15, '#eda100', 35, '#e34948'], '#9aa4b2'], 'circle-stroke-color': '#1c1c1a', 'circle-stroke-width': 1.5 } });
+  map.addLayer({ id: 'open-labels', type: 'symbol', source: 'open', layout: { 'text-field': ['get', 'label'], ...text }, paint: halo });
+  map.addLayer({ id: 'metar-dots', type: 'circle', source: 'metar', paint: { 'circle-radius': 7, 'circle-color': '#6250d6', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
+  map.addLayer({ id: 'metar-labels', type: 'symbol', source: 'metar', layout: { 'text-field': ['get', 'label'], ...text }, paint: halo });
+  map.addLayer({ id: 'columns', type: 'fill-extrusion', source: 'columns', paint: { 'fill-extrusion-color': ['get', 'color'], 'fill-extrusion-height': ['get', 'h'], 'fill-extrusion-opacity': 0.9 } });
+  map.addLayer({ id: 'sensors-dots', type: 'circle', source: 'sensors', paint: { 'circle-radius': 9, 'circle-color': ['get', 'color'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2.5 } });
+  map.addLayer({ id: 'sensors-labels', type: 'symbol', source: 'sensors', layout: { 'text-field': ['get', 'label'], ...text, 'text-size': 12 }, paint: halo });
+
+  applyToggles();
+  start();
+});
+
+['sensors-dots', 'columns'].forEach((id) => {
+  map.on('click', id, (e) => showDetail(e.features[0].properties.eui));
+  map.on('mouseenter', id, () => (map.getCanvas().style.cursor = 'pointer'));
+  map.on('mouseleave', id, () => (map.getCanvas().style.cursor = ''));
+});
+function popupOn(id, fn) {
+  map.on('click', id, (e) => new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setHTML(fn(e.features[0].properties)).addTo(map));
+  map.on('mouseenter', id, () => (map.getCanvas().style.cursor = 'pointer'));
+  map.on('mouseleave', id, () => (map.getCanvas().style.cursor = ''));
+}
+popupOn('open-dots', (p) => `<b>Open sensor ${p.id}</b><br>${p.pm25 != null && p.pm25 !== 'null' ? 'PM2.5 ' + p.pm25 + ' µg/m³<br>' : ''}${p.pm10 != null && p.pm10 !== 'null' ? 'PM10 ' + p.pm10 + ' µg/m³<br>' : ''}${p.temp != null && p.temp !== 'null' ? 'Temperature ' + p.temp + ' °C<br>' : ''}${p.hum != null && p.hum !== 'null' ? 'Humidity ' + p.hum + ' %' : ''}`);
+popupOn('metar-dots', (p) => `<b>${p.name}</b><br>${p.temp != null && p.temp !== 'null' ? 'Temperature ' + p.temp + ' °C<br>' : ''}${p.ws != null && p.ws !== 'null' ? 'Wind ' + p.ws + ' m/s' : ''}`);
+popupOn('sea-dots', (p) => `<b>Sea point</b><br>Sea temperature ${p.sst} °C<br>Waves ${p.wave} m`);
+popupOn('wind-arrows', (p) => `<b>Weather model</b><br>Temperature ${p.t} °C<br>Wind ${r1(Number(p.ws))} m/s`);
+
+document.querySelectorAll('#base button').forEach((b) => b.addEventListener('click', () => setBase(b.dataset.b)));
+['lDots', 'lCols', 'lHill', 'lRoads', 'lLabels', 'lWind', 'lOpen', 'lMetar', 'lSea', 'lTerrain'].forEach((id) => $(id).addEventListener('change', applyToggles));
+$('exag').addEventListener('input', applyToggles);
+document.querySelectorAll('input[name=surf]').forEach((r) => r.addEventListener('change', renderSurface));
+$('surfOp').addEventListener('input', () => map.getLayer('surface-layer') && map.setPaintProperty('surface-layer', 'raster-opacity', Number($('surfOp').value)));
+document.querySelectorAll('input[name=nasa]').forEach((r) => r.addEventListener('change', applyNasa));
+$('nasaDate').addEventListener('change', applyNasa);
+$('nasaOp').addEventListener('input', () => { const s = document.querySelector('input[name=nasa]:checked').value; if (s !== 'off' && map.getLayer('nasa-' + s)) map.setPaintProperty('nasa-' + s, 'raster-opacity', Number($('nasaOp').value)); });
+$('measure').addEventListener('change', (e) => { state.mid = e.target.value; updateSensors(); });
+$('fold').addEventListener('click', () => $('layers').classList.toggle('closed'));
+
+async function start() {
+  try { state.cfg = await getJson('/api/config'); } catch (e) { $('status').textContent = 'Could not load: ' + e.message; return; }
+  await Promise.all(['sensors', 'weather', 'air', 'sea', 'open', 'metar'].map(refresh));
+  setInterval(() => refresh('sensors'), 30000);
+  setInterval(() => refresh('weather'), 300000);
+  setInterval(() => refresh('air'), 900000);
+  setInterval(() => refresh('sea'), 900000);
+  setInterval(() => refresh('open'), 300000);
+  setInterval(() => refresh('metar'), 600000);
+  setInterval(showStatus, 15000);
+  const hash = decodeURIComponent(location.hash.slice(1));
+  if (hash && state.devices.some((d) => d.eui === hash)) showDetail(hash);
+}
+</script>
+</body>
+</html>
