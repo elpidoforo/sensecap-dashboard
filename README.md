@@ -52,14 +52,15 @@ Outside data comes from [Open-Meteo](https://open-meteo.com) (free, no key, non-
 | Our sensors (dots and 3D columns, 24 h history, comparison with the weather model) | SenseCAP |
 | Temperature, humidity, cloud, rain, PM2.5, dust surface; wind arrows | Open-Meteo |
 | Open air sensors (PM2.5, PM10, temperature, humidity) | Sensor.Community volunteers |
-| Airport stations (temperature, wind) | aviationweather.gov METAR |
+| Official weather stations (54 across Cyprus: temperature, wind, humidity, pressure, rain), shown as squares | Cyprus Department of Meteorology open data (`dom.org.cy/AWS/OpenData/CyDoM.xml`) |
 | Sea temperature and waves | Open-Meteo marine |
 | True colour photo, land surface temperature, aerosols (any date) | NASA GIBS |
 
-Click one of our sensors for its detail card: current value, the weather model value for the same place, the nearest airport and the nearest open sensor.
+Click one of our sensors for its detail card: current value, the weather model value for the same place, the nearest Met Office station and the nearest open sensor.
 
 Notes:
 
 - Check each provider's terms before using the map outside a classroom (Esri imagery, OpenStreetMap tile servers and Open-Meteo all have fair-use limits).
+- Met Office data is credited to the Cyprus Department of Meteorology. The feed shows the time of its newest reading in Data status, and readings older than 3 hours are marked old. Check their terms before using it outside a classroom.
 - A failing source shows an error line in Data status and the other layers keep working.
 - The map loads MapLibre from unpkg and tiles from the providers above, so the browser needs internet access to those hosts.

@@ -82,7 +82,7 @@
 
     <h2>Open data</h2>
     <label><input type="checkbox" id="lOpen" checked><span>Open air sensors<small>Sensor.Community volunteers</small></span></label>
-    <label><input type="checkbox" id="lMetar" checked><span>Airport stations<small>Aviation weather (METAR)</small></span></label>
+    <label><input type="checkbox" id="lCydom" checked><span>Met Office stations<small>Official Cyprus stations, shown as squares</small></span></label>
     <label><input type="checkbox" id="lSea" checked><span>Sea conditions<small>Open-Meteo marine</small></span></label>
 
     <h2>NASA satellite</h2>
@@ -92,6 +92,14 @@
     <label><input type="radio" name="nasa" value="aod"><span>Aerosols (dust and haze)</span></label>
     <input type="date" id="nasaDate" aria-label="Satellite date">
     <input type="range" id="nasaOp" min="0.1" max="1" step="0.05" value="0.8" aria-label="Satellite opacity">
+
+    <h2>Met Office pages</h2>
+    <div class="st">
+      <a href="https://www.dom.org.cy/RADAR_IMG/index.html" target="_blank" rel="noopener" style="color:var(--acc)">Radar</a> ·
+      <a href="https://www.dom.org.cy/WARNING/" target="_blank" rel="noopener" style="color:var(--acc)">Warnings</a> ·
+      <a href="https://www.dom.org.cy/FORECAST/index.html" target="_blank" rel="noopener" style="color:var(--acc)">Forecast</a> ·
+      <a href="https://www.dom.org.cy/AWS/ALL_STATIONS_MAP.html" target="_blank" rel="noopener" style="color:var(--acc)">Station map</a>
+    </div>
 
     <h2>Data status</h2>
     <div class="st" id="status"></div>
@@ -109,7 +117,7 @@
 <script>
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const state = { cfg: null, devices: [], latest: {}, weather: null, air: null, sea: null, open: null, metar: null, mid: '4097', lastOk: {}, errors: {}, selected: null };
+const state = { cfg: null, devices: [], latest: {}, weather: null, air: null, sea: null, open: null, cydom: null, mid: '4097', lastOk: {}, errors: {}, selected: null };
 const BOUNDS = { w: 31.9, e: 34.9, s: 34.3, n: 35.95 };
 
 /* ---------- colours ---------- */
@@ -350,10 +358,29 @@ function updateOpen() {
   if (!state.open) return;
   map.getSource('open').setData({ type: 'FeatureCollection', features: state.open.points.map((p) => pt(p.lng, p.lat, { ...p, label: p.pm25 != null ? `PM2.5 ${r1(p.pm25)}` : p.temp != null ? `${r1(p.temp)}°` : '' })) });
 }
-function updateMetar() {
-  if (!state.metar) return;
-  map.getSource('metar').setData({ type: 'FeatureCollection', features: state.metar.points.map((p) => pt(p.lng, p.lat, { ...p, label: p.temp != null ? `${r1(p.temp)}°` : p.id })) });
+function squareIcons() {
+  const make = (name, fill) => {
+    const c = document.createElement('canvas');
+    c.width = 22; c.height = 22;
+    const x = c.getContext('2d');
+    x.fillStyle = '#ffffff'; x.fillRect(1, 1, 20, 20);
+    x.fillStyle = fill; x.fillRect(3, 3, 16, 16);
+    x.strokeStyle = '#1c1c1a'; x.lineWidth = 1; x.strokeRect(0.5, 0.5, 21, 21);
+    map.addImage(name, x.getImageData(0, 0, 22, 22));
+  };
+  for (let i = 0; i <= 24; i++) make('sq' + i, rgb(rampAt(TEMP, i / 24)));
+  make('sqnone', 'rgb(150,150,150)');
 }
+const sqIcon = (t) => (t == null ? 'sqnone' : 'sq' + Math.round(clamp((t - 10) / 30, 0, 1) * 24));
+function updateCydom() {
+  if (!state.cydom) return;
+  map.getSource('cydom').setData({ type: 'FeatureCollection', features: state.cydom.points.map((p) => {
+    const { obs, ...rest } = p;
+    return pt(p.lng, p.lat, { ...rest, obs: JSON.stringify(obs || []), icon: sqIcon(p.temp), label: p.temp != null ? `${r1(p.temp)}°` : p.name });
+  }) });
+}
+const readingAge = (iso) => (iso ? ago(iso) : 'unknown time');
+const isOld = (iso) => !iso || Date.now() - new Date(iso).getTime() > 3 * 3600000;
 function updateSea() {
   if (!state.sea) return;
   map.getSource('sea').setData({ type: 'FeatureCollection', features: state.sea.points.filter((p) => p.sst != null).map((p) => pt(p.lng, p.lat, { ...p, label: `${r1(p.sst)}°` })) });
@@ -384,8 +411,8 @@ async function showDetail(eui, fresh = true) {
     const wv = wf ? sampleGrid(state.weather, wf, pos[0], pos[1]) : null;
     if (wv != null) cmp.push(`Weather model: ${r1(wv)} ${unitOf(state.mid)} (difference ${v - wv > 0 ? '+' : ''}${r1(v - wv)})`);
     if (state.mid === '4097') {
-      const m = nearest(state.metar && state.metar.points, pos[0], pos[1], (p) => p.temp != null);
-      if (m) cmp.push(`${m.p.name}: ${r1(m.p.temp)} °C, ${Math.round(m.d)} km away`);
+      const m = nearest(state.cydom && state.cydom.points, pos[0], pos[1], (p) => p.temp != null);
+      if (m) cmp.push(`Met Office ${m.p.name}: ${r1(m.p.temp)} °C (${r1(v - m.p.temp) > 0 ? '+' : ''}${r1(v - m.p.temp)} for our sensor), ${Math.round(m.d)} km away, reading ${readingAge(m.p.time)}${isOld(m.p.time) ? ' (old)' : ''}`);
       const o = nearest(state.open && state.open.points, pos[0], pos[1], (p) => p.temp != null && km([pos[0], pos[1]], [p.lat, p.lng]) < 40);
       if (o) cmp.push(`Open sensor ${o.p.id}: ${r1(o.p.temp)} °C, ${Math.round(o.d)} km away`);
     }
@@ -412,13 +439,14 @@ async function showDetail(eui, fresh = true) {
 
 /* ---------- data loading ---------- */
 function showStatus() {
-  const items = [['sensors', 'Our sensors'], ['weather', 'Weather'], ['air', 'Air quality'], ['sea', 'Sea'], ['open', 'Open sensors'], ['metar', 'Airports']];
+  const items = [['sensors', 'Our sensors'], ['weather', 'Weather'], ['air', 'Air quality'], ['sea', 'Sea'], ['open', 'Open sensors'], ['cydom', 'Met Office']];
   if (state.errors.map) items.push(['map', 'Map tiles']);
-  const countOf = { sensors: state.devices.length, open: state.open ? state.open.points.length : 0, metar: state.metar ? state.metar.points.length : 0, sea: state.sea ? state.sea.points.length : 0 };
+  const countOf = { sensors: state.devices.length, open: state.open ? state.open.points.length : 0, cydom: state.cydom ? state.cydom.points.length : 0, sea: state.sea ? state.sea.points.length : 0 };
   $('status').innerHTML = items.map(([k, n]) => {
     if (state.errors[k]) return `<div class="e">${n}: ${state.errors[k]}</div>`;
     const t = state.lastOk[k] ? new Date(state.lastOk[k]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'waiting';
-    return `<div>${n}: ${t}${countOf[k] != null ? ' · ' + countOf[k] + ' found' : ''}</div>`;
+    const feed = k === 'cydom' && state.cydom && state.cydom.feedTime ? ` · newest reading ${ago(state.cydom.feedTime)}${isOld(state.cydom.feedTime) ? ' (old)' : ''}` : '';
+    return `<div>${n}: ${t}${countOf[k] != null ? ' · ' + countOf[k] + ' found' : ''}${feed}</div>`;
   }).join('') + (state.cfg && state.cfg.demo ? '<div>Demo sensors shown</div>' : '');
   const stale = !state.lastOk.sensors || Date.now() - state.lastOk.sensors > 120000;
   $('live').textContent = stale ? 'Waiting' : 'Live';
@@ -431,9 +459,9 @@ async function refresh(kind) {
       fillMeasures();
       updateSensors();
     } else {
-      const url = { weather: '/api/weather', air: '/api/air', sea: '/api/sea', open: '/api/opensensors', metar: '/api/metar' }[kind];
+      const url = { weather: '/api/weather', air: '/api/air', sea: '/api/sea', open: '/api/opensensors', cydom: '/api/cydom' }[kind];
       state[kind] = await getJson(url);
-      ({ weather: updateWeather, air: renderSurface, sea: updateSea, open: updateOpen, metar: updateMetar })[kind]();
+      ({ weather: updateWeather, air: renderSurface, sea: updateSea, open: updateOpen, cydom: updateCydom })[kind]();
     }
     state.lastOk[kind] = Date.now();
     delete state.errors[kind];
@@ -470,7 +498,7 @@ function applyToggles() {
   vis('roads', $('lRoads').checked); vis('labels', $('lLabels').checked);
   vis('wind-arrows', $('lWind').checked);
   vis('open-dots', $('lOpen').checked); vis('open-labels', $('lOpen').checked);
-  vis('metar-dots', $('lMetar').checked); vis('metar-labels', $('lMetar').checked);
+  vis('cydom-dots', $('lCydom').checked); vis('cydom-labels', $('lCydom').checked);
   vis('sea-dots', $('lSea').checked); vis('sea-labels', $('lSea').checked);
   if ($('lTerrain').checked) map.setTerrain({ source: 'dem', exaggeration: Number($('exag').value) }); else map.setTerrain(null);
 }
@@ -484,7 +512,9 @@ map.on('load', () => {
   map.addSource('surface', { type: 'image', url: blank, coordinates: [[FIELD_BOX.lng0, FIELD_BOX.lat1], [FIELD_BOX.lng1, FIELD_BOX.lat1], [FIELD_BOX.lng1, FIELD_BOX.lat0], [FIELD_BOX.lng0, FIELD_BOX.lat0]] });
   map.addLayer({ id: 'surface-layer', type: 'raster', source: 'surface', layout: { visibility: 'none' }, paint: { 'raster-resampling': 'linear', 'raster-opacity': 0.6 } });
 
-  ['sensors', 'columns', 'wind', 'open', 'metar', 'sea'].forEach((s) => map.addSource(s, { type: 'geojson', data: EMPTY }));
+  ['sensors', 'columns', 'wind', 'open', 'sea'].forEach((s) => map.addSource(s, { type: 'geojson', data: EMPTY }));
+  map.addSource('cydom', { type: 'geojson', data: EMPTY, attribution: 'Station data © Cyprus Department of Meteorology' });
+  squareIcons();
 
   const arrow = document.createElement('canvas');
   arrow.width = 32; arrow.height = 32;
@@ -501,8 +531,8 @@ map.on('load', () => {
   map.addLayer({ id: 'sea-labels', type: 'symbol', source: 'sea', layout: { 'text-field': ['get', 'label'], ...text }, paint: halo });
   map.addLayer({ id: 'open-dots', type: 'circle', source: 'open', paint: { 'circle-radius': 6, 'circle-color': ['case', ['!=', ['get', 'pm25'], null], ['interpolate', ['linear'], ['get', 'pm25'], 0, '#1baf7a', 15, '#eda100', 35, '#e34948'], '#9aa4b2'], 'circle-stroke-color': '#1c1c1a', 'circle-stroke-width': 1.5 } });
   map.addLayer({ id: 'open-labels', type: 'symbol', source: 'open', layout: { 'text-field': ['get', 'label'], ...text }, paint: halo });
-  map.addLayer({ id: 'metar-dots', type: 'circle', source: 'metar', paint: { 'circle-radius': 7, 'circle-color': '#6250d6', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
-  map.addLayer({ id: 'metar-labels', type: 'symbol', source: 'metar', layout: { 'text-field': ['get', 'label'], ...text }, paint: halo });
+  map.addLayer({ id: 'cydom-dots', type: 'symbol', source: 'cydom', layout: { 'icon-image': ['get', 'icon'], 'icon-allow-overlap': true, 'icon-size': 0.85 } });
+  map.addLayer({ id: 'cydom-labels', type: 'symbol', source: 'cydom', layout: { 'text-field': ['get', 'label'], ...text }, paint: halo });
   map.addLayer({ id: 'columns', type: 'fill-extrusion', source: 'columns', paint: { 'fill-extrusion-color': ['get', 'color'], 'fill-extrusion-height': ['get', 'h'], 'fill-extrusion-opacity': 0.9 } });
   map.addLayer({ id: 'sensors-dots', type: 'circle', source: 'sensors', paint: { 'circle-radius': 9, 'circle-color': ['get', 'color'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2.5 } });
   map.addLayer({ id: 'sensors-labels', type: 'symbol', source: 'sensors', layout: { 'text-field': ['get', 'label'], ...text, 'text-size': 12 }, paint: halo });
@@ -522,12 +552,20 @@ function popupOn(id, fn) {
   map.on('mouseleave', id, () => (map.getCanvas().style.cursor = ''));
 }
 popupOn('open-dots', (p) => `<b>Open sensor ${p.id}</b><br>${p.pm25 != null && p.pm25 !== 'null' ? 'PM2.5 ' + p.pm25 + ' µg/m³<br>' : ''}${p.pm10 != null && p.pm10 !== 'null' ? 'PM10 ' + p.pm10 + ' µg/m³<br>' : ''}${p.temp != null && p.temp !== 'null' ? 'Temperature ' + p.temp + ' °C<br>' : ''}${p.hum != null && p.hum !== 'null' ? 'Humidity ' + p.hum + ' %' : ''}`);
-popupOn('metar-dots', (p) => `<b>${p.name}</b><br>${p.temp != null && p.temp !== 'null' ? 'Temperature ' + p.temp + ' °C<br>' : ''}${p.ws != null && p.ws !== 'null' ? 'Wind ' + p.ws + ' m/s' : ''}`);
+popupOn('cydom-dots', (p) => {
+  let obs = [];
+  try { obs = JSON.parse(p.obs || '[]'); } catch (e) { obs = []; }
+  const when = p.time && p.time !== 'null' ? `${ago(p.time)}${isOld(p.time) ? ' (old reading)' : ''}` : 'unknown time';
+  const rows = obs.map((o) => `<tr><td>${o.name}</td><td style="text-align:right;padding-left:8px">${o.value} ${o.unit === 'Celcius' ? '°C' : o.unit}</td></tr>`).join('');
+  return `<b>${p.name}</b> <span style="color:#5c5b57">Met Office station</span><br><span style="color:#5c5b57">Reading ${when}</span>` +
+    `<div style="max-height:170px;overflow:auto;margin-top:4px"><table style="border-collapse:collapse">${rows}</table></div>` +
+    `<div style="color:#5c5b57;margin-top:4px">© Cyprus Department of Meteorology</div>`;
+});
 popupOn('sea-dots', (p) => `<b>Sea point</b><br>Sea temperature ${p.sst} °C<br>Waves ${p.wave} m`);
 popupOn('wind-arrows', (p) => `<b>Weather model</b><br>Temperature ${p.t} °C<br>Wind ${r1(Number(p.ws))} m/s`);
 
 document.querySelectorAll('#base button').forEach((b) => b.addEventListener('click', () => setBase(b.dataset.b)));
-['lDots', 'lCols', 'lHill', 'lRoads', 'lLabels', 'lWind', 'lOpen', 'lMetar', 'lSea', 'lTerrain'].forEach((id) => $(id).addEventListener('change', applyToggles));
+['lDots', 'lCols', 'lHill', 'lRoads', 'lLabels', 'lWind', 'lOpen', 'lCydom', 'lSea', 'lTerrain'].forEach((id) => $(id).addEventListener('change', applyToggles));
 $('exag').addEventListener('input', applyToggles);
 document.querySelectorAll('input[name=surf]').forEach((r) => r.addEventListener('change', renderSurface));
 $('surfOp').addEventListener('input', () => map.getLayer('surface-layer') && map.setPaintProperty('surface-layer', 'raster-opacity', Number($('surfOp').value)));
@@ -539,13 +577,13 @@ $('fold').addEventListener('click', () => $('layers').classList.toggle('closed')
 
 async function start() {
   try { state.cfg = await getJson('/api/config'); } catch (e) { $('status').textContent = 'Could not load: ' + e.message; return; }
-  await Promise.all(['sensors', 'weather', 'air', 'sea', 'open', 'metar'].map(refresh));
+  await Promise.all(['sensors', 'weather', 'air', 'sea', 'open', 'cydom'].map(refresh));
   setInterval(() => refresh('sensors'), 30000);
   setInterval(() => refresh('weather'), 300000);
   setInterval(() => refresh('air'), 900000);
   setInterval(() => refresh('sea'), 900000);
   setInterval(() => refresh('open'), 300000);
-  setInterval(() => refresh('metar'), 600000);
+  setInterval(() => refresh('cydom'), 600000);
   setInterval(showStatus, 15000);
   const hash = decodeURIComponent(location.hash.slice(1));
   if (hash && state.devices.some((d) => d.eui === hash)) showDetail(hash);
