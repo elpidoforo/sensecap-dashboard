@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 const ID = process.env.SENSECAP_API_ID;
 const KEY = process.env.SENSECAP_API_KEY;
@@ -253,21 +254,42 @@ const SEA_POINTS = [
   [35.65, 33.0], [35.6, 33.6], [35.3, 32.2], [34.8, 32.1], [35.1, 32.0],
 ];
 
-async function omJson(url) {
+const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
+const omLog = [];
+async function omBudget(n) {
+  for (;;) {
+    const now = Date.now();
+    while (omLog.length && now - omLog[0][0] > 60000) omLog.shift();
+    const used = omLog.reduce((a, x) => a + x[1], 0);
+    if (used + n <= 450) {
+      omLog.push([now, n]);
+      return;
+    }
+    await sleep(2000);
+  }
+}
+
+async function omJson(url, locations = 1) {
   let lastErr;
   for (let attempt = 0; attempt < 4; attempt++) {
+    await omBudget(locations);
     try {
       const r = await fetch(url, { signal: AbortSignal.timeout(25000) });
       if (r.ok) return await r.json();
       lastErr = new Error(`Open-Meteo returned HTTP ${r.status}`);
       lastErr.status = r.status;
-      if (r.status !== 429 && r.status < 500) throw lastErr;
-      const ra = Number(r.headers.get('retry-after'));
-      await new Promise((ok) => setTimeout(ok, (isFinite(ra) && ra > 0 ? Math.min(ra, 30) : 3 * 2 ** attempt) * 1000));
+      if (r.status === 429) {
+        omLog.push([Date.now(), 600]);
+        await sleep(65000);
+      } else if (r.status >= 500) {
+        await sleep(3000 * 2 ** attempt);
+      } else {
+        throw lastErr;
+      }
     } catch (e) {
-      if (e === lastErr && lastErr.status && lastErr.status !== 429 && lastErr.status < 500) throw e;
+      if (e === lastErr && lastErr.status && lastErr.status < 500 && lastErr.status !== 429) throw e;
       lastErr = e;
-      await new Promise((ok) => setTimeout(ok, 3000));
+      if (!e.status) await sleep(3000);
     }
   }
   throw lastErr;
@@ -298,6 +320,13 @@ function mockElevation(lat, lng) {
 const TERRAIN_STEP = 0.05;
 const T = { done: null, elev: null, next: 0, running: false, error: null, retryAt: 0, lats: [], lngs: [], rows: 0, cols: 0 };
 
+const TERRAIN_FILE = path.join(os.tmpdir(), 'cyprus-terrain-v2.json');
+function saveTerrainProgress() {
+  try {
+    fs.writeFileSync(TERRAIN_FILE, JSON.stringify({ next: T.next, elev: T.elev }));
+  } catch (e) { /* best effort */ }
+}
+
 function prepareTerrain() {
   T.rows = Math.round((B.lat1 - B.lat0) / TERRAIN_STEP) + 1;
   T.cols = Math.round((B.lng1 - B.lng0) / TERRAIN_STEP) + 1;
@@ -311,6 +340,13 @@ function prepareTerrain() {
   }
   T.elev = new Array(T.rows * T.cols).fill(0);
   T.next = 0;
+  try {
+    const saved = JSON.parse(fs.readFileSync(TERRAIN_FILE, 'utf8'));
+    if (Array.isArray(saved.elev) && saved.elev.length === T.elev.length) {
+      T.elev = saved.elev;
+      T.next = saved.next || 0;
+    }
+  } catch (e) { /* nothing saved yet */ }
 }
 
 async function terrainJob() {
@@ -320,15 +356,17 @@ async function terrainJob() {
     while (T.next < T.lats.length) {
       const i = T.next;
       const j = await omJson(
-        `https://api.open-meteo.com/v1/elevation?latitude=${T.lats.slice(i, i + 100).join(',')}&longitude=${T.lngs.slice(i, i + 100).join(',')}`
+        `https://api.open-meteo.com/v1/elevation?latitude=${T.lats.slice(i, i + 100).join(',')}&longitude=${T.lngs.slice(i, i + 100).join(',')}`,
+        Math.min(100, T.lats.length - i)
       );
       (j.elevation || []).forEach((v, k) => {
         const n = Number(v);
         T.elev[i + k] = isFinite(n) && n > 0 ? n : 0;
       });
       T.next = i + 100;
-      await new Promise((ok) => setTimeout(ok, 1500));
+      saveTerrainProgress();
     }
+    saveTerrainProgress();
     T.done = {
       rows: T.rows, cols: T.cols, lat0: B.lat0, lat1: B.lat1, lng0: B.lng0, lng1: B.lng1,
       elev: T.elev.map((v) => Math.round(v)), mock: false,
@@ -353,7 +391,13 @@ function terrainStatus() {
     return { ready: true, data: { rows, cols, lat0: B.lat0, lat1: B.lat1, lng0: B.lng0, lng1: B.lng1, elev, mock: true } };
   }
   if (T.done) return { ready: true, data: T.done };
-  if (!T.elev) prepareTerrain();
+  if (!T.elev) {
+    prepareTerrain();
+    if (T.next >= T.lats.length) {
+      T.done = { rows: T.rows, cols: T.cols, lat0: B.lat0, lat1: B.lat1, lng0: B.lng0, lng1: B.lng1, elev: T.elev.map((v) => Math.round(v)), mock: false };
+      return { ready: true, data: T.done };
+    }
+  }
   if (!T.running && Date.now() >= T.retryAt) terrainJob();
   return { ready: false, progress: Math.min(1, T.next / T.lats.length), error: T.error };
 }
@@ -377,7 +421,8 @@ function weather() {
         'https://api.open-meteo.com/v1/forecast?latitude=' + pts.map((p) => p.lat).join(',') +
         '&longitude=' + pts.map((p) => p.lng).join(',') +
         '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation,cloud_cover,pressure_msl' +
-        '&wind_speed_unit=ms&timezone=UTC'
+        '&wind_speed_unit=ms&timezone=UTC',
+        pts.length
       );
       points = asArray(j).map((o, i) => ({
         ...pts[i], t: o.current.temperature_2m, rh: o.current.relative_humidity_2m, ws: o.current.wind_speed_10m,
@@ -397,7 +442,8 @@ function air() {
     } else {
       const j = await omJson(
         'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=' + pts.map((p) => p.lat).join(',') +
-        '&longitude=' + pts.map((p) => p.lng).join(',') + '&current=pm2_5,pm10,dust,ozone&timezone=UTC'
+        '&longitude=' + pts.map((p) => p.lng).join(',') + '&current=pm2_5,pm10,dust,ozone&timezone=UTC',
+        pts.length
       );
       points = asArray(j).map((o, i) => ({
         ...pts[i], pm25: o.current.pm2_5, pm10: o.current.pm10, dust: o.current.dust, ozone: o.current.ozone,
@@ -415,7 +461,8 @@ function sea() {
     } else {
       const j = await omJson(
         'https://marine-api.open-meteo.com/v1/marine?latitude=' + SEA_POINTS.map((p) => p[0]).join(',') +
-        '&longitude=' + SEA_POINTS.map((p) => p[1]).join(',') + '&current=wave_height,sea_surface_temperature&timezone=UTC'
+        '&longitude=' + SEA_POINTS.map((p) => p[1]).join(',') + '&current=wave_height,sea_surface_temperature&timezone=UTC',
+        SEA_POINTS.length
       );
       points = asArray(j).map((o, i) => ({
         lat: SEA_POINTS[i][0], lng: SEA_POINTS[i][1], wave: o.current.wave_height, sst: o.current.sea_surface_temperature,
@@ -486,7 +533,7 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(404);
         return res.end('Not found');
       }
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream' });
+      res.writeHead(200, { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
       res.end(buf);
     });
   } catch (e) {
