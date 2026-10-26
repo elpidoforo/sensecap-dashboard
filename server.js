@@ -186,6 +186,107 @@ async function liveSeries(eui, mid, channel, days) {
   });
 }
 
+/* ---------- GPS trails (raw history of latitude and longitude, with a measurement along the route) ---------- */
+
+const toMs = (t) => {
+  if (typeof t === 'number') return t < 1e12 ? t * 1000 : t;
+  const str = String(t).trim();
+  if (/^\d+(\.\d+)?$/.test(str)) { const n = Number(str); return n < 1e12 ? n * 1000 : n; }
+  const ms = Date.parse(str);
+  return isFinite(ms) ? ms : null;
+};
+
+// list_telemetry_data answers { list: [ [[channel, measurement_id], ...], [ [[value, time], ...], ... ] ] }
+function parseRawSeries(data, mid) {
+  const list = data && data.list;
+  if (!Array.isArray(list) || list.length < 2) return [];
+  const heads = list[0], series = list[1];
+  const out = [];
+  const take = (rows) => {
+    for (const row of rows || []) {
+      const v = Number(Array.isArray(row) ? row[0] : row && row.value);
+      const t = toMs(Array.isArray(row) ? row[1] : row && row.time);
+      if (isFinite(v) && t != null) out.push({ t, v });
+    }
+  };
+  if (Array.isArray(heads) && Array.isArray(series)) {
+    heads.forEach((h, i) => { if (heads.length === 1 || (Array.isArray(h) && String(h[1]) === String(mid))) take(series[i]); });
+    if (!out.length && series.length && Array.isArray(series[0]) && !Array.isArray(series[0][0])) take(series);
+  }
+  out.sort((a, b) => a.t - b.t);
+  return out;
+}
+
+async function rawSeries(eui, mid, channel, hours) {
+  const end = Date.now(), start = end - hours * 3600000;
+  const slices = Math.min(7, Math.max(1, Math.ceil(hours / 24)));
+  const span = (end - start) / slices;
+  const parts = [];
+  for (let i = 0; i < slices; i++) {
+    const data = await api('/list_telemetry_data', {
+      query: { device_eui: eui, measurement_id: mid, channel_index: channel, time_start: Math.round(start + i * span), time_end: Math.round(start + (i + 1) * span), limit: 1000 },
+    });
+    parts.push(...parseRawSeries(data, mid));
+  }
+  parts.sort((a, b) => a.t - b.t);
+  return parts.filter((p, i) => i === 0 || p.t !== parts[i - 1].t);
+}
+
+function nearestIn(list, t, tol, from) {
+  // list is sorted by time; returns [item, index] closest to t within tol
+  let i = from || 0;
+  while (i + 1 < list.length && Math.abs(list[i + 1].t - t) <= Math.abs(list[i].t - t)) i++;
+  return list[i] && Math.abs(list[i].t - t) <= tol ? [list[i], i] : [null, i];
+}
+
+function pairTrack(lats, lngs, vals) {
+  const out = [];
+  let j = 0, k = 0;
+  for (const la of lats) {
+    const [lo, nj] = nearestIn(lngs, la.t, 90000, j);
+    j = nj;
+    if (!lo) continue;
+    const [lat, lng] = fixLatLng(la.v, lo.v);
+    if (lat == null || (lat === 0 && lng === 0) || Math.abs(lat) > 90 || Math.abs(lng) > 180) continue;
+    const [va, nk] = vals.length ? nearestIn(vals, la.t, 20 * 60000, k) : [null, k];
+    k = nk;
+    out.push([la.t, Math.round(lat * 1e5) / 1e5, Math.round(lng * 1e5) / 1e5, va ? Math.round(va.v * 100) / 100 : null]);
+  }
+  return out;
+}
+
+async function liveTrail(dev, hours, mid) {
+  const latCh = dev.channelOf[GPS_LAT] || 1, lngCh = dev.channelOf[GPS_LNG] || 1;
+  const lats = await rawSeries(dev.eui, GPS_LAT, latCh, hours);
+  const lngs = await rawSeries(dev.eui, GPS_LNG, lngCh, hours);
+  const wantValue = mid && mid !== GPS_LAT && mid !== GPS_LNG && dev.measurements.includes(String(mid));
+  const vals = wantValue ? await rawSeries(dev.eui, String(mid), dev.channelOf[String(mid)] || 1, hours) : [];
+  const pts = pairTrack(lats, lngs, vals);
+  const step = Math.ceil(pts.length / 1500); // keep long windows small
+  return { points: step > 1 ? pts.filter((_, i) => i % step === 0 || i === pts.length - 1) : pts };
+}
+
+async function liveTrails(hours, mid) {
+  return cached(`trails:${hours}:${mid}`, hours <= 6 ? 240000 : 900000, async () => {
+    const devices = await liveDevices();
+    const rows = await mapLimit(devices, 3, (d) => liveTrail(d, hours, mid));
+    return assembleTrails(devices, rows, hours, mid);
+  });
+}
+
+function assembleTrails(devices, rows, hours, mid) {
+  const trails = {}, notes = {};
+  devices.forEach((d, i) => {
+    const r = rows[i] || {};
+    if (r.error) notes[d.eui] = r.error;
+    else {
+      trails[d.eui] = r.points;
+      if (!r.points.length) notes[d.eui] = 'no GPS points in this window';
+    }
+  });
+  return { hours, mid, trails, notes, updated: new Date().toISOString() };
+}
+
 /* ---------- demo data ---------- */
 
 const DEMO_DEVICES = [
@@ -206,8 +307,8 @@ const DEMO_DEVICES = [
   online: i !== 5,
   battery: [84, 77, 91, 62, 55, 12, 70, 88][i],
   lastSeen: new Date(Date.now() - (i === 5 ? 3 * 3600000 : (i + 1) * 90000)).toISOString(),
-  measurements: ['4097', '4098', '4100'],
-  channelOf: { 4097: 1, 4098: 1, 4100: 2 },
+  measurements: ['4097', '4098', '4100', GPS_LAT, GPS_LNG],
+  channelOf: { 4097: 1, 4098: 1, 4100: 2, [GPS_LAT]: 3, [GPS_LNG]: 3 },
 }));
 
 function seeded(n) {
@@ -223,12 +324,40 @@ function demoValue(i, mid, t) {
   return Math.round(420 + i * 8 + (1 - wave) * 40 + noise * 25);
 }
 
+// Demo vehicles drive loops around their school so trails and movement can be seen without real GPS.
+function demoPos(i, ms) {
+  const d = DEMO_DEVICES[i];
+  const t = d.online ? ms : Math.min(ms, Date.now() - 3 * 3600000);
+  const a = (t / ((i % 2 === 0 ? 38 : 24) * 60000)) * Math.PI * 2 + i;
+  const r = i % 2 === 0 ? 0.035 : 0.02;
+  return [d.lat + r * 0.8 * Math.sin(a) + r * 0.25 * Math.sin(a * 3), d.lng + r * 1.25 * Math.cos(a) + r * 0.2 * Math.cos(a * 2)];
+}
+
+function demoTrails(hours, mid) {
+  const now = Date.now();
+  const step = Math.max(60000, (hours * 3600000) / 300);
+  const rows = DEMO_DEVICES.map((d, i) => {
+    const end = d.online ? now : now - 3 * 3600000;
+    const points = [];
+    for (let t = now - hours * 3600000; t <= end; t += step) {
+      if (i === 1 && t > now - 70 * 60000 && t < now - 55 * 60000) continue; // a signal gap, drawn dashed
+      const [lat, lng] = demoPos(i, t);
+      points.push([t, Math.round(lat * 1e5) / 1e5, Math.round(lng * 1e5) / 1e5, mid && mid !== GPS_LAT && mid !== GPS_LNG ? demoValue(i, String(mid), t) : null]);
+    }
+    return { points };
+  });
+  return assembleTrails(DEMO_DEVICES, rows, hours, mid);
+}
+
 function demoLatest() {
   const out = {};
   DEMO_DEVICES.forEach((d, i) => {
     const t = d.online ? Date.now() : Date.now() - 3 * 3600000;
     out[d.eui] = {};
-    d.measurements.forEach((m) => (out[d.eui][m] = { v: demoValue(i, m, t), t: new Date(t).toISOString(), ch: d.channelOf[m] }));
+    d.measurements.forEach((m) => { if (m !== GPS_LAT && m !== GPS_LNG) out[d.eui][m] = { v: demoValue(i, m, t), t: new Date(t).toISOString(), ch: d.channelOf[m] }; });
+    const pos = demoPos(i, t);
+    out[d.eui][GPS_LAT] = { v: pos[0], t: new Date(t).toISOString(), ch: d.channelOf[GPS_LAT] };
+    out[d.eui][GPS_LNG] = { v: pos[1], t: new Date(t).toISOString(), ch: d.channelOf[GPS_LNG] };
   });
   return out;
 }
@@ -676,6 +805,11 @@ const server = http.createServer(async (req, res) => {
       const dev = devices.find((d) => d.eui === eui);
       if (!dev) return sendJson(res, 404, { error: 'Unknown device' });
       return sendJson(res, 200, await liveSeries(eui, mid, dev.channelOf[mid] || 1, days));
+    }
+    if (url.pathname === '/api/trails') {
+      const hours = Math.min(168, Math.max(1, Number(url.searchParams.get('hours')) || 6));
+      const mid = url.searchParams.get('mid') || '4097';
+      return sendJson(res, 200, DEMO ? demoTrails(hours, mid) : await liveTrails(hours, mid));
     }
     if (url.pathname === '/api/terrain') {
       const st = terrainStatus();

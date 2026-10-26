@@ -41,7 +41,15 @@
   .st .e { color: var(--bad); }
   #toggle { display: none; }
   .maplibregl-popup-content { font: 12px/1.4 system-ui, sans-serif; color: #1c1c1a; }
+  #windCv { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+  #replay { bottom: 12px; left: 50%; transform: translateX(-50%); width: min(600px, calc(100% - 620px)); min-width: 400px; display: none; align-items: center; gap: 8px; padding: 8px 12px; }
+  #replay input[type=range] { flex: 1; min-width: 80px; }
+  #replay select { width: auto; }
+  .btn { border: 0.5px solid var(--line); background: transparent; color: inherit; border-radius: 6px; padding: 4px 10px; font: inherit; cursor: pointer; }
+  .btn:hover { background: var(--accbg); }
+  .btns { display: flex; gap: 8px; margin: 8px 0 2px; flex-wrap: wrap; }
   @media (max-width: 700px) {
+    #replay { left: 12px; right: 12px; bottom: 60px; transform: none; width: auto; min-width: 0; }
     #layers { width: calc(100% - 24px); max-height: 52%; }
     #base { top: auto; bottom: 12px; left: 12px; transform: none; right: 12px; justify-content: center; }
     #legend { display: none; }
@@ -51,16 +59,25 @@
 </head>
 <body>
 <div id="map"></div>
+<canvas id="windCv"></canvas>
 
 <div class="panel" id="layers">
   <div class="head"><h1>Sensor map</h1><span class="live stale" id="live">Waiting</span><button id="fold" style="border:0;background:none;color:inherit;cursor:pointer;font-size:16px" aria-label="Show or hide layers">&#9776;</button></div>
   <div class="body">
     <div class="nav"><a href="/">Dashboard</a><a href="/3d.html">3D island</a></div>
 
-    <h2>Our sensors</h2>
-    <label><input type="checkbox" id="lDots" checked><span>Sensor dots</span></label>
+    <h2>Vehicles</h2>
+    <label><input type="checkbox" id="lDots" checked><span>Vehicle icons<small>Bus or car from the sensor name. The ring shows the value.</small></span></label>
     <label><input type="checkbox" id="lCols" checked><span>3D columns<small>Height shows the value. Tilt the map to see them.</small></span></label>
     <select id="measure" aria-label="Measurement"></select>
+    <label style="margin-top:6px"><span>Trail behind each vehicle</span></label>
+    <select id="trailWin" aria-label="Trail length"><option value="0">Off</option><option value="1">Last hour</option><option value="6" selected>Last 6 hours</option><option value="24">Last 24 hours</option><option value="72">Last 3 days</option><option value="168">Last 7 days</option></select>
+    <div class="st">Coloured by the measurement above. A dashed line means no GPS signal for over 10 minutes.</div>
+
+    <h2>Animation</h2>
+    <label><input type="checkbox" id="lWindAnim" checked><span>Flowing wind<small>Streaks follow the Open-Meteo wind</small></span></label>
+    <label><input type="checkbox" id="lPulse" checked><span>Pulsing vehicles</span></label>
+    <div class="btns"><button class="btn" id="btnLapse">Time-lapse</button><button class="btn" id="btnTour">Camera tour</button></div>
 
     <h2>Map</h2>
     <label><input type="checkbox" id="lTerrain" checked><span>3D terrain</span></label>
@@ -112,12 +129,21 @@
 
 <div class="panel" id="legend"><div id="lgT"></div><div class="bar" id="lgBar"></div><div class="row"><span id="lgLo"></span><span id="lgHi"></span></div></div>
 <div class="panel" id="detail"></div>
+<div class="panel" id="replay">
+  <button class="btn" id="rpPlay" aria-label="Play or pause">&#9654;</button>
+  <input type="range" id="rpSlider" min="0" max="1000" value="1000" aria-label="Time">
+  <span id="rpTime" class="st" style="min-width:104px;text-align:right">Live</span>
+  <select id="rpSpeed" aria-label="Speed"><option value="0.5">Slow</option><option value="1" selected>Normal</option><option value="3">Fast</option></select>
+  <button class="btn" id="rpLive">Live</button>
+  <button class="btn" id="rpClose" aria-label="Close time-lapse">&times;</button>
+</div>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const state = { cfg: null, devices: [], latest: {}, weather: null, air: null, sea: null, open: null, cydom: null, mid: '4097', lastOk: {}, errors: {}, selected: null };
+const state = { cfg: null, devices: [], latest: {}, weather: null, air: null, sea: null, open: null, cydom: null, mid: '4097', lastOk: {}, errors: {}, selected: null,
+  trails: {}, segs: {}, trailNotes: {}, trailWin: 6, trailMid: null, trailLoading: false, anim: {}, replay: null, follow: null, tour: null, spark: {} };
 const BOUNDS = { w: 31.9, e: 34.9, s: 34.3, n: 35.95 };
 
 /* ---------- colours ---------- */
@@ -289,8 +315,12 @@ function renderSurface() {
   updateLegend();
 }
 
-/* ---------- sensors ---------- */
+/* ---------- vehicles ---------- */
 const WEATHER_FIELD = { 4097: 't', 4098: 'rh' };
+const MIN_MOVE_M = 15;       // GPS points closer than this are merged into one
+const GAP_MS = 10 * 60000;   // a longer silence is drawn dashed
+const OFF_COLOR = 'rgb(140,140,134)';
+
 function mRange(mid, vals) {
   if (mid === '4097') return [10, 40];
   if (mid === '4098') return [0, 100];
@@ -298,38 +328,279 @@ function mRange(mid, vals) {
   const lo = Math.min(...vals), hi = Math.max(...vals), pad = (hi - lo) * 0.1 || 1;
   return [lo - pad, hi + pad];
 }
-function devicePos(d) {
-  const l = state.latest[d.eui] || {};
-  const [latId, lngId] = state.cfg.gps;
-  const lat = l[latId] ? Number(l[latId].v) : d.lat;
-  const lng = l[lngId] ? Number(l[lngId].v) : d.lng;
-  return isFinite(lat) && isFinite(lng) && lat && lng ? [lat, lng] : null;
-}
+const vehicleType = (d) => (/bus/i.test(d.name) ? 'bus' : 'car');
 function deviceValue(d) { const l = state.latest[d.eui]; return l && l[state.mid] ? l[state.mid].v : null; }
-function square(lng, lat, h) {
+function gpsFix(d) {
+  const l = state.latest[d.eui];
+  if (!l || !state.cfg) return null;
+  const [latId, lngId] = state.cfg.gps;
+  if (!l[latId] || !l[lngId]) return null;
+  const lat = Number(l[latId].v), lng = Number(l[lngId].v);
+  if (!isFinite(lat) || !isFinite(lng) || (!lat && !lng)) return null;
+  return { lat, lng, t: Date.parse(l[latId].t) };
+}
+function devicePos(d) {
+  const f = gpsFix(d);
+  if (f) return [f.lat, f.lng];
+  return isFinite(d.lat) && isFinite(d.lng) && d.lat && d.lng ? [d.lat, d.lng] : null;
+}
+function valueRange() {
+  if (state.mid === '4097' || state.mid === '4098') return mRange(state.mid, []);
+  const vals = [];
+  state.devices.forEach((d) => { const v = deviceValue(d); if (v != null) vals.push(v); });
+  if (state.trailMid === state.mid) Object.values(state.trails).forEach((pts) => pts.forEach((p) => { if (p.v != null) vals.push(p.v); }));
+  return mRange(state.mid, vals);
+}
+
+/* ----- trail maths ----- */
+const mDist = (a, b) => km([a.lat, a.lng], [b.lat, b.lng]) * 1000;
+function bearing(a, b) {
+  const toR = Math.PI / 180;
+  const y = Math.sin((b.lng - a.lng) * toR) * Math.cos(b.lat * toR);
+  const x = Math.cos(a.lat * toR) * Math.sin(b.lat * toR) - Math.sin(a.lat * toR) * Math.cos(b.lat * toR) * Math.cos((b.lng - a.lng) * toR);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+// Merge points where the vehicle stood still, and remember which points follow a long silence.
+function keepPoints(pts) {
+  const out = [];
+  let prev = null;
+  pts.forEach((p) => {
+    const gap = prev && p.t - prev.t > GAP_MS;
+    if (!out.length || gap || mDist(out[out.length - 1], p) >= MIN_MOVE_M) out.push({ ...p, gapBefore: !!gap });
+    prev = p;
+  });
+  return out;
+}
+function buildSegments(eui) {
+  const kept = keepPoints(state.trails[eui] || []);
+  const segs = [];
+  for (let i = 1; i < kept.length; i++) {
+    const a = kept[i - 1], b = kept[i];
+    const v = a.v != null && b.v != null ? (a.v + b.v) / 2 : b.v != null ? b.v : a.v;
+    segs.push({ t0: a.t, t1: b.t, a: [a.lng, a.lat], b: [b.lng, b.lat], v, gap: b.gapBefore ? 1 : 0 });
+  }
+  return segs;
+}
+function prepareSegments() {
+  state.segs = {};
+  Object.keys(state.trails).forEach((e) => { state.segs[e] = buildSegments(e); });
+}
+function idxAt(pts, t) {
+  let lo = 0, hi = pts.length - 1, ans = -1;
+  while (lo <= hi) {
+    const m = (lo + hi) >> 1;
+    if (pts[m].t <= t) { ans = m; lo = m + 1; } else hi = m - 1;
+  }
+  return ans;
+}
+function stateAt(pts, t) {
+  if (!pts.length) return null;
+  const i = idxAt(pts, t);
+  if (i < 0) return { ...pts[0], idx: 0, before: true };
+  const a = pts[i], b = pts[i + 1];
+  if (!b || b.t - a.t > GAP_MS) return { ...a, idx: i };
+  const f = (t - a.t) / (b.t - a.t);
+  return { t, lat: a.lat + (b.lat - a.lat) * f, lng: a.lng + (b.lng - a.lng) * f, v: a.v != null && b.v != null ? a.v + (b.v - a.v) * f : a.v != null ? a.v : b.v, idx: i };
+}
+// Speed and heading from the latest real movement (not from GPS jitter).
+function motionAt(pts, idx, refMs) {
+  if (idx == null || idx < 1 || !pts[idx]) return { speed: 0, heading: null };
+  const p1 = pts[idx];
+  if (refMs - p1.t > GAP_MS) return { speed: 0, heading: null };
+  for (let j = idx - 1; j >= 0 && p1.t - pts[j].t <= GAP_MS; j--) {
+    const dist = mDist(pts[j], p1);
+    if (dist >= MIN_MOVE_M) {
+      const hours = (p1.t - pts[j].t) / 3600000;
+      const speed = hours > 0 ? dist / 1000 / hours : 0;
+      return { speed: speed <= 200 ? speed : 0, heading: bearing(pts[j], p1) };
+    }
+  }
+  return { speed: 0, heading: null };
+}
+function tripStats(pts, until) {
+  let dist = 0, top = 0;
+  for (let i = 1; i < pts.length; i++) {
+    if (pts[i].t > until) break;
+    const dt = pts[i].t - pts[i - 1].t;
+    if (dt <= 0 || dt > GAP_MS) continue;
+    const d = mDist(pts[i - 1], pts[i]);
+    if (d < MIN_MOVE_M) continue;
+    dist += d;
+    const sp = d / 1000 / (dt / 3600000);
+    if (sp <= 200 && dt >= 20000) top = Math.max(top, sp);
+  }
+  return { km: dist / 1000, top };
+}
+
+/* ----- what to show for one vehicle, live or in the time-lapse ----- */
+function vehicleView(d) {
+  const pts = state.trails[d.eui] || [];
+  if (state.replay && pts.length) {
+    const cur = state.replay.cur;
+    const s = stateAt(pts, cur);
+    if (s.before) return null;
+    const m = motionAt(pts, s.idx, cur);
+    return { pos: [s.lat, s.lng], v: state.trailMid === state.mid ? s.v : null, online: cur - pts[s.idx].t < GAP_MS * 3, speed: m.speed, heading: m.heading, replay: true, gps: true };
+  }
+  const fix = gpsFix(d);
+  const an = state.anim[d.eui];
+  const pos = an && an.cur ? an.cur : devicePos(d);
+  const m = motionAt(pts, pts.length - 1, Date.now());
+  return { pos, v: deviceValue(d), online: d.online, speed: m.speed, heading: m.heading, replay: false, gps: !!fix };
+}
+
+/* ----- icons ----- */
+function roundRect(x, X, Y, W, H, R) {
+  x.beginPath(); x.moveTo(X + R, Y); x.lineTo(X + W - R, Y); x.quadraticCurveTo(X + W, Y, X + W, Y + R);
+  x.lineTo(X + W, Y + H - R); x.quadraticCurveTo(X + W, Y + H, X + W - R, Y + H); x.lineTo(X + R, Y + H);
+  x.quadraticCurveTo(X, Y + H, X, Y + H - R); x.lineTo(X, Y + R); x.quadraticCurveTo(X, Y, X + R, Y); x.closePath();
+}
+function vehicleIcons() {
+  const wheel = (x, cx, cy, r) => { x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fill(); };
+  const make = (name, type, ring, off) => {
+    const c = document.createElement('canvas');
+    c.width = 52; c.height = 52;
+    const x = c.getContext('2d');
+    x.beginPath(); x.arc(26, 26, 21, 0, Math.PI * 2); x.fillStyle = '#ffffff'; x.fill();
+    x.lineWidth = 5; x.strokeStyle = ring; x.stroke();
+    const ink = off ? '#8c8c86' : '#2c2c2a';
+    x.fillStyle = ink;
+    if (type === 'bus') {
+      roundRect(x, 15, 17, 22, 16, 3); x.fill();
+      x.fillStyle = '#ffffff'; x.fillRect(18, 20, 4.5, 6); x.fillRect(23.75, 20, 4.5, 6); x.fillRect(29.5, 20, 4.5, 6);
+      x.fillStyle = ink; wheel(x, 20, 34, 2.8); wheel(x, 32, 34, 2.8);
+    } else {
+      roundRect(x, 14, 26, 24, 9, 3); x.fill();
+      x.beginPath(); x.moveTo(19, 26); x.lineTo(22, 19); x.lineTo(30, 19); x.lineTo(33, 26); x.closePath(); x.fill();
+      x.fillStyle = ink; wheel(x, 20, 36, 3); wheel(x, 32, 36, 3);
+    }
+    map.addImage(name, x.getImageData(0, 0, 52, 52), { pixelRatio: 2 });
+  };
+  ['bus', 'car'].forEach((type) => {
+    for (let i = 0; i <= 24; i++) make(`veh-${type}-${i}`, type, rgb(rampAt(TEMP, i / 24)), false);
+    make(`veh-${type}-off`, type, OFF_COLOR, true);
+  });
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 64;
+  const x = c.getContext('2d');
+  x.beginPath(); x.moveTo(32, 1); x.lineTo(41, 13); x.lineTo(23, 13); x.closePath();
+  x.fillStyle = '#1c1c1a'; x.fill(); x.lineWidth = 1.5; x.strokeStyle = '#ffffff'; x.stroke();
+  map.addImage('hdg-arrow', x.getImageData(0, 0, 64, 64), { pixelRatio: 2 });
+}
+
+/* ----- map data for vehicles and trails ----- */
+function square(lng, lat) {
   const dl = 0.0022, dn = dl / Math.cos((lat * Math.PI) / 180);
   return [[lng - dn, lat - dl], [lng + dn, lat - dl], [lng + dn, lat + dl], [lng - dn, lat + dl], [lng - dn, lat - dl]];
 }
 function updateSensors() {
-  const vals = state.devices.map(deviceValue).filter((v) => v != null);
-  const [lo, hi] = mRange(state.mid, vals);
+  const [lo, hi] = valueRange();
   const dots = [], cols = [];
   state.devices.forEach((d) => {
-    const p = devicePos(d);
-    if (!p) return;
-    const v = deviceValue(d);
-    const ok = d.online && v != null;
-    const t = ok ? (v - lo) / (hi - lo || 1) : 0;
-    const color = ok ? rgb(rampAt(TEMP, t)) : 'rgb(130,130,130)';
-    const props = { eui: d.eui, name: d.name, color, label: v == null ? d.name : `${r1(v)} ${unitOf(state.mid)}`.trim() };
-    dots.push(pt(p[1], p[0], props));
-    cols.push({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [square(p[1], p[0])] }, properties: { ...props, h: ok ? 600 + clamp(t, 0, 1) * 9000 : 200 } });
+    const vw = vehicleView(d);
+    if (!vw || !vw.pos) return;
+    const [lat, lng] = vw.pos;
+    const ok = vw.online && vw.v != null;
+    const t = ok ? (vw.v - lo) / (hi - lo || 1) : 0;
+    const color = ok ? rgb(rampAt(TEMP, t)) : OFF_COLOR;
+    const icon = `veh-${vehicleType(d)}-${ok ? Math.round(clamp(t, 0, 1) * 24) : 'off'}`;
+    const props = {
+      eui: d.eui, name: d.name, color, icon, hdg: vw.heading || 0, moving: vw.speed > 3 && vw.heading != null ? 1 : 0,
+      online: vw.online ? 1 : 0, label: vw.v == null ? d.name : `${r1(vw.v)} ${unitOf(state.mid)}`.trim(),
+    };
+    dots.push(pt(lng, lat, props));
+    cols.push({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [square(lng, lat)] }, properties: { ...props, h: ok ? 600 + clamp(t, 0, 1) * 9000 : 200 } });
   });
   map.getSource('sensors').setData({ type: 'FeatureCollection', features: dots });
   map.getSource('columns').setData({ type: 'FeatureCollection', features: cols });
   updateLegend();
+}
+function updateTrails() {
+  const src = map.getSource('trails');
+  if (!src || !src.setData) return;
+  const feats = [];
+  if (state.trailWin) {
+    const [lo, hi] = valueRange();
+    const winMs = state.trailWin * 3600000;
+    const ref = state.replay ? state.replay.cur : Date.now();
+    const tail = state.replay ? Math.max(20 * 60000, winMs / 8) : winMs;
+    const colourOk = state.trailMid === state.mid;
+    Object.keys(state.segs).forEach((eui) => {
+      const list = state.segs[eui];
+      const an = !state.replay ? state.anim[eui] : null;
+      for (let i = 0; i < list.length; i++) {
+        const s = list[i];
+        if (s.t1 > ref) break;
+        const age = clamp(1 - (ref - s.t1) / tail, 0, 1);
+        const a = state.replay ? 0.2 + 0.8 * age : 0.3 + 0.7 * age;
+        const color = s.gap || !colourOk || s.v == null ? OFF_COLOR : rgb(rampAt(TEMP, (s.v - lo) / (hi - lo || 1)));
+        let end = s.b;
+        if (an && an.cur && i === list.length - 1) end = [an.cur[1], an.cur[0]];   // the line grows with the gliding icon
+        feats.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: [s.a, end] }, properties: { color, a, gap: s.gap } });
+      }
+    });
+  }
+  src.setData({ type: 'FeatureCollection', features: feats });
+}
+function updateAll() {
+  updateSensors();
+  updateTrails();
+  syncReplayUi();
   if (state.selected) showDetail(state.selected, false);
 }
+
+/* ----- loading history and following live fixes ----- */
+async function loadTrails() {
+  if (state.trailLoading) return;
+  if (!state.trailWin) {
+    state.trails = {}; state.segs = {}; state.trailNotes = {};
+    updateTrails(); showStatus();
+    return;
+  }
+  state.trailLoading = true;
+  const hours = state.trailWin, mid = state.mid;
+  showStatus();
+  try {
+    const j = await getJson(`/api/trails?hours=${hours}&mid=${mid}`);
+    const old = state.trails;
+    const next = {};
+    Object.keys(j.trails).forEach((eui) => {
+      const pts = j.trails[eui].map((r) => ({ t: r[0], lat: r[1], lng: r[2], v: r[3] }));
+      const lastHist = pts.length ? pts[pts.length - 1].t : 0;
+      (old[eui] || []).forEach((p) => { if (p.t > lastHist) pts.push(p); });   // keep live fixes newer than the history
+      next[eui] = pts;
+    });
+    state.trails = next;
+    state.trailNotes = j.notes || {};
+    state.trailMid = mid;
+    prepareSegments();
+    state.lastOk.trails = Date.now();
+    delete state.errors.trails;
+  } catch (e) {
+    state.errors.trails = e.message;
+  }
+  state.trailLoading = false;
+  updateAll();
+  showStatus();
+  if (state.trailWin !== hours || state.mid !== mid) loadTrails();   // the choice changed while loading
+}
+function appendLive() {
+  state.devices.forEach((d) => {
+    const f = gpsFix(d);
+    if (!f || !isFinite(f.t)) return;
+    const pts = state.trails[d.eui] || (state.trails[d.eui] = []);
+    const last = pts[pts.length - 1];
+    if (last && f.t <= last.t) return;
+    pts.push({ t: f.t, lat: f.lat, lng: f.lng, v: state.trailMid == null || state.trailMid === state.mid ? deviceValue(d) : null });
+    if (pts.length > 6000) pts.splice(0, pts.length - 6000);
+    state.segs[d.eui] = buildSegments(d.eui);
+    const from = state.anim[d.eui] && state.anim[d.eui].cur ? state.anim[d.eui].cur : last ? [last.lat, last.lng] : null;
+    const metres = from ? km(from, [f.lat, f.lng]) * 1000 : 0;
+    if (from && metres > 5 && metres < 5000) state.anim[d.eui] = { from, to: [f.lat, f.lng], t0: performance.now(), dur: 2500, cur: from };
+    else delete state.anim[d.eui];
+  });
+}
+
 function updateLegend() {
   const kind = document.querySelector('input[name=surf]:checked').value;
   if (kind !== 'off') {
@@ -338,9 +609,8 @@ function updateLegend() {
     $('lgBar').style.background = gradientCss(sc.stops.length === 2 && kind === 'cloud' ? [[0, [20, 20, 20]], [1, [255, 255, 255]]] : sc.stops);
     $('lgLo').textContent = `${lo} ${sc.unit}`; $('lgHi').textContent = `${hi} ${sc.unit}`;
   } else {
-    const vals = state.devices.map(deviceValue).filter((v) => v != null);
-    const [lo, hi] = mRange(state.mid, vals);
-    $('lgT').textContent = `Our sensors: ${nameOf(state.mid)}`;
+    const [lo, hi] = valueRange();
+    $('lgT').textContent = `Vehicles and trails: ${nameOf(state.mid)}`;
     $('lgBar').style.background = gradientCss(TEMP);
     $('lgLo').textContent = `${r1(lo)} ${unitOf(state.mid)}`; $('lgHi').textContent = `${r1(hi)} ${unitOf(state.mid)}`;
   }
@@ -350,9 +620,10 @@ function updateLegend() {
 function updateWeather() {
   const w = state.weather;
   if (!w) return;
+  w.points.forEach((p) => { const r = ((p.wd || 0) * Math.PI) / 180; p.u = -(p.ws || 0) * Math.sin(r); p.v = -(p.ws || 0) * Math.cos(r); });
   map.getSource('wind').setData({ type: 'FeatureCollection', features: w.points.map((p) => pt(p.lng, p.lat, { ws: p.ws, to: ((p.wd + 180) % 360), t: p.t, label: `${r1(p.t)}°` })) });
   renderSurface();
-  updateSensors();
+  updateAll();
 }
 function updateOpen() {
   if (!state.open) return;
@@ -396,21 +667,39 @@ function nearest(list, lat, lng, ok) {
   });
   return best;
 }
+function renderSpark(eui, s) {
+  const box = $('spark');
+  if (!box || state.selected !== eui) return;
+  if (!s.length) { box.textContent = 'No history in the last 24 hours.'; return; }
+  const ys = s.map((p) => p.v), mn = Math.min(...ys), mx = Math.max(...ys);
+  const pts = s.map((p, i) => `${(i / (s.length - 1 || 1)) * 250},${34 - ((p.v - mn) / (mx - mn || 1)) * 30}`).join(' ');
+  box.innerHTML = `<svg viewBox="0 0 250 38" width="100%"><polyline points="${pts}" fill="none" stroke="#2a78d6" stroke-width="2"/></svg><div class="st">Last 24 hours: ${r1(mn)} to ${r1(mx)} ${unitOf(state.mid)}</div>`;
+}
 async function showDetail(eui, fresh = true) {
   const d = state.devices.find((x) => x.eui === eui);
   if (!d) return;
+  if (!fresh && performance.now() < (state.hold || 0)) return;   // a press is in progress: do not replace the buttons under it
   state.selected = eui;
-  const pos = devicePos(d);
+  const vw = vehicleView(d) || { pos: devicePos(d), v: deviceValue(d), online: d.online, speed: 0, heading: null, replay: false, gps: false };
+  const pos = vw.pos, v = vw.v;
   const l = state.latest[eui] || {};
-  const v = deviceValue(d);
-  let html = `<button class="x" id="dx" aria-label="Close">&times;</button><b>${d.name}</b><div class="st">${d.group} · <span style="color:${d.online ? 'var(--ok)' : 'var(--bad)'}">${d.online ? 'online' : 'offline'}</span> · ${ago(d.lastSeen)}${d.battery != null ? ' · battery ' + d.battery + '%' : ''}</div>`;
+  const pts = state.trails[eui] || [];
+  const type = vehicleType(d);
+  let html = `<button class="x" id="dx" aria-label="Close">&times;</button><b>${d.name}</b> <span class="st">${type}</span><div class="st">${d.group} · <span style="color:${d.online ? 'var(--ok)' : 'var(--bad)'}">${d.online ? 'online' : 'offline'}</span> · ${ago(d.lastSeen)}${d.battery != null ? ' · battery ' + d.battery + '%' : ''}</div>`;
+  if (vw.replay) {
+    html += `<div class="st">Time-lapse: ${new Date(state.replay.cur).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}${vw.speed > 3 ? ' · ' + Math.round(vw.speed) + ' km/h' : ' · stopped'}</div>`;
+  } else {
+    const f = gpsFix(d);
+    if (f && isFinite(f.t)) html += `<div class="st">GPS fix ${ago(new Date(f.t).toISOString())}${vw.speed > 3 ? ' · moving ' + Math.round(vw.speed) + ' km/h' : ' · stopped'}</div>`;
+    else html += `<div class="st" style="color:var(--bad)">No GPS yet${pos ? '. Showing the position set in SenseCAP.' : ' and no position set.'}</div>`;
+  }
   html += `<div class="big">${v == null ? '–' : r1(v) + ' ' + unitOf(state.mid)}</div><div class="st">${nameOf(state.mid)}</div>`;
   const cmp = [];
   if (pos && v != null) {
     const wf = WEATHER_FIELD[state.mid];
     const wv = wf ? sampleGrid(state.weather, wf, pos[0], pos[1]) : null;
     if (wv != null) cmp.push(`Weather model: ${r1(wv)} ${unitOf(state.mid)} (difference ${v - wv > 0 ? '+' : ''}${r1(v - wv)})`);
-    if (state.mid === '4097') {
+    if (state.mid === '4097' && !vw.replay) {
       const m = nearest(state.cydom && state.cydom.points, pos[0], pos[1], (p) => p.temp != null);
       if (m) cmp.push(`Met Office ${m.p.name}: ${r1(m.p.temp)} °C (${r1(v - m.p.temp) > 0 ? '+' : ''}${r1(v - m.p.temp)} for our sensor), ${Math.round(m.d)} km away, reading ${readingAge(m.p.time)}${isOld(m.p.time) ? ' (old)' : ''}`);
       const o = nearest(state.open && state.open.points, pos[0], pos[1], (p) => p.temp != null && km([pos[0], pos[1]], [p.lat, p.lng]) < 40);
@@ -419,25 +708,254 @@ async function showDetail(eui, fresh = true) {
   }
   if (cmp.length) html += '<div class="cmp">' + cmp.join('<br>') + '</div>';
   html += '<div id="spark" class="st" style="margin-top:6px">Loading history…</div>';
-  const rows = Object.keys(l).filter((m) => !state.cfg.gps.includes(m)).map((m) => `<tr><td>${nameOf(m)}</td><td>${r1(l[m].v)} ${unitOf(m)}</td></tr>`).join('');
-  if (rows) html += `<table>${rows}</table>`;
+  const rows = [];
+  if (state.trailWin && pts.length > 1) {
+    const ts = tripStats(pts, vw.replay ? state.replay.cur : Date.now());
+    rows.push(`<tr><td>Distance, last ${state.trailWin < 24 ? state.trailWin + ' h' : Math.round(state.trailWin / 24) + ' d'}</td><td>${r1(ts.km)} km</td></tr>`, `<tr><td>Top speed</td><td>${Math.round(ts.top)} km/h</td></tr>`);
+  }
+  Object.keys(l).filter((m) => !state.cfg.gps.includes(m)).forEach((m) => rows.push(`<tr><td>${nameOf(m)}</td><td>${r1(l[m].v)} ${unitOf(m)}</td></tr>`));
+  if (rows.length) html += `<table>${rows.join('')}</table>`;
+  html += `<div class="btns"><button class="btn" id="bFollow">${state.follow === eui ? 'Stop following' : 'Follow vehicle'}</button><button class="btn" id="bReplay">Replay trip</button></div>`;
   html += `<p><a href="/#${eui}" style="color:var(--acc)">Open full history and CSV</a></p>`;
   const box = $('detail');
   box.innerHTML = html;
   box.style.display = 'block';
-  $('dx').onclick = () => { box.style.display = 'none'; state.selected = null; };
+  if (!box.dataset.held) { box.dataset.held = '1'; box.addEventListener('pointerdown', () => { state.hold = performance.now() + 1500; }); }
+  $('dx').onclick = () => { box.style.display = 'none'; state.selected = null; if (state.follow === eui) state.follow = null; };
+  $('bFollow').onclick = () => { state.hold = 0; state.follow = state.follow === eui ? null : eui; if (state.tour) stopTour(); showDetail(eui, false); };
+  $('bReplay').onclick = () => { state.hold = 0; startReplay(eui); };
   if (fresh && pos) map.easeTo({ center: [pos[1], pos[0]], zoom: Math.max(map.getZoom(), 10), duration: 800 });
+  const key = `${eui}:${state.mid}`;
+  const cached = state.spark[key];
+  if (cached && Date.now() - cached.at < 120000) {
+    if (cached.data) renderSpark(eui, cached.data); else if ($('spark')) $('spark').textContent = 'History unavailable.';
+    return;
+  }
   try {
     const s = await getJson(`/api/series?eui=${eui}&mid=${state.mid}&days=1`);
-    if (state.selected !== eui || !$('spark')) return;
-    if (!s.length) { $('spark').textContent = 'No history in the last 24 hours.'; return; }
-    const ys = s.map((p) => p.v), mn = Math.min(...ys), mx = Math.max(...ys);
-    const pts = s.map((p, i) => `${(i / (s.length - 1 || 1)) * 250},${34 - ((p.v - mn) / (mx - mn || 1)) * 30}`).join(' ');
-    $('spark').innerHTML = `<svg viewBox="0 0 250 38" width="100%"><polyline points="${pts}" fill="none" stroke="#2a78d6" stroke-width="2"/></svg><div class="st">Last 24 hours: ${r1(mn)} to ${r1(mx)} ${unitOf(state.mid)}</div>`;
-  } catch (e) { if ($('spark')) $('spark').textContent = 'History unavailable.'; }
+    state.spark[key] = { at: Date.now(), data: s };
+    renderSpark(eui, s);
+  } catch (e) {
+    state.spark[key] = { at: Date.now(), data: null };
+    if ($('spark')) $('spark').textContent = 'History unavailable.';
+  }
+}
+
+/* ---------- animation: time-lapse, gliding vehicles, wind, pulses, camera ---------- */
+function syncReplayUi() {
+  const r = state.replay;
+  $('rpPlay').innerHTML = r && r.playing ? '&#10074;&#10074;' : '&#9654;';
+  if (r) {
+    $('rpSlider').value = String(Math.round(((r.cur - r.t0) / (r.t1 - r.t0 || 1)) * 1000));
+    $('rpTime').textContent = new Date(r.cur).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+  } else {
+    $('rpSlider').value = '1000';
+    $('rpTime').textContent = 'Live';
+  }
+}
+function replayBounds() {
+  let t0 = Infinity, t1 = -Infinity;
+  Object.values(state.trails).forEach((p) => { if (p.length > 1) { t0 = Math.min(t0, p[0].t); t1 = Math.max(t1, p[p.length - 1].t); } });
+  return isFinite(t0) && t1 > t0 ? [t0, t1] : null;
+}
+async function startReplay(followEui) {
+  $('replay').style.display = 'flex';
+  if (!state.trailWin) {
+    $('trailWin').value = '6';
+    state.trailWin = 6;
+    await loadTrails();
+  }
+  const b = replayBounds();
+  if (!b) { $('rpTime').textContent = 'No GPS history yet'; return; }
+  state.replay = { t0: b[0], t1: b[1], cur: b[0], playing: true, mult: Number($('rpSpeed').value) };
+  state.anim = {};
+  if (followEui) state.follow = followEui;
+  if (state.tour) stopTour();
+  updateAll();
+}
+function stopReplay() {
+  state.replay = null;
+  updateAll();
+}
+let lastReplayDraw = 0;
+function stepReplay(dt, now) {
+  const r = state.replay;
+  if (!r || !r.playing) return;
+  r.cur += (dt * (r.t1 - r.t0) / 60) * r.mult;     // at "Normal" the whole window plays in about a minute
+  if (r.cur >= r.t1) { r.cur = r.t1; r.playing = false; }
+  if (now - lastReplayDraw > 50 || !r.playing) {
+    lastReplayDraw = now;
+    updateSensors();
+    updateTrails();
+    syncReplayUi();
+    cardTick(now);
+  }
+}
+let lastCard = 0;
+function cardTick(now) {
+  if (state.selected && now - lastCard > 700) { lastCard = now; showDetail(state.selected, false); }
+}
+let lastGlide = 0, lastGlideTrail = 0;
+function stepGlide(now) {
+  const euis = Object.keys(state.anim);
+  if (!euis.length) return;
+  euis.forEach((eui) => {
+    const a = state.anim[eui];
+    const f = clamp((now - a.t0) / a.dur, 0, 1);
+    const e = f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+    a.cur = [a.from[0] + (a.to[0] - a.from[0]) * e, a.from[1] + (a.to[1] - a.from[1]) * e];
+    if (f >= 1) delete state.anim[eui];
+  });
+  const done = !Object.keys(state.anim).length;
+  if (now - lastGlide > 33 || done) {
+    lastGlide = now;
+    updateSensors();
+    if (now - lastGlideTrail > 100 || done) { lastGlideTrail = now; updateTrails(); }
+    cardTick(now);
+  }
+}
+function followStep() {
+  if (!state.follow) return;
+  const d = state.devices.find((x) => x.eui === state.follow);
+  const vw = d && vehicleView(d);
+  if (vw && vw.pos) map.jumpTo({ center: [vw.pos[1], vw.pos[0]] });
+}
+function startTour() {
+  state.tour = { t0: performance.now() };
+  state.follow = null;
+  map.easeTo({ center: [33.25, 35.0], zoom: 8.2, pitch: 62, duration: 1800 });
+  $('btnTour').textContent = 'Stop tour';
+}
+function stopTour() {
+  state.tour = null;
+  $('btnTour').textContent = 'Camera tour';
+}
+function stopAuto() {
+  if (state.tour) stopTour();
+  if (state.follow) { state.follow = null; if (state.selected) showDetail(state.selected, false); }
+}
+function tourStep(dt, now) {
+  if (state.tour && now - state.tour.t0 > 1900) map.setBearing(map.getBearing() + dt * 5);
+}
+
+/* pulsing rings under the vehicles */
+let lastPulse = 0;
+function pulseStep(now) {
+  if (!$('lPulse').checked || !map.getLayer('pulse') || now - lastPulse < 50) return;
+  lastPulse = now;
+  const ph = (now % 2200) / 2200;
+  map.setPaintProperty('pulse', 'circle-radius', 10 + ph * 26);
+  map.setPaintProperty('pulse', 'circle-stroke-opacity', (1 - ph) * 0.8);
+}
+
+/* wind particles drawn on a canvas above the map.
+   Every particle remembers its last positions in longitude/latitude and the whole streak is projected again each frame,
+   so the streaks stay correct while the camera turns, tilts or zooms. */
+const WIND_TAIL = 12;
+const WIND_COLOURS = ['190,225,255', '235,245,255', '255,240,170', '255,190,120'];
+const wind = { cv: null, ctx: null, w: 0, h: 0, parts: [], box: null, boxAt: 0, cleared: false };
+function resizeWind() {
+  if (!wind.cv) return;
+  const dpr = window.devicePixelRatio || 1;
+  wind.w = window.innerWidth; wind.h = window.innerHeight;
+  wind.cv.width = Math.round(wind.w * dpr); wind.cv.height = Math.round(wind.h * dpr);
+  wind.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function windBox() {
+  const g = state.weather;
+  if (!g) return null;
+  const grid = { w: g.lng0, e: g.lng0 + (g.cols - 1) * g.lngStep, s: g.lat0, n: g.lat0 + (g.rows - 1) * g.latStep };
+  const b = map.getBounds();
+  const box = { w: Math.max(grid.w, b.getWest()), e: Math.min(grid.e, b.getEast()), s: Math.max(grid.s, b.getSouth()), n: Math.min(grid.n, b.getNorth()) };
+  return box.e > box.w && box.n > box.s ? box : null;
+}
+function respawn(p) {
+  const b = wind.box;
+  p.h = [];
+  if (!b) { p.age = p.max = 1; return; }
+  p.lng = b.w + Math.random() * (b.e - b.w);
+  p.lat = b.s + Math.random() * (b.n - b.s);
+  p.age = 0;
+  p.max = 50 + Math.random() * 90;
+}
+function initWind() {
+  wind.cv = $('windCv');
+  wind.ctx = wind.cv.getContext('2d');
+  resizeWind();
+  window.addEventListener('resize', resizeWind);
+  const n = window.innerWidth < 700 ? 450 : 900;
+  for (let i = 0; i < n; i++) wind.parts.push({ lng: 0, lat: 0, age: 1e9, max: 0, h: [] });
+}
+function windStep(dt, now) {
+  if (!wind.ctx) return;
+  const on = $('lWindAnim').checked && state.weather && state.weather.points[0] && state.weather.points[0].u !== undefined;
+  if (!on) {
+    if (!wind.cleared) { wind.ctx.clearRect(0, 0, wind.w, wind.h); wind.cleared = true; }
+    return;
+  }
+  wind.cleared = false;
+  if (!wind.box || now - wind.boxAt > 400) { wind.box = windBox(); wind.boxAt = now; }
+  const b = wind.box;
+  const ctx = wind.ctx;
+  ctx.clearRect(0, 0, wind.w, wind.h);
+  const degPx = 360 / (512 * Math.pow(2, map.getZoom()));
+  const k = dt * 60 * 0.3;                         // screen pixels moved per m/s of wind, per frame
+  const batch = {};                                // colour and brightness level -> streaks to draw together
+  for (const p of wind.parts) {
+    if (++p.age > p.max || !b || p.lng < b.w || p.lng > b.e || p.lat < b.s || p.lat > b.n) { respawn(p); continue; }
+    const u = sampleGrid(state.weather, 'u', p.lat, p.lng), v = sampleGrid(state.weather, 'v', p.lat, p.lng);
+    if (u == null || v == null) { p.age = p.max; continue; }
+    p.h.push([p.lng, p.lat]);
+    if (p.h.length > WIND_TAIL) p.h.shift();
+    p.lng += (u * k * degPx);
+    p.lat += (v * k * degPx) * Math.cos((p.lat * Math.PI) / 180);
+    if (p.h.length < 2) continue;
+    const life = Math.min(1, p.age / 10, (p.max - p.age) / 15);
+    const lvl = life < 0.35 ? 0 : life < 0.7 ? 1 : 2;
+    const key = Math.min(3, Math.floor(Math.hypot(u, v) / 3)) * 3 + lvl;
+    const pts = [];
+    for (let i = 0; i < p.h.length; i++) { const q = map.project(p.h[i]); pts.push(q.x, q.y); }
+    const q = map.project([p.lng, p.lat]);
+    pts.push(q.x, q.y);
+    (batch[key] = batch[key] || []).push(pts);
+  }
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  Object.keys(batch).forEach((key) => {
+    const col = WIND_COLOURS[Math.floor(key / 3)], lvl = key % 3;
+    ctx.strokeStyle = `rgba(${col},${[0.3, 0.6, 0.9][lvl]})`;
+    ctx.beginPath();
+    batch[key].forEach((pts) => {
+      ctx.moveTo(pts[0], pts[1]);
+      for (let j = 2; j < pts.length; j += 2) ctx.lineTo(pts[j], pts[j + 1]);
+    });
+    ctx.stroke();
+  });
+}
+
+let lastTick = 0;
+function tick(now) {
+  const dt = lastTick ? Math.min(0.1, (now - lastTick) / 1000) : 0.016;
+  lastTick = now;
+  stepReplay(dt, now);
+  stepGlide(now);
+  followStep();
+  tourStep(dt, now);
+  pulseStep(now);
+  windStep(dt, now);
+  requestAnimationFrame(tick);
 }
 
 /* ---------- data loading ---------- */
+function trailStatus() {
+  if (state.errors.trails) return `<div class="e">GPS trails: ${state.errors.trails}</div>`;
+  if (!state.trailWin) return '<div>GPS trails: off</div>';
+  if (state.trailLoading && !state.lastOk.trails) return '<div>GPS trails: loading…</div>';
+  const withGps = state.devices.filter((d) => (state.trails[d.eui] || []).length > 1 || gpsFix(d)).length;
+  const notes = Object.keys(state.trailNotes).slice(0, 3).map((e) => { const d = state.devices.find((x) => x.eui === e); return `<div class="e">${d ? d.name : e}: ${state.trailNotes[e]}</div>`; }).join('');
+  return `<div>GPS trails (${state.trailWin} h): ${withGps} of ${state.devices.length} vehicles with GPS${state.trailLoading ? ' · refreshing…' : ''}</div>${notes}`;
+}
 function showStatus() {
   const items = [['sensors', 'Our sensors'], ['weather', 'Weather'], ['air', 'Air quality'], ['sea', 'Sea'], ['open', 'Open sensors'], ['cydom', 'Met Office']];
   if (state.errors.map) items.push(['map', 'Map tiles']);
@@ -447,7 +965,7 @@ function showStatus() {
     const t = state.lastOk[k] ? new Date(state.lastOk[k]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'waiting';
     const feed = k === 'cydom' && state.cydom && state.cydom.feedTime ? ` · newest reading ${ago(state.cydom.feedTime)}${isOld(state.cydom.feedTime) ? ' (old)' : ''}` : '';
     return `<div>${n}: ${t}${countOf[k] != null ? ' · ' + countOf[k] + ' found' : ''}${feed}</div>`;
-  }).join('') + (state.cfg && state.cfg.demo ? '<div>Demo sensors shown</div>' : '');
+  }).join('') + trailStatus() + (state.cfg && state.cfg.demo ? '<div>Demo vehicles shown</div>' : '');
   const stale = !state.lastOk.sensors || Date.now() - state.lastOk.sensors > 120000;
   $('live').textContent = stale ? 'Waiting' : 'Live';
   $('live').classList.toggle('stale', stale);
@@ -457,7 +975,10 @@ async function refresh(kind) {
     if (kind === 'sensors') {
       [state.devices, state.latest] = await Promise.all([getJson('/api/devices'), getJson('/api/latest')]);
       fillMeasures();
+      appendLive();
       updateSensors();
+      updateTrails();
+      if (state.selected && !state.replay) showDetail(state.selected, false);
     } else {
       const url = { weather: '/api/weather', air: '/api/air', sea: '/api/sea', open: '/api/opensensors', cydom: '/api/cydom' }[kind];
       state[kind] = await getJson(url);
@@ -492,8 +1013,10 @@ function setBase(b) {
 }
 function vis(id, on) { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'); }
 function applyToggles() {
-  vis('sensors-dots', $('lDots').checked); vis('sensors-labels', $('lDots').checked);
+  vis('vehicles', $('lDots').checked); vis('vehicles-heading', $('lDots').checked); vis('vehicles-labels', $('lDots').checked);
   vis('columns', $('lCols').checked);
+  vis('pulse', $('lPulse').checked && $('lDots').checked);
+  vis('trails', state.trailWin > 0); vis('trails-gap', state.trailWin > 0);
   vis('hillshade', $('lHill').checked);
   vis('roads', $('lRoads').checked); vis('labels', $('lLabels').checked);
   vis('wind-arrows', $('lWind').checked);
@@ -512,9 +1035,10 @@ map.on('load', () => {
   map.addSource('surface', { type: 'image', url: blank, coordinates: [[FIELD_BOX.lng0, FIELD_BOX.lat1], [FIELD_BOX.lng1, FIELD_BOX.lat1], [FIELD_BOX.lng1, FIELD_BOX.lat0], [FIELD_BOX.lng0, FIELD_BOX.lat0]] });
   map.addLayer({ id: 'surface-layer', type: 'raster', source: 'surface', layout: { visibility: 'none' }, paint: { 'raster-resampling': 'linear', 'raster-opacity': 0.6 } });
 
-  ['sensors', 'columns', 'wind', 'open', 'sea'].forEach((s) => map.addSource(s, { type: 'geojson', data: EMPTY }));
+  ['sensors', 'columns', 'wind', 'open', 'sea', 'trails'].forEach((s) => map.addSource(s, { type: 'geojson', data: EMPTY }));
   map.addSource('cydom', { type: 'geojson', data: EMPTY, attribution: 'Station data © Cyprus Department of Meteorology' });
   squareIcons();
+  vehicleIcons();
 
   const arrow = document.createElement('canvas');
   arrow.width = 32; arrow.height = 32;
@@ -533,15 +1057,21 @@ map.on('load', () => {
   map.addLayer({ id: 'open-labels', type: 'symbol', source: 'open', layout: { 'text-field': ['get', 'label'], ...text }, paint: halo });
   map.addLayer({ id: 'cydom-dots', type: 'symbol', source: 'cydom', layout: { 'icon-image': ['get', 'icon'], 'icon-allow-overlap': true, 'icon-size': 0.85 } });
   map.addLayer({ id: 'cydom-labels', type: 'symbol', source: 'cydom', layout: { 'text-field': ['get', 'label'], ...text }, paint: halo });
+  map.addLayer({ id: 'trails-gap', type: 'line', source: 'trails', filter: ['==', ['get', 'gap'], 1], layout: { 'line-cap': 'butt' }, paint: { 'line-color': ['get', 'color'], 'line-width': 2, 'line-opacity': 0.8, 'line-dasharray': [1.5, 2] } });
+  map.addLayer({ id: 'trails', type: 'line', source: 'trails', filter: ['==', ['get', 'gap'], 0], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': ['interpolate', ['linear'], ['zoom'], 7, 2.5, 12, 5, 16, 8], 'line-opacity': ['get', 'a'] } });
+  map.addLayer({ id: 'pulse', type: 'circle', source: 'sensors', filter: ['==', ['get', 'online'], 1], paint: { 'circle-radius': 10, 'circle-opacity': 0, 'circle-stroke-color': ['get', 'color'], 'circle-stroke-width': 2.5, 'circle-stroke-opacity': 0.6 } });
   map.addLayer({ id: 'columns', type: 'fill-extrusion', source: 'columns', paint: { 'fill-extrusion-color': ['get', 'color'], 'fill-extrusion-height': ['get', 'h'], 'fill-extrusion-opacity': 0.9 } });
-  map.addLayer({ id: 'sensors-dots', type: 'circle', source: 'sensors', paint: { 'circle-radius': 9, 'circle-color': ['get', 'color'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2.5 } });
-  map.addLayer({ id: 'sensors-labels', type: 'symbol', source: 'sensors', layout: { 'text-field': ['get', 'label'], ...text, 'text-size': 12 }, paint: halo });
+  map.addLayer({ id: 'vehicles-heading', type: 'symbol', source: 'sensors', filter: ['==', ['get', 'moving'], 1], layout: { 'icon-image': 'hdg-arrow', 'icon-rotate': ['get', 'hdg'], 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
+  map.addLayer({ id: 'vehicles', type: 'symbol', source: 'sensors', layout: { 'icon-image': ['get', 'icon'], 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
+  map.addLayer({ id: 'vehicles-labels', type: 'symbol', source: 'sensors', layout: { 'text-field': ['get', 'label'], ...text, 'text-offset': [0, 1.9], 'text-size': 12 }, paint: halo });
 
   applyToggles();
+  initWind();
   start();
+  requestAnimationFrame(tick);
 });
 
-['sensors-dots', 'columns'].forEach((id) => {
+['vehicles', 'columns'].forEach((id) => {
   map.on('click', id, (e) => showDetail(e.features[0].properties.eui));
   map.on('mouseenter', id, () => (map.getCanvas().style.cursor = 'pointer'));
   map.on('mouseleave', id, () => (map.getCanvas().style.cursor = ''));
@@ -572,18 +1102,43 @@ $('surfOp').addEventListener('input', () => map.getLayer('surface-layer') && map
 document.querySelectorAll('input[name=nasa]').forEach((r) => r.addEventListener('change', applyNasa));
 $('nasaDate').addEventListener('change', applyNasa);
 $('nasaOp').addEventListener('input', () => { const s = document.querySelector('input[name=nasa]:checked').value; if (s !== 'off' && map.getLayer('nasa-' + s)) map.setPaintProperty('nasa-' + s, 'raster-opacity', Number($('nasaOp').value)); });
-$('measure').addEventListener('change', (e) => { state.mid = e.target.value; updateSensors(); });
+$('measure').addEventListener('change', (e) => { state.mid = e.target.value; updateAll(); loadTrails(); });
+$('trailWin').addEventListener('change', (e) => { state.trailWin = Number(e.target.value); applyToggles(); loadTrails(); });
+$('lPulse').addEventListener('change', applyToggles);
+$('lWindAnim').addEventListener('change', () => { wind.box = null; });
+$('btnTour').addEventListener('click', () => (state.tour ? stopTour() : startTour()));
+$('btnLapse').addEventListener('click', () => {
+  if ($('replay').style.display === 'flex') { $('replay').style.display = 'none'; if (state.replay) stopReplay(); } else $('replay').style.display = 'flex';
+});
+$('rpPlay').addEventListener('click', async () => {
+  if (!state.replay) { await startReplay(null); return; }
+  const r = state.replay;
+  if (r.cur >= r.t1) { r.cur = r.t0; r.playing = true; } else r.playing = !r.playing;
+  syncReplayUi();
+});
+$('rpSlider').addEventListener('input', async (e) => {
+  if (!state.replay) { await startReplay(null); if (!state.replay) return; state.replay.playing = false; }
+  const r = state.replay;
+  r.cur = r.t0 + (Number(e.target.value) / 1000) * (r.t1 - r.t0);
+  updateSensors(); updateTrails(); syncReplayUi();
+});
+$('rpSpeed').addEventListener('change', (e) => { if (state.replay) state.replay.mult = Number(e.target.value); });
+$('rpLive').addEventListener('click', () => stopReplay());
+$('rpClose').addEventListener('click', () => { $('replay').style.display = 'none'; stopReplay(); });
+['mousedown', 'touchstart', 'wheel'].forEach((ev) => map.on(ev, stopAuto));
 $('fold').addEventListener('click', () => $('layers').classList.toggle('closed'));
 
 async function start() {
   try { state.cfg = await getJson('/api/config'); } catch (e) { $('status').textContent = 'Could not load: ' + e.message; return; }
   await Promise.all(['sensors', 'weather', 'air', 'sea', 'open', 'cydom'].map(refresh));
+  await loadTrails();
   setInterval(() => refresh('sensors'), 30000);
   setInterval(() => refresh('weather'), 300000);
   setInterval(() => refresh('air'), 900000);
   setInterval(() => refresh('sea'), 900000);
   setInterval(() => refresh('open'), 300000);
   setInterval(() => refresh('cydom'), 600000);
+  setInterval(loadTrails, 300000);
   setInterval(showStatus, 15000);
   const hash = decodeURIComponent(location.hash.slice(1));
   if (hash && state.devices.some((d) => d.eui === hash)) showDetail(hash);
