@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cyprus 3D</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0b1220; color: #e8eaed; font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+  #view { position: fixed; inset: 0; }
+  .panel { position: fixed; background: rgba(16,24,40,.88); border: 0.5px solid rgba(255,255,255,.16); border-radius: 10px; padding: 10px 12px; }
+  #controls { top: 12px; left: 12px; width: 250px; max-height: calc(100% - 100px); overflow: auto; }
+  h1 { font-size: 15px; font-weight: 500; margin: 0 0 6px; display: flex; align-items: center; gap: 8px; }
+  .live { font-size: 11px; font-weight: 400; padding: 1px 8px; border-radius: 10px; background: #12351f; color: #6fe3a0; }
+  .live.stale { background: #3a2f10; color: #f3d68a; }
+  h2 { font-size: 11px; font-weight: 500; color: #9aa4b2; text-transform: uppercase; letter-spacing: .04em; margin: 12px 0 4px; }
+  label { display: flex; align-items: center; gap: 8px; padding: 2px 0; cursor: pointer; }
+  select, input[type=range] { width: 100%; }
+  select { background: #1b2740; color: inherit; border: 0.5px solid rgba(255,255,255,.2); border-radius: 6px; padding: 5px 8px; font: inherit; }
+  a { color: #8ab4f8; text-decoration: none; }
+  #status { color: #9aa4b2; font-size: 12px; }
+  #legend { left: 12px; bottom: 12px; width: 250px; }
+  #bar { height: 8px; border-radius: 4px; margin: 4px 0; }
+  #lr { display: flex; justify-content: space-between; color: #9aa4b2; font-size: 12px; }
+  #tip { position: fixed; pointer-events: none; display: none; background: rgba(16,24,40,.95); border: 0.5px solid rgba(255,255,255,.25); border-radius: 8px; padding: 6px 10px; font-size: 12px; z-index: 5; max-width: 260px; }
+  #msg { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; background: #0b1220; z-index: 10; }
+  #err { color: #f2877f; margin-top: 6px; }
+  @media (max-width: 640px) { #controls { width: calc(100% - 24px); max-height: 45%; } #legend { display: none; } }
+</style>
+</head>
+<body>
+<div id="msg">Building the island…</div>
+<canvas id="view"></canvas>
+<div class="panel" id="controls">
+  <h1>Cyprus 3D <span class="live" id="live">Live</span></h1>
+  <a href="/">Back to dashboard</a>
+  <h2>Surface</h2>
+  <label><input type="radio" name="surf" value="temp" checked> Temperature</label>
+  <label><input type="radio" name="surf" value="elev"> Elevation</label>
+  <label><input type="radio" name="surf" value="pm25"> Air quality (PM2.5)</label>
+  <label><input type="radio" name="surf" value="dust"> Dust</label>
+  <h2>Layers</h2>
+  <label><input type="checkbox" id="lWind" checked> Wind</label>
+  <label><input type="checkbox" id="lCloud" checked> Clouds and rain</label>
+  <label><input type="checkbox" id="lSensor" checked> Sensors</label>
+  <label><input type="checkbox" id="lSea" checked> Sea conditions</label>
+  <h2>Sensor columns show</h2>
+  <select id="measure"></select>
+  <h2>Height of mountains</h2>
+  <input type="range" id="exag" min="1" max="20" value="8">
+  <h2>Data</h2>
+  <div id="status"></div>
+  <div id="err"></div>
+</div>
+<div class="panel" id="legend"><div id="lt">Temperature</div><div id="bar"></div><div id="lr"><span id="lo"></span><span id="hi"></span></div></div>
+<div id="tip"></div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const $ = (id) => document.getElementById(id);
+const LAT_C = 35.0, LNG_C = 33.25, KM_LAT = 111.2, KM_LNG = 111.2 * Math.cos((LAT_C * Math.PI) / 180);
+const toX = (lng) => (lng - LNG_C) * KM_LNG;
+const toZ = (lat) => -(lat - LAT_C) * KM_LAT;
+const toLng = (x) => x / KM_LNG + LNG_C;
+const toLat = (z) => -z / KM_LAT + LAT_C;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const state = { terrain: null, weather: null, air: null, sea: null, devices: [], latest: {}, cfg: null, surf: 'temp', exag: 8, mid: '4097', lastOk: {} };
+
+/* ---------- colour scales ---------- */
+const SCALES = {
+  temp: { stops: [[0, [42, 120, 214]], [0.35, [27, 175, 122]], [0.65, [237, 161, 0]], [1, [227, 73, 72]]], unit: '°C' },
+  elev: { stops: [[0, [60, 140, 70]], [0.15, [150, 170, 80]], [0.4, [170, 130, 80]], [0.75, [200, 190, 180]], [1, [250, 250, 250]]], unit: 'm' },
+  pm25: { stops: [[0, [27, 175, 122]], [0.4, [237, 161, 0]], [1, [227, 73, 72]]], unit: 'µg/m³' },
+  dust: { stops: [[0, [27, 175, 122]], [0.4, [237, 161, 0]], [1, [150, 60, 40]]], unit: 'µg/m³' },
+};
+function rampAt(stops, t) {
+  t = clamp(t, 0, 1);
+  for (let i = 1; i < stops.length; i++) {
+    if (t <= stops[i][0]) {
+      const [t0, c0] = stops[i - 1], [t1, c1] = stops[i];
+      const f = (t - t0) / (t1 - t0 || 1);
+      return c0.map((v, k) => (v + (c1[k] - v) * f) / 255);
+    }
+  }
+  return stops[stops.length - 1][1].map((v) => v / 255);
+}
+function surfaceRange(kind) {
+  if (kind === 'elev') return [0, 1950];
+  if (kind === 'pm25') return [0, 35];
+  if (kind === 'dust') return [0, 200];
+  const vals = state.weather ? state.weather.points.map((p) => p.t) : [10, 35];
+  return [Math.floor(Math.min(...vals)), Math.ceil(Math.max(...vals))];
+}
+
+/* ---------- grid interpolation ---------- */
+function sampleGrid(grid, field, lat, lng) {
+  if (!grid) return null;
+  const fy = clamp((lat - grid.lat0) / grid.latStep, 0, grid.rows - 1);
+  const fx = clamp((lng - grid.lng0) / grid.lngStep, 0, grid.cols - 1);
+  const r0 = Math.floor(fy), c0 = Math.floor(fx), r1 = Math.min(r0 + 1, grid.rows - 1), c1 = Math.min(c0 + 1, grid.cols - 1);
+  const ty = fy - r0, tx = fx - c0;
+  const g = (r, c) => grid.points[r * grid.cols + c][field];
+  const a = g(r0, c0), b = g(r0, c1), c = g(r1, c0), d = g(r1, c1);
+  if ([a, b, c, d].some((v) => v == null || isNaN(v))) return null;
+  return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
+}
+
+/* ---------- scene ---------- */
+THREE.ColorManagement.enabled = false;
+const renderer = new THREE.WebGLRenderer({ canvas: $('view'), antialias: true });
+renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b1220);
+const camera = new THREE.PerspectiveCamera(45, 1, 1, 2000);
+camera.position.set(0, 170, 230);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.minDistance = 30;
+controls.maxDistance = 600;
+scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+sun.position.set(-120, 200, 80);
+scene.add(sun);
+const world = new THREE.Group();
+scene.add(world);
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+resize();
+
+/* ---------- terrain ---------- */
+let terrainMesh = null;
+let tGeo = null;
+const ground = { rows: 0, cols: 0, h: null };
+
+function buildTerrain() {
+  const t = state.terrain;
+  const { rows, cols } = t;
+  const n = rows * cols;
+  tGeo = new THREE.BufferGeometry();
+  const pos = new Float32Array(n * 3);
+  const col = new Float32Array(n * 3);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const i = r * cols + c;
+      const lat = t.lat0 + (r / (rows - 1)) * (t.lat1 - t.lat0);
+      const lng = t.lng0 + (c / (cols - 1)) * (t.lng1 - t.lng0);
+      pos[i * 3] = toX(lng);
+      pos[i * 3 + 2] = toZ(lat);
+    }
+  }
+  const idx = new Uint32Array((rows - 1) * (cols - 1) * 6);
+  let k = 0;
+  for (let r = 0; r < rows - 1; r++) {
+    for (let c = 0; c < cols - 1; c++) {
+      const a = r * cols + c, b = a + 1, d = a + cols, e = d + 1;
+      idx.set([a, b, d, b, e, d], k);
+      k += 6;
+    }
+  }
+  tGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  tGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  tGeo.setIndex(new THREE.BufferAttribute(idx, 1));
+  terrainMesh = new THREE.Mesh(tGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 }));
+  world.add(terrainMesh);
+  applyExaggeration();
+  recolor();
+}
+
+function applyExaggeration() {
+  const t = state.terrain, pos = tGeo.attributes.position;
+  for (let i = 0; i < t.elev.length; i++) pos.setY(i, (t.elev[i] / 1000) * state.exag);
+  pos.needsUpdate = true;
+  tGeo.computeVertexNormals();
+  tGeo.computeBoundingSphere();
+  tGeo.computeBoundingBox();
+  refreshHeights();
+}
+
+function groundY(lat, lng) {
+  const t = state.terrain;
+  if (!t) return 0;
+  const fy = clamp(((lat - t.lat0) / (t.lat1 - t.lat0)) * (t.rows - 1), 0, t.rows - 1);
+  const fx = clamp(((lng - t.lng0) / (t.lng1 - t.lng0)) * (t.cols - 1), 0, t.cols - 1);
+  const r = Math.round(fy), c = Math.round(fx);
+  return (t.elev[r * t.cols + c] / 1000) * state.exag;
+}
+
+function recolor() {
+  if (!tGeo) return;
+  const t = state.terrain, col = tGeo.attributes.color;
+  const kind = state.surf;
+  const [lo, hi] = surfaceRange(kind);
+  const sc = SCALES[kind];
+  const grid = kind === 'pm25' || kind === 'dust' ? state.air : state.weather;
+  const field = kind === 'temp' ? 't' : kind;
+  for (let r = 0; r < t.rows; r++) {
+    for (let c = 0; c < t.cols; c++) {
+      const i = r * t.cols + c;
+      const elev = t.elev[i];
+      let rgb;
+      if (elev < 3) {
+        rgb = [0.05, 0.16, 0.3];
+      } else if (kind === 'elev') {
+        rgb = rampAt(sc.stops, (elev - lo) / (hi - lo));
+      } else {
+        const lat = t.lat0 + (r / (t.rows - 1)) * (t.lat1 - t.lat0);
+        const lng = t.lng0 + (c / (t.cols - 1)) * (t.lng1 - t.lng0);
+        const v = sampleGrid(grid, field, lat, lng);
+        rgb = v == null ? [0.4, 0.4, 0.4] : rampAt(sc.stops, (v - lo) / (hi - lo || 1));
+      }
+      col.setXYZ(i, rgb[0], rgb[1], rgb[2]);
+    }
+  }
+  col.needsUpdate = true;
+  const names = { temp: 'Temperature (Open-Meteo model)', elev: 'Elevation', pm25: 'PM2.5 (Open-Meteo)', dust: 'Dust (Open-Meteo)' };
+  $('lt').textContent = names[kind];
+  $('bar').style.background = 'linear-gradient(90deg,' + [0, 0.25, 0.5, 0.75, 1].map((q) => { const c = rampAt(sc.stops, q).map((v) => Math.round(v * 255)); return `rgb(${c})`; }).join(',') + ')';
+  $('lo').textContent = lo + ' ' + sc.unit;
+  $('hi').textContent = hi + ' ' + sc.unit;
+}
+
+/* ---------- sensors ---------- */
+const sensorGroup = new THREE.Group();
+world.add(sensorGroup);
+const sensors = new Map();
+
+function mRange(mid, vals) {
+  if (mid === '4097') return [10, 40];
+  if (mid === '4098') return [0, 100];
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  const pad = (hi - lo) * 0.1 || 1;
+  return [lo - pad, hi + pad];
+}
+const WEATHER_FIELD = { 4097: 't', 4098: 'rh' };
+
+function sensorPos(d) {
+  const l = state.latest[d.eui] || {};
+  const [latId, lngId] = state.cfg.gps;
+  const lat = l[latId] ? Number(l[latId].v) : d.lat;
+  const lng = l[lngId] ? Number(l[lngId].v) : d.lng;
+  return isFinite(lat) && isFinite(lng) && lat && lng ? [lat, lng] : null;
+}
+
+function syncSensors() {
+  const seen = new Set();
+  const withVal = state.devices.map((d) => ({ d, v: state.latest[d.eui] && state.latest[d.eui][state.mid] ? state.latest[d.eui][state.mid].v : null }));
+  const vals = withVal.map((x) => x.v).filter((v) => v != null);
+  const [lo, hi] = vals.length ? mRange(state.mid, vals) : [0, 1];
+  const sc = SCALES.temp.stops;
+  withVal.forEach(({ d, v }) => {
+    const p = sensorPos(d);
+    if (!p) return;
+    seen.add(d.eui);
+    let s = sensors.get(d.eui);
+    if (!s) {
+      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 1, 16), new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.5 }));
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(1.1, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      cap.visible = false;
+      mesh.userData = { kind: 'sensor', eui: d.eui };
+      sensorGroup.add(mesh);
+      sensorGroup.add(cap);
+      s = { mesh, cap, h: 1, target: 1, color: new THREE.Color(0x888888), tcolor: new THREE.Color(0x888888), markerH: 0 };
+      sensors.set(d.eui, s);
+    }
+    s.d = d; s.lat = p[0]; s.lng = p[1]; s.v = v;
+    const t = v == null ? 0 : (v - lo) / (hi - lo || 1);
+    s.target = !d.online || v == null ? 1.5 : 3 + clamp(t, 0, 1) * 30;
+    s.tcolor.setRGB(...(!d.online || v == null ? [0.5, 0.5, 0.5] : rampAt(sc, t)));
+    const wf = WEATHER_FIELD[state.mid];
+    const wv = wf ? sampleGrid(state.weather, wf, p[0], p[1]) : null;
+    s.wv = wv;
+    s.markerTarget = wv == null ? null : 3 + clamp((wv - lo) / (hi - lo || 1), 0, 1) * 30;
+  });
+  for (const [eui, s] of sensors) {
+    if (!seen.has(eui)) { sensorGroup.remove(s.mesh); sensorGroup.remove(s.cap); sensors.delete(eui); }
+  }
+  refreshHeights();
+}
+
+function refreshHeights() {
+  for (const s of sensors.values()) {
+    s.baseY = groundY(s.lat, s.lng);
+    s.mesh.position.x = toX(s.lng); s.mesh.position.z = toZ(s.lat);
+    s.cap.position.x = s.mesh.position.x; s.cap.position.z = s.mesh.position.z;
+  }
+  for (const b of buoys) b.mesh.position.y = b.h / 2;
+}
+
+/* ---------- sea buoys ---------- */
+const seaGroup = new THREE.Group();
+world.add(seaGroup);
+let buoys = [];
+function syncSea() {
+  seaGroup.clear();
+  buoys = [];
+  if (!state.sea) return;
+  const sc = SCALES.temp.stops;
+  state.sea.points.forEach((p) => {
+    if (p.wave == null || p.sst == null) return;
+    const h = 2 + clamp(p.wave, 0, 4) * 3;
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, h, 12), new THREE.MeshStandardMaterial({ color: new THREE.Color(...rampAt(sc, (p.sst - 15) / 15)), roughness: 0.4, transparent: true, opacity: 0.9 }));
+    mesh.position.set(toX(p.lng), h / 2, toZ(p.lat));
+    mesh.userData = { kind: 'buoy', p };
+    seaGroup.add(mesh);
+    buoys.push({ mesh, h });
+  });
+}
+
+/* ---------- clouds and rain ---------- */
+const cloudGroup = new THREE.Group();
+world.add(cloudGroup);
+let rain = null;
+const rainDrops = [];
+function syncClouds() {
+  cloudGroup.clear();
+  rainDrops.length = 0;
+  if (rain) { cloudGroup.remove(rain); rain = null; }
+  if (!state.weather) return;
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, roughness: 1, depthWrite: false });
+  const geo = new THREE.SphereGeometry(1, 12, 8);
+  state.weather.points.forEach((p, i) => {
+    const cover = p.cloud || 0;
+    const x = toX(p.lng), z = toZ(p.lat);
+    if (cover > 25) {
+      const n = Math.ceil(cover / 25);
+      for (let k = 0; k < n; k++) {
+        const m = new THREE.Mesh(geo, mat);
+        const a = (k / n) * Math.PI * 2 + i;
+        const rr = 4 + (k % 3) * 3;
+        m.position.set(x + Math.cos(a) * rr, 34 + (k % 2) * 2, z + Math.sin(a) * rr);
+        m.scale.set(8 + (k % 3) * 3, 3.5 + (cover / 100) * 2.5, 7 + (k % 2) * 3);
+        cloudGroup.add(m);
+      }
+    }
+    if ((p.rain || 0) > 0.05) {
+      const count = Math.min(300, 60 + Math.round(p.rain * 60));
+      for (let k = 0; k < count; k++) rainDrops.push({ x: x + (Math.random() - 0.5) * 18, z: z + (Math.random() - 0.5) * 18, y: Math.random() * 32, v: 22 + Math.random() * 10 });
+    }
+  });
+  if (rainDrops.length) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(rainDrops.length * 3), 3));
+    rain = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x8ec5ff, size: 1.1, sizeAttenuation: true }));
+    rain.frustumCulled = false;
+    cloudGroup.add(rain);
+  }
+}
+
+/* ---------- wind ---------- */
+const WIND_N = 2200;
+let windLines = null;
+const wp = [];
+function initWind() {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(WIND_N * 6), 3));
+  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(WIND_N * 6), 3));
+  windLines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.8 }));
+  windLines.frustumCulled = false;
+  world.add(windLines);
+  for (let i = 0; i < WIND_N; i++) wp.push(spawn({}));
+}
+const XMIN = toX(32.2), XMAX = toX(34.7), ZMIN = toZ(35.75), ZMAX = toZ(34.5);
+function spawn(p) {
+  p.x = XMIN + Math.random() * (XMAX - XMIN);
+  p.z = ZMIN + Math.random() * (ZMAX - ZMIN);
+  p.age = 0;
+  p.max = 4 + Math.random() * 6;
+  p.px = p.x; p.pz = p.z;
+  return p;
+}
+const SPEED_SCALE = 3.2;
+function stepWind(dt) {
+  if (!windLines || !state.weather) return;
+  const pos = windLines.geometry.attributes.position, col = windLines.geometry.attributes.color;
+  for (let i = 0; i < wp.length; i++) {
+    const p = wp[i];
+    const lat = toLat(p.z), lng = toLng(p.x);
+    const ws = sampleGrid(state.weather, 'ws', lat, lng) ?? 0;
+    const wd = sampleGrid(state.weather, 'wd', lat, lng) ?? 0;
+    const to = ((wd + 180) * Math.PI) / 180;
+    const vx = Math.sin(to) * ws * SPEED_SCALE, vz = -Math.cos(to) * ws * SPEED_SCALE;
+    p.px = p.x; p.pz = p.z;
+    p.x += vx * dt; p.z += vz * dt; p.age += dt;
+    if (p.age > p.max || p.x < XMIN || p.x > XMAX || p.z < ZMIN || p.z > ZMAX) spawn(p);
+    const y = groundY(toLat(p.z), toLng(p.x)) + 6;
+    const tail = 0.55;
+    pos.setXYZ(i * 2, p.x, y, p.z);
+    pos.setXYZ(i * 2 + 1, p.x - vx * tail * 0.4, y, p.z - vz * tail * 0.4);
+    const c = rampAt([[0, [150, 200, 255]], [1, [255, 255, 255]]], ws / 14);
+    col.setXYZ(i * 2, c[0], c[1], c[2]);
+    col.setXYZ(i * 2 + 1, c[0] * 0.2, c[1] * 0.2, c[2] * 0.2);
+  }
+  pos.needsUpdate = true; col.needsUpdate = true;
+}
+
+function stepRain(dt) {
+  if (!rain) return;
+  const pos = rain.geometry.attributes.position;
+  rainDrops.forEach((d, i) => {
+    d.y -= d.v * dt;
+    if (d.y < 0) d.y = 32;
+    pos.setXYZ(i, d.x, d.y + groundY(toLat(d.z), toLng(d.x)) * 0.5, d.z);
+  });
+  pos.needsUpdate = true;
+}
+
+/* ---------- hover ---------- */
+const ray = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const tip = $('tip');
+let downAt = null;
+renderer.domElement.addEventListener('pointermove', (e) => {
+  mouse.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const targets = [...[...sensors.values()].map((s) => s.mesh), ...seaGroup.children];
+  if (terrainMesh) targets.push(terrainMesh);
+  const hit = ray.intersectObjects(targets, false)[0];
+  if (!hit) { tip.style.display = 'none'; renderer.domElement.style.cursor = 'default'; return; }
+  const ud = hit.object.userData;
+  const name = (m) => (state.cfg.names[m] ? state.cfg.names[m][0] : 'Measurement ' + m);
+  const unit = (m) => (state.cfg.names[m] ? state.cfg.names[m][1] : '');
+  let html = '';
+  if (ud.kind === 'sensor') {
+    const s = sensors.get(ud.eui);
+    html = `<b>${s.d.name}</b><br>${s.d.group} · ${s.d.online ? 'online' : 'offline'}<br>`;
+    html += s.v == null ? 'No reading' : `${name(state.mid)}: ${Math.round(s.v * 10) / 10} ${unit(state.mid)}`;
+    if (s.wv != null && s.v != null) html += `<br>Weather model: ${Math.round(s.wv * 10) / 10} ${unit(state.mid)}<br>Difference: ${s.v - s.wv > 0 ? '+' : ''}${Math.round((s.v - s.wv) * 10) / 10}`;
+    html += '<br><i>Click to open history</i>';
+    renderer.domElement.style.cursor = 'pointer';
+  } else if (ud.kind === 'buoy') {
+    html = `<b>Sea point</b><br>Wave height ${ud.p.wave} m<br>Sea temperature ${ud.p.sst} °C`;
+  } else {
+    const lat = toLat(hit.point.z), lng = toLng(hit.point.x);
+    const t = state.terrain;
+    const r = Math.round(((lat - t.lat0) / (t.lat1 - t.lat0)) * (t.rows - 1)), c = Math.round(((lng - t.lng0) / (t.lng1 - t.lng0)) * (t.cols - 1));
+    const el = t.elev[clamp(r, 0, t.rows - 1) * t.cols + clamp(c, 0, t.cols - 1)];
+    if (el < 3) { tip.style.display = 'none'; return; }
+    const tv = sampleGrid(state.weather, 't', lat, lng), pm = sampleGrid(state.air, 'pm25', lat, lng);
+    html = `Elevation ${el} m`;
+    if (tv != null) html += `<br>Temperature ${Math.round(tv * 10) / 10} °C (model)`;
+    if (pm != null) html += `<br>PM2.5 ${Math.round(pm * 10) / 10} µg/m³`;
+    renderer.domElement.style.cursor = 'default';
+  }
+  tip.innerHTML = html;
+  tip.style.display = 'block';
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - 270) + 'px';
+  tip.style.top = Math.min(e.clientY + 14, innerHeight - 110) + 'px';
+});
+renderer.domElement.addEventListener('pointerdown', (e) => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
+  mouse.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const hit = ray.intersectObjects([...sensors.values()].map((s) => s.mesh), false)[0];
+  if (hit) location.href = '/#' + hit.object.userData.eui;
+});
+
+/* ---------- animation ---------- */
+const clock = new THREE.Clock();
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const k = 1 - Math.exp(-dt * 4);
+  for (const s of sensors.values()) {
+    s.h += (s.target - s.h) * k;
+    s.color.lerp(s.tcolor, k);
+    s.mesh.scale.y = s.h;
+    s.mesh.position.y = s.baseY + s.h / 2;
+    s.mesh.material.color.copy(s.color);
+    if (s.markerTarget != null) {
+      s.markerH = s.markerH ? s.markerH + (s.markerTarget - s.markerH) * k : s.markerTarget;
+      s.cap.visible = true;
+      s.cap.position.y = s.baseY + s.markerH;
+    } else {
+      s.cap.visible = false;
+    }
+  }
+  windLines.visible = $('lWind').checked;
+  cloudGroup.visible = $('lCloud').checked;
+  sensorGroup.visible = $('lSensor').checked;
+  seaGroup.visible = $('lSea').checked;
+  if (windLines.visible) stepWind(dt);
+  if (cloudGroup.visible) stepRain(dt);
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+/* ---------- data ---------- */
+async function getJson(url) {
+  const r = await fetch(url);
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || 'Request failed');
+  return j;
+}
+function showStatus() {
+  const f = (k) => (state.lastOk[k] ? new Date(state.lastOk[k]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'waiting');
+  $('status').innerHTML = `Sensors: ${f('sensors')}<br>Weather: ${f('weather')}<br>Air quality: ${f('air')}<br>Sea: ${f('sea')}` +
+    (state.terrain && state.terrain.mock ? '<br><b>Test mode: synthetic weather</b>' : '') + (state.cfg && state.cfg.demo ? '<br>Demo sensors' : '');
+  const stale = !state.lastOk.sensors || Date.now() - state.lastOk.sensors > 120000;
+  $('live').textContent = stale ? 'Waiting' : 'Live';
+  $('live').classList.toggle('stale', stale);
+}
+async function refresh(kind) {
+  try {
+    if (kind === 'sensors') {
+      [state.devices, state.latest] = await Promise.all([getJson('/api/devices'), getJson('/api/latest')]);
+      fillMeasures();
+      syncSensors();
+    } else {
+      state[kind] = await getJson('/api/' + kind);
+      if (kind === 'weather') { syncClouds(); recolor(); syncSensors(); }
+      if (kind === 'air') recolor();
+      if (kind === 'sea') syncSea();
+    }
+    state.lastOk[kind] = Date.now();
+    $('err').textContent = '';
+  } catch (e) {
+    $('err').textContent = `Could not update ${kind}: ${e.message}`;
+  }
+  showStatus();
+}
+function fillMeasures() {
+  const sel = $('measure');
+  const gps = state.cfg.gps;
+  const mids = [...new Set(state.devices.flatMap((d) => d.measurements))].filter((m) => !gps.includes(m));
+  const key = mids.join(',');
+  if (sel.dataset.key === key) return;
+  sel.dataset.key = key;
+  sel.innerHTML = mids.map((m) => `<option value="${m}">${state.cfg.names[m] ? state.cfg.names[m][0] + ' (' + state.cfg.names[m][1] + ')' : 'Measurement ' + m}</option>`).join('');
+  if (!mids.includes(state.mid)) state.mid = mids[0] || '4097';
+  sel.value = state.mid;
+}
+
+document.querySelectorAll('input[name=surf]').forEach((r) => r.addEventListener('change', () => { state.surf = r.value; recolor(); }));
+$('measure').addEventListener('change', (e) => { state.mid = e.target.value; for (const s of sensors.values()) s.markerH = 0; syncSensors(); });
+$('exag').addEventListener('input', (e) => { state.exag = Number(e.target.value); applyExaggeration(); });
+
+(async function start() {
+  try {
+    state.cfg = await getJson('/api/config');
+    state.terrain = await getJson('/api/terrain');
+  } catch (e) {
+    $('msg').innerHTML = 'Could not load the island data.<div id="err">' + e.message + '</div><p><a href="/">Back to dashboard</a></p>';
+    return;
+  }
+  buildTerrain();
+  initWind();
+  $('msg').style.display = 'none';
+  frame();
+  await Promise.all([refresh('weather'), refresh('air'), refresh('sea'), refresh('sensors')]);
+  setInterval(() => refresh('sensors'), 30000);
+  setInterval(() => refresh('weather'), 300000);
+  setInterval(() => refresh('air'), 900000);
+  setInterval(() => refresh('sea'), 900000);
+  setInterval(showStatus, 15000);
+})();
+</script>
+</body>
+</html>

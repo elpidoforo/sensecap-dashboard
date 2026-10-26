@@ -30,3 +30,11 @@ Never commit real keys. `.env` is ignored by git.
 - Groups in SenseCAP show up as the group filter, so create one group per school.
 - History uses the `aggregate_chart_points` endpoint (up to about 250 points per series).
 - Device lists are cached for 1 minute and readings for 1 to 2 minutes to stay within API limits.
+
+## 3D view
+
+`/3d.html` shows Cyprus as a 3D island: terrain coloured by temperature, elevation, PM2.5 or dust, animated wind, clouds and rain, sea points, and one column per sensor. It refreshes sensors every 30 seconds and weather every 5 minutes.
+
+Outside data comes from [Open-Meteo](https://open-meteo.com) (free, no key, non-commercial use): elevation, weather, air quality and marine conditions. Sensors are compared with the weather model for temperature and humidity.
+
+`OPEN_METEO_MOCK=1` serves synthetic terrain and weather for offline testing only.

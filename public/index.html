@@ -54,6 +54,7 @@
       <option value="7" selected>Last 7 days</option>
       <option value="30">Last 30 days</option>
     </select>
+    <button onclick="location.href='/3d.html'">3D view</button>
     <button id="csv">Download CSV</button>
     <button id="refresh">Refresh</button>
   </header>
@@ -132,6 +133,11 @@ async function load() {
     return;
   }
   fillFilters();
+  const fromHash = decodeURIComponent(location.hash.slice(1));
+  if (fromHash && !state.hashUsed && state.devices.some((d) => d.eui === fromHash)) {
+    state.hashUsed = true;
+    state.selected = new Set([fromHash]);
+  }
   if (state.selected.size === 0) visibleDevices().slice(0, 3).forEach((d) => state.selected.add(d.eui));
   render();
   await loadSeries();

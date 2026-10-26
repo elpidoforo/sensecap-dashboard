@@ -243,6 +243,141 @@ function demoSeries(eui, mid, days) {
   return points;
 }
 
+/* ---------- terrain and weather (Open-Meteo: free, no key, non-commercial use) ---------- */
+
+const MOCK = process.env.OPEN_METEO_MOCK === '1';
+const B = { lat0: 34.5, lat1: 35.75, lng0: 32.2, lng1: 34.7, step: 0.04 };
+const WG = { lat0: 34.5, latStep: 0.25, rows: 6, lng0: 32.3, lngStep: 0.25, cols: 10 };
+const SEA_POINTS = [
+  [34.4, 32.6], [34.4, 33.2], [34.4, 33.8], [34.7, 34.4], [35.1, 34.5],
+  [35.65, 33.0], [35.6, 33.6], [35.3, 32.2], [34.8, 32.1], [35.1, 32.0],
+];
+
+async function omJson(url) {
+  const r = await fetch(url, { signal: AbortSignal.timeout(25000) });
+  if (!r.ok) throw new Error(`Open-Meteo returned HTTP ${r.status}`);
+  return r.json();
+}
+const asArray = (j) => (Array.isArray(j) ? j : [j]);
+const r2 = (n) => Math.round(n * 100) / 100;
+
+function weatherGridPoints() {
+  const pts = [];
+  for (let r = 0; r < WG.rows; r++) {
+    for (let c = 0; c < WG.cols; c++) pts.push({ lat: r2(WG.lat0 + r * WG.latStep), lng: r2(WG.lng0 + c * WG.lngStep) });
+  }
+  return pts;
+}
+
+function mockLand(lat, lng) {
+  const a = ((lat - 35.0) / 0.4) ** 2 + ((lng - 33.2) / 1.0) ** 2 < 1;
+  const karpas = lat > 35.25 && lat < 35.65 && lng > 33.7 && lng < 34.55 && Math.abs(lat - (35.3 + (lng - 33.7) * 0.28)) < 0.12;
+  return a || karpas;
+}
+function mockElevation(lat, lng) {
+  if (!mockLand(lat, lng)) return 0;
+  const tro = 1950 * Math.exp(-(((lat - 34.93) / 0.2) ** 2 + ((lng - 32.87) / 0.3) ** 2));
+  const kyr = 950 * Math.exp(-(((lat - 35.3) / 0.07) ** 2 + ((lng - 33.3) / 0.7) ** 2));
+  return 5 + tro + kyr;
+}
+
+function terrain() {
+  return cached('terrain', 24 * 3600000, async () => {
+    const rows = Math.round((B.lat1 - B.lat0) / B.step) + 1;
+    const cols = Math.round((B.lng1 - B.lng0) / B.step) + 1;
+    const lats = [];
+    const lngs = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        lats.push(r2(B.lat0 + r * B.step));
+        lngs.push(r2(B.lng0 + c * B.step));
+      }
+    }
+    let elev = new Array(rows * cols).fill(0);
+    if (MOCK) {
+      elev = lats.map((la, i) => mockElevation(la, lngs[i]));
+    } else {
+      for (let i = 0; i < lats.length; i += 100) {
+        const j = await omJson(
+          `https://api.open-meteo.com/v1/elevation?latitude=${lats.slice(i, i + 100).join(',')}&longitude=${lngs.slice(i, i + 100).join(',')}`
+        );
+        (j.elevation || []).forEach((v, k) => {
+          const n = Number(v);
+          elev[i + k] = isFinite(n) && n > 0 ? n : 0;
+        });
+      }
+    }
+    return { rows, cols, lat0: B.lat0, lat1: B.lat1, lng0: B.lng0, lng1: B.lng1, elev: elev.map((v) => Math.round(v)), mock: MOCK };
+  });
+}
+
+function mockWeather(p, i) {
+  const t = 24 + Math.sin(i) * 2 - Math.max(0, mockElevation(p.lat, p.lng)) / 150 + (Date.now() % 600000) / 600000;
+  return {
+    t, rh: 50 + Math.cos(i) * 15, ws: 4 + (i % 5), wd: 250 + (i % 7) * 10,
+    rain: i % 11 === 0 ? 0.6 : 0, cloud: (i * 13) % 100, p: 1012,
+  };
+}
+
+function weather() {
+  return cached('weather', 600000, async () => {
+    const pts = weatherGridPoints();
+    let points;
+    if (MOCK) {
+      points = pts.map((p, i) => ({ ...p, ...mockWeather(p, i) }));
+    } else {
+      const j = await omJson(
+        'https://api.open-meteo.com/v1/forecast?latitude=' + pts.map((p) => p.lat).join(',') +
+        '&longitude=' + pts.map((p) => p.lng).join(',') +
+        '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation,cloud_cover,pressure_msl' +
+        '&wind_speed_unit=ms&timezone=UTC'
+      );
+      points = asArray(j).map((o, i) => ({
+        ...pts[i], t: o.current.temperature_2m, rh: o.current.relative_humidity_2m, ws: o.current.wind_speed_10m,
+        wd: o.current.wind_direction_10m, rain: o.current.precipitation, cloud: o.current.cloud_cover, p: o.current.pressure_msl,
+      }));
+    }
+    return { ...WG, points, updated: new Date().toISOString(), mock: MOCK };
+  });
+}
+
+function air() {
+  return cached('air', 1800000, async () => {
+    const pts = weatherGridPoints();
+    let points;
+    if (MOCK) {
+      points = pts.map((p, i) => ({ ...p, pm25: 6 + (i % 9) * 2, pm10: 15 + (i % 7) * 4, dust: 10 + (i % 13) * 8, ozone: 70 }));
+    } else {
+      const j = await omJson(
+        'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=' + pts.map((p) => p.lat).join(',') +
+        '&longitude=' + pts.map((p) => p.lng).join(',') + '&current=pm2_5,pm10,dust,ozone&timezone=UTC'
+      );
+      points = asArray(j).map((o, i) => ({
+        ...pts[i], pm25: o.current.pm2_5, pm10: o.current.pm10, dust: o.current.dust, ozone: o.current.ozone,
+      }));
+    }
+    return { ...WG, points, updated: new Date().toISOString(), mock: MOCK };
+  });
+}
+
+function sea() {
+  return cached('sea', 1800000, async () => {
+    let points;
+    if (MOCK) {
+      points = SEA_POINTS.map(([lat, lng], i) => ({ lat, lng, wave: 0.4 + (i % 4) * 0.5, sst: 24 + (i % 5) * 0.4 }));
+    } else {
+      const j = await omJson(
+        'https://marine-api.open-meteo.com/v1/marine?latitude=' + SEA_POINTS.map((p) => p[0]).join(',') +
+        '&longitude=' + SEA_POINTS.map((p) => p[1]).join(',') + '&current=wave_height,sea_surface_temperature&timezone=UTC'
+      );
+      points = asArray(j).map((o, i) => ({
+        lat: SEA_POINTS[i][0], lng: SEA_POINTS[i][1], wave: o.current.wave_height, sst: o.current.sea_surface_temperature,
+      }));
+    }
+    return { points, updated: new Date().toISOString(), mock: MOCK };
+  });
+}
+
 /* ---------- http ---------- */
 
 function sendJson(res, status, obj) {
@@ -287,6 +422,8 @@ const server = http.createServer(async (req, res) => {
       if (!dev) return sendJson(res, 404, { error: 'Unknown device' });
       return sendJson(res, 200, await liveSeries(eui, mid, dev.channelOf[mid] || 1, days));
     }
+    const extra = { '/api/terrain': terrain, '/api/weather': weather, '/api/air': air, '/api/sea': sea }[url.pathname];
+    if (extra) return sendJson(res, 200, await extra());
     let file = url.pathname === '/' ? '/index.html' : url.pathname;
     const full = path.join(__dirname, 'public', path.normalize(file));
     if (!full.startsWith(path.join(__dirname, 'public'))) {
