@@ -23,6 +23,9 @@ Open http://localhost:3000.
 | `SENSECAP_HOST` | no | Defaults to `https://sensecap.seeed.cc/openapi` |
 | `DEMO` | no | `1` forces demo data |
 
+| `DATA_DIR` | no | Where the Met Office history is saved. Defaults to the Railway volume (`RAILWAY_VOLUME_MOUNT_PATH`), otherwise `./data` |
+| `HISTORY_DAYS` | no | How many days of history to keep (default 400) |
+
 Never commit real keys. `.env` is ignored by git.
 
 ## Notes
@@ -82,3 +85,21 @@ Notes:
 - Met Office data is credited to the Cyprus Department of Meteorology. The feed shows the time of its newest reading in Data status, and readings older than 3 hours are marked old. Check their terms before using it outside a classroom.
 - A failing source shows an error line in Data status and the other layers keep working.
 - The map loads MapLibre from unpkg and tiles from the providers above, so the browser needs internet access to those hosts.
+
+## Met Office history and pages
+
+The Met Office feed only holds the newest reading of each of its 54 stations, so the server saves every new reading (the feed updates every 10 minutes; the server checks every 5) in one file per day under `DATA_DIR/cydom/`. All readings are kept (temperature at 1.2 m and 5 cm, day extremes, wind at 2 m and 10 m and at the airport runways, humidity, rain, solar radiation, three pressures). History starts when the server first runs; it cannot be filled in backwards.
+
+On Railway the files must live on a volume, otherwise they vanish at the next deploy. This project has a volume mounted at `/data`. About 1 MB per day is written, so 400 days fit in well under 1 GB. `/api/cydom/history/info` shows `"persistent": true` when a volume is in use.
+
+| Address | What it returns |
+| --- | --- |
+| `/api/cydom/history?station=ACHNA&hours=24&keys=temp,hum` | Readings of one station, oldest first, with units (up to 720 hours) |
+| `/api/cydom/history.csv?station=ACHNA&days=7` | CSV with every reading (leave out `station` for all stations; `days` up to the retention) |
+| `/api/cydom/history/info` | How many day files, bytes, first and last reading, whether a volume is used |
+| `/api/dom/page?name=warnings` | Text, pictures and links of a Met Office page: `warnings`, `sea_a` to `sea_d`, `navtex`, `fir`, `laf` |
+| `/api/dom/pages/history?name=warnings&days=30` | Every saved version of that page (saved whenever its text changes, at most every 30 minutes) |
+| `/api/dom/net` | The official discomfort index (NET) table |
+| `/api/dom/img?name=radar` | Met Office pictures through this server (cached for 5 minutes): `radar`, `radar_anim`, `radar_pfo`, `radar_lca`, `table_a`, `table_b`, `table_c` |
+
+The forecast tables A, B and C are pictures on the Met Office site; the sea, aviation and warnings pages are read as text and the structure of each is written once to the server log at start. Check the Met Office terms before using their data outside a classroom, and keep the credit "Weather Data Copyright The Cyprus Department of Meteorology".

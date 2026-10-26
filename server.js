@@ -745,6 +745,13 @@ function parseCydom(xml) {
   return { points, stationCount: stations.size, feedTime: times.length ? times[times.length - 1] : null, copyright: xmlTag(xml, 'copyright') || 'Weather Data Copyright The Cyprus Department of Meteorology' };
 }
 
+async function fetchCydomFeed() {
+  const r = await fetch(CYDOM_URL, { signal: AbortSignal.timeout(25000) });
+  if (!r.ok) throw new Error(`Met Office feed returned HTTP ${r.status}`);
+  const out = parseCydom(await r.text());
+  if (!out.points.length) throw new Error('Met Office feed had no readable stations');
+  return out;
+}
 function cydom() {
   return cached('cydom', 600000, async () => {
     if (MOCK) {
@@ -754,12 +761,114 @@ function cydom() {
         { id: 'AGROS', name: 'Agros', lat: 34.9149, lng: 33.0157, temp: 22.7, tmax: 24.9, tmin: 12.9, hum: 42, ws: 2.2, wd: 174, rain10: 0, rain24: 0, pmsl: 1015, solar: 481, time: t, obs: [] },
       ], stationCount: 2, feedTime: t, copyright: 'Weather Data Copyright The Cyprus Department of Meteorology', updated: t };
     }
-    const r = await fetch(CYDOM_URL, { signal: AbortSignal.timeout(25000) });
-    if (!r.ok) throw new Error(`Met Office feed returned HTTP ${r.status}`);
-    const out = parseCydom(await r.text());
-    if (!out.points.length) throw new Error('Met Office feed had no readable stations');
+    const out = await fetchCydomFeed();
+    ingestCydom(out);
     return { ...out, updated: new Date().toISOString() };
   });
+}
+
+/* ---------- Met Office history and pages ----------
+   The feed only holds the newest reading of every station, so the server saves each new one (every 10 minutes) in daily files.
+   On Railway attach a volume (RAILWAY_VOLUME_MOUNT_PATH is then set) or the files vanish at the next deploy. */
+
+const mo = require('./metoffice');
+const DATA_DIR = process.env.DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, 'data');
+const PERSISTENT = Boolean(process.env.DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH);
+const HISTORY_DAYS = Number(process.env.HISTORY_DAYS) || 400;
+let history = null, pageStore = null;
+
+function ingestCydom(out) {
+  if (!history) return 0;
+  const n = history.append(out.points);
+  if (n) console.log(`Met Office history: stored ${n} new readings (feed time ${out.feedTime})`);
+  return n;
+}
+
+const DOM = process.env.DOM_BASE || 'https://www.dom.org.cy';   // DOM_BASE lets tests point at a fake site
+const DOM_PAGES = {
+  warnings: DOM + '/WARNING/',
+  sea_a: DOM + '/FORECAST/sea_a_en.html', sea_b: DOM + '/FORECAST/sea_b_en.html', sea_c: DOM + '/FORECAST/sea_c_en.html', sea_d: DOM + '/FORECAST/sea_d_en.html',
+  navtex: DOM + '/FORECAST/navtex.html', fir: DOM + '/FORECAST/fir.html', laf: DOM + '/FORECAST/laf.html',
+};
+const DOM_IMAGES = {
+  radar: DOM + '/RADAR_IMG/RADAR_Static.png', radar_anim: DOM + '/RADAR_IMG/RADAR_Animation.gif',
+  radar_pfo: DOM + '/RADAR_IMG/RADAR_PFO_MAX_Static.png', radar_lca: DOM + '/RADAR_IMG/RADAR_LCA_MAX_Static.png',
+  table_a: DOM + '/FORECAST/table_a_en.png', table_b: DOM + '/FORECAST/table_b_en.png', table_c: DOM + '/FORECAST/table_c_en.png',
+};
+const DOM_NET = DOM + '/AWS/AWS_NET.txt';
+const loggedPages = new Set();
+
+function domPage(name) {
+  return cached('dompage:' + name, 600000, async () => {
+    const url = DOM_PAGES[name];
+    const r = await fetch(url, { signal: AbortSignal.timeout(25000) });
+    if (!r.ok) throw new Error(`Met Office page ${name} returned HTTP ${r.status}`);
+    const html = mo.decodeBody(new Uint8Array(await r.arrayBuffer()), r.headers.get('content-type'));
+    const page = { name, url, fetched: new Date().toISOString(), ...mo.extractPage(html, url) };
+    if (!loggedPages.has(name)) {   // once per run, so the structure of each page can be checked in the logs
+      loggedPages.add(name);
+      console.log(`Met Office page ${name}: ${html.length} chars of HTML, title "${page.title}", ${page.text.length} chars of text, ${page.images.length} images ${JSON.stringify(page.images.slice(0, 4))}, ${page.frames.length} frames ${JSON.stringify(page.frames.slice(0, 3))}, ${page.links.length} links; text starts: ${JSON.stringify(page.text.slice(0, 200))}`);
+    }
+    if (pageStore && pageStore.save(name, page, Date.now(), 1800000)) console.log(`Met Office page ${name}: new version stored`);
+    return page;
+  });
+}
+
+function domNet() {
+  return cached('domnet', 600000, async () => {
+    const r = await fetch(DOM_NET, { signal: AbortSignal.timeout(25000) });
+    if (!r.ok) throw new Error(`Met Office discomfort index returned HTTP ${r.status}`);
+    const text = mo.decodeBody(new Uint8Array(await r.arrayBuffer()), r.headers.get('content-type'));
+    const out = mo.parseNet(text);
+    if (!out.rows.length) throw new Error('Met Office discomfort index had no rows');
+    if (pageStore) pageStore.save('net', { title: 'Discomfort index', text }, Date.now(), 1800000);
+    return { ...out, updated: new Date().toISOString() };
+  });
+}
+
+function domImage(url) {
+  return cached('domimg:' + url, 300000, async () => {
+    const r = await fetch(url, { signal: AbortSignal.timeout(25000) });
+    if (!r.ok) throw new Error(`Met Office image returned HTTP ${r.status}`);
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (buf.length > 4000000) throw new Error('Met Office image is too large');
+    return { type: r.headers.get('content-type') || 'image/png', buf };
+  });
+}
+// Only pictures from the Met Office site, either by a known name or by address (for pictures found inside its pages).
+function domImageUrl(name, u) {
+  if (name) return DOM_IMAGES[name] || null;
+  try {
+    const x = new URL(u);
+    return x.origin === DOM && /\.(png|gif|jpe?g)$/i.test(x.pathname) ? x.href : null;
+  } catch (e) { return null; }
+}
+
+let lastCollectError = {};
+function collectError(what, e) {
+  if (lastCollectError[what] !== e.message) { lastCollectError[what] = e.message; console.error(`Met Office collector (${what}): ${e.message}`); }
+}
+async function collectCydom() {
+  try { ingestCydom(await fetchCydomFeed()); delete lastCollectError.cydom; } catch (e) { collectError('stations', e); }
+}
+async function collectPages() {
+  for (const name of Object.keys(DOM_PAGES)) {
+    try { await domPage(name); delete lastCollectError[name]; } catch (e) { collectError(name, e); }
+    await new Promise((ok) => setTimeout(ok, 1500));
+  }
+  try { await domNet(); delete lastCollectError.net; } catch (e) { collectError('net', e); }
+}
+function startMetOffice() {
+  history = new mo.HistoryStore(DATA_DIR, { log: (m) => console.error(m) });
+  pageStore = new mo.PageStore(DATA_DIR, { log: (m) => console.error(m) });
+  console.log(`Met Office history in ${PERSISTENT ? DATA_DIR : DATA_DIR + ' (no volume attached: it is lost at the next deploy)'}; ${history.info().files} day files`);
+  if (MOCK) return;   // test mode serves fake data
+  history.prune(HISTORY_DAYS);
+  setTimeout(collectCydom, 3000);
+  setInterval(collectCydom, 300000);
+  setTimeout(collectPages, 20000);
+  setInterval(collectPages, 900000);
+  setInterval(() => history.prune(HISTORY_DAYS), 6 * 3600000);
 }
 
 /* ---------- http ---------- */
@@ -815,6 +924,42 @@ const server = http.createServer(async (req, res) => {
       const st = terrainStatus();
       return st.ready ? sendJson(res, 200, st.data) : sendJson(res, 202, { loading: true, progress: st.progress, error: st.error });
     }
+    if (url.pathname === '/api/cydom/history/info') {
+      return sendJson(res, 200, { persistent: PERSISTENT, retentionDays: HISTORY_DAYS, ...(history ? history.info() : {}), pages: pageStore ? { error: pageStore.error } : null });
+    }
+    if (url.pathname === '/api/cydom/history') {
+      const station = url.searchParams.get('station');
+      if (!station || !history) return sendJson(res, 400, { error: 'station is required' });
+      const hours = Math.min(720, Math.max(1, Number(url.searchParams.get('hours')) || 24));
+      const keys = (url.searchParams.get('keys') || '').split(',').filter(Boolean);
+      return sendJson(res, 200, history.series(station, hours, keys));
+    }
+    if (url.pathname === '/api/cydom/history.csv') {
+      if (!history) return sendJson(res, 503, { error: 'History is not ready' });
+      const station = url.searchParams.get('station') || null;
+      const days = Math.min(HISTORY_DAYS, Math.max(1, Number(url.searchParams.get('days')) || 1));
+      res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="metoffice-${station || 'all-stations'}-${days}d.csv"`, 'Cache-Control': 'no-store' });
+      history.csv(Date.now() - days * 86400000, Date.now(), station, (t) => res.write(t));
+      return res.end();
+    }
+    if (url.pathname === '/api/dom/page') {
+      const name = url.searchParams.get('name');
+      if (!DOM_PAGES[name]) return sendJson(res, 404, { error: 'Unknown page', pages: Object.keys(DOM_PAGES) });
+      return sendJson(res, 200, await domPage(name));
+    }
+    if (url.pathname === '/api/dom/pages/history') {
+      const name = url.searchParams.get('name');
+      if (!pageStore || (!DOM_PAGES[name] && name !== 'net')) return sendJson(res, 404, { error: 'Unknown page' });
+      return sendJson(res, 200, pageStore.versions(name, Math.min(HISTORY_DAYS, Math.max(1, Number(url.searchParams.get('days')) || 30))));
+    }
+    if (url.pathname === '/api/dom/net') return sendJson(res, 200, await domNet());
+    if (url.pathname === '/api/dom/img') {
+      const target = domImageUrl(url.searchParams.get('name'), url.searchParams.get('u'));
+      if (!target) return sendJson(res, 404, { error: 'Unknown picture', pictures: Object.keys(DOM_IMAGES) });
+      const img = await domImage(target);
+      res.writeHead(200, { 'Content-Type': img.type, 'Cache-Control': 'public, max-age=300' });
+      return res.end(img.buf);
+    }
     const extra = { '/api/weather': weather, '/api/air': air, '/api/sea': sea, '/api/opensensors': openSensors, '/api/metar': metar, '/api/cydom': cydom }[url.pathname];
     if (extra) return sendJson(res, 200, await extra());
     let file = url.pathname === '/' ? '/index.html' : url.pathname;
@@ -840,5 +985,6 @@ const server = http.createServer(async (req, res) => {
 loadMeasurementNames().finally(() => {
   server.listen(PORT, () => {
     console.log(`Dashboard on port ${PORT}${DEMO ? ' (demo data)' : ''}`);
+    startMetOffice();
   });
 });
