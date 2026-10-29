@@ -22,9 +22,17 @@ Open http://localhost:3000.
 | `DASHBOARD_PASSWORD` | no | Asks visitors for this password (any username) |
 | `SENSECAP_HOST` | no | Defaults to `https://sensecap.seeed.cc/openapi` |
 | `DEMO` | no | `1` forces demo data |
-
 | `DATA_DIR` | no | Where the Met Office history is saved. Defaults to the Railway volume (`RAILWAY_VOLUME_MOUNT_PATH`), otherwise `./data` |
 | `HISTORY_DAYS` | no | How many days of history to keep (default 400) |
+| `LOCK_DASHBOARD` | no | `1` hides the dashboard, map and 3D view from anyone who is not signed in to the student app (or has `DASHBOARD_PASSWORD`) |
+| `ADMIN_SETUP_CODE` | no | Secret that lets the first admin create an account at `/app/#/staff`. Leave it empty once the admins exist |
+| `ANTHROPIC_API_KEY` | no | Switches the Ask assistant on. Without it the app works and the assistant says it is not switched on |
+| `BOT_MODEL` | no | Model for the assistant (default `claude-sonnet-5-5`) |
+| `ANTHROPIC_BASE_URL` | no | Only for testing against a different endpoint |
+| `BOT_DAILY_LIMIT` | no | Questions per person per day (default 40) |
+| `BOT_GLOBAL_DAILY` | no | Questions per day for everyone together (default 1500) |
+| `CHAT_RETENTION_DAYS` | no | Chat messages older than this are deleted (default 400) |
+| `BOT_LOG_DAYS` | no | Assistant questions and answers older than this are deleted (default 90) |
 
 Never commit real keys. `.env` is ignored by git.
 
@@ -103,3 +111,32 @@ On Railway the files must live on a volume, otherwise they vanish at the next de
 | `/api/dom/img?name=radar` | Met Office pictures through this server (cached for 5 minutes): `radar`, `radar_anim`, `radar_pfo`, `radar_lca`, `table_a`, `table_b`, `table_c` |
 
 The forecast tables A, B and C are pictures on the Met Office site; the sea, aviation and warnings pages are read as text and the structure of each is written once to the server log at start. Check the Met Office terms before using their data outside a classroom, and keep the credit "Weather Data Copyright The Cyprus Department of Meteorology".
+
+## Student and team app
+
+An installable web app (PWA) at `/app/` for students and teachers of PASCAL Larnaka, PASCAL Lefkosia, PASCAL Limassol and the International School of Paphos. It needs Node 22.13 or newer (it uses the built-in `node:sqlite`) and stores its data in `DATA_DIR/app.db`, so keep the volume.
+
+What it does:
+
+- **Data:** home screen with the Met Office strip, vehicle cards with a CO2 ribbon, 24 hour / 7 day / 30 day charts, the 54 Met Office stations with history and CSV, and the map and 3D view inside the app.
+- **Chat:** group channels only. One for all schools, one per school, one per team. No private messages. Students cannot post links, emails, phone numbers or @handles. Anyone can report a message; teachers can delete messages and mute members.
+- **Ask:** an assistant that reads the live data, the Met Office pages, the vehicle history and an editable handbook (Manage, Handbook). Every question and answer is visible to teachers, and any answer can be reported.
+
+### Setting it up
+
+1. Set `ADMIN_SETUP_CODE` (a long random secret) on Railway and open `/app/#/staff`. Create your admin account with that code, then remove the variable.
+2. Open Manage, Codes. Each school has a student code and a teacher code. Give the student code to the class and the teacher code to the teachers. Codes can be regenerated at any time.
+3. Teachers join with the teacher code and you approve them (Manage, Approvals). Students join with the student code and their own teacher approves them.
+4. Manage, Teams: create teams and add members. Each team gets its own chat channel.
+5. Manage, Codes, Vehicle matching: a vehicle is shown to a school when its name or group contains one of the school's match words (default: the city name, for example `Larnaka, Larnaca`). Name the SenseCAP devices or groups accordingly, or change the words.
+6. Add `ANTHROPIC_API_KEY` to switch on the assistant. Set `LOCK_DASHBOARD=1` so the vehicle positions are only visible to people who are signed in.
+
+Students pick a display name and a password; there are no email addresses. A teacher can reset a password (the student gets a temporary one and must change it).
+
+### Safeguarding and privacy
+
+- Students are minors. Get the school's agreement (and your data protection officer's) before use, and tell students and parents what is stored: display name, school, team, messages, and the questions they ask the assistant.
+- The assistant sends the question and the data it needs to Anthropic. It tells students it is an AI, points to 116111 (child helpline) and 112 (emergencies) when someone is in trouble, and helps with learning rather than writing assignments.
+- Teachers see the assistant log and the reports queue. Messages and logs are deleted after `CHAT_RETENTION_DAYS` and `BOT_LOG_DAYS`.
+- Students can export their data or delete their account in the app (Me). A deleted account is anonymised in old messages.
+- Do not put real school names or addresses in the sensor groups if you do not want them visible; the school locations in the app are city level only.

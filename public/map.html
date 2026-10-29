@@ -40,6 +40,7 @@
   .st { font-size: 12px; color: var(--ink2); }
   .st .e { color: var(--bad); }
   #toggle { display: none; }
+  .embed .nav { display: none; }
   .maplibregl-popup-content { font: 12px/1.4 system-ui, sans-serif; color: #1c1c1a; }
   #windCv { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
   #replay { bottom: 12px; left: 50%; transform: translateX(-50%); width: min(600px, calc(100% - 620px)); min-width: 400px; display: none; align-items: center; gap: 8px; padding: 8px 12px; }
@@ -140,6 +141,8 @@
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script>
+const EMBED = /[?&]embed=1/.test(location.search);   // inside the student app: no links that leave it
+if (EMBED) document.documentElement.classList.add('embed');
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const state = { cfg: null, devices: [], latest: {}, weather: null, air: null, sea: null, open: null, cydom: null, mid: '4097', lastOk: {}, errors: {}, selected: null,
@@ -716,7 +719,7 @@ async function showDetail(eui, fresh = true) {
   Object.keys(l).filter((m) => !state.cfg.gps.includes(m)).forEach((m) => rows.push(`<tr><td>${nameOf(m)}</td><td>${r1(l[m].v)} ${unitOf(m)}</td></tr>`));
   if (rows.length) html += `<table>${rows.join('')}</table>`;
   html += `<div class="btns"><button class="btn" id="bFollow">${state.follow === eui ? 'Stop following' : 'Follow vehicle'}</button><button class="btn" id="bReplay">Replay trip</button></div>`;
-  html += `<p><a href="/#${eui}" style="color:var(--acc)">Open full history and CSV</a></p>`;
+  html += EMBED ? `<p><a href="/app/#/vehicle/${encodeURIComponent(eui)}" target="_top" style="color:var(--acc)">Open history charts</a></p>` : `<p><a href="/#${eui}" style="color:var(--acc)">Open full history and CSV</a></p>`;
   const box = $('detail');
   box.innerHTML = html;
   box.style.display = 'block';

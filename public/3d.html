@@ -42,6 +42,7 @@
   .row .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--c, #888); }
   .row .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .row .vl { font-variant-numeric: tabular-nums; color: #cfd6e0; }
+  .embed #navlinks { display: none; }
   @media (max-width: 640px) {
     #controls { width: calc(100% - 24px); max-height: 38%; } #legend { display: none; }
     #list { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; max-height: 30%; }
@@ -54,7 +55,7 @@
 <div id="labels"></div>
 <div class="panel" id="controls">
   <h1>Cyprus 3D <span class="live" id="live">Live</span></h1>
-  <a href="/">Back to dashboard</a> · <a href="/map.html">Map with roads and satellite</a>
+  <div id="navlinks"><a href="/">Back to dashboard</a> · <a href="/map.html">Map with roads and satellite</a></div>
   <h2>Surface</h2>
   <label><input type="radio" name="surf" value="temp" checked> Temperature</label>
   <label><input type="radio" name="surf" value="elev"> Elevation</label>
@@ -92,6 +93,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
+const EMBED = /[?&]embed=1/.test(location.search);   // inside the student app: no links that leave it
+if (EMBED) document.documentElement.classList.add('embed');
 const $ = (id) => document.getElementById(id);
 const LAT_C = 35.0, LNG_C = 33.25, KM_LAT = 111.2, KM_LNG = 111.2 * Math.cos((LAT_C * Math.PI) / 180);
 const toX = (lng) => (lng - LNG_C) * KM_LNG;
@@ -614,7 +617,7 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   mouse.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(mouse, camera);
   const hit = ray.intersectObjects([...sensors.values()].map((s) => s.mesh), false)[0];
-  if (hit) location.href = '/#' + hit.object.userData.eui;
+  if (hit) { if (EMBED) parent.location.hash = '#/vehicle/' + encodeURIComponent(hit.object.userData.eui); else location.href = '/#' + hit.object.userData.eui; }
 });
 
 /* ---------- animation ---------- */

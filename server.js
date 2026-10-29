@@ -290,14 +290,14 @@ function assembleTrails(devices, rows, hours, mid) {
 /* ---------- demo data ---------- */
 
 const DEMO_DEVICES = [
-  ['School A bus 1', 'School A', 34.9217, 33.6232],
-  ['School A car 1', 'School A', 34.9005, 33.6101],
-  ['School B bus 1', 'School B', 35.1856, 33.3823],
-  ['School B car 1', 'School B', 35.1701, 33.3611],
-  ['School C bus 1', 'School C', 34.6841, 33.0379],
-  ['School C car 1', 'School C', 34.7021, 33.0212],
-  ['School D bus 1', 'School D', 34.7754, 32.4245],
-  ['School D car 1', 'School D', 34.7612, 32.4401],
+  ['PASCAL Larnaka bus 1', 'PASCAL Larnaka', 34.9217, 33.6232],
+  ['PASCAL Larnaka car 1', 'PASCAL Larnaka', 34.9005, 33.6101],
+  ['PASCAL Lefkosia bus 1', 'PASCAL Lefkosia', 35.1856, 33.3823],
+  ['PASCAL Lefkosia car 1', 'PASCAL Lefkosia', 35.1701, 33.3611],
+  ['PASCAL Limassol bus 1', 'PASCAL Limassol', 34.6841, 33.0379],
+  ['PASCAL Limassol car 1', 'PASCAL Limassol', 34.7021, 33.0212],
+  ['International School of Paphos bus 1', 'International School of Paphos', 34.7754, 32.4245],
+  ['International School of Paphos car 1', 'International School of Paphos', 34.7612, 32.4401],
 ].map(([name, group, lat, lng], i) => ({
   eui: 'DEMO' + String(i + 1).padStart(12, '0'),
   name,
@@ -871,6 +871,48 @@ function startMetOffice() {
   setInterval(() => history.prune(HISTORY_DAYS), 6 * 3600000);
 }
 
+/* ---------- student and team app (accounts, chat, assistant) ---------- */
+
+const { createApp } = require('./school');
+const { createBot } = require('./bot');
+let appCore = null;
+
+// What the assistant may read. Everything is read-only and comes from the same functions the dashboard uses.
+const botData = {
+  get demo() { return DEMO; },
+  names: () => measurementNames,
+  devices: async () => (DEMO ? DEMO_DEVICES : await liveDevices()),
+  latest: async () => (DEMO ? demoLatest() : await liveLatest()),
+  series: async (eui, mid, days) => {
+    let pts;
+    if (DEMO) pts = demoSeries(eui, mid, days);
+    else {
+      const dev = (await liveDevices()).find((d) => d.eui === eui);
+      if (!dev) throw new Error('Unknown device');
+      pts = await liveSeries(eui, mid, dev.channelOf[mid] || 1, days);
+    }
+    return pts.map((p) => ({ t: toMs(p.t), v: p.v }));
+  },
+  trail: async (eui, hours) => {
+    const t = DEMO ? demoTrails(hours, '4097') : await liveTrails(hours, '4097');
+    return (t.trails && t.trails[eui]) || [];
+  },
+  weather, air, sea, cydom,
+  history: () => history,
+  domPage, domNet,
+};
+
+function startApp() {
+  const bot = createBot({
+    apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL,
+    data: botData, log: (m) => console.error(m),
+  });
+  appCore = createApp({ dataDir: DATA_DIR, bot, log: (m) => console.log(m) });
+  if (!appCore.enabled) return console.error('Student app is off: ' + appCore.reason);
+  const st = bot.status();
+  console.log(`Student app ready (${appCore.info().users} accounts). Assistant ${st.configured ? 'on, model ' + st.model : 'off: set ANTHROPIC_API_KEY'}. Admin sign-up ${process.env.ADMIN_SETUP_CODE ? 'enabled' : 'disabled: set ADMIN_SETUP_CODE'}.`);
+}
+
 /* ---------- http ---------- */
 
 function sendJson(res, status, obj) {
@@ -878,23 +920,41 @@ function sendJson(res, status, obj) {
   res.end(JSON.stringify(obj));
 }
 
+// The dashboard pages and their data are locked when DASHBOARD_PASSWORD is set (any username) or LOCK_DASHBOARD=1.
+// Approved members of the student app get in with their sign-in, so they never see a password box.
+const LOCKED = Boolean(PASS) || process.env.LOCK_DASHBOARD === '1';
 function authorised(req) {
-  if (!PASS) return true;
-  const h = req.headers.authorization || '';
-  if (!h.startsWith('Basic ')) return false;
-  const [, pw = ''] = Buffer.from(h.slice(6), 'base64').toString().split(/:(.*)/s);
-  return pw === PASS;
+  if (!LOCKED) return true;
+  if (PASS) {
+    const h = req.headers.authorization || '';
+    if (h.startsWith('Basic ')) {
+      const [, pw = ''] = Buffer.from(h.slice(6), 'base64').toString().split(/:(.*)/s);
+      if (pw === PASS) return true;
+    }
+  }
+  return Boolean(appCore && appCore.authorise(req));
 }
 
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
+const MIME = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml',
+  '.png': 'image/png', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.ico': 'image/x-icon',
+};
+const APP_CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
 
 const server = http.createServer(async (req, res) => {
-  if (!authorised(req)) {
-    res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Sensor dashboard"' });
-    return res.end('Password required');
-  }
   const url = new URL(req.url, 'http://localhost');
   try {
+    if (appCore && (await appCore.handle(req, res, url))) return;   // /app/api/*: the app does its own sign-in
+    if (url.pathname === '/app') { res.writeHead(302, { Location: '/app/' }); return res.end(); }
+    const inApp = url.pathname.startsWith('/app/');
+    if (!inApp && !authorised(req)) {
+      if (PASS) {
+        res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Sensor dashboard"' });
+        return res.end('Password required');
+      }
+      if (/\.html$|\/$/.test(url.pathname)) { res.writeHead(302, { Location: '/app/' }); return res.end(); }
+      return sendJson(res, 401, { error: 'Sign in to the student app first.' });
+    }
     if (url.pathname === '/api/config') {
       return sendJson(res, 200, { demo: DEMO, names: measurementNames, gps: [GPS_LAT, GPS_LNG] });
     }
@@ -962,7 +1022,7 @@ const server = http.createServer(async (req, res) => {
     }
     const extra = { '/api/weather': weather, '/api/air': air, '/api/sea': sea, '/api/opensensors': openSensors, '/api/metar': metar, '/api/cydom': cydom }[url.pathname];
     if (extra) return sendJson(res, 200, await extra());
-    let file = url.pathname === '/' ? '/index.html' : url.pathname;
+    let file = url.pathname === '/' ? '/index.html' : url.pathname.endsWith('/') ? url.pathname + 'index.html' : url.pathname;
     const full = path.join(__dirname, 'public', path.normalize(file));
     if (!full.startsWith(path.join(__dirname, 'public'))) {
       res.writeHead(403);
@@ -973,7 +1033,7 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(404);
         return res.end('Not found');
       }
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
+      res.writeHead(200, { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream', 'Cache-Control': 'no-cache', ...(inApp ? { 'Content-Security-Policy': APP_CSP, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' } : {}) });
       res.end(buf);
     });
   } catch (e) {
@@ -985,6 +1045,7 @@ const server = http.createServer(async (req, res) => {
 loadMeasurementNames().finally(() => {
   server.listen(PORT, () => {
     console.log(`Dashboard on port ${PORT}${DEMO ? ' (demo data)' : ''}`);
+    startApp();
     startMetOffice();
   });
 });
