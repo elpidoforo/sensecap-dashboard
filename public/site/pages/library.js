@@ -5,8 +5,8 @@
     #/library?tab=guides&doc=<title>       opens one page of the handbook or one sensor guide (title, or the sensor name for a guide)
     #/library?tab=glossary&term=<term>     opens at one glossary term;  &q=<text> starts with a search
   Sources: GET /app/api/handbook/public -> { docs:[{ title, body, updated_at }] }   (the handbook and the "Sensor guide: ..." pages)
-           GET /api/feeds -> { feeds:[{ id, name, what, home, enabled, lastOk, lastError, ok24h, fail24h, everyMin }] }
-           (when /api/feeds is not there yet the tab shows the static list of the five sources and says that live status is missing)
+           GET /api/feeds -> { feeds:[{ id, name, nameEl, what, whatEl, home, enabled, status, mode, lastOk, lastError{at,message}, ok24h, fail24h, everyMin }] }
+           (when /api/feeds cannot be read the tab shows the static list of the five sources and says that live status is missing)
   The glossary is written here (29 terms, English and Greek). Search looks in all four tabs and shows how many matches each has.
   Nothing on this page is invented: a missing source says so. No student names, no positions.
 */
@@ -197,7 +197,7 @@
         try {
           const r = await SC.api('/api/feeds');
           const list = r && Array.isArray(r.feeds) ? r.feeds : [];
-          S.feeds = list.map((f) => ({ id: f.id, name: f.name || f.id, what: f.what || '', home: f.home || '', enabled: f.enabled !== false, lastOk: dateOf(f.lastOk), lastError: f.lastError && f.lastError.message ? { at: dateOf(f.lastError.at), message: String(f.lastError.message) } : null,
+          S.feeds = list.map((f) => ({ id: f.id, name: (SC.lang === 'el' && f.nameEl) || f.name || f.id, what: (SC.lang === 'el' && f.whatEl) || f.what || '', status: typeof f.status === 'string' ? f.status : '', home: f.home || '', enabled: f.enabled !== false, lastOk: dateOf(f.lastOk), lastError: f.lastError && f.lastError.message ? { at: dateOf(f.lastError.at), message: String(f.lastError.message) } : null,
             ok24h: Number(f.ok24h) || 0, fail24h: Number(f.fail24h) || 0, everyMin: Number(f.everyMin) || 0 }));
         } catch (e) {
           S.feedsErr = e; S.feedsStatic = true;
@@ -277,7 +277,7 @@
             el('h2', { class: 'card-h' }, mark(kind === 'guides' ? guideName(sel) : sel.title, w))), copyLink()),
           sel.at ? el('p', { class: 'lb-upd muted' }, T('Updated ' + SC.date(sel.at), 'Ενημερώθηκε ' + SC.date(sel.at))) : null,
           el('div', { class: 'lb-body' }, blocks(sel.body, w)),
-          el('div', { class: 'lb-read-foot' }, el('span', { class: 't team' }, T('Written by teachers', 'Γραμμένο από εκπαιδευτικούς')), el('span', { class: 'muted' }, T('The assistant reads this page too.', 'Αυτή τη σελίδα τη διαβάζει και ο βοηθός.')),
+          el('div', { class: 'lb-read-foot' }, el('span', { class: 't team' }, T('Handbook page', 'Σελίδα εγχειριδίου')), el('span', { class: 'muted' }, T('Teachers keep these pages up to date. The assistant reads this page too.', 'Τις σελίδες αυτές τις ενημερώνουν οι εκπαιδευτικοί. Αυτή τη σελίδα τη διαβάζει και ο βοηθός.')),
             kind === 'guides' ? el('a', { class: 'pill-link', href: '#/guides?doc=' + encodeURIComponent(guideName(sel)) }, T('See it next to live readings', 'Δείτε το δίπλα στις ζωντανές μετρήσεις'), SC.icon('arrow', 14)) : null));
         panel.replaceChildren(el('div', { class: 'lb-docs' }, el('div', { class: 'lb-listwrap' }, el('div', { class: 'lb-count muted' }, S.q ? T(list.length + ' of ' + all.length + ' match', list.length + ' από ' + all.length + ' ταιριάζουν') : T(all.length + (all.length === 1 ? ' page' : ' pages'), all.length + (all.length === 1 ? ' σελίδα' : ' σελίδες'))), listEl), read));
       }
@@ -285,7 +285,12 @@
       /* ---------- data sources ---------- */
       function feedState(f) {
         if (f.plain) return ['info', T('Status not available', 'Η κατάσταση δεν είναι διαθέσιμη')];
-        if (!f.enabled) return ['warn', T('Switched off', 'Απενεργοποιημένη')];
+        if (!f.enabled || f.status === 'off') return ['warn', T('Switched off', 'Απενεργοποιημένη')];
+        if (f.status === 'demo') return ['info', T('Simulated (demo)', 'Προσομοίωση (επίδειξη)')];
+        if (f.status === 'error') return ['bad', T('Problem', 'Πρόβλημα')];
+        if (f.status === 'ok') return ['ok', T('Working', 'Λειτουργεί')];
+        if (f.status === 'late') return ['warn', T('Late', 'Καθυστερεί')];
+        if (f.status === 'idle') return ['info', f.lastOk ? T('Not read lately', 'Δεν διαβάστηκε πρόσφατα') : T('No reading yet', 'Καμία μέτρηση ακόμα')];
         const err = f.lastError && f.lastError.at && (!f.lastOk || f.lastError.at > f.lastOk);
         if (err) return ['bad', T('Problem', 'Πρόβλημα')];
         if (!f.lastOk) return ['info', T('No reading yet', 'Καμία μέτρηση ακόμα')];

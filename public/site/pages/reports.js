@@ -320,7 +320,7 @@
             main.append(el('article', { class: 'nm-card nm-lift rp-item' + (r.status !== 'released' ? ' rp-dim' : '') },
               el('div', { class: 'rp-it-top' }, el('span', { class: 'nm-icon-tile' }, SC.icon('file', 22)), el('div', { class: 'rp-it-t' }, el('h3', null, nameOfReport(r)),
                 el('div', { class: 'rp-it-m' }, teacher || r.status !== 'released' ? badge(r.status) : null, r.demo ? el('span', { class: 't demo' }, T('Demo data', 'Δεδομένα επίδειξης')) : null, r.summary && r.summary.ai ? el('span', { class: 't ai' }, T('AI summary', 'Σύνοψη ΤΝ')) : null,
-                  r.releasedAt ? el('span', { class: 'muted' }, T('Released ' + SC.ago(r.releasedAt), 'Δημοσιεύτηκε ' + SC.ago(r.releasedAt))) : r.generatedAt ? el('span', { class: 'muted' }, T('Made ' + SC.ago(r.generatedAt), 'Δημιουργήθηκε ' + SC.ago(r.generatedAt))) : null))),
+                  r.releasedAt && r.status === 'released' ? el('span', { class: 'muted' }, T('Released ' + SC.ago(r.releasedAt), 'Δημοσιεύτηκε ' + SC.ago(r.releasedAt))) : r.generatedAt ? el('span', { class: 'muted' }, T('Made ' + SC.ago(r.generatedAt), 'Δημιουργήθηκε ' + SC.ago(r.generatedAt))) : null))),
               sum ? el('p', { class: 'rp-it-s' }, sum) : null,
               el('div', { class: 'rp-it-a' }, el('a', { class: 'nm-btn', href: '#/reports/' + encodeURIComponent(r.id) }, r.status === 'released' ? T('Open the report', 'Άνοιγμα αναφοράς') : T('Preview', 'Προεπισκόπηση')), actions(r))));
           });

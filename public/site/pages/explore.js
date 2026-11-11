@@ -158,11 +158,12 @@
       svg.append(grid);
       // period bands, then gaps
       const bandG = NSV('g', { class: 'ex-bands' });
-      const addBand = (from, to, color, label, op) => {
+      const addBand = (from, to, color, label, op, labelColor) => {
         const a = Math.max(M.l, X(Math.max(from, t0))), b = Math.min(W - M.r, X(Math.min(to, t1)));
         if (b - a < 1) return;
         bandG.append(NSV('rect', { x: a, y: M.t, width: b - a, height: ph, fill: color, opacity: op }));
-        if (label && b - a > 54) bandG.append(NSV('text', { x: (a + b) / 2, y: M.t + 12, 'text-anchor': 'middle', fill: color, class: 'ex-bandl' }, label));
+        // the label may be wider than a narrow band (as in the picture); it is kept inside the plot
+        if (label && b - a > 14) { const lw = label.length * 5.6, cx = Math.max(M.l + lw / 2, Math.min(W - M.r - lw / 2, (a + b) / 2)); bandG.append(NSV('text', { x: cx, y: M.t + 12, 'text-anchor': 'middle', fill: labelColor || color, class: 'ex-bandl' }, label)); }
       };
       (o.bands || []).forEach((b) => addBand(b.from, b.to, b.color || '#E07F3F', b.label, 0.22));
       if (o.gaps !== false) series.forEach((s) => {
@@ -170,7 +171,7 @@
         if (s.pts[0].t - t0 > gapMs) list.push([t0, s.pts[0].t]);
         for (let i = 1; i < s.pts.length; i++) if (s.pts[i].t - s.pts[i - 1].t > gapMs) list.push([s.pts[i - 1].t, s.pts[i].t]);
         if (t1 - s.pts[s.pts.length - 1].t > gapMs) list.push([s.pts[s.pts.length - 1].t, t1]);
-        list.slice(0, 14).forEach(([a, b]) => addBand(a, b, '#9FB2CA', list.length <= 4 ? (s.gapLabel || T('No reading', 'Χωρίς μέτρηση')) : '', 0.13));
+        list.slice(0, 14).forEach(([a, b]) => addBand(a, b, '#9FB2CA', list.length <= 4 ? (s.gapLabel || T('No reading', 'Χωρίς μέτρηση')) : '', 0.16, '#F2CF86'));
       });
       svg.append(bandG);
       // difference band between two series on the same axis

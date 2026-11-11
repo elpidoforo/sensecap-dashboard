@@ -28,6 +28,8 @@
     { k: 'press', re: /pressure|baromet|πιεση/, mid: '4101', ic: 'gauge' },
     { k: 'pm', re: /pm ?(2|10)|particle|σωματιδ/, mid: null, ic: 'dust', name: /particulate|pm/ },
     { k: 'noise', re: /noise|sound|θορυβ/, mid: null, ic: 'wave', name: /noise|sound|θορυβ/ },
+    { k: 'wind', re: /wind|ανεμ/, mid: null, ic: 'wave', ref: true },
+    { k: 'station', re: /station|σταθμ/, mid: null, ic: 'pin', ref: true },
     { k: 'gps', re: /gps|position|location|θεση/, mid: null, ic: 'pin', priv: true },
   ];
   const ICONS = {
@@ -51,7 +53,9 @@
 
   /* the sections of a guide: "What it measures", "Normal range", "Common mistakes" (labels may be a line of their own or start a line) */
   const LABELS = [
-    ['what', /^(what it measures|what this measures|what is it)\b/i, T('What it measures', 'Τι μετρά')],
+    ['what', /^(what it measures|what this measures)\b/i, T('What it measures', 'Τι μετρά')],
+    ['whatis', /^(what it is|what is it)\b/i, T('What it is', 'Τι είναι')],
+    ['holds', /^what a reading holds\b/i, T('What a reading holds', 'Τι περιέχει μια μέτρηση')],
     ['range', /^(normal range|typical range|usual range|normal values|what is normal)\b/i, T('Normal range', 'Κανονικό εύρος')],
     ['mistakes', /^(common mistakes|mistakes|common errors|pitfalls|things that go wrong)\b/i, T('Common mistakes', 'Συνηθισμένα λάθη')],
   ];
@@ -81,6 +85,7 @@
     });
     return out;
   }
+  const cap = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
   const firstSentence = (txt, n) => { const t = String(txt || '').replace(/\s+/g, ' ').trim(); const m = t.match(/^(.+?[.!?])(\s|$)/); const s = m ? m[1] : t; return s.length > (n || 140) ? s.slice(0, s.lastIndexOf(' ', n || 140) > 30 ? s.lastIndexOf(' ', n || 140) : n || 140) + ' …' : s; };
 
   SC.register('guides', {
@@ -115,12 +120,12 @@
         if (k && !mid && k.name && D.cfg && D.cfg.names) mid = Object.keys(D.cfg.names).find((m) => k.name.test(fold(D.cfg.names[m][0]))) || null;
         if (!k && D.cfg && D.cfg.names) mid = Object.keys(D.cfg.names).find((m) => fold(D.cfg.names[m][0]) && f.includes(fold(D.cfg.names[m][0]))) || null;
         if (mid && gpsMids().includes(String(mid))) mid = null;
-        return { k: k ? k.k : 'other', ic: k ? k.ic : 'sensor', mid, priv: Boolean(k && k.priv) };
+        return { k: k ? k.k : 'other', ic: k ? k.ic : 'sensor', mid, priv: Boolean(k && k.priv), ref: Boolean(k && k.ref) };
       }
       const guides = () => (D.docs || []).filter((d) => GUIDE_RE.test(d.title)).map((d) => {
         const name = d.title.replace(GUIDE_RE, '').trim(), kd = kindOf(name), sec = sections(d.body);
-        const what = sec.find((s) => s.key === 'what') || sec[0];
-        return Object.assign({ name, kd, sec, blurb: what ? firstSentence(what.lines.filter(Boolean).join(' ').replace(/^[-*•]\s*/, '')) : '' }, d);
+        const what = sec.find((s) => s.key === 'what' || s.key === 'whatis') || sec[0];
+        return Object.assign({ name, kd, sec, blurb: what ? cap(firstSentence(what.lines.filter(Boolean).join(' ').replace(/^[-*•]\s*/, ''))) : '' }, d);
       }).sort((a, b) => a.name.localeCompare(b.name));
 
       // the live range for a measurement: readings of the last 3 hours across our sensors
@@ -167,6 +172,8 @@
       function mini(kd) {
         if (kd.priv) return el('div', { class: 'gd-live off' }, el('div', { class: 'gd-live-t' }, T('No live reading by design', 'Χωρίς ζωντανή μέτρηση εκ σχεδιασμού')), el('small', null, T('Public pages show a vehicle about 1 km off and at least 2 hours late. Never live.', 'Οι δημόσιες σελίδες δείχνουν ένα όχημα με απόκλιση περίπου 1 χλμ και καθυστέρηση τουλάχιστον 2 ωρών. Ποτέ ζωντανά.')));
         if (D.liveErr && !D.latest) return el('div', { class: 'gd-live off' }, el('div', { class: 'gd-live-t' }, T('Live reading not available', 'Η ζωντανή μέτρηση δεν είναι διαθέσιμη')), el('small', null, D.liveErr.message));
+        if (kd.ref) return el('div', { class: 'gd-live off' }, el('div', { class: 'gd-live-t' }, kd.k === 'station' ? T('Official stations, not our sensors', 'Επίσημοι σταθμοί, όχι οι αισθητήρες μας') : T('From the Met Office stations', 'Από τους σταθμούς της Μετεωρολογικής')),
+          el('small', null, kd.k === 'station' ? T('The live readings of the stations are on the ', 'Οι ζωντανές μετρήσεις των σταθμών βρίσκονται στο ') : T('Our own sensors do not measure this. The official stations do: see the ', 'Οι δικοί μας αισθητήρες δεν το μετρούν. Το μετρούν οι επίσημοι σταθμοί: δείτε το '), el('a', { class: 'link', href: '#/weather', onclick: (e) => e.stopPropagation() }, T('Met Office record', 'μετεωρολογικό αρχείο')), '.'));
         if (!kd.mid) return el('div', { class: 'gd-live off' }, el('div', { class: 'gd-live-t' }, T('Not measured by our sensors', 'Δεν μετράται από τους αισθητήρες μας')), el('small', null, T('No sensor of ours reports this, so there is nothing live to show.', 'Κανένας δικός μας αισθητήρας δεν το αναφέρει, οπότε δεν υπάρχει κάτι ζωντανό να δείξουμε.')));
         const L = live(kd.mid);
         if (!L || !L.rows.length) return el('div', { class: 'gd-live off' }, el('div', { class: 'gd-live-t' }, T('No reading yet', 'Καμία μέτρηση ακόμα')), el('small', null, T('Our sensors have not sent this measurement.', 'Οι αισθητήρες μας δεν έχουν στείλει αυτή τη μέτρηση.')));
@@ -226,10 +233,10 @@
         if (leaving !== true) { urlFor(null); if (s.opener && s.opener.isConnected) s.opener.focus({ preventScroll: true }); }
       }
       function sheetLive(g) {
-        const wrap = el('section', { class: 'gd-sh-live', 'aria-label': T('Our sensors right now', 'Οι αισθητήρες μας τώρα') });
-        const kd = g.kd;
-        wrap.append(el('div', { class: 'card-eye' }, T('Our sensors right now', 'Οι αισθητήρες μας τώρα')));
-        if (kd.priv || !kd.mid || (D.liveErr && !D.latest)) { wrap.append(mini(kd)); return wrap; }
+        const kd = g.kd, lab = kd.ref ? T('Where the live data is', 'Πού βρίσκονται τα ζωντανά δεδομένα') : T('Our sensors right now', 'Οι αισθητήρες μας τώρα');
+        const wrap = el('section', { class: 'gd-sh-live', 'aria-label': lab });
+        wrap.append(el('div', { class: 'card-eye' }, lab));
+        if (kd.priv || kd.ref || !kd.mid || (D.liveErr && !D.latest)) { wrap.append(mini(kd)); return wrap; }
         const L = live(kd.mid);
         if (!L || !L.rows.length) { wrap.append(mini(kd)); return wrap; }
         wrap.append(mini(kd));

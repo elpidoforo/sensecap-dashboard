@@ -180,7 +180,7 @@
 
       /* ---------- small pieces ---------- */
       const errBox = (what, whatEl, e, retry) => el('div', { class: 'ds-err' },
-        el('div', { class: 'err', role: 'alert' }, T('Could not load ' + what + '. ', 'Δεν φορτώθηκε ' + whatEl + '. '), e && e.message ? el('span', { class: 'muted' }, e.message) : null),
+        el('div', { class: 'err', role: 'alert' }, T('Could not load ' + what + '. ', 'Δεν φορτώθηκαν ' + whatEl + '. '), e && e.message ? el('span', { class: 'muted' }, e.message) : null),
         el('div', null, el('button', { class: 'nm-btn', type: 'button', onclick: retry }, T('Try again', 'Δοκιμάστε ξανά'))));
       const dot = (c) => { const i = el('i', { class: 'ds-dot' }); i.style.background = c; return i; };
       function pick(id) { S.sel = id; draw(); sync(); }
@@ -318,7 +318,7 @@
             tile(T('School humidity', 'Υγρασία σχολείου'), fin(sc.humidity) ? SC.num(sc.humidity, 0) + ' %' : '–', fin(sc.humidity) ? T('Met Office stations: ' + (fin(r.st.hum) ? SC.num(r.st.hum, 0) + ' %' : 'none'), 'Σταθμοί: ' + (fin(r.st.hum) ? SC.num(r.st.hum, 0) + ' %' : 'κανένας')) : T('no reading now', 'καμία μέτρηση τώρα')),
             tile('CO2', fin(sc.co2) ? SC.num(sc.co2, 0) + ' ppm' : '–', fin(sc.co2) ? T('outdoors about 420 ppm', 'στο ύπαιθρο περίπου 420 ppm') : T('no reading now', 'καμία μέτρηση τώρα'))) : null,
           el('h3', { class: 'ds-h3' }, T('Met Office stations in ' + dName(r.d), 'Σταθμοί της Μετεωρολογικής στην επαρχία ' + dName(r.d))),
-          D.cyErr && !D.cy ? errBox(T('the Met Office stations', 'τους σταθμούς της Μετεωρολογικής'), T('the Met Office stations', 'τους σταθμούς της Μετεωρολογικής'), D.cyErr, retryMain)
+          D.cyErr && !D.cy ? errBox(T('the Met Office stations', 'οι σταθμοί της Μετεωρολογικής'), T('the Met Office stations', 'οι σταθμοί της Μετεωρολογικής'), D.cyErr, retryMain)
             : !stRows.length ? el('div', { class: 'empty' }, T('No Met Office station lies in this district right now.', 'Κανένας σταθμός της Μετεωρολογικής δεν βρίσκεται αυτή τη στιγμή σε αυτή την επαρχία.'))
               : el('div', { class: 'nm-table-wrap' }, el('table', { class: 'nm-table ds-table ds-stt' },
                 el('thead', null, el('tr', null, th('Station', 'Σταθμός'), th('Temperature °C', 'Θερμοκρασία °C'), th('Humidity %', 'Υγρασία %'), th('Reading', 'Μέτρηση'))),
@@ -426,7 +426,7 @@
         body.replaceChildren(el('div', { class: 'loading' }, T('Loading', 'Φόρτωση')));
         try { await loadMain(); } catch (e) {
           if (!alive) return;
-          body.replaceChildren(errBox(T('the school averages', 'τους μέσους όρους των σχολείων'), T('the school averages', 'τους μέσους όρους των σχολείων'), e, start));
+          body.replaceChildren(errBox(T('the school averages', 'οι μέσοι όροι των σχολείων'), T('the school averages', 'οι μέσοι όροι των σχολείων'), e, start));
           return;
         }
         if (!alive) return;
