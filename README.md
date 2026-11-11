@@ -95,6 +95,8 @@ Outside data comes from [Open-Meteo](https://open-meteo.com) (free, no key, non-
 
 `OPEN_METEO_MOCK=1` serves synthetic terrain and weather for offline testing only.
 
+`GET /api/forecast` gives a five-day model forecast for central Cyprus (`days[]` with `date`, `tmax`, `tmin`, `code` (WMO weather code), `wind` in m/s and `windDir`; plus `source`, `place`, `updated`). It comes from Open-Meteo and is kept for 30 minutes (the last good answer is served if the service is down). The Met Office page shows it as the day cards and says it is a model forecast, not the Department's; if the endpoint fails the page shows the Department's own forecast pictures (tables A, B and C) instead.
+
 ## Layered map
 
 `/map.html` is a real map (MapLibre GL JS) with layers that can be switched on and off, each with its own source and last-update time in the Data status box:
