@@ -875,7 +875,11 @@ function startMetOffice() {
 
 const { createApp } = require('./school');
 const { createBot } = require('./bot');
+const { createStudio } = require('./studio');
+const { createClassLogin } = require('./classlogin');
+const classLogin = createClassLogin();
 let appCore = null;
+let studio = null;
 
 // What the assistant may read. Everything is read-only and comes from the same functions the dashboard uses.
 const botData = {
@@ -909,6 +913,7 @@ function startApp() {
   });
   appCore = createApp({ dataDir: DATA_DIR, bot, log: (m) => console.log(m) });
   if (!appCore.enabled) return console.error('Student app is off: ' + appCore.reason);
+  studio = createStudio({ appCore, bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });
   const st = bot.status();
   console.log(`Student app ready (${appCore.info().users} accounts). Assistant ${st.configured ? 'on, model ' + st.model : 'off: set ANTHROPIC_API_KEY'}. Admin sign-up ${process.env.ADMIN_SETUP_CODE ? 'enabled' : 'disabled: set ADMIN_SETUP_CODE'}.`);
 }
@@ -922,7 +927,7 @@ function sendJson(res, status, obj) {
 
 // The dashboard pages and their data are locked when DASHBOARD_PASSWORD is set (any username) or LOCK_DASHBOARD=1.
 // Approved members of the student app get in with their sign-in, so they never see a password box.
-const LOCKED = Boolean(PASS) || process.env.LOCK_DASHBOARD === '1';
+const LOCKED = Boolean(PASS) || process.env.LOCK_DASHBOARD === '1' || classLogin.enabled;
 function authorised(req) {
   if (!LOCKED) return true;
   if (PASS) {
@@ -932,27 +937,31 @@ function authorised(req) {
       if (pw === PASS) return true;
     }
   }
-  return Boolean(appCore && appCore.authorise(req));
+  return classLogin.valid(req) || Boolean(appCore && appCore.authorise(req));
 }
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml',
   '.png': 'image/png', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.ico': 'image/x-icon',
 };
+const CITIES_CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
 const APP_CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   try {
     if (appCore && (await appCore.handle(req, res, url))) return;   // /app/api/*: the app does its own sign-in
+    if (await classLogin.handle(req, res, url)) return;              // /cities/api/login: the shared class sign-in
+    if (studio && (await studio.handle(req, res, url))) return;     // /studio/* and /mcp: the Build studio does its own sign-in
     if (url.pathname === '/app') { res.writeHead(302, { Location: '/app/' }); return res.end(); }
     const inApp = url.pathname.startsWith('/app/');
-    if (!inApp && !authorised(req)) {
+    const openAsset = /^\/cities\/(login\.html|login\.js|cities\.css|logo\.svg)$/.test(url.pathname);   // what the sign-in page itself needs
+    if (!inApp && !openAsset && !authorised(req)) {
       if (PASS) {
         res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Sensor dashboard"' });
         return res.end('Password required');
       }
-      if (/\.html$|\/$/.test(url.pathname)) { res.writeHead(302, { Location: '/app/' }); return res.end(); }
+      if (/\.html$|\/$/.test(url.pathname)) { res.writeHead(302, { Location: classLogin.enabled ? '/cities/login.html' : '/app/' }); return res.end(); }
       return sendJson(res, 401, { error: 'Sign in to the student app first.' });
     }
     if (url.pathname === '/api/config') {
@@ -1033,7 +1042,7 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(404);
         return res.end('Not found');
       }
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream', 'Cache-Control': 'no-cache', ...(inApp ? { 'Content-Security-Policy': APP_CSP, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' } : {}) });
+      res.writeHead(200, { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream', 'Cache-Control': 'no-cache', ...(inApp ? { 'Content-Security-Policy': APP_CSP, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' } : url.pathname.startsWith('/cities') ? { 'Content-Security-Policy': CITIES_CSP, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' } : {}) });
       res.end(buf);
     });
   } catch (e) {

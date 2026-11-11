@@ -26,6 +26,7 @@ Open http://localhost:3000.
 | `HISTORY_DAYS` | no | How many days of history to keep (default 400) |
 | `LOCK_DASHBOARD` | no | `1` hides the dashboard, map and 3D view from anyone who is not signed in to the student app (or has `DASHBOARD_PASSWORD`) |
 | `ADMIN_SETUP_CODE` | no | Secret that lets the first admin create an account at `/app/#/staff`. Leave it empty once the admins exist |
+| `CLASS_LOGIN_USER`, `CLASS_LOGIN_PASSWORD` | no | One shared sign-in for all students. When both are set the dashboard, map, 3D view and `/cities/` need it (or an individual student-app account). It cannot tell students apart, so it only opens the site and the data |
 | `ANTHROPIC_API_KEY` | no | Switches the Ask assistant on. Without it the app works and the assistant says it is not switched on |
 | `BOT_MODEL` | no | Model for the assistant (default `claude-sonnet-5-5`) |
 | `ANTHROPIC_BASE_URL` | no | Only for testing against a different endpoint |
@@ -140,3 +141,12 @@ Students pick a display name and a password; there are no email addresses. A tea
 - Teachers see the assistant log and the reports queue. Messages and logs are deleted after `CHAT_RETENTION_DAYS` and `BOT_LOG_DAYS`.
 - Students can export their data or delete their account in the app (Me). A deleted account is anonymised in old messages.
 - Do not put real school names or addresses in the sensor groups if you do not want them visible; the school locations in the app are city level only.
+
+## AI Sustainable Cities site (`/cities/`) and Claude connection
+
+`/cities/` is the new front door for the four schools. Students sign in at `/cities/login.html` with the shared class sign-in (see `CLASS_LOGIN_USER` and `CLASS_LOGIN_PASSWORD`), then reach the dashboard, the layered map, 3D Cyprus and the student app.
+
+- **Shared sign-in:** one user name and password for everyone, kept in server variables, not in git. Rate limited (8 wrong tries per 15 minutes per address) and signed cookie for 7 days. Changing the password signs everyone out. It does not identify students, so chat, the Ask assistant, the Build studio and saved projects stay with individual student-app accounts.
+- **Build studio (`studio.js`):** signed-in student-app members describe an idea; Claude builds one self-contained HTML page and saves it as a draft. Pages open only in a sandbox with no network (`/studio/p/<id>`); a teacher approves a page before other students can open it; any edit sends it back to draft. Needs `ANTHROPIC_API_KEY`. Limits: `STUDIO_DAILY_LIMIT` builds per person per day (25) and `STUDIO_GLOBAL_DAILY` for everyone (600).
+- **MCP endpoint (`/mcp`):** Model Context Protocol over HTTP (JSON responses) for adults and teachers who use their own Claude (for example Claude Code or the API). A teacher creates a project token (`POST /studio/api/tokens`, shown once); the client sends it as `Authorization: Bearer <token>`. Tools: the assistant's read-only data tools plus `get_vehicle_series`, `list_my_projects`, `get_project`, `save_project` and `submit_project`. It can save drafts only, never publish. 120 calls per hour per token. Claude.ai's own custom connectors expect OAuth, which this endpoint does not implement yet.
+- Students under 18 should not use their own Claude.ai accounts; the Build studio inside the site is the route for them.
