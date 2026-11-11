@@ -26,7 +26,7 @@ const FALLBACK_NAMES = {
 let measurementNames = { ...FALLBACK_NAMES };
 
 const { createCache } = require('./cache');
-const { createPrivacy } = require('./privacy');
+const { createPrivacy, GPS_MIDS } = require('./privacy');
 const priv = createPrivacy();
 
 // Every cache is bounded. `cached` holds the fixed keys (devices, weather, Met Office pages...). The keys that come from a
@@ -900,7 +900,24 @@ let studio = null;
 
 const rawDevices = async () => (DEMO ? DEMO_DEVICES : await liveDevices());
 const rawLatest = async () => (DEMO ? demoLatest() : await liveLatest());
-const rawTrails = async (hours, mid) => (DEMO ? demoTrails(hours, mid) : await liveTrails(hours, mid));
+// Trails are fetched from SenseCAP for a few fixed windows only (then cut to the hours asked for), so a visitor cannot make the
+// server ask SenseCAP for something new with every request by changing the number of hours.
+const HOUR_STEPS = [1, 3, 6, 12, 24, 48, 72, 120, 168];
+async function rawTrails(hours, mid) {
+  const win = HOUR_STEPS.find((h) => h >= hours) || 168;
+  const raw = DEMO ? demoTrails(win, mid) : await liveTrails(win, mid);
+  if (win === hours) return raw;
+  const from = Date.now() - hours * 3600000;
+  const trails = {};
+  for (const [eui, pts] of Object.entries(raw.trails)) trails[eui] = pts.filter((p) => p[0] >= from);
+  return { ...raw, hours, trails };
+}
+// The measurement ids a trail can be coloured by (every id some vehicle has, except GPS).
+async function trailMeasurements() {
+  const ids = new Set();
+  for (const d of await rawDevices()) for (const m of d.measurements || []) if (!GPS_MIDS.has(String(m))) ids.add(String(m));
+  return ids;
+}
 
 let lastWarning = '';
 function warnOnce(msg) { if (msg !== lastWarning) { lastWarning = msg; console.error(msg); } }
@@ -1095,13 +1112,15 @@ const server = http.createServer(async (req, res) => {
       const devices = await liveDevices();
       const dev = devices.find((d) => d.eui === eui);
       if (!dev) return sendJson(res, 404, { error: 'Unknown device' });
+      if (!dev.measurements.includes(mid)) return sendJson(res, 404, { error: 'This vehicle has no such measurement' });
       return sendJson(res, 200, await liveSeries(eui, mid, dev.channelOf[mid] || 1, days));
     }
     if (url.pathname === '/api/trails') {
       const hours = whole(url.searchParams.get('hours'), 6, 1, 168);
       const mid = priv.normMid(url.searchParams.get('mid') || '4097');
       if (mid == null) return sendJson(res, 400, { error: 'mid must be a measurement id such as 4097' });
-      return sendJson(res, 200, await trailsFor(levelOf(req), hours, mid));
+      const out = await trailsFor(levelOf(req), hours, (await trailMeasurements()).has(mid) ? mid : '');   // an id nobody has colours nothing: one shared answer
+      return sendJson(res, 200, out.mid === mid ? out : { ...out, mid });
     }
     if (url.pathname === '/api/terrain') {
       const st = terrainStatus();

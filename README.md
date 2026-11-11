@@ -19,14 +19,16 @@ Open http://localhost:3000.
 | --- | --- | --- |
 | `SENSECAP_API_ID` | yes | API ID from Security, Access API keys |
 | `SENSECAP_API_KEY` | yes | Access API Key from the same page |
-| `DASHBOARD_PASSWORD` | no | Asks visitors for this password (any username) |
+| `DASHBOARD_PASSWORD` | no | Locks the whole site behind this password (any username). Whoever has it also sees exact vehicle positions. Leave it empty for the open site |
 | `SENSECAP_HOST` | no | Defaults to `https://sensecap.seeed.cc/openapi` |
 | `DEMO` | no | `1` forces demo data |
 | `DATA_DIR` | no | Where the Met Office history is saved. Defaults to the Railway volume (`RAILWAY_VOLUME_MOUNT_PATH`), otherwise `./data` |
 | `HISTORY_DAYS` | no | How many days of history to keep (default 400) |
-| `LOCK_DASHBOARD` | no | `1` hides the dashboard, map and 3D view from anyone who is not signed in to the student app (or has `DASHBOARD_PASSWORD`) |
+| `LOCK_DASHBOARD` | no | `1` locks the whole site for anyone who is not signed in to the student app (or has `DASHBOARD_PASSWORD`). Off by default: the site is open to everybody |
+| `PUBLIC_POS_DELAY_MIN` | no | Minutes a vehicle position must be old before visitors may see it (default 120). See Privacy of vehicle positions |
+| `PUBLIC_POS_GRID` | no | Size in degrees of the grid public positions are rounded to (default 0.01, about 1 km) |
 | `ADMIN_SETUP_CODE` | no | Secret that lets the first admin create an account at `/app/#/staff`. Leave it empty once the admins exist |
-| `CLASS_LOGIN_USER`, `CLASS_LOGIN_PASSWORD` | no | One shared sign-in for all students. When both are set the dashboard, map, 3D view and `/cities/` need it (or an individual student-app account). It cannot tell students apart, so it only opens the site and the data |
+| `CLASS_LOGIN_USER`, `CLASS_LOGIN_PASSWORD` | no | An optional shared sign-in, off by default (the site has no visitor login). When both are set the whole site needs it (or a student-app account). It cannot tell students apart, so it only opens the site: it never gives exact vehicle positions |
 | `ANTHROPIC_API_KEY` | no | Switches the Ask assistant on. Without it the app works and the assistant says it is not switched on |
 | `BOT_MODEL` | no | Model for the assistant (default `claude-sonnet-5-5`) |
 | `ANTHROPIC_BASE_URL` | no | Only for testing against a different endpoint |
@@ -42,6 +44,28 @@ Never commit real keys. `.env` is ignored by git.
 - Groups in SenseCAP show up as the group filter, so create one group per school.
 - History uses the `aggregate_chart_points` endpoint (up to about 250 points per series).
 - Device lists are cached for 1 minute and readings for 1 to 2 minutes to stay within API limits.
+
+## Privacy of vehicle positions
+
+The site is open to everybody, and the vehicles carry students, so an exact position never leaves the server for a visitor. The rule is applied in the data layer (`privacy.js`), not in the pages:
+
+| Who | What they get |
+| --- | --- |
+| Visitors, students, the optional class sign-in, the Ask assistant, the Build studio and the `/mcp` tools | Public view: each vehicle's last known position that is at least `PUBLIC_POS_DELAY_MIN` minutes old (default 120), rounded to a grid of `PUBLIC_POS_GRID` degrees (default 0.01, about 1 km). No GPS measurement ids and no GPS history |
+| Teachers and admins (a student-app session with that role, sign in at `/teachers`, which opens `/app/#/staff`) and the holder of `DASHBOARD_PASSWORD` | Exact data, as stored in SenseCAP |
+
+What the public view looks like:
+
+- `/api/devices`: `lat` and `lng` are the delayed, rounded position, plus `posDelayed: true` and `posAt` (when that position was recorded, in milliseconds). A vehicle with no old-enough point has `lat: null`; a vehicle that has been silent for longer than the delay shows the position stored in SenseCAP, rounded.
+- `/api/latest`: the readings without the GPS measurement ids (`4197`, `4198`).
+- `/api/trails`: only points older than the delay, rounded, with consecutive duplicates removed (`posDelayed`, `delayMinutes` and `grid` say so). `/api/series` for a GPS measurement answers 403.
+- `/api/config` reports `exactPositions` (does this viewer get exact data), `posDelayMin` and `posGrid`.
+- The assistant, the Build studio and `/mcp` always use the public view, even when a teacher is asking, and cannot read GPS measurements. `/cities/api/overview` (school averages and route squares) uses the same delay and grid.
+- Answers for visitors are cached separately from the data layer, keyed by privilege level, so exact data cannot be served to a visitor from a cache. All caches are bounded (least recently used keys go first); `hours` and `days` are whole numbers; Met Office picture addresses lose their query string.
+
+Switching `LOCK_DASHBOARD`, `DASHBOARD_PASSWORD` or the class sign-in on only decides who may open the site. It never makes a visitor, a student or a class sign-in exact.
+
+Old addresses are redirected into the site: `/index.html` to `/`, `/cities/` to `/#/`, `/metoffice.html` to `/#/weather`, `/dashboard.html` to `/#/vehicles`, `/map.html` to `/#/map`, `/3d.html` to `/#/3d`. Add `?embed=1` to get the page itself (so the site can show `map.html` and `3d.html` in same-origin frames).
 
 ## 3D view
 
@@ -138,7 +162,7 @@ What it does:
 3. Teachers join with the teacher code and you approve them (Manage, Approvals). Students join with the student code and their own teacher approves them.
 4. Manage, Teams: create teams and add members. Each team gets its own chat channel.
 5. Manage, Codes, Vehicle matching: a vehicle is shown to a school when its name or group contains one of the school's match words (default: the city name, for example `Larnaka, Larnaca`). Name the SenseCAP devices or groups accordingly, or change the words.
-6. Add `ANTHROPIC_API_KEY` to switch on the assistant. Set `LOCK_DASHBOARD=1` so the vehicle positions are only visible to people who are signed in.
+6. Add `ANTHROPIC_API_KEY` to switch on the assistant. Vehicle positions are delayed and rounded for everybody except teachers and admins (see Privacy of vehicle positions below).
 
 Students pick a display name and a password; there are no email addresses. A teacher can reset a password (the student gets a temporary one and must change it).
 
@@ -155,7 +179,9 @@ Students pick a display name and a password; there are no email addresses. A tea
 `/cities/` is the new front door for the four schools. Students sign in at `/cities/login.html` with the shared class sign-in (see `CLASS_LOGIN_USER` and `CLASS_LOGIN_PASSWORD`), then reach the dashboard, the layered map, 3D Cyprus and the student app.
 
 - **Shared sign-in:** one user name and password for everyone, kept in server variables, not in git. Rate limited (8 wrong tries per 15 minutes per address) and signed cookie for 7 days. Changing the password signs everyone out. It does not identify students, so chat, the Ask assistant, the Build studio and saved projects stay with individual student-app accounts.
-- **Build studio (`studio.js`):** signed-in student-app members describe an idea; Claude builds one self-contained HTML page and saves it as a draft. Pages open only in a sandbox with no network (`/studio/p/<id>`); a teacher approves a page before other students can open it; any edit sends it back to draft. Needs `ANTHROPIC_API_KEY`. Limits: `STUDIO_DAILY_LIMIT` builds per person per day (25) and `STUDIO_GLOBAL_DAILY` for everyone (600).
+- **Build studio (`studio.js`):** no account for students. A student types their school's class code (the school's existing student code from the student app, any letter case, with or without the dash) and a team name (1 to 30 letters, digits, spaces or hyphens; the page tells them to use a team name, not their own name). That sets the signed cookie `sc_class` (HttpOnly, SameSite=Lax, 8 hours; the signing secret is stored in the database in `meta`, or set `STUDIO_CLASS_SECRET`). Regenerating a school's student code ends that school's class sessions. A team builds with Claude (the draft stays in the browser) and presses Submit: only submitted pages are stored, as pending pages with the team name and school, for the teachers of that school (admins see all). A teacher approves or rejects; approved pages and the gallery (`GET /studio/api/projects?scope=gallery`, `/studio/p/<id>`) are public to everybody, anything else is private to its team and the reviewers. Pages run in a sandbox with no network and no top-window navigation (CSP `sandbox allow-scripts`; a page opened directly is wrapped in a sandboxed frame). Teachers and old student-app accounts keep the server-side drafts flow. Needs `ANTHROPIC_API_KEY`. The Build studio only reads the public view of the data (see Privacy above) and `get_vehicle_series` refuses GPS.
+  - `STUDIO_SCHOOL_DAILY` (25): builds per school per day for class teams. `STUDIO_IP_DAILY` (40): builds per network address per day for class teams; a whole school usually sits behind one address, so raise it if classes build together. `STUDIO_GLOBAL_DAILY` (300): builds per day for everybody together. `STUDIO_DAILY_LIMIT` (25): builds per signed-in person per day. `STUDIO_SCHOOL_PENDING` (10): submitted pages per school waiting for a teacher (a team may have 3). `0` switches that kind of build off. The day is a rolling 24 hours. Also: 4 builds a minute per team, 8 wrong class codes per 15 minutes per address, and `STUDIO_CLASS_SECRET` (optional signing secret). Addresses are counted as a keyed hash, never stored.
+  - New columns on `studio_projects` (`author_kind`, `team_label`, `data_json`) and `studio_use` (`school_id`, `ip`) are added automatically; old rows keep working. A class author has `user_id` 0 and `author_kind` `class`.
 - **MCP endpoint (`/mcp`):** Model Context Protocol over HTTP (JSON responses) for adults and teachers who use their own Claude (for example Claude Code or the API). A teacher creates a project token (`POST /studio/api/tokens`, shown once); the client sends it as `Authorization: Bearer <token>`. Tools: the assistant's read-only data tools plus `get_vehicle_series`, `list_my_projects`, `get_project`, `save_project` and `submit_project`. It can save drafts only, never publish. 120 calls per hour per token. Claude.ai's own custom connectors expect OAuth, which this endpoint does not implement yet.
 - Students under 18 should not use their own Claude.ai accounts; the Build studio inside the site is the route for them.
 
@@ -165,4 +191,4 @@ When the shared class sign-in is on, a student who has signed in to `/cities/` c
 
 ### Build studio workspace and student tools
 
-`/cities/#/build` is a Claude-style workspace: chat on the left, the live page on the right. Claude builds a sandboxed page (no network). Inside the site a page can call `await cities.overview()` for school averages and delayed, grouped routes; it never gets vehicle positions. A student sends the page to a teacher; once approved it appears under Student tools and in the menu for everyone with the class sign-in. Teachers review pending tools under Student tools. Needs `ANTHROPIC_API_KEY` on the server.
+`/cities/#/build` is a Claude-style workspace: chat on the left, the live page on the right. Claude builds a sandboxed page (no network). Inside the site a page can call `await cities.overview()` for school averages and delayed, grouped routes; it never gets vehicle positions. A team presses Submit to send the page to its teachers; once approved it appears under Student tools and in the menu for everybody, no sign-in needed. Teachers review pending tools under Student tools. A draft only lives in the browser until it is submitted; `POST /studio/api/preview` turns it into a 30 minute, owner-only preview URL for the sandboxed frame. Needs `ANTHROPIC_API_KEY` on the server.

@@ -3,163 +3,403 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sensor map</title>
+<title>Live map</title>
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <style>
-  :root { --card: rgba(255,255,255,.94); --ink: #1c1c1a; --ink2: #5c5b57; --line: rgba(0,0,0,.14); --acc: #2a78d6; --accbg: #e6f1fb; --ok: #0f7b3f; --bad: #b3261e; }
-  @media (prefers-color-scheme: dark) { :root { --card: rgba(28,28,26,.94); --ink: #f0efec; --ink2: #b4b2a9; --line: rgba(255,255,255,.16); --accbg: #12304f; --ok: #4cc27f; --bad: #f2877f; } }
+  /* Nemesis Classic look. Values copied from /site/site.css (this is a separate document, so it carries its own copy). */
+  @font-face { font-family: Inter; font-weight: 400; font-display: swap; src: url(/site/fonts/Inter-Regular.woff) format("woff"); }
+  @font-face { font-family: Inter; font-weight: 500; font-display: swap; src: url(/site/fonts/Inter-Medium.woff) format("woff"); }
+  @font-face { font-family: Inter; font-weight: 600; font-display: swap; src: url(/site/fonts/Inter-SemiBold.woff) format("woff"); }
+  @font-face { font-family: Inter; font-weight: 700; font-display: swap; src: url(/site/fonts/Inter-Bold.woff) format("woff"); }
+  @font-face { font-family: "Inter Display"; font-weight: 600; font-display: swap; src: url(/site/fonts/InterDisplay-SemiBold.woff) format("woff"); }
+  :root {
+    color-scheme: dark;
+    --bg: #0C1626; --ink: #FFFFFF; --ink-soft: #EAF0F7; --text: #D9E3EF; --lede: #B9C8DA; --muted: #9fb2ca; --mute: #8CA0B8;
+    --copper: #E07F3F; --copper-2: #F2A56B; --copper-line: rgba(242,165,107,.5); --cyan: #4CCBEA; --info: #8FE3F7; --violet: #8f7bff;
+    --gold: linear-gradient(180deg, #F7C46B, #E8963F); --gold-ink: #0C1626;
+    --ok: #9BD88F; --ok-bg: rgba(134,194,122,.17); --ok-line: rgba(134,194,122,.4);
+    --warn: #F2CF86; --warn-bg: rgba(240,185,74,.17); --warn-line: rgba(240,185,74,.4);
+    --bad: #FFA69B; --dot-ok: #59d98e;
+    --glass: rgba(21,38,61,.78); --glass-edge: rgba(255,255,255,.13); --edge: rgba(255,255,255,.12); --edge-2: rgba(255,255,255,.18);
+    --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --display: "Inter Display", Inter, system-ui, sans-serif;
+    --ink2: #8CA0B8; --line: rgba(255,255,255,.12); --acc: #4CCBEA;   /* names the shared chart code (mo-chart.js) falls back to */
+  }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); }
-  #map { position: fixed; inset: 0; }
-  .panel { position: fixed; z-index: 3; background: var(--card); border: 0.5px solid var(--line); border-radius: 10px; backdrop-filter: blur(6px); }
-  #layers { top: 12px; left: 12px; width: 264px; max-height: calc(100% - 96px); overflow: auto; padding: 10px 12px; }
-  #layers.closed .body { display: none; }
-  .head { display: flex; align-items: center; gap: 8px; }
-  .head h1 { font-size: 15px; font-weight: 500; margin: 0; flex: 1; }
-  .live { font-size: 11px; padding: 1px 8px; border-radius: 10px; background: #12351f; color: #6fe3a0; }
-  .live.stale { background: #3a2f10; color: #f3d68a; }
-  .nav a { color: var(--acc); text-decoration: none; margin-right: 10px; }
-  h2 { font-size: 11px; font-weight: 500; color: var(--ink2); text-transform: uppercase; letter-spacing: .04em; margin: 12px 0 3px; }
-  label { display: flex; align-items: flex-start; gap: 7px; padding: 2px 0; cursor: pointer; }
-  label small { display: block; color: var(--ink2); font-size: 11px; }
-  select, input[type=date] { width: 100%; background: transparent; color: inherit; border: 0.5px solid var(--line); border-radius: 6px; padding: 4px 6px; font: inherit; }
-  input[type=range] { width: 100%; }
-  #base { top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; padding: 3px; }
-  #base button { border: 0; background: transparent; color: var(--ink2); padding: 5px 10px; border-radius: 7px; font: inherit; cursor: pointer; }
-  #base button.on { background: var(--accbg); color: var(--acc); }
-  #legend { left: 12px; bottom: 12px; width: 264px; padding: 8px 12px; }
-  #legend .bar { height: 8px; border-radius: 4px; margin: 4px 0 2px; }
-  #legend .row { display: flex; justify-content: space-between; color: var(--ink2); font-size: 12px; }
-  #detail { top: 56px; right: 12px; width: 280px; max-height: calc(100% - 80px); overflow: auto; padding: 10px 12px; display: none; }
-  #detail .x { float: right; cursor: pointer; color: var(--ink2); border: 0; background: none; font-size: 16px; }
-  #detail .big { font-size: 24px; font-weight: 500; }
-  #detail table { width: 100%; border-collapse: collapse; margin-top: 6px; }
-  #detail td { padding: 2px 0; border-top: 0.5px solid var(--line); }
-  #detail td:last-child { text-align: right; }
-  .cmp { color: var(--ink2); margin-top: 6px; }
-  .st { font-size: 12px; color: var(--ink2); }
-  .st .e { color: var(--bad); }
-  #toggle { display: none; }
-  .embed .nav { display: none; }
-  .maplibregl-popup-content { font: 12px/1.4 system-ui, sans-serif; color: #1c1c1a; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 400 13px/1.45 var(--font); letter-spacing: -.005em; font-feature-settings: "tnum" 1, "cv11" 1; }
+  button, select, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--copper-2); outline-offset: 2px; }
+  a { color: var(--copper-2); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  #map { position: fixed; inset: 0; background: var(--bg); }
   #windCv { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
-  #replay { bottom: 12px; left: 50%; transform: translateX(-50%); width: min(600px, calc(100% - 620px)); min-width: 400px; display: none; align-items: center; gap: 8px; padding: 8px 12px; }
-  #replay input[type=range] { flex: 1; min-width: 80px; }
-  #replay select { width: auto; }
-  .btn { border: 0.5px solid var(--line); background: transparent; color: inherit; border-radius: 6px; padding: 4px 10px; font: inherit; cursor: pointer; }
-  .btn:hover { background: var(--accbg); }
-  .btns { display: flex; gap: 8px; margin: 8px 0 2px; flex-wrap: wrap; }
-  @media (max-width: 700px) {
-    #replay { left: 12px; right: 12px; bottom: 60px; transform: none; width: auto; min-width: 0; }
-    #layers { width: calc(100% - 24px); max-height: 52%; }
-    #base { top: auto; bottom: 12px; left: 12px; transform: none; right: 12px; justify-content: center; }
+  .i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .glass { background: var(--glass); border: 1px solid var(--glass-edge); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: 0 16px 36px -16px rgba(0,0,0,.6); color: var(--ink-soft); }
+
+  /* ---------- layer rail ---------- */
+  #layers { position: fixed; z-index: 4; top: 16px; left: 16px; width: 272px; max-height: calc(100% - 32px); display: flex; flex-direction: column; border-radius: 20px; background: linear-gradient(170deg, rgba(20,36,60,.9), rgba(9,18,32,.93)); }
+  .rail-h { display: flex; align-items: center; gap: 8px; padding: 14px 12px 8px 16px; }
+  .rail-h .eyebrow { flex: 1; font: 700 11px/1 var(--font); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  .rail-h em { font: 600 11.5px/1 var(--font); font-style: normal; color: var(--copper-2); white-space: nowrap; }
+  .live { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--ok-line); background: var(--ok-bg); color: var(--ok); font: 600 11px/1 var(--font); white-space: nowrap; }
+  .live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--dot-ok); }
+  .live.stale { border-color: var(--warn-line); background: var(--warn-bg); color: var(--warn); }
+  .live.stale::before { background: #F0B94A; }
+  .iconbtn { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 9px; border: 1px solid var(--edge); background: rgba(255,255,255,.05); color: #cfdaea; cursor: pointer; padding: 0; }
+  .iconbtn:hover { background: rgba(255,255,255,.12); }
+  .iconbtn .i { width: 16px; height: 16px; transition: transform .2s; }
+  #layers.closed #fold .i { transform: rotate(-90deg); }
+  .rail-body { overflow: auto; padding: 0 10px 12px; scrollbar-width: thin; scrollbar-color: #2a4161 transparent; }
+  #layers.closed .rail-body { display: none; }
+  .nav { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0 6px 4px; font-size: 12.5px; }
+  .embed .nav { display: none; }
+  .rail-g { display: flex; align-items: center; gap: 8px; margin: 12px 6px 3px; font: 700 10px/1 var(--font); letter-spacing: .16em; text-transform: uppercase; color: #6f86a3; }
+  .rail-g::after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,.08); }
+  .lay { position: relative; display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 13px; cursor: pointer; transition: background .18s; }
+  .lay:hover { background: rgba(255,255,255,.055); }
+  .lay > input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+  .lay:has(> input:focus-visible) { outline: 2px solid var(--copper-2); outline-offset: -2px; }
+  .lay .tile { --c: #8CA0B8; width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; flex: none; color: #8CA0B8; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); transition: background .2s, color .2s, border-color .2s; }
+  .lay:has(> input:checked) .tile { color: color-mix(in srgb, var(--c) 55%, #fff); background: color-mix(in srgb, var(--c) 17%, transparent); border-color: color-mix(in srgb, var(--c) 50%, transparent); }
+  .lay .lt { min-width: 0; flex: 1; }
+  .lay .lt b { display: block; font: 600 13.5px/1.2 var(--font); color: #aebdd0; letter-spacing: -.005em; }
+  .lay:has(> input:checked) .lt b { color: var(--ink-soft); }
+  .lay .lt small { display: block; margin-top: 2px; font: 400 11.5px/1.25 var(--font); color: var(--muted); }
+  .lay .sw { margin-left: auto; width: 36px; height: 20px; border-radius: 999px; background: #26364d; border: 1px solid rgba(255,255,255,.08); position: relative; flex: none; transition: background .2s; }
+  .lay .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #9fb0c6; transition: left .2s, background .2s; }
+  .lay:has(> input:checked) .sw { background: var(--copper); border-color: var(--copper-2); box-shadow: 0 0 12px -2px rgba(224,127,63,.6); }
+  .lay:has(> input:checked) .sw::after { left: 18px; background: #fff; }
+  .ctl { display: grid; gap: 5px; margin: 6px 6px 2px; }
+  .ctl > span { font: 600 11.5px/1.2 var(--font); color: var(--muted); }
+  .note { margin: 4px 6px 0; font: 400 11.5px/1.4 var(--font); color: var(--muted); }
+  .note.e, .st .e { color: var(--bad); }
+  select { width: 100%; min-height: 36px; padding: 6px 30px 6px 10px; border-radius: 11px; border: 1px solid var(--edge-2); background: rgba(8,16,30,.6) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239fb2ca' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center / 16px; -webkit-appearance: none; appearance: none; color: var(--text); font: 500 13px/1.2 var(--font); cursor: pointer; }
+  select option { background: #15263D; color: var(--text); }
+  input[type=date] { width: 100%; min-height: 36px; padding: 6px 10px; border-radius: 11px; border: 1px solid var(--edge-2); background: rgba(8,16,30,.6); color: var(--text); font: 500 13px/1.2 var(--font); color-scheme: dark; }
+  input[type=range] { width: 100%; height: 22px; margin: 2px 0; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; }
+  input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: rgba(255,255,255,.16); }
+  input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: rgba(255,255,255,.16); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%; background: var(--copper-2); border: 2px solid #1c0f06; box-shadow: 0 0 10px rgba(224,127,63,.6); }
+  input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--copper-2); border: 2px solid #1c0f06; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 6px 13px; border-radius: 11px; border: 1px solid var(--edge-2); background: rgba(255,255,255,.07); color: var(--ink-soft); font: 600 12.5px/1.2 var(--font); cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .btn:hover { background: rgba(255,255,255,.12); color: #fff; text-decoration: none; }
+  .btn .i { width: 15px; height: 15px; }
+  .btn.on { border-color: var(--copper-line); background: rgba(224,127,63,.16); color: var(--copper-2); }
+  .btns { display: flex; gap: 8px; margin: 8px 6px 2px; flex-wrap: wrap; }
+  .btns .btn { flex: 1; }
+  details.grp { margin: 10px 0 0; }
+  details.grp > summary { list-style: none; display: flex; align-items: center; gap: 8px; margin: 0 6px 3px; padding: 6px 0; cursor: pointer; font: 700 10px/1 var(--font); letter-spacing: .16em; text-transform: uppercase; color: #6f86a3; }
+  details.grp > summary::-webkit-details-marker { display: none; }
+  details.grp > summary::after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,.08); }
+  details.grp > summary .i { width: 14px; height: 14px; order: 2; transition: transform .2s; }
+  details.grp[open] > summary .i { transform: rotate(180deg); }
+  .st { font: 400 12px/1.5 var(--font); color: var(--muted); }
+  #status { margin: 2px 6px 0; }
+  .links { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 2px 6px 0; font-size: 12.5px; }
+
+  /* ---------- top row: privacy chip and base map ---------- */
+  .toprow { position: fixed; z-index: 3; top: 16px; left: 304px; right: 372px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; pointer-events: none; }
+  .toprow > * { pointer-events: auto; }
+  .tchip { display: none; align-items: center; gap: 8px; padding: 8px 14px 8px 11px; border-radius: 999px; background: rgba(20,32,50,.82); border: 1px solid var(--warn-line); color: var(--warn); font: 600 12.5px/1 var(--font); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+  .tchip .i { width: 15px; height: 15px; }
+  .delayed .tchip { display: inline-flex; }
+  #base { display: inline-flex; gap: 2px; padding: 4px; border-radius: 999px; background: linear-gradient(180deg, rgba(36,62,98,.72), rgba(18,32,54,.78)); border: 1px solid var(--glass-edge); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: 0 14px 30px -16px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.08); }
+  #base button { border: 0; background: transparent; color: #cfdaea; padding: 6px 13px; border-radius: 999px; font: 600 12.5px/1.2 var(--font); cursor: pointer; transition: background .25s, color .2s; white-space: nowrap; }
+  #base button:hover:not(.on) { background: rgba(255,255,255,.09); color: #fff; }
+  #base button.on { background: var(--gold); color: var(--gold-ink); font-weight: 650; box-shadow: 0 8px 18px -6px rgba(232,150,63,.75), inset 0 1px 0 rgba(255,255,255,.5); }
+
+  /* ---------- right column: legend and the selected vehicle ---------- */
+  .rcol { position: fixed; z-index: 3; top: 16px; right: 16px; width: 344px; max-height: calc(100% - 32px); display: flex; flex-direction: column; gap: 12px; pointer-events: none; }
+  .rcol > * { pointer-events: auto; }
+  #legend { flex: none; padding: 11px 14px 12px; border-radius: 16px; background: rgba(14,26,44,.84); }
+  .lg-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font: 500 12.5px/1 var(--font); color: var(--ink-soft); }
+  .lg-row span { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .d-sch { width: 11px; height: 11px; border-radius: 50%; background: var(--copper); box-shadow: 0 0 0 3px rgba(224,127,63,.22); }
+  .d-st { width: 8px; height: 8px; background: var(--cyan); transform: rotate(45deg); border-radius: 1.5px; margin: 0 1px; }
+  .d-veh { width: 15px; height: 15px; border-radius: 50%; background: radial-gradient(circle, rgba(143,123,255,.85), rgba(143,123,255,.2)); outline: 1px dashed rgba(196,184,255,.7); outline-offset: 1px; }
+  #legend .scale { margin-top: 10px; padding-top: 9px; border-top: 1px solid rgba(255,255,255,.08); }
+  #lgT { font: 600 12px/1.3 var(--font); color: var(--ink-soft); }
+  #lgBar { height: 8px; border-radius: 4px; margin: 5px 0 3px; }
+  #legend .row { display: flex; justify-content: space-between; color: var(--muted); font-size: 11.5px; }
+  #lgPriv { display: none; margin: 9px 0 0; padding-top: 9px; border-top: 1px solid rgba(255,255,255,.08); font: 600 12px/1.4 var(--font); color: #fff; }
+  .delayed #lgPriv { display: block; }
+  .delayed #rowPulse { display: none; }
+  #detail { display: none; min-height: 0; overflow: auto; padding: 14px 14px 12px; border-radius: 20px; background: linear-gradient(165deg, rgba(36,62,100,.92), rgba(13,25,43,.94)); box-shadow: 0 26px 50px -20px rgba(0,0,0,.85), 0 0 0 1px rgba(143,123,255,.2), inset 0 1px 0 rgba(255,255,255,.1); scrollbar-width: thin; }
+  .dt-h { display: flex; align-items: flex-start; gap: 10px; }
+  .dt-h .tile { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; flex: none; color: #d6ccff; background: rgba(143,123,255,.2); border: 1px solid rgba(143,123,255,.5); }
+  .dt-h .tt { min-width: 0; flex: 1; }
+  .dt-h b { display: block; font: 600 16.5px/1.2 var(--display); color: #fff; letter-spacing: -.01em; overflow-wrap: anywhere; }
+  .dt-h small { display: block; margin-top: 3px; font: 400 11.5px/1.35 var(--font); color: var(--muted); }
+  #detail .x, .maplibregl-popup-close-button { width: 26px; height: 26px; flex: none; border-radius: 9px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: #cfdaea; display: grid; place-items: center; cursor: pointer; font: 400 16px/1 var(--font); padding: 0; }
+  #detail .x:hover { background: rgba(255,255,255,.12); }
+  .dot-ok { color: var(--ok); } .dot-bad { color: var(--bad); }
+  .big { display: flex; align-items: baseline; gap: 5px; margin-top: 10px; }
+  .big .num { font: 600 42px/1 var(--display); color: #fff; letter-spacing: -.03em; }
+  .big .u { font: 500 18px/1 var(--font); color: var(--info); }
+  .mname { margin-top: 2px; color: var(--lede); font-size: 12px; }
+  .pos { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; padding: 8px 10px; border-radius: 12px; background: rgba(240,185,74,.08); border: 1px solid var(--warn-line); color: #E9DDB8; font-size: 12px; line-height: 1.4; }
+  .pos .i { width: 15px; height: 15px; margin-top: 1px; color: var(--warn); }
+  .cmp { margin-top: 8px; color: var(--lede); font-size: 12px; line-height: 1.5; }
+  #spark { margin-top: 8px; color: var(--muted); font-size: 12px; }
+  #spark svg { display: block; }
+  #detail table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12.5px; }
+  #detail td { padding: 5px 0; border-top: 1px solid rgba(255,255,255,.08); color: var(--text); }
+  #detail td:last-child { text-align: right; color: #fff; font-weight: 600; }
+  .dt-link { margin: 10px 0 0; font-size: 12.5px; }
+
+  /* ---------- time-lapse pill bar ---------- */
+  #replay { position: fixed; z-index: 4; left: 16px; right: 16px; bottom: 16px; margin: 0 auto; max-width: 760px; height: 60px; display: none; align-items: center; gap: 12px; padding: 0 10px 0 9px; border-radius: 999px; background: linear-gradient(180deg, rgba(36,62,98,.8), rgba(14,26,44,.86)); box-shadow: 0 16px 34px -14px rgba(0,0,0,.8); }
+  #replay .play { width: 42px; height: 42px; flex: none; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--gold); color: var(--gold-ink); cursor: pointer; box-shadow: 0 8px 18px -6px rgba(232,150,63,.75), inset 0 1px 0 rgba(255,255,255,.55); padding: 0; }
+  #replay .play .i { width: 18px; height: 18px; fill: currentColor; stroke: none; margin-left: 2px; }
+  #replay .play.pause .i { margin-left: 0; }
+  #replay .when { flex: none; min-width: 96px; }
+  #replay .when small { display: block; font: 700 9.5px/1 var(--font); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  #replay .when b { display: block; margin-top: 4px; font: 600 15px/1 var(--display); color: #fff; letter-spacing: -.01em; white-space: nowrap; }
+  #rpSlider { flex: 1; min-width: 60px; }
+  .speeds { flex: none; display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(6,14,26,.55); border: 1px solid var(--glass-edge); }
+  .speeds button { border: 0; background: transparent; color: #cfdaea; padding: 6px 10px; border-radius: 999px; font: 600 12px/1.2 var(--font); cursor: pointer; }
+  .speeds button.on { background: var(--gold); color: var(--gold-ink); font-weight: 650; }
+  #rpLive { flex: none; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px; border-radius: 999px; border: 1px solid var(--edge-2); background: rgba(255,255,255,.05); color: var(--ink-soft); font: 600 12.5px/1 var(--font); cursor: pointer; }
+  #rpLive::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--dot-ok); box-shadow: 0 0 8px var(--dot-ok); }
+  #rpClose { flex: none; width: 30px; height: 30px; font-size: 17px; }
+  .replaying #layers { max-height: calc(100% - 108px); }
+  .replaying .rcol { max-height: calc(100% - 108px); }
+
+  /* ---------- map popups (Met Office stations, schools, open sensors) ---------- */
+  .maplibregl-popup { z-index: 5; }
+  .maplibregl-popup-content { padding: 14px 14px 12px; border-radius: 20px; background: linear-gradient(165deg, rgba(36,62,100,.95), rgba(13,25,43,.96)); border: 1px solid rgba(255,255,255,.12); box-shadow: 0 26px 50px -20px rgba(0,0,0,.85), 0 0 0 1px rgba(76,203,234,.18), inset 0 1px 0 rgba(255,255,255,.1); color: var(--text); font: 400 12.5px/1.45 var(--font); }
+  .maplibregl-popup-tip { display: none; }
+  .maplibregl-popup-close-button { position: absolute; top: 10px; right: 10px; }
+  .maplibregl-popup-close-button:hover { background: rgba(255,255,255,.14); }
+  .pp-h { display: flex; align-items: flex-start; gap: 10px; padding-right: 30px; }
+  .pp-h .dia { width: 12px; height: 12px; margin-top: 4px; background: var(--cyan); transform: rotate(45deg); border-radius: 2.5px; box-shadow: 0 0 10px var(--cyan); flex: none; }
+  .pp-h .dia.sch { background: var(--copper); border-radius: 50%; transform: none; box-shadow: 0 0 10px var(--copper); }
+  .pp-h b { display: block; font: 600 16.5px/1.2 var(--display); color: #fff; letter-spacing: -.01em; }
+  .pp-h small { display: block; margin-top: 3px; font: 400 11.5px/1.3 var(--font); color: var(--muted); }
+  .pp-big { display: flex; align-items: baseline; gap: 4px; margin-top: 8px; }
+  .pp-big .num { font: 600 40px/1 var(--display); color: #fff; letter-spacing: -.03em; }
+  .pp-big .u { font: 500 18px/1 var(--font); color: var(--info); }
+  .pp-big .old { margin-left: auto; align-self: center; font: 600 11px/1 var(--font); color: var(--warn); padding: 4px 8px; border-radius: 999px; background: var(--warn-bg); border: 1px solid var(--warn-line); }
+  .pp-sub { margin-top: 4px; font: 400 12px/1.35 var(--font); color: var(--lede); }
+  .pp-obs { max-height: 92px; overflow: auto; margin-top: 8px; scrollbar-width: thin; }
+  .pp-obs table { width: 100%; border-collapse: collapse; }
+  .pp-obs td { padding: 3px 0; border-top: 1px solid rgba(255,255,255,.07); color: var(--text); font-size: 12px; }
+  .pp-obs td:last-child { text-align: right; padding-left: 10px; color: #fff; font-weight: 600; white-space: nowrap; }
+  .mo-hist { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.08); }
+  .mo-hist select { margin-bottom: 6px; min-height: 32px; font-size: 12.5px; }
+  .mo-box { min-height: 60px; color: var(--muted); }
+  .mo-box text { font-family: var(--font); }
+  .mo-readout { margin-top: 4px; font-size: 12px; color: var(--text); min-height: 1.4em; }
+  .mo-empty { padding: 12px; border-radius: 12px; border: 1px dashed var(--edge-2); color: var(--muted); font-size: 12px; text-align: center; }
+  .pp-gap { display: none; align-items: center; gap: 7px; margin-top: 4px; font-size: 11.5px; color: var(--warn); }
+  .pp-gap::before { content: ""; width: 14px; height: 8px; border-radius: 2px; background: rgba(240,185,74,.18); border: 1px dashed rgba(240,185,74,.6); flex: none; }
+  .pp-gap.show { display: flex; }
+  .pp-f { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 10px; }
+  .pp-f .btn { min-height: 34px; flex: 1; }
+  .pp-credit { margin-top: 8px; color: #7F93AC; font-size: 11px; }
+
+  /* maplibre controls */
+  .maplibregl-ctrl-group { background: var(--glass); border: 1px solid var(--glass-edge); border-radius: 12px; box-shadow: 0 10px 24px -12px rgba(0,0,0,.7); }
+  .maplibregl-ctrl-group:not(:empty) { box-shadow: 0 10px 24px -12px rgba(0,0,0,.7); }
+  .maplibregl-ctrl-group button + button { border-top: 1px solid rgba(255,255,255,.1); }
+  .maplibregl-ctrl button .maplibregl-ctrl-icon { filter: invert(1) opacity(.85); }
+  .maplibregl-ctrl-scale { background: rgba(9,18,32,.6); border-color: #9fb2ca; color: #cfdaea; font-family: var(--font); }
+  .maplibregl-ctrl-attrib { background: rgba(9,18,32,.6) !important; color: #9fb2ca; }
+  .maplibregl-ctrl-attrib a { color: var(--info); }
+  .maplibregl-ctrl-bottom-right { margin-bottom: 0; }
+  .replaying .maplibregl-ctrl-bottom-right { margin-bottom: 76px; }
+
+  .banner { position: fixed; z-index: 6; top: 64px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px; border-radius: 14px; border: 1px solid rgba(255,122,106,.4); background: rgba(52,20,22,.88); color: var(--bad); font: 500 13px/1.4 var(--font); max-width: min(560px, calc(100% - 32px)); }
+  .banner[hidden] { display: none; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  @media (max-width: 1060px) {
+    .toprow { right: 16px; top: auto; bottom: 16px; left: 16px; }
+    .replaying .toprow { display: none; }
+    .rcol { width: 300px; }
+  }
+  @media (max-width: 760px) {
+    #layers { width: calc(100% - 24px); left: 12px; top: 12px; max-height: 58%; }
+    .rcol { top: auto; bottom: 64px; left: 12px; right: 12px; width: auto; max-height: 46%; flex-direction: column-reverse; }
     #legend { display: none; }
-    #detail { top: auto; bottom: 64px; left: 12px; right: 12px; width: auto; max-height: 40%; }
+    .delayed #legend { display: block; }
+    .delayed #legend .lg-row, .delayed #legend .scale { display: none; }
+    .delayed #lgPriv { margin: 0; padding: 0; border: 0; }
+    .toprow { left: 12px; right: 12px; bottom: 12px; justify-content: center; }
+    .tchip { display: none !important; }
+    #replay { left: 12px; right: 12px; bottom: 12px; height: auto; padding: 8px 10px; flex-wrap: wrap; border-radius: 22px; max-width: none; }
+    #rpSlider { flex: 1 1 100%; order: 5; }
+    .replaying #layers { max-height: 40%; }
+    .replaying .rcol { bottom: 150px; max-height: 30%; }
   }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-bus" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="15" rx="3"/><path d="M4 11h16M8 21v-3M16 21v-3"/><circle cx="8" cy="15" r=".8"/><circle cx="16" cy="15" r=".8"/></symbol>
+    <symbol id="i-car" viewBox="0 0 24 24"><path d="M5 16v-5l2-5h10l2 5v5M3 16h18M7 19v-3M17 19v-3"/><circle cx="8" cy="13" r=".8"/><circle cx="16" cy="13" r=".8"/></symbol>
+    <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M12 12l9-5M12 12L3 7M12 12v10"/></symbol>
+    <symbol id="i-cap" viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-4.5M22 9v6"/></symbol>
+    <symbol id="i-sensor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.2"/><path d="M7.8 7.8a6 6 0 000 8.4M16.2 7.8a6 6 0 010 8.4M4.9 4.9a10 10 0 000 14.2M19.1 4.9a10 10 0 010 14.2"/></symbol>
+    <symbol id="i-wind" viewBox="0 0 24 24"><path d="M3 8h10.5a2.5 2.5 0 10-2.5-2.5M3 12h15a2.5 2.5 0 11-2.5 2.5M3 16h7"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M12 3v18M6 9l6-6 6 6"/></symbol>
+    <symbol id="i-thermo" viewBox="0 0 24 24"><path d="M10 14.8V5a2 2 0 014 0v9.8a4 4 0 11-4 0z"/><path d="M12 9.5v7"/></symbol>
+    <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3s6 6.5 6 11a6 6 0 01-12 0c0-4.5 6-11 6-11z"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4.5 4.5 0 01-.6-8.96A6 6 0 0118 10.5 3.75 3.75 0 0117.25 18z"/></symbol>
+    <symbol id="i-rain" viewBox="0 0 24 24"><path d="M7 14a4.5 4.5 0 01-.6-8.96A6 6 0 0118 6.5 3.75 3.75 0 0117.25 14z"/><path d="M8 17l-1 3M12 17l-1 3M16 17l-1 3"/></symbol>
+    <symbol id="i-haze" viewBox="0 0 24 24"><path d="M4 8h16M4 12h10M8 16h12"/><circle cx="18" cy="12" r="1"/></symbol>
+    <symbol id="i-dust" viewBox="0 0 24 24"><circle cx="7" cy="8" r="1.2"/><circle cx="13" cy="6" r="1.2"/><circle cx="17" cy="11" r="1.2"/><circle cx="9" cy="13" r="1.2"/><circle cx="15" cy="17" r="1.2"/><circle cx="5" cy="17" r="1.2"/></symbol>
+    <symbol id="i-sat" viewBox="0 0 24 24"><rect x="9.3" y="9.3" width="5.4" height="5.4" rx="1" transform="rotate(45 12 12)"/><path d="M6.6 6.6L4.2 4.2M17.4 17.4l2.4 2.4M3.2 8.8l5.6-5.6M15.2 20.8l5.6-5.6"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
+    <symbol id="i-mount" viewBox="0 0 24 24"><path d="M3 19l6-10 4 6 2-3 6 7z"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5" opacity=".7"/></symbol>
+    <symbol id="i-road" viewBox="0 0 24 24"><path d="M8 3L5 21M16 3l3 18M12 4v3M12 10v4M12 17v3"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.2"/></symbol>
+    <symbol id="i-wave" viewBox="0 0 24 24"><path d="M2 9c2.5-2 4.5-2 7 0s4.5 2 7 0 4-2 6 0M2 15c2.5-2 4.5-2 7 0s4.5 2 7 0 4-2 6 0"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" stroke="none"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5h3v14H8zM13 5h3v14h-3z" stroke="none"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 018 0v3"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-tour" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v11M7.5 11L12 15.5 16.5 11M5 20h14"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-6 7-12a7 7 0 10-14 0c0 6 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></symbol>
+  </defs>
+</svg>
 <div id="map"></div>
 <canvas id="windCv"></canvas>
 
-<div class="panel" id="layers">
-  <div class="head"><h1>Sensor map</h1><span class="live stale" id="live">Waiting</span><button id="fold" style="border:0;background:none;color:inherit;cursor:pointer;font-size:16px" aria-label="Show or hide layers">&#9776;</button></div>
-  <div class="body">
-    <div class="nav"><a href="/">Dashboard</a><a href="/3d.html">3D island</a><a href="/metoffice.html">Met Office</a></div>
+<aside class="glass" id="layers" aria-label="Map layers" data-ael="Στρώματα χάρτη">
+  <div class="rail-h">
+    <span class="eyebrow" data-el="Στρώματα χάρτη">Map layers</span><em id="onCount"></em><span class="live stale" id="live">Waiting</span>
+    <button class="iconbtn" id="fold" aria-label="Show or hide layers" aria-expanded="true" data-ael="Εμφάνιση ή απόκρυψη στρωμάτων"><svg class="i"><use href="#i-chev"/></svg></button>
+  </div>
+  <div class="rail-body" id="railBody">
+    <div class="nav" id="navlinks"><a href="/" data-el="Όλο το έργο">Whole project</a><a href="/3d.html" data-el="Νησί 3D">3D island</a><a href="/#/weather" data-el="Μετεωρολογικό αρχείο">Met Office record</a></div>
 
-    <h2>Vehicles</h2>
-    <label><input type="checkbox" id="lDots" checked><span>Vehicle icons<small>Bus or car from the sensor name. The ring shows the value.</small></span></label>
-    <label><input type="checkbox" id="lCols" checked><span>3D columns<small>Height shows the value. Tilt the map to see them.</small></span></label>
-    <select id="measure" aria-label="Measurement"></select>
-    <label style="margin-top:6px"><span>Trail behind each vehicle</span></label>
-    <select id="trailWin" aria-label="Trail length"><option value="0">Off</option><option value="1">Last hour</option><option value="6" selected>Last 6 hours</option><option value="24">Last 24 hours</option><option value="72">Last 3 days</option><option value="168">Last 7 days</option></select>
-    <div class="st">Coloured by the measurement above. A dashed line means no GPS signal for over 10 minutes.</div>
+    <div class="rail-g" data-el="Στο νησί">On the island</div>
+    <label class="lay" style="--c:#8f7bff"><input type="checkbox" id="lDots" checked><span class="tile"><svg class="i"><use href="#i-bus"/></svg></span><span class="lt"><b data-el="Οχήματα">Vehicles</b><small id="subVeh" data-el="Λεωφορείο ή αυτοκίνητο">Bus or car</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#F2B24C"><input type="checkbox" id="lCols" checked><span class="tile"><svg class="i"><use href="#i-cube"/></svg></span><span class="lt"><b data-el="Στήλες 3D">3D columns</b><small data-el="Το ύψος δείχνει την τιμή">Height shows the value</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#E07F3F"><input type="checkbox" id="lSchools" checked><span class="tile"><svg class="i"><use href="#i-cap"/></svg></span><span class="lt"><b data-el="Σχολεία">Schools</b><small id="subSch">–</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#4CCBEA"><input type="checkbox" id="lCydom" checked><span class="tile"><svg class="i"><use href="#i-sensor"/></svg></span><span class="lt"><b data-el="Σταθμοί Μετεωρολογικής">Met Office stations</b><small id="subSta">–</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#59d98e"><input type="checkbox" id="lOpen" checked><span class="tile"><svg class="i"><use href="#i-haze"/></svg></span><span class="lt"><b data-el="Ανοιχτοί αισθητήρες αέρα">Open air sensors</b><small data-el="Εθελοντές Sensor.Community">Sensor.Community volunteers</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#4C8BEA"><input type="checkbox" id="lSea" checked><span class="tile"><svg class="i"><use href="#i-wave"/></svg></span><span class="lt"><b data-el="Συνθήκες θάλασσας">Sea conditions</b><small data-el="Open-Meteo θάλασσα">Open-Meteo marine</small></span><i class="sw"></i></label>
 
-    <h2>Animation</h2>
-    <label><input type="checkbox" id="lWindAnim" checked><span>Flowing wind<small>Streaks follow the Open-Meteo wind</small></span></label>
-    <label><input type="checkbox" id="lPulse" checked><span>Pulsing vehicles</span></label>
-    <div class="btns"><button class="btn" id="btnLapse">Time-lapse</button><button class="btn" id="btnTour">Camera tour</button></div>
+    <div class="ctl"><span data-el="Χρωματισμός οχημάτων και ιχνών">Colour vehicles and trails by</span><select id="measure" aria-label="Measurement" data-ael="Μέτρηση"></select></div>
+    <div class="ctl"><span data-el="Ίχνος πίσω από κάθε όχημα">Trail behind each vehicle</span>
+      <select id="trailWin" aria-label="Trail length" data-ael="Μήκος ίχνους"><option value="0" data-el="Κλειστό">Off</option><option value="1" data-el="Τελευταία ώρα">Last hour</option><option value="6" selected data-el="Τελευταίες 6 ώρες">Last 6 hours</option><option value="24" data-el="Τελευταίες 24 ώρες">Last 24 hours</option><option value="72" data-el="Τελευταίες 3 ημέρες">Last 3 days</option><option value="168" data-el="Τελευταίες 7 ημέρες">Last 7 days</option></select></div>
+    <div class="note" data-el="Διακεκομμένη γραμμή σημαίνει ότι δεν υπήρχε σήμα GPS για πάνω από 10 λεπτά.">A dashed line means no GPS signal for over 10 minutes.</div>
+    <label class="lay" id="rowPulse" style="--c:#8f7bff"><input type="checkbox" id="lPulse" checked><span class="tile"><svg class="i"><use href="#i-sensor"/></svg></span><span class="lt"><b data-el="Παλλόμενα οχήματα">Pulsing vehicles</b></span><i class="sw"></i></label>
+    <div class="btns"><button class="btn" id="btnLapse"><svg class="i"><use href="#i-clock"/></svg><span data-el="Χρονική επανάληψη">Time-lapse</span></button><button class="btn" id="btnTour"><svg class="i"><use href="#i-tour"/></svg><span id="tourTxt" data-el="Περιήγηση κάμερας">Camera tour</span></button></div>
 
-    <h2>Map</h2>
-    <label><input type="checkbox" id="lTerrain" checked><span>3D terrain</span></label>
-    <input type="range" id="exag" min="0.5" max="4" step="0.1" value="1.5" aria-label="Terrain height">
-    <label><input type="checkbox" id="lHill" checked><span>Hillshade</span></label>
-    <label><input type="checkbox" id="lRoads"><span>Roads overlay<small>OpenStreetMap, useful on satellite</small></span></label>
-    <label><input type="checkbox" id="lLabels"><span>Place names</span></label>
+    <div class="rail-g" data-el="Καιρός">Weather</div>
+    <label class="lay" style="--c:#8fb8ff"><input type="checkbox" id="lWindAnim" checked><span class="tile"><svg class="i"><use href="#i-wind"/></svg></span><span class="lt"><b data-el="Ρέων άνεμος">Flowing wind</b><small data-el="Γραμμές που ακολουθούν τον άνεμο Open-Meteo">Streaks follow the Open-Meteo wind</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#8fb8ff"><input type="checkbox" id="lWind" checked><span class="tile"><svg class="i"><use href="#i-arrow"/></svg></span><span class="lt"><b data-el="Βέλη ανέμου">Wind arrows</b><small data-el="Μοντέλο, κατεύθυνση και ταχύτητα">Model, direction and speed</small></span><i class="sw"></i></label>
+    <input type="radio" name="surf" value="off" class="sr" checked aria-hidden="true" tabindex="-1">
+    <label class="lay" style="--c:#F2B24C"><input type="radio" name="surf" value="t"><span class="tile"><svg class="i"><use href="#i-thermo"/></svg></span><span class="lt"><b data-el="Θερμοκρασία">Temperature</b><small data-el="Επιφάνεια μοντέλου">Model surface</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#4C8BEA"><input type="radio" name="surf" value="rh"><span class="tile"><svg class="i"><use href="#i-drop"/></svg></span><span class="lt"><b data-el="Υγρασία">Humidity</b><small data-el="Επιφάνεια μοντέλου">Model surface</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#cfdaea"><input type="radio" name="surf" value="cloud"><span class="tile"><svg class="i"><use href="#i-cloud"/></svg></span><span class="lt"><b data-el="Νεφοκάλυψη">Cloud cover</b><small data-el="Επιφάνεια μοντέλου">Model surface</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#59a0ff"><input type="radio" name="surf" value="rain"><span class="tile"><svg class="i"><use href="#i-rain"/></svg></span><span class="lt"><b data-el="Βροχή">Rain</b><small data-el="Επιφάνεια μοντέλου">Model surface</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#59d98e"><input type="radio" name="surf" value="pm25"><span class="tile"><svg class="i"><use href="#i-haze"/></svg></span><span class="lt"><b>PM2.5</b><small data-el="Ποιότητα αέρα Open-Meteo">Open-Meteo air quality</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#c98a5a"><input type="radio" name="surf" value="dust"><span class="tile"><svg class="i"><use href="#i-dust"/></svg></span><span class="lt"><b data-el="Σκόνη">Dust</b><small data-el="Ποιότητα αέρα Open-Meteo">Open-Meteo air quality</small></span><i class="sw"></i></label>
+    <div class="ctl"><span data-el="Διαφάνεια επιφάνειας">Surface opacity</span><input type="range" id="surfOp" min="0.1" max="1" step="0.05" value="0.6" aria-label="Surface opacity" data-ael="Διαφάνεια επιφάνειας"></div>
 
-    <h2>Weather surface</h2>
-    <label><input type="radio" name="surf" value="off" checked><span>Off</span></label>
-    <label><input type="radio" name="surf" value="t"><span>Temperature<small>Open-Meteo model</small></span></label>
-    <label><input type="radio" name="surf" value="rh"><span>Humidity</span></label>
-    <label><input type="radio" name="surf" value="cloud"><span>Cloud cover</span></label>
-    <label><input type="radio" name="surf" value="rain"><span>Rain</span></label>
-    <label><input type="radio" name="surf" value="pm25"><span>PM2.5<small>Open-Meteo air quality</small></span></label>
-    <label><input type="radio" name="surf" value="dust"><span>Dust</span></label>
-    <input type="range" id="surfOp" min="0.1" max="1" step="0.05" value="0.6" aria-label="Surface opacity">
-    <label><input type="checkbox" id="lWind" checked><span>Wind arrows</span></label>
+    <details class="grp" id="grpNasa"><summary><span data-el="Δορυφόρος NASA">NASA satellite</span><svg class="i"><use href="#i-chev"/></svg></summary>
+      <input type="radio" name="nasa" value="off" class="sr" checked aria-hidden="true" tabindex="-1">
+      <label class="lay" style="--c:#4C8BEA"><input type="radio" name="nasa" value="rgb"><span class="tile"><svg class="i"><use href="#i-sat"/></svg></span><span class="lt"><b data-el="Φωτογραφία πραγματικών χρωμάτων">True colour photo</b><small>VIIRS</small></span><i class="sw"></i></label>
+      <label class="lay" style="--c:#F2B24C"><input type="radio" name="nasa" value="lst"><span class="tile"><svg class="i"><use href="#i-thermo"/></svg></span><span class="lt"><b data-el="Θερμοκρασία εδάφους">Land surface temperature</b><small>MODIS</small></span><i class="sw"></i></label>
+      <label class="lay" style="--c:#c98a5a"><input type="radio" name="nasa" value="aod"><span class="tile"><svg class="i"><use href="#i-dust"/></svg></span><span class="lt"><b data-el="Αερολύματα (σκόνη και ομίχλη)">Aerosols (dust and haze)</b><small>MODIS</small></span><i class="sw"></i></label>
+      <div class="ctl"><span data-el="Ημερομηνία δορυφόρου">Satellite date</span><input type="date" id="nasaDate" aria-label="Satellite date" data-ael="Ημερομηνία δορυφόρου"></div>
+      <div class="ctl"><span data-el="Διαφάνεια δορυφόρου">Satellite opacity</span><input type="range" id="nasaOp" min="0.1" max="1" step="0.05" value="0.8" aria-label="Satellite opacity" data-ael="Διαφάνεια δορυφόρου"></div>
+    </details>
 
-    <h2>Open data</h2>
-    <label><input type="checkbox" id="lOpen" checked><span>Open air sensors<small>Sensor.Community volunteers</small></span></label>
-    <label><input type="checkbox" id="lCydom" checked><span>Met Office stations<small>Official Cyprus stations, shown as squares</small></span></label>
-    <label><input type="checkbox" id="lSea" checked><span>Sea conditions<small>Open-Meteo marine</small></span></label>
+    <details class="grp" id="grpMap"><summary><span data-el="Επιλογές χάρτη">Map options</span><svg class="i"><use href="#i-chev"/></svg></summary>
+      <label class="lay" style="--c:#59d98e"><input type="checkbox" id="lTerrain" checked><span class="tile"><svg class="i"><use href="#i-mount"/></svg></span><span class="lt"><b data-el="Ανάγλυφο 3D">3D terrain</b></span><i class="sw"></i></label>
+      <div class="ctl"><input type="range" id="exag" min="0.5" max="4" step="0.1" value="1.5" aria-label="Terrain height" data-ael="Ύψος αναγλύφου"></div>
+      <label class="lay" style="--c:#8CA0B8"><input type="checkbox" id="lHill" checked><span class="tile"><svg class="i"><use href="#i-layers"/></svg></span><span class="lt"><b data-el="Σκίαση αναγλύφου">Hillshade</b></span><i class="sw"></i></label>
+      <label class="lay" style="--c:#8CA0B8"><input type="checkbox" id="lRoads"><span class="tile"><svg class="i"><use href="#i-road"/></svg></span><span class="lt"><b data-el="Δρόμοι">Roads overlay</b><small data-el="OpenStreetMap, χρήσιμο στον δορυφόρο">OpenStreetMap, useful on satellite</small></span><i class="sw"></i></label>
+      <label class="lay" style="--c:#8CA0B8"><input type="checkbox" id="lLabels"><span class="tile"><svg class="i"><use href="#i-tag"/></svg></span><span class="lt"><b data-el="Ονόματα τόπων">Place names</b></span><i class="sw"></i></label>
+    </details>
 
-    <h2>NASA satellite</h2>
-    <label><input type="radio" name="nasa" value="off" checked><span>Off</span></label>
-    <label><input type="radio" name="nasa" value="rgb"><span>True colour photo</span></label>
-    <label><input type="radio" name="nasa" value="lst"><span>Land surface temperature</span></label>
-    <label><input type="radio" name="nasa" value="aod"><span>Aerosols (dust and haze)</span></label>
-    <input type="date" id="nasaDate" aria-label="Satellite date">
-    <input type="range" id="nasaOp" min="0.1" max="1" step="0.05" value="0.8" aria-label="Satellite opacity">
+    <details class="grp"><summary><span data-el="Σελίδες Μετεωρολογικής Υπηρεσίας">Met Office pages</span><svg class="i"><use href="#i-chev"/></svg></summary>
+      <div class="links">
+        <a href="/#/weather" target="_top" data-el="Όλα τα δεδομένα">All Met Office data</a>
+        <a href="https://www.dom.org.cy/RADAR_IMG/index.html" target="_blank" rel="noopener" data-el="Ραντάρ">Radar</a>
+        <a href="https://www.dom.org.cy/WARNING/" target="_blank" rel="noopener" data-el="Προειδοποιήσεις">Warnings</a>
+        <a href="https://www.dom.org.cy/FORECAST/index.html" target="_blank" rel="noopener" data-el="Πρόγνωση">Forecast</a>
+        <a href="https://www.dom.org.cy/AWS/ALL_STATIONS_MAP.html" target="_blank" rel="noopener" data-el="Χάρτης σταθμών">Station map</a>
+      </div>
+    </details>
 
-    <h2>Met Office pages</h2>
-    <div class="st">
-      <a href="/metoffice.html" style="color:var(--acc)">All Met Office data</a> ·
-      <a href="https://www.dom.org.cy/RADAR_IMG/index.html" target="_blank" rel="noopener" style="color:var(--acc)">Radar</a> ·
-      <a href="https://www.dom.org.cy/WARNING/" target="_blank" rel="noopener" style="color:var(--acc)">Warnings</a> ·
-      <a href="https://www.dom.org.cy/FORECAST/index.html" target="_blank" rel="noopener" style="color:var(--acc)">Forecast</a> ·
-      <a href="https://www.dom.org.cy/AWS/ALL_STATIONS_MAP.html" target="_blank" rel="noopener" style="color:var(--acc)">Station map</a>
-    </div>
+    <details class="grp"><summary><span data-el="Κατάσταση δεδομένων">Data status</span><svg class="i"><use href="#i-chev"/></svg></summary>
+      <div class="st" id="status"></div>
+    </details>
+  </div>
+</aside>
 
-    <h2>Data status</h2>
-    <div class="st" id="status"></div>
+<div class="glass banner" id="banner" role="alert" hidden><span id="bannerTxt"></span><button class="btn" id="bannerBtn" data-el="Δοκιμάστε ξανά">Try again</button></div>
+
+<div class="toprow">
+  <span class="tchip" id="chipDelayed"><svg class="i"><use href="#i-lock"/></svg><span data-el="Οι εκπαιδευτικοί βλέπουν τις ακριβείς θέσεις μετά τη σύνδεση">Teachers see exact positions after sign-in</span></span>
+  <div id="base" role="group" aria-label="Base map" data-ael="Υπόβαθρο χάρτη">
+    <button data-b="dark" class="on" data-el="Σκοτεινός">Dark</button><button data-b="osm" data-el="Χάρτης">Map</button><button data-b="eox" data-el="Δορυφόρος">Satellite</button><button data-b="esri" data-el="Δορυφόρος HD">Satellite HD</button><button data-b="topo" data-el="Ανάγλυφο">Terrain</button>
   </div>
 </div>
 
-<div class="panel" id="base">
-  <button data-b="osm" class="on">Map</button><button data-b="eox">Satellite</button><button data-b="esri">Satellite HD</button><button data-b="topo">Terrain</button><button data-b="dark">Dark</button>
+<div class="rcol">
+  <div class="glass" id="legend" aria-label="Legend">
+    <div class="lg-row"><span><i class="d-sch"></i><span data-el="Σχολείο">School</span></span><span><i class="d-st"></i><span data-el="Σταθμός Μετεωρολογικής">Met Office station</span></span><span><i class="d-veh"></i><span data-el="Όχημα">Vehicle</span></span></div>
+    <div class="scale"><div id="lgT"></div><div id="lgBar"></div><div class="row"><span id="lgLo"></span><span id="lgHi"></span></div></div>
+    <p id="lgPriv"></p>
+  </div>
+  <div class="glass" id="detail" role="region" aria-label="Selected vehicle"></div>
 </div>
 
-<div class="panel" id="legend"><div id="lgT"></div><div class="bar" id="lgBar"></div><div class="row"><span id="lgLo"></span><span id="lgHi"></span></div></div>
-<div class="panel" id="detail"></div>
-<div class="panel" id="replay">
-  <button class="btn" id="rpPlay" aria-label="Play or pause">&#9654;</button>
-  <input type="range" id="rpSlider" min="0" max="1000" value="1000" aria-label="Time">
-  <span id="rpTime" class="st" style="min-width:104px;text-align:right">Live</span>
-  <select id="rpSpeed" aria-label="Speed"><option value="0.5">Slow</option><option value="1" selected>Normal</option><option value="3">Fast</option></select>
-  <button class="btn" id="rpLive">Live</button>
-  <button class="btn" id="rpClose" aria-label="Close time-lapse">&times;</button>
+<div class="glass" id="replay" role="group" aria-label="Time-lapse" data-ael="Χρονική επανάληψη">
+  <button class="play" id="rpPlay" aria-label="Play or pause" data-ael="Αναπαραγωγή ή παύση"><svg class="i"><use href="#i-play"/></svg></button>
+  <div class="when"><small data-el="Επανάληψη">Replay</small><b id="rpTime">Live</b></div>
+  <input type="range" id="rpSlider" min="0" max="1000" value="1000" aria-label="Time" data-ael="Ώρα">
+  <div class="speeds" id="rpSpeeds" role="group" aria-label="Speed" data-ael="Ταχύτητα"><button data-v="0.5">0.5×</button><button data-v="1" class="on">1×</button><button data-v="3">3×</button></div>
+  <button id="rpLive" data-el="Ζωντανά">Live</button>
+  <button class="iconbtn" id="rpClose" aria-label="Close time-lapse" data-ael="Κλείσιμο χρονικής επανάληψης">&times;</button>
 </div>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="/mo-chart.js"></script>
 <script>
-const EMBED = /[?&]embed=1/.test(location.search);   // inside the student app: no links that leave it
-if (EMBED) document.documentElement.classList.add('embed');
+/* ---------- page mode, language, query ---------- */
+const SEARCH = typeof location.search === 'string' ? location.search : '';
+const qp = (k) => { const m = new RegExp('[?&]' + k + '=([^&#]*)').exec(SEARCH); if (!m) return ''; try { return decodeURIComponent(m[1].replace(/\+/g, ' ')); } catch (e) { return ''; } };
+const EMBED = qp('embed') === '1';   // inside the site shell: its menu replaces our links
+const LANG = qp('lang') === 'el' ? 'el' : 'en';
+const T = (en, el) => (LANG === 'el' && el != null ? el : en);
+const ROOT = document.documentElement;
+if (ROOT && ROOT.classList) { if (EMBED) ROOT.classList.add('embed'); ROOT.lang = LANG; }
 const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const state = { cfg: null, devices: [], latest: {}, weather: null, air: null, sea: null, open: null, cydom: null, mid: '4097', lastOk: {}, errors: {}, selected: null,
-  trails: {}, segs: {}, trailNotes: {}, trailWin: 6, trailMid: null, trailLoading: false, anim: {}, replay: null, follow: null, tour: null, spark: {} };
+// Static text carries its Greek in data-el (text) and data-ael (aria-label).
+function translateStatic() {
+  if (LANG !== 'el') return;
+  document.querySelectorAll('[data-el]').forEach((e) => { e.textContent = e.getAttribute('data-el'); });
+  document.querySelectorAll('[data-ael]').forEach((e) => e.setAttribute('aria-label', e.getAttribute('data-ael')));
+  document.title = 'Ζωντανός χάρτης';
+}
+translateStatic();
+const GREEK_NAMES = { 'Air temperature': 'Θερμοκρασία αέρα', 'Air humidity': 'Υγρασία αέρα', 'Light intensity': 'Ένταση φωτός', 'CO2': 'CO2', 'Barometric pressure': 'Ατμοσφαιρική πίεση' };
+const state = { cfg: null, devices: [], latest: {}, weather: null, air: null, sea: null, open: null, cydom: null, schools: [], mid: '4097', lastOk: {}, errors: {}, selected: null,
+  trails: {}, segs: {}, trailNotes: {}, trailWin: 6, trailMid: null, trailLoading: false, anim: {}, replay: null, follow: null, tour: null, spark: {}, delayed: false, rpMult: 1 };
 const BOUNDS = { w: 31.9, e: 34.9, s: 34.3, n: 35.95 };
 
 /* ---------- colours ---------- */
 const TEMP = [[0, [42, 120, 214]], [0.35, [27, 175, 122]], [0.65, [237, 161, 0]], [1, [227, 73, 72]]];
 const SCALES = {
-  t: { stops: TEMP, unit: '°C', name: 'Temperature (model)', range: () => { const v = state.weather ? state.weather.points.map((p) => p.t) : [10, 35]; return [Math.floor(Math.min(...v)), Math.ceil(Math.max(...v))]; } },
-  rh: { stops: [[0, [237, 161, 0]], [0.5, [27, 175, 122]], [1, [42, 120, 214]]], unit: '%', name: 'Humidity (model)', range: () => [0, 100] },
-  cloud: { stops: [[0, [255, 255, 255]], [1, [255, 255, 255]]], unit: '%', name: 'Cloud cover (model)', range: () => [0, 100], alpha: (t) => t * 0.9 },
-  rain: { stops: [[0, [120, 180, 255]], [1, [30, 70, 200]]], unit: 'mm', name: 'Rain (model)', range: () => [0, 2], alpha: (t) => Math.min(1, t * 1.4) },
-  pm25: { stops: [[0, [27, 175, 122]], [0.4, [237, 161, 0]], [1, [227, 73, 72]]], unit: 'µg/m³', name: 'PM2.5 (model)', range: () => [0, 35] },
-  dust: { stops: [[0, [27, 175, 122]], [0.4, [237, 161, 0]], [1, [150, 60, 40]]], unit: 'µg/m³', name: 'Dust (model)', range: () => [0, 200] },
+  t: { stops: TEMP, unit: '°C', name: 'Temperature (model)', el: 'Θερμοκρασία (μοντέλο)', range: () => { const v = state.weather ? state.weather.points.map((p) => p.t) : [10, 35]; return [Math.floor(Math.min(...v)), Math.ceil(Math.max(...v))]; } },
+  rh: { stops: [[0, [237, 161, 0]], [0.5, [27, 175, 122]], [1, [42, 120, 214]]], unit: '%', name: 'Humidity (model)', el: 'Υγρασία (μοντέλο)', range: () => [0, 100] },
+  cloud: { stops: [[0, [255, 255, 255]], [1, [255, 255, 255]]], unit: '%', name: 'Cloud cover (model)', el: 'Νεφοκάλυψη (μοντέλο)', range: () => [0, 100], alpha: (t) => t * 0.9 },
+  rain: { stops: [[0, [120, 180, 255]], [1, [30, 70, 200]]], unit: 'mm', name: 'Rain (model)', el: 'Βροχή (μοντέλο)', range: () => [0, 2], alpha: (t) => Math.min(1, t * 1.4) },
+  pm25: { stops: [[0, [27, 175, 122]], [0.4, [237, 161, 0]], [1, [227, 73, 72]]], unit: 'µg/m³', name: 'PM2.5 (model)', el: 'PM2.5 (μοντέλο)', range: () => [0, 35] },
+  dust: { stops: [[0, [27, 175, 122]], [0.4, [237, 161, 0]], [1, [150, 60, 40]]], unit: 'µg/m³', name: 'Dust (model)', el: 'Σκόνη (μοντέλο)', range: () => [0, 200] },
 };
 function rampAt(stops, t) {
   t = clamp(t, 0, 1);
@@ -195,14 +435,23 @@ const km = (a, b) => {
 };
 const r1 = (n) => Math.round(n * 10) / 10;
 const ago = (iso) => {
-  if (!iso) return 'no data';
+  if (!iso) return T('no data', 'χωρίς δεδομένα');
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  if (m < 1) return 'just now';
-  if (m < 60) return m + ' min ago';
-  if (m < 1440) return Math.round(m / 60) + ' h ago';
-  return Math.round(m / 1440) + ' d ago';
+  if (m < 1) return T('just now', 'μόλις τώρα');
+  if (m < 60) return T(m + ' min ago', 'πριν ' + m + ' λεπτά');
+  if (m < 1440) { const h = Math.round(m / 60); return T(h + ' h ago', 'πριν ' + h + ' ώρες'); }
+  const d = Math.round(m / 1440);
+  return T(d + ' d ago', 'πριν ' + d + ' ημέρες');
 };
-const nameOf = (m) => (state.cfg.names[m] ? state.cfg.names[m][0] : 'Measurement ' + m);
+const TZ = 'Asia/Nicosia';
+const fmtHM = new Intl.DateTimeFormat(LANG === 'el' ? 'el-GR' : 'en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const fmtDayHM = new Intl.DateTimeFormat(LANG === 'el' ? 'el-GR' : 'en-GB', { timeZone: TZ, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const hm = (ms) => fmtHM.format(ms);
+const dayHm = (ms) => fmtDayHM.format(ms);
+const nameOf = (m) => {
+  const n = state.cfg.names[m] ? state.cfg.names[m][0] : T('Measurement ' + m, 'Μέτρηση ' + m);
+  return LANG === 'el' && GREEK_NAMES[n] ? GREEK_NAMES[n] : n;
+};
 const unitOf = (m) => (state.cfg.names[m] ? state.cfg.names[m][1] : '');
 async function getJson(url) {
   const r = await fetch(url);
@@ -228,12 +477,12 @@ const style = {
     dem: { type: 'raster-dem', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 14, encoding: 'terrarium', attribution: 'Terrain: Mapzen / AWS Open Data' },
   },
   layers: [
-    { id: 'base-osm', type: 'raster', source: 'osm' },
+    { id: 'base-osm', type: 'raster', source: 'osm', layout: { visibility: 'none' } },
     { id: 'base-eox', type: 'raster', source: 'eox', layout: { visibility: 'none' } },
     { id: 'base-esri', type: 'raster', source: 'esri', layout: { visibility: 'none' } },
     { id: 'base-topo', type: 'raster', source: 'topo', layout: { visibility: 'none' } },
-    { id: 'base-dark', type: 'raster', source: 'dark', layout: { visibility: 'none' } },
-    { id: 'hillshade', type: 'hillshade', source: 'dem', paint: { 'hillshade-exaggeration': 0.45, 'hillshade-shadow-color': '#1a1a1a', 'hillshade-highlight-color': '#ffffff' } },
+    { id: 'base-dark', type: 'raster', source: 'dark' },
+    { id: 'hillshade', type: 'hillshade', source: 'dem', paint: { 'hillshade-exaggeration': 0.45, 'hillshade-shadow-color': '#02060d', 'hillshade-highlight-color': '#7f93ac' } },
     { id: 'roads', type: 'raster', source: 'osm', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.45 } },
     { id: 'labels', type: 'raster', source: 'labels', layout: { visibility: 'none' } },
   ],
@@ -241,7 +490,7 @@ const style = {
 const BASES = ['osm', 'eox', 'esri', 'topo', 'dark'];
 
 const map = new maplibregl.Map({
-  container: 'map', style, center: [33.25, 35.0], zoom: 8, pitch: 55, bearing: -8, maxPitch: 80,
+  container: 'map', style, center: [33.25, 35.0], zoom: 8, pitch: 55, bearing: -8, maxPitch: 80, hash: false,
   attributionControl: { compact: true },
 });
 const mapErrors = new Set();
@@ -270,6 +519,7 @@ function applyNasa() {
     if (map.getLayer(id)) map.removeLayer(id);
     if (map.getSource(id)) map.removeSource(id);
   }
+  syncCount();
   if (sel === 'off' || !date) return;
   const id = 'nasa-' + sel;
   map.addSource(id, { type: 'raster', tiles: [gibsUrl(sel, date)], tileSize: 256, maxzoom: GIBS[sel].max, attribution: 'Imagery: NASA GIBS / EOSDIS' });
@@ -286,13 +536,13 @@ function renderSurface() {
   if (!src) return;
   if (kind === 'off') {
     map.setLayoutProperty('surface-layer', 'visibility', 'none');
-    $('lgT').textContent = 'Sensor columns';
+    syncCount();
     return updateLegend();
   }
   const sc = SCALES[kind];
   const grid = kind === 'pm25' || kind === 'dust' ? state.air : state.weather;
   const field = kind;
-  if (!grid) { map.setLayoutProperty('surface-layer', 'visibility', 'none'); return updateLegend(); }
+  if (!grid) { map.setLayoutProperty('surface-layer', 'visibility', 'none'); syncCount(); return updateLegend(); }
   const [lo, hi] = sc.range();
   const W = 200, H = 120;
   const cv = document.createElement('canvas');
@@ -317,6 +567,7 @@ function renderSurface() {
   src.updateImage({ url: cv.toDataURL('image/png'), coordinates: [[FIELD_BOX.lng0, FIELD_BOX.lat1], [FIELD_BOX.lng1, FIELD_BOX.lat1], [FIELD_BOX.lng1, FIELD_BOX.lat0], [FIELD_BOX.lng0, FIELD_BOX.lat0]] });
   map.setLayoutProperty('surface-layer', 'visibility', 'visible');
   map.setPaintProperty('surface-layer', 'raster-opacity', Number($('surfOp').value));
+  syncCount();
   updateLegend();
 }
 
@@ -466,13 +717,13 @@ function vehicleIcons() {
     const c = document.createElement('canvas');
     c.width = 52; c.height = 52;
     const x = c.getContext('2d');
-    x.beginPath(); x.arc(26, 26, 21, 0, Math.PI * 2); x.fillStyle = '#ffffff'; x.fill();
+    x.beginPath(); x.arc(26, 26, 21, 0, Math.PI * 2); x.fillStyle = 'rgba(11,21,37,.94)'; x.fill();
     x.lineWidth = 5; x.strokeStyle = ring; x.stroke();
-    const ink = off ? '#8c8c86' : '#2c2c2a';
+    const ink = off ? '#8c97a6' : '#EAF0F7';
     x.fillStyle = ink;
     if (type === 'bus') {
       roundRect(x, 15, 17, 22, 16, 3); x.fill();
-      x.fillStyle = '#ffffff'; x.fillRect(18, 20, 4.5, 6); x.fillRect(23.75, 20, 4.5, 6); x.fillRect(29.5, 20, 4.5, 6);
+      x.fillStyle = 'rgba(11,21,37,.94)'; x.fillRect(18, 20, 4.5, 6); x.fillRect(23.75, 20, 4.5, 6); x.fillRect(29.5, 20, 4.5, 6);
       x.fillStyle = ink; wheel(x, 20, 34, 2.8); wheel(x, 32, 34, 2.8);
     } else {
       roundRect(x, 14, 26, 24, 9, 3); x.fill();
@@ -489,7 +740,7 @@ function vehicleIcons() {
   c.width = 64; c.height = 64;
   const x = c.getContext('2d');
   x.beginPath(); x.moveTo(32, 1); x.lineTo(41, 13); x.lineTo(23, 13); x.closePath();
-  x.fillStyle = '#1c1c1a'; x.fill(); x.lineWidth = 1.5; x.strokeStyle = '#ffffff'; x.stroke();
+  x.fillStyle = '#F2A56B'; x.fill(); x.lineWidth = 1.5; x.strokeStyle = '#0C1626'; x.stroke();
   map.addImage('hdg-arrow', x.getImageData(0, 0, 64, 64), { pixelRatio: 2 });
 }
 
@@ -510,14 +761,19 @@ function updateSensors() {
     const color = ok ? rgb(rampAt(TEMP, t)) : OFF_COLOR;
     const icon = `veh-${vehicleType(d)}-${ok ? Math.round(clamp(t, 0, 1) * 24) : 'off'}`;
     const props = {
-      eui: d.eui, name: d.name, color, icon, hdg: vw.heading || 0, moving: vw.speed > 3 && vw.heading != null ? 1 : 0,
-      online: vw.online ? 1 : 0, label: vw.v == null ? d.name : `${r1(vw.v)} ${unitOf(state.mid)}`.trim(),
+      eui: d.eui, name: d.name, color, icon, hdg: vw.heading || 0, moving: !state.delayed && vw.speed > 3 && vw.heading != null ? 1 : 0,
+      approx: state.delayed && !vw.gps ? 1 : 0, online: vw.online ? 1 : 0, label: vw.v == null ? d.name : `${r1(vw.v)} ${unitOf(state.mid)}`.trim(),
     };
     dots.push(pt(lng, lat, props));
     cols.push({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [square(lng, lat)] }, properties: { ...props, h: ok ? 600 + clamp(t, 0, 1) * 9000 : 200 } });
   });
   map.getSource('sensors').setData({ type: 'FeatureCollection', features: dots });
   map.getSource('columns').setData({ type: 'FeatureCollection', features: cols });
+  const sub = $('subVeh');
+  if (sub) {
+    const txt = dots.length ? T(dots.length + ' shown', 'Εμφανίζονται ' + dots.length) + (state.delayed ? T(' · delayed', ' · με καθυστέρηση') : '') : T('No position yet', 'Δεν υπάρχει ακόμα θέση');
+    if (sub.textContent !== txt) sub.textContent = txt;
+  }
   updateLegend();
 }
 function updateTrails() {
@@ -537,11 +793,11 @@ function updateTrails() {
         const s = list[i];
         if (s.t1 > ref) break;
         const age = clamp(1 - (ref - s.t1) / tail, 0, 1);
-        const a = state.replay ? 0.2 + 0.8 * age : 0.3 + 0.7 * age;
+        const a = (state.replay ? 0.2 + 0.8 * age : 0.3 + 0.7 * age) * (state.selected && state.selected !== eui ? 0.4 : 1);
         const color = s.gap || !colourOk || s.v == null ? OFF_COLOR : rgb(rampAt(TEMP, (s.v - lo) / (hi - lo || 1)));
         let end = s.b;
         if (an && an.cur && i === list.length - 1) end = [an.cur[1], an.cur[0]];   // the line grows with the gliding icon
-        feats.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: [s.a, end] }, properties: { color, a, gap: s.gap } });
+        feats.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: [s.a, end] }, properties: { color, a, gap: s.gap, w: state.selected === eui ? 1.5 : 1 } });
       }
     });
   }
@@ -639,9 +895,9 @@ function squareIcons() {
     const c = document.createElement('canvas');
     c.width = 22; c.height = 22;
     const x = c.getContext('2d');
-    x.fillStyle = '#ffffff'; x.fillRect(1, 1, 20, 20);
-    x.fillStyle = fill; x.fillRect(3, 3, 16, 16);
-    x.strokeStyle = '#1c1c1a'; x.lineWidth = 1; x.strokeRect(0.5, 0.5, 21, 21);
+    x.translate(11, 11); x.rotate(Math.PI / 4);
+    x.fillStyle = 'rgba(234,240,247,.95)'; x.fillRect(-7.2, -7.2, 14.4, 14.4);
+    x.fillStyle = fill; x.fillRect(-5.2, -5.2, 10.4, 10.4);
     map.addImage(name, x.getImageData(0, 0, 22, 22));
   };
   for (let i = 0; i <= 24; i++) make('sq' + i, rgb(rampAt(TEMP, i / 24)));
@@ -655,7 +911,7 @@ function updateCydom() {
     return pt(p.lng, p.lat, { ...rest, obs: JSON.stringify(obs || []), icon: sqIcon(p.temp), label: p.temp != null ? `${r1(p.temp)}°` : p.name });
   }) });
 }
-const readingAge = (iso) => (iso ? ago(iso) : 'unknown time');
+const readingAge = (iso) => (iso ? ago(iso) : T('unknown time', 'άγνωστη ώρα'));
 const isOld = (iso) => !iso || Date.now() - new Date(iso).getTime() > 3 * 3600000;
 function updateSea() {
   if (!state.sea) return;
@@ -663,6 +919,7 @@ function updateSea() {
 }
 
 /* ---------- detail card ---------- */
+const icon = (id) => `<svg class="i" aria-hidden="true"><use href="#i-${id}"/></svg>`;
 function nearest(list, lat, lng, ok) {
   let best = null;
   (list || []).forEach((p) => {
@@ -672,68 +929,103 @@ function nearest(list, lat, lng, ok) {
   });
   return best;
 }
+// "About 4 km from PASCAL Larnaka": the nearest school, or failing that the nearest Met Office station, to a (rounded) position.
+function placeNear(lat, lng) {
+  const s = nearest(state.schools, lat, lng, (p) => isFinite(p.lat) && isFinite(p.lng));
+  const m = nearest(state.cydom && state.cydom.points, lat, lng, (p) => isFinite(p.lat) && isFinite(p.lng));
+  const best = s && (!m || s.d <= m.d + 5) ? { name: s.p.short || s.p.name, d: s.d } : m ? { name: m.p.name, d: m.d } : null;
+  return best;
+}
+function agoApprox(ms) {
+  const m = Math.max(0, Math.round((Date.now() - ms) / 60000));
+  if (m < 90) return T('about ' + Math.max(1, m) + ' min ago', 'πριν από περίπου ' + Math.max(1, m) + ' λεπτά');
+  const h = Math.round(m / 60);
+  if (h < 36) return T('about ' + h + (h === 1 ? ' hour' : ' hours') + ' ago', 'πριν από περίπου ' + h + (h === 1 ? ' ώρα' : ' ώρες'));
+  const dd = Math.round(h / 24);
+  return T('about ' + dd + ' days ago', 'πριν από περίπου ' + dd + ' ημέρες');
+}
+const delayHours = () => Math.max(1, Math.round(((state.cfg && state.cfg.posDelayMin) || 120) / 60));
+const gridKm = () => Math.max(1, Math.round(((state.cfg && state.cfg.posGrid) || 0.01) * 111));
+function delayedLine() {
+  const h = delayHours(), g = gridKm();
+  return T(`Positions are about ${h} ${h === 1 ? 'hour' : 'hours'} late and rounded to ${g} km`, `Οι θέσεις εμφανίζονται με καθυστέρηση περίπου ${h} ${h === 1 ? 'ώρας' : 'ωρών'} και στρογγυλοποιημένες στο ${g} χλμ.`);
+}
 function renderSpark(eui, s) {
   const box = $('spark');
   if (!box || state.selected !== eui) return;
-  if (!s.length) { box.textContent = 'No history in the last 24 hours.'; return; }
+  if (!s.length) { box.textContent = T('No history in the last 24 hours.', 'Δεν υπάρχει ιστορικό για τις τελευταίες 24 ώρες.'); return; }
   const ys = s.map((p) => p.v), mn = Math.min(...ys), mx = Math.max(...ys);
-  const pts = s.map((p, i) => `${(i / (s.length - 1 || 1)) * 250},${34 - ((p.v - mn) / (mx - mn || 1)) * 30}`).join(' ');
-  box.innerHTML = `<svg viewBox="0 0 250 38" width="100%"><polyline points="${pts}" fill="none" stroke="#2a78d6" stroke-width="2"/></svg><div class="st">Last 24 hours: ${r1(mn)} to ${r1(mx)} ${unitOf(state.mid)}</div>`;
+  const xy = s.map((p, i) => `${((i / (s.length - 1 || 1)) * 250).toFixed(1)},${(34 - ((p.v - mn) / (mx - mn || 1)) * 30).toFixed(1)}`);
+  const line = 'M' + xy.join('L');
+  box.innerHTML = `<svg viewBox="0 0 250 38" width="100%" role="img" aria-label="${esc(T('Last 24 hours', 'Τελευταίες 24 ώρες'))}: ${r1(mn)} – ${r1(mx)} ${esc(unitOf(state.mid))}"><path d="${line}L250,38L0,38Z" fill="#E07F3F" opacity=".16"/><polyline points="${xy.join(' ')}" fill="none" stroke="#F2A56B" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg><div class="st">${T('Last 24 hours', 'Τελευταίες 24 ώρες')}: ${r1(mn)} ${T('to', 'έως')} ${r1(mx)} ${esc(unitOf(state.mid))}</div>`;
 }
 async function showDetail(eui, fresh = true) {
   const d = state.devices.find((x) => x.eui === eui);
   if (!d) return;
   if (!fresh && performance.now() < (state.hold || 0)) return;   // a press is in progress: do not replace the buttons under it
+  const changed = state.selected !== eui;
   state.selected = eui;
   const vw = vehicleView(d) || { pos: devicePos(d), v: deviceValue(d), online: d.online, speed: 0, heading: null, replay: false, gps: false };
   const pos = vw.pos, v = vw.v;
   const l = state.latest[eui] || {};
   const pts = state.trails[eui] || [];
   const type = vehicleType(d);
-  let html = `<button class="x" id="dx" aria-label="Close">&times;</button><b>${d.name}</b> <span class="st">${type}</span><div class="st">${d.group} · <span style="color:${d.online ? 'var(--ok)' : 'var(--bad)'}">${d.online ? 'online' : 'offline'}</span> · ${ago(d.lastSeen)}${d.battery != null ? ' · battery ' + d.battery + '%' : ''}</div>`;
+  const delayed = state.delayed && !vw.gps;
+  let html = `<div class="dt-h"><span class="tile">${icon(type === 'bus' ? 'bus' : 'car')}</span><div class="tt"><b>${esc(d.name)}</b>` +
+    `<small>${esc(d.group)} · <span class="${d.online ? 'dot-ok' : 'dot-bad'}">${d.online ? T('online', 'σε λειτουργία') : T('offline', 'εκτός λειτουργίας')}</span> · ${ago(d.lastSeen)}${d.battery != null ? ' · ' + T('battery', 'μπαταρία') + ' ' + esc(d.battery) + '%' : ''}</small></div>` +
+    `<button class="x" id="dx" aria-label="${T('Close', 'Κλείσιμο')}">&times;</button></div>`;
+  html += `<div class="big"><span class="num">${v == null ? '–' : r1(v)}</span><span class="u">${v == null ? '' : esc(unitOf(state.mid))}</span></div><div class="mname">${esc(nameOf(state.mid))}</div>`;
   if (vw.replay) {
-    html += `<div class="st">Time-lapse: ${new Date(state.replay.cur).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}${vw.speed > 3 ? ' · ' + Math.round(vw.speed) + ' km/h' : ' · stopped'}</div>`;
+    html += `<div class="st" style="margin-top:6px">${T('Time-lapse', 'Χρονική επανάληψη')}: ${dayHm(state.replay.cur)}${!delayed && vw.speed > 3 ? ' · ' + Math.round(vw.speed) + ' km/h' : ''}</div>`;
+  } else if (delayed) {
+    const near = pos ? placeNear(pos[0], pos[1]) : null;
+    const when = d.posAt ? agoApprox(d.posAt) : '';
+    const where = pos
+      ? T(`Position: about ${near ? Math.max(1, Math.round(near.d)) + ' km from ' + esc(near.name) : 'on the island'}${when ? ', ' + when : ''}.`,
+          `Θέση: περίπου ${near ? Math.max(1, Math.round(near.d)) + ' χλμ. από ' + esc(near.name) : 'στο νησί'}${when ? ', ' + when : ''}.`)
+      : T('No public position yet. A position appears about 2 hours after the vehicle reports it.', 'Δεν υπάρχει ακόμα δημόσια θέση. Η θέση εμφανίζεται περίπου 2 ώρες αφού την αναφέρει το όχημα.');
+    html += `<div class="pos">${icon('lock')}<span>${where} ${esc(delayedLine())}.</span></div>`;
   } else {
     const f = gpsFix(d);
-    if (f && isFinite(f.t)) html += `<div class="st">GPS fix ${ago(new Date(f.t).toISOString())}${vw.speed > 3 ? ' · moving ' + Math.round(vw.speed) + ' km/h' : ' · stopped'}</div>`;
-    else html += `<div class="st" style="color:var(--bad)">No GPS yet${pos ? '. Showing the position set in SenseCAP.' : ' and no position set.'}</div>`;
+    if (f && isFinite(f.t)) html += `<div class="st" style="margin-top:6px">GPS ${T('fix', 'θέση')} ${ago(new Date(f.t).toISOString())}${vw.speed > 3 ? ' · ' + T('moving', 'κινείται') + ' ' + Math.round(vw.speed) + ' km/h' : ' · ' + T('stopped', 'σταματημένο')}</div>`;
+    else html += `<div class="st" style="margin-top:6px;color:var(--bad)">${T('No GPS yet', 'Δεν υπάρχει ακόμα GPS')}${pos ? T('. Showing the position set in SenseCAP.', '. Εμφανίζεται η θέση που έχει οριστεί στο SenseCAP.') : T(' and no position set.', ' και δεν έχει οριστεί θέση.')}</div>`;
   }
-  html += `<div class="big">${v == null ? '–' : r1(v) + ' ' + unitOf(state.mid)}</div><div class="st">${nameOf(state.mid)}</div>`;
   const cmp = [];
   if (pos && v != null) {
     const wf = WEATHER_FIELD[state.mid];
     const wv = wf ? sampleGrid(state.weather, wf, pos[0], pos[1]) : null;
-    if (wv != null) cmp.push(`Weather model: ${r1(wv)} ${unitOf(state.mid)} (difference ${v - wv > 0 ? '+' : ''}${r1(v - wv)})`);
+    if (wv != null) cmp.push(`${T('Weather model', 'Μοντέλο καιρού')}: ${r1(wv)} ${esc(unitOf(state.mid))} (${T('difference', 'διαφορά')} ${v - wv > 0 ? '+' : ''}${r1(v - wv)})`);
     if (state.mid === '4097' && !vw.replay) {
       const m = nearest(state.cydom && state.cydom.points, pos[0], pos[1], (p) => p.temp != null);
-      if (m) cmp.push(`Met Office ${m.p.name}: ${r1(m.p.temp)} °C (${r1(v - m.p.temp) > 0 ? '+' : ''}${r1(v - m.p.temp)} for our sensor), ${Math.round(m.d)} km away, reading ${readingAge(m.p.time)}${isOld(m.p.time) ? ' (old)' : ''}`);
+      if (m) cmp.push(`${T('Met Office', 'Μετεωρολογική Υπηρεσία')} ${esc(m.p.name)}: ${r1(m.p.temp)} °C (${r1(v - m.p.temp) > 0 ? '+' : ''}${r1(v - m.p.temp)} ${T('for our sensor', 'για τον αισθητήρα μας')}), ${Math.round(m.d)} km ${T('away', 'μακριά')}, ${T('reading', 'μέτρηση')} ${readingAge(m.p.time)}${isOld(m.p.time) ? ' (' + T('old', 'παλιά') + ')' : ''}`);
       const o = nearest(state.open && state.open.points, pos[0], pos[1], (p) => p.temp != null && km([pos[0], pos[1]], [p.lat, p.lng]) < 40);
-      if (o) cmp.push(`Open sensor ${o.p.id}: ${r1(o.p.temp)} °C, ${Math.round(o.d)} km away`);
+      if (o) cmp.push(`${T('Open sensor', 'Ανοιχτός αισθητήρας')} ${esc(o.p.id)}: ${r1(o.p.temp)} °C, ${Math.round(o.d)} km ${T('away', 'μακριά')}`);
     }
   }
   if (cmp.length) html += '<div class="cmp">' + cmp.join('<br>') + '</div>';
-  html += '<div id="spark" class="st" style="margin-top:6px">Loading history…</div>';
+  html += `<div id="spark" class="st">${T('Loading history…', 'Φόρτωση ιστορικού…')}</div>`;
   const rows = [];
-  if (state.trailWin && pts.length > 1) {
+  if (state.trailWin && pts.length > 1 && !delayed) {
     const ts = tripStats(pts, vw.replay ? state.replay.cur : Date.now());
-    rows.push(`<tr><td>Distance, last ${state.trailWin < 24 ? state.trailWin + ' h' : Math.round(state.trailWin / 24) + ' d'}</td><td>${r1(ts.km)} km</td></tr>`, `<tr><td>Top speed</td><td>${Math.round(ts.top)} km/h</td></tr>`);
+    rows.push(`<tr><td>${T('Distance, last', 'Απόσταση, τελευταίες')} ${state.trailWin < 24 ? state.trailWin + ' ' + T('h', 'ώ') : Math.round(state.trailWin / 24) + ' ' + T('d', 'ημ')}</td><td>${r1(ts.km)} km</td></tr>`, `<tr><td>${T('Top speed', 'Μέγιστη ταχύτητα')}</td><td>${Math.round(ts.top)} km/h</td></tr>`);
   }
-  Object.keys(l).filter((m) => !state.cfg.gps.includes(m)).forEach((m) => rows.push(`<tr><td>${nameOf(m)}</td><td>${r1(l[m].v)} ${unitOf(m)}</td></tr>`));
+  Object.keys(l).filter((m) => !state.cfg.gps.includes(m)).forEach((m) => rows.push(`<tr><td>${esc(nameOf(m))}</td><td>${r1(l[m].v)} ${esc(unitOf(m))}</td></tr>`));
   if (rows.length) html += `<table>${rows.join('')}</table>`;
-  html += `<div class="btns"><button class="btn" id="bFollow">${state.follow === eui ? 'Stop following' : 'Follow vehicle'}</button><button class="btn" id="bReplay">Replay trip</button></div>`;
-  html += EMBED ? `<p><a href="/app/#/vehicle/${encodeURIComponent(eui)}" target="_top" style="color:var(--acc)">Open history charts</a></p>` : `<p><a href="/#${eui}" style="color:var(--acc)">Open full history and CSV</a></p>`;
+  html += `<div class="btns" style="margin:10px 0 0"><button class="btn" id="bFollow">${state.follow === eui ? T('Stop following', 'Διακοπή παρακολούθησης') : T('Follow vehicle', 'Ακολουθήστε το όχημα')}</button><button class="btn" id="bReplay">${T('Replay trip', 'Επανάληψη διαδρομής')}</button></div>`;
+  html += `<p class="dt-link"><a href="/#/vehicles/${encodeURIComponent(eui)}" target="_top">${T('Open full history and CSV', 'Πλήρες ιστορικό και CSV')}</a></p>`;
   const box = $('detail');
   box.innerHTML = html;
   box.style.display = 'block';
   if (!box.dataset.held) { box.dataset.held = '1'; box.addEventListener('pointerdown', () => { state.hold = performance.now() + 1500; }); }
-  $('dx').onclick = () => { box.style.display = 'none'; state.selected = null; if (state.follow === eui) state.follow = null; };
+  $('dx').onclick = () => { box.style.display = 'none'; state.selected = null; if (state.follow === eui) state.follow = null; updateTrails(); };
   $('bFollow').onclick = () => { state.hold = 0; state.follow = state.follow === eui ? null : eui; if (state.tour) stopTour(); showDetail(eui, false); };
   $('bReplay').onclick = () => { state.hold = 0; startReplay(eui); };
+  if (changed) updateTrails();   // the chosen vehicle's trail is drawn strong, the others fade
   if (fresh && pos) map.easeTo({ center: [pos[1], pos[0]], zoom: Math.max(map.getZoom(), 10), duration: 800 });
   const key = `${eui}:${state.mid}`;
   const cached = state.spark[key];
   if (cached && Date.now() - cached.at < 120000) {
-    if (cached.data) renderSpark(eui, cached.data); else if ($('spark')) $('spark').textContent = 'History unavailable.';
+    if (cached.data) renderSpark(eui, cached.data); else if ($('spark')) $('spark').textContent = T('History unavailable.', 'Το ιστορικό δεν είναι διαθέσιμο.');
     return;
   }
   try {
@@ -742,21 +1034,26 @@ async function showDetail(eui, fresh = true) {
     renderSpark(eui, s);
   } catch (e) {
     state.spark[key] = { at: Date.now(), data: null };
-    if ($('spark')) $('spark').textContent = 'History unavailable.';
+    if ($('spark')) $('spark').textContent = T('History unavailable.', 'Το ιστορικό δεν είναι διαθέσιμο.');
   }
 }
 
 /* ---------- animation: time-lapse, gliding vehicles, wind, pulses, camera ---------- */
 function syncReplayUi() {
   const r = state.replay;
-  $('rpPlay').innerHTML = r && r.playing ? '&#10074;&#10074;' : '&#9654;';
+  const play = $('rpPlay'), html = icon(r && r.playing ? 'pause' : 'play');
+  if (play.dataset.k !== html) { play.dataset.k = html; play.innerHTML = html; play.classList.toggle('pause', !!(r && r.playing)); }
   if (r) {
     $('rpSlider').value = String(Math.round(((r.cur - r.t0) / (r.t1 - r.t0 || 1)) * 1000));
-    $('rpTime').textContent = new Date(r.cur).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+    $('rpTime').textContent = dayHm(r.cur);
   } else {
     $('rpSlider').value = '1000';
-    $('rpTime').textContent = 'Live';
+    $('rpTime').textContent = T('Live', 'Ζωντανά');
   }
+}
+function setReplayBar(on) {
+  $('replay').style.display = on ? 'flex' : 'none';
+  if (ROOT && ROOT.classList) ROOT.classList.toggle('replaying', on);
 }
 function replayBounds() {
   let t0 = Infinity, t1 = -Infinity;
@@ -764,15 +1061,15 @@ function replayBounds() {
   return isFinite(t0) && t1 > t0 ? [t0, t1] : null;
 }
 async function startReplay(followEui) {
-  $('replay').style.display = 'flex';
+  setReplayBar(true);
   if (!state.trailWin) {
     $('trailWin').value = '6';
     state.trailWin = 6;
     await loadTrails();
   }
   const b = replayBounds();
-  if (!b) { $('rpTime').textContent = 'No GPS history yet'; return; }
-  state.replay = { t0: b[0], t1: b[1], cur: b[0], playing: true, mult: Number($('rpSpeed').value) };
+  if (!b) { $('rpTime').textContent = T('No GPS history yet', 'Δεν υπάρχει ακόμα ιστορικό GPS'); return; }
+  state.replay = { t0: b[0], t1: b[1], cur: b[0], playing: true, mult: state.rpMult };
   state.anim = {};
   if (followEui) state.follow = followEui;
   if (state.tour) stopTour();
@@ -829,11 +1126,13 @@ function startTour() {
   state.tour = { t0: performance.now() };
   state.follow = null;
   map.easeTo({ center: [33.25, 35.0], zoom: 8.2, pitch: 62, duration: 1800 });
-  $('btnTour').textContent = 'Stop tour';
+  $('tourTxt').textContent = T('Stop tour', 'Διακοπή περιήγησης');
+  $('btnTour').classList.toggle('on', true);
 }
 function stopTour() {
   state.tour = null;
-  $('btnTour').textContent = 'Camera tour';
+  $('tourTxt').textContent = T('Camera tour', 'Περιήγηση κάμερας');
+  $('btnTour').classList.toggle('on', false);
 }
 function stopAuto() {
   if (state.tour) stopTour();
@@ -954,36 +1253,55 @@ function tick(now) {
 
 /* ---------- data loading ---------- */
 function trailStatus() {
-  if (state.errors.trails) return `<div class="e">GPS trails: ${state.errors.trails}</div>`;
-  if (!state.trailWin) return '<div>GPS trails: off</div>';
-  if (state.trailLoading && !state.lastOk.trails) return '<div>GPS trails: loading…</div>';
+  if (state.errors.trails) return `<div class="e">${T('GPS trails', 'Ίχνη GPS')}: ${esc(state.errors.trails)}</div>`;
+  if (!state.trailWin) return `<div>${T('GPS trails: off', 'Ίχνη GPS: κλειστά')}</div>`;
+  if (state.trailLoading && !state.lastOk.trails) return `<div>${T('GPS trails: loading…', 'Ίχνη GPS: φόρτωση…')}</div>`;
   const withGps = state.devices.filter((d) => (state.trails[d.eui] || []).length > 1 || gpsFix(d)).length;
-  const notes = Object.keys(state.trailNotes).slice(0, 3).map((e) => { const d = state.devices.find((x) => x.eui === e); return `<div class="e">${d ? d.name : e}: ${state.trailNotes[e]}</div>`; }).join('');
-  return `<div>GPS trails (${state.trailWin} h): ${withGps} of ${state.devices.length} vehicles with GPS${state.trailLoading ? ' · refreshing…' : ''}</div>${notes}`;
+  const notes = Object.keys(state.trailNotes).slice(0, 3).map((e) => { const d = state.devices.find((x) => x.eui === e); return `<div class="e">${esc(d ? d.name : e)}: ${esc(state.trailNotes[e])}</div>`; }).join('');
+  return `<div>${T('GPS trails', 'Ίχνη GPS')} (${state.trailWin} ${T('h', 'ώ')}): ${T(withGps + ' of ' + state.devices.length + ' vehicles with GPS', withGps + ' από ' + state.devices.length + ' οχήματα με GPS')}${state.trailLoading ? T(' · refreshing…', ' · ανανέωση…') : ''}</div>${notes}`;
 }
 function showStatus() {
-  const items = [['sensors', 'Our sensors'], ['weather', 'Weather'], ['air', 'Air quality'], ['sea', 'Sea'], ['open', 'Open sensors'], ['cydom', 'Met Office']];
-  if (state.errors.map) items.push(['map', 'Map tiles']);
-  const countOf = { sensors: state.devices.length, open: state.open ? state.open.points.length : 0, cydom: state.cydom ? state.cydom.points.length : 0, sea: state.sea ? state.sea.points.length : 0 };
+  const items = [['sensors', T('Our sensors', 'Οι αισθητήρες μας')], ['schools', T('Schools', 'Σχολεία')], ['weather', T('Weather', 'Καιρός')], ['air', T('Air quality', 'Ποιότητα αέρα')], ['sea', T('Sea', 'Θάλασσα')], ['open', T('Open sensors', 'Ανοιχτοί αισθητήρες')], ['cydom', T('Met Office', 'Μετεωρολογική Υπηρεσία')]];
+  if (state.errors.map) items.push(['map', T('Map tiles', 'Πλακίδια χάρτη')]);
+  const countOf = { sensors: state.devices.length, schools: state.schools.length, open: state.open ? state.open.points.length : 0, cydom: state.cydom ? state.cydom.points.length : 0, sea: state.sea ? state.sea.points.length : 0 };
   $('status').innerHTML = items.map(([k, n]) => {
-    if (state.errors[k]) return `<div class="e">${n}: ${state.errors[k]}</div>`;
-    const t = state.lastOk[k] ? new Date(state.lastOk[k]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'waiting';
-    const feed = k === 'cydom' && state.cydom && state.cydom.feedTime ? ` · newest reading ${ago(state.cydom.feedTime)}${isOld(state.cydom.feedTime) ? ' (old)' : ''}` : '';
-    return `<div>${n}: ${t}${countOf[k] != null ? ' · ' + countOf[k] + ' found' : ''}${feed}</div>`;
-  }).join('') + trailStatus() + (state.cfg && state.cfg.demo ? '<div>Demo vehicles shown</div>' : '');
+    if (state.errors[k]) return `<div class="e">${n}: ${esc(state.errors[k])}</div>`;
+    const t = state.lastOk[k] ? hm(state.lastOk[k]) : T('waiting', 'αναμονή');
+    const feed = k === 'cydom' && state.cydom && state.cydom.feedTime ? T(' · newest reading ', ' · νεότερη μέτρηση ') + ago(state.cydom.feedTime) + (isOld(state.cydom.feedTime) ? ' (' + T('old', 'παλιά') + ')' : '') : '';
+    return `<div>${n}: ${t}${countOf[k] != null ? ' · ' + countOf[k] + T(' found', ' βρέθηκαν') : ''}${feed}</div>`;
+  }).join('') + trailStatus() + (state.cfg && state.cfg.demo ? `<div>${T('Demo vehicles shown', 'Εμφανίζονται δοκιμαστικά οχήματα')}</div>` : '');
   const stale = !state.lastOk.sensors || Date.now() - state.lastOk.sensors > 120000;
-  $('live').textContent = stale ? 'Waiting' : 'Live';
+  $('live').textContent = stale ? T('Waiting', 'Αναμονή') : T('Live', 'Ζωντανά');
   $('live').classList.toggle('stale', stale);
+}
+// Public visitors get positions that are late and rounded (the API says posDelayed): say so on the map.
+function syncDelayed() {
+  const was = state.delayed;
+  state.delayed = state.devices.length ? state.devices.some((d) => d.posDelayed) : Boolean(state.cfg && state.cfg.exactPositions === false);
+  if (ROOT && ROOT.classList) ROOT.classList.toggle('delayed', state.delayed);
+  $('lgPriv').textContent = state.delayed ? delayedLine() + '.' : '';
+  if (was !== state.delayed && map.getLayer && map.getLayer('pulse')) applyToggles();
+}
+function updateSchools() {
+  const src = map.getSource('schools');
+  const list = state.schools.filter((x) => isFinite(x.lat) && isFinite(x.lng));
+  if (src && src.setData) src.setData({ type: 'FeatureCollection', features: list.map((x) => pt(x.lng, x.lat, { slug: x.slug, name: x.name, label: x.short || x.name })) });
+  $('subSch').textContent = list.length ? T(list.length + (list.length === 1 ? ' school' : ' schools'), list.length + (list.length === 1 ? ' σχολείο' : ' σχολεία')) : T('None found', 'Δεν βρέθηκαν');
 }
 async function refresh(kind) {
   try {
     if (kind === 'sensors') {
       [state.devices, state.latest] = await Promise.all([getJson('/api/devices'), getJson('/api/latest')]);
       fillMeasures();
+      syncDelayed();
       appendLive();
       updateSensors();
       updateTrails();
       if (state.selected && !state.replay) showDetail(state.selected, false);
+    } else if (kind === 'schools') {
+      const j = await getJson('/app/api/schools/public');
+      state.schools = (j && j.schools) || [];
+      updateSchools();
     } else {
       const url = { weather: '/api/weather', air: '/api/air', sea: '/api/sea', open: '/api/opensensors', cydom: '/api/cydom' }[kind];
       state[kind] = await getJson(url);
@@ -1003,7 +1321,7 @@ function fillMeasures() {
   const key = mids.join(',');
   if (sel.dataset.key === key) return;
   sel.dataset.key = key;
-  sel.innerHTML = mids.map((m) => `<option value="${m}">${nameOf(m)}${unitOf(m) ? ' (' + unitOf(m) + ')' : ''}</option>`).join('');
+  sel.innerHTML = mids.map((m) => `<option value="${esc(m)}">${esc(nameOf(m))}${unitOf(m) ? ' (' + esc(unitOf(m)) + ')' : ''}</option>`).join('');
   if (!mids.includes(state.mid)) state.mid = mids[0] || '4097';
   sel.value = state.mid;
 }
@@ -1020,7 +1338,9 @@ function vis(id, on) { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibili
 function applyToggles() {
   vis('vehicles', $('lDots').checked); vis('vehicles-heading', $('lDots').checked); vis('vehicles-labels', $('lDots').checked);
   vis('columns', $('lCols').checked);
-  vis('pulse', $('lPulse').checked && $('lDots').checked);
+  vis('pulse', $('lPulse').checked && $('lDots').checked && !state.delayed);
+  vis('vehicles-halo', $('lDots').checked);
+  vis('schools-halo', $('lSchools').checked); vis('schools-dots', $('lSchools').checked); vis('schools-labels', $('lSchools').checked);
   vis('trails', state.trailWin > 0); vis('trails-gap', state.trailWin > 0);
   vis('hillshade', $('lHill').checked);
   vis('roads', $('lRoads').checked); vis('labels', $('lLabels').checked);
@@ -1029,6 +1349,7 @@ function applyToggles() {
   vis('cydom-dots', $('lCydom').checked); vis('cydom-labels', $('lCydom').checked);
   vis('sea-dots', $('lSea').checked); vis('sea-labels', $('lSea').checked);
   if ($('lTerrain').checked) map.setTerrain({ source: 'dem', exaggeration: Number($('exag').value) }); else map.setTerrain(null);
+  syncCount();
 }
 
 map.on('load', () => {
@@ -1040,7 +1361,7 @@ map.on('load', () => {
   map.addSource('surface', { type: 'image', url: blank, coordinates: [[FIELD_BOX.lng0, FIELD_BOX.lat1], [FIELD_BOX.lng1, FIELD_BOX.lat1], [FIELD_BOX.lng1, FIELD_BOX.lat0], [FIELD_BOX.lng0, FIELD_BOX.lat0]] });
   map.addLayer({ id: 'surface-layer', type: 'raster', source: 'surface', layout: { visibility: 'none' }, paint: { 'raster-resampling': 'linear', 'raster-opacity': 0.6 } });
 
-  ['sensors', 'columns', 'wind', 'open', 'sea', 'trails'].forEach((s) => map.addSource(s, { type: 'geojson', data: EMPTY }));
+  ['sensors', 'columns', 'wind', 'open', 'sea', 'trails', 'schools'].forEach((s) => map.addSource(s, { type: 'geojson', data: EMPTY }));
   map.addSource('cydom', { type: 'geojson', data: EMPTY, attribution: 'Station data © Cyprus Department of Meteorology' });
   squareIcons();
   vehicleIcons();
@@ -1053,17 +1374,22 @@ map.on('load', () => {
   map.addImage('arrow', a.getImageData(0, 0, 32, 32));
 
   const text = { 'text-font': ['Open Sans Regular'], 'text-size': 11, 'text-offset': [0, 1.4], 'text-anchor': 'top', 'text-optional': true };
-  const halo = { 'text-color': '#1c1c1a', 'text-halo-color': 'rgba(255,255,255,.9)', 'text-halo-width': 1.5 };
+  const halo = { 'text-color': '#EAF0F7', 'text-halo-color': 'rgba(9,18,32,.92)', 'text-halo-width': 1.6 };
+  const haloCyan = { ...halo, 'text-color': '#8FE3F7' }, haloCopper = { ...halo, 'text-color': '#F7C9A0' };
 
   map.addLayer({ id: 'wind-arrows', type: 'symbol', source: 'wind', layout: { 'icon-image': 'arrow', 'icon-rotate': ['get', 'to'], 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-size': ['interpolate', ['linear'], ['get', 'ws'], 0, 0.45, 14, 1.1] }, paint: { 'icon-opacity': 0.85 } });
-  map.addLayer({ id: 'sea-dots', type: 'circle', source: 'sea', paint: { 'circle-radius': 7, 'circle-color': ['interpolate', ['linear'], ['get', 'sst'], 16, '#2a78d6', 22, '#1baf7a', 28, '#e34948'], 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5, 'circle-pitch-alignment': 'map' } });
+  map.addLayer({ id: 'sea-dots', type: 'circle', source: 'sea', paint: { 'circle-radius': 7, 'circle-color': ['interpolate', ['linear'], ['get', 'sst'], 16, '#2a78d6', 22, '#1baf7a', 28, '#e34948'], 'circle-stroke-color': 'rgba(255,255,255,.85)', 'circle-stroke-width': 1.5, 'circle-pitch-alignment': 'map' } });
   map.addLayer({ id: 'sea-labels', type: 'symbol', source: 'sea', layout: { 'text-field': ['get', 'label'], ...text }, paint: halo });
-  map.addLayer({ id: 'open-dots', type: 'circle', source: 'open', paint: { 'circle-radius': 6, 'circle-color': ['case', ['!=', ['get', 'pm25'], null], ['interpolate', ['linear'], ['get', 'pm25'], 0, '#1baf7a', 15, '#eda100', 35, '#e34948'], '#9aa4b2'], 'circle-stroke-color': '#1c1c1a', 'circle-stroke-width': 1.5 } });
+  map.addLayer({ id: 'open-dots', type: 'circle', source: 'open', paint: { 'circle-radius': 6, 'circle-color': ['case', ['!=', ['get', 'pm25'], null], ['interpolate', ['linear'], ['get', 'pm25'], 0, '#1baf7a', 15, '#eda100', 35, '#e34948'], '#9aa4b2'], 'circle-stroke-color': '#0C1626', 'circle-stroke-width': 1.5 } });
   map.addLayer({ id: 'open-labels', type: 'symbol', source: 'open', layout: { 'text-field': ['get', 'label'], ...text }, paint: halo });
   map.addLayer({ id: 'cydom-dots', type: 'symbol', source: 'cydom', layout: { 'icon-image': ['get', 'icon'], 'icon-allow-overlap': true, 'icon-size': 0.85 } });
-  map.addLayer({ id: 'cydom-labels', type: 'symbol', source: 'cydom', layout: { 'text-field': ['get', 'label'], ...text }, paint: halo });
+  map.addLayer({ id: 'cydom-labels', type: 'symbol', source: 'cydom', layout: { 'text-field': ['get', 'label'], ...text }, paint: haloCyan });
+  map.addLayer({ id: 'schools-halo', type: 'circle', source: 'schools', paint: { 'circle-radius': 15, 'circle-color': 'rgba(224,127,63,.22)', 'circle-pitch-alignment': 'map' } });
+  map.addLayer({ id: 'schools-dots', type: 'circle', source: 'schools', paint: { 'circle-radius': 6.5, 'circle-color': '#E07F3F', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2, 'circle-pitch-alignment': 'map' } });
+  map.addLayer({ id: 'schools-labels', type: 'symbol', source: 'schools', layout: { 'text-field': ['get', 'label'], ...text, 'text-size': 12, 'text-offset': [0, 1.2], 'text-optional': false }, paint: haloCopper });
   map.addLayer({ id: 'trails-gap', type: 'line', source: 'trails', filter: ['==', ['get', 'gap'], 1], layout: { 'line-cap': 'butt' }, paint: { 'line-color': ['get', 'color'], 'line-width': 2, 'line-opacity': 0.8, 'line-dasharray': [1.5, 2] } });
-  map.addLayer({ id: 'trails', type: 'line', source: 'trails', filter: ['==', ['get', 'gap'], 0], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': ['interpolate', ['linear'], ['zoom'], 7, 2.5, 12, 5, 16, 8], 'line-opacity': ['get', 'a'] } });
+  map.addLayer({ id: 'trails', type: 'line', source: 'trails', filter: ['==', ['get', 'gap'], 0], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': ['interpolate', ['linear'], ['zoom'], 7, ['*', 2.5, ['get', 'w']], 12, ['*', 5, ['get', 'w']], 16, ['*', 8, ['get', 'w']]], 'line-opacity': ['get', 'a'] } });
+  map.addLayer({ id: 'vehicles-halo', type: 'circle', source: 'sensors', filter: ['==', ['get', 'approx'], 1], paint: { 'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 8, 2, 16, 512], 'circle-color': 'rgba(143,123,255,.14)', 'circle-stroke-color': 'rgba(196,184,255,.7)', 'circle-stroke-width': 1, 'circle-pitch-alignment': 'map', 'circle-pitch-scale': 'map' } });
   map.addLayer({ id: 'pulse', type: 'circle', source: 'sensors', filter: ['==', ['get', 'online'], 1], paint: { 'circle-radius': 10, 'circle-opacity': 0, 'circle-stroke-color': ['get', 'color'], 'circle-stroke-width': 2.5, 'circle-stroke-opacity': 0.6 } });
   map.addLayer({ id: 'columns', type: 'fill-extrusion', source: 'columns', paint: { 'fill-extrusion-color': ['get', 'color'], 'fill-extrusion-height': ['get', 'h'], 'fill-extrusion-opacity': 0.9 } });
   map.addLayer({ id: 'vehicles-heading', type: 'symbol', source: 'sensors', filter: ['==', ['get', 'moving'], 1], layout: { 'icon-image': 'hdg-arrow', 'icon-rotate': ['get', 'hdg'], 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
@@ -1081,66 +1407,116 @@ map.on('load', () => {
   map.on('mouseenter', id, () => (map.getCanvas().style.cursor = 'pointer'));
   map.on('mouseleave', id, () => (map.getCanvas().style.cursor = ''));
 });
+function openPopup(lngLat, html, opts, after, props) {
+  if (state.popup && state.popup.remove) state.popup.remove();
+  const pop = new maplibregl.Popup({ closeButton: true, ...((opts && opts.popup) || {}) }).setLngLat(lngLat).setHTML(html).addTo(map);
+  state.popup = pop;
+  if (after && pop.getElement) after(pop.getElement(), props);
+  return pop;
+}
 function popupOn(id, fn, opts) {
   map.on('click', id, (e) => {
     const props = e.features[0].properties;
-    const pop = new maplibregl.Popup({ closeButton: false, ...((opts && opts.popup) || {}) }).setLngLat(e.lngLat).setHTML(fn(props)).addTo(map);
-    if (opts && opts.after && pop.getElement) opts.after(pop.getElement(), props);
+    openPopup(e.lngLat, fn(props), opts, opts && opts.after, props);
   });
   map.on('mouseenter', id, () => (map.getCanvas().style.cursor = 'pointer'));
   map.on('mouseleave', id, () => (map.getCanvas().style.cursor = ''));
 }
-const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const isNum = (v) => v != null && v !== 'null' && v !== '' && isFinite(Number(v));
+const COMPASS = LANG === 'el' ? ['Β', 'ΒΑ', 'Α', 'ΝΑ', 'Ν', 'ΝΔ', 'Δ', 'ΒΔ'] : ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+const compass = (deg) => COMPASS[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
+const MO_GREEK = { temp: 'Θερμοκρασία', hum: 'Υγρασία', ws10: 'Ταχύτητα ανέμου (10 m)', ws2: 'Ταχύτητα ανέμου (2 m)', pmsl: 'Πίεση (στάθμη θάλασσας)', rain10: 'Βροχή (10 λεπτά)', dsr: 'Άμεση ηλιακή ακτινοβολία', tmax: 'Μέγιστη ημέρας', tmin: 'Ελάχιστη ημέρας' };
+const moName = (k, s) => (LANG === 'el' && MO_GREEK[k]) || MOChart.NAMES[k] || (s.units[k] && s.units[k].name) || k;
+
 // Fills the 24 hour chart in a Met Office station popup from the history the server saves.
 async function cydomHistory(el, p) {
   const box = el && el.querySelector && el.querySelector('.mo-box');
   const sel = el && el.querySelector('.mo-key');
+  const gap = el && el.querySelector('.pp-gap');
   if (!box || !sel || typeof MOChart === 'undefined') return;
   try {
     const s = await MOChart.series(p.id, 24);
     const keys = MOChart.KEYS.filter((k) => MOChart.points(s, k).length > 1);
-    if (!keys.length) { box.textContent = 'No readings saved for the last 24 hours yet. The server saves a reading every 10 minutes.'; sel.style.display = 'none'; return; }
-    sel.innerHTML = keys.map((k) => `<option value="${k}">${esc(MOChart.NAMES[k] || (s.units[k] && s.units[k].name) || k)}</option>`).join('');
+    if (!keys.length) { box.textContent = T('No readings saved for the last 24 hours yet. The server saves a reading every 10 minutes.', 'Δεν έχουν αποθηκευτεί ακόμα μετρήσεις για τις τελευταίες 24 ώρες. Ο διακομιστής αποθηκεύει μία μέτρηση κάθε 10 λεπτά.'); sel.style.display = 'none'; return; }
+    sel.innerHTML = keys.map((k) => `<option value="${k}">${esc(moName(k, s))}</option>`).join('');
     const draw = () => {
       const k = sel.value, u = s.units[k] || {};
-      MOChart.render(box, MOChart.points(s, k), { w: 300, h: 140, unit: u.unit || '', label: MOChart.NAMES[k] || u.name || k, hours: 24, ink: '#5c5b57', grid: 'rgba(0,0,0,.14)', color: '#2a78d6' });
+      const pts = MOChart.points(s, k);
+      MOChart.render(box, pts, { w: 300, h: 140, unit: u.unit || '', label: moName(k, s), hours: 24, ink: '#8CA0B8', grid: 'rgba(255,255,255,.09)', color: '#4CCBEA',
+        latest: T('Latest ', 'Τελευταία '), empty: T('Not enough readings saved for this period yet.', 'Δεν υπάρχουν ακόμα αρκετές αποθηκευμένες μετρήσεις.') });
+      let g = null;
+      for (let i = 1; i < pts.length; i++) if (pts[i].t - pts[i - 1].t > 3600000 && (!g || pts[i].t - pts[i - 1].t > g.b - g.a)) g = { a: pts[i - 1].t, b: pts[i].t };
+      if (gap) { gap.textContent = g ? T(`No reading from ${hm(g.a)} to ${hm(g.b)}`, `Καμία μέτρηση από ${hm(g.a)} έως ${hm(g.b)}`) : ''; gap.classList.toggle('show', !!g); }
     };
     sel.addEventListener('change', draw);
     draw();
-  } catch (e) { box.textContent = 'Could not load the history. ' + e.message; }
+  } catch (e) { box.textContent = T('Could not load the history. ', 'Δεν φορτώθηκε το ιστορικό. ') + e.message; }
 }
-popupOn('open-dots', (p) => `<b>Open sensor ${p.id}</b><br>${p.pm25 != null && p.pm25 !== 'null' ? 'PM2.5 ' + p.pm25 + ' µg/m³<br>' : ''}${p.pm10 != null && p.pm10 !== 'null' ? 'PM10 ' + p.pm10 + ' µg/m³<br>' : ''}${p.temp != null && p.temp !== 'null' ? 'Temperature ' + p.temp + ' °C<br>' : ''}${p.hum != null && p.hum !== 'null' ? 'Humidity ' + p.hum + ' %' : ''}`);
-popupOn('cydom-dots', (p) => {
+function cydomHtml(p) {
   let obs = [];
   try { obs = JSON.parse(p.obs || '[]'); } catch (e) { obs = []; }
-  const when = p.time && p.time !== 'null' ? `${ago(p.time)}${isOld(p.time) ? ' (old reading)' : ''}` : 'unknown time';
-  const rows = obs.map((o) => `<tr><td>${o.name}</td><td style="text-align:right;padding-left:8px">${o.value} ${o.unit === 'Celcius' ? '°C' : o.unit}</td></tr>`).join('');
-  return `<b>${p.name}</b> <span style="color:#5c5b57">Met Office station</span><br><span style="color:#5c5b57">Reading ${when}</span>` +
-    `<div style="max-height:96px;overflow:auto;margin-top:4px"><table style="border-collapse:collapse">${rows}</table></div>` +
-    `<div class="mo-hist" data-station="${esc(p.id)}" style="margin-top:8px;border-top:0.5px solid rgba(0,0,0,.14);padding-top:6px">` +
-      `<select class="mo-key" aria-label="Reading to chart" style="width:100%;margin-bottom:4px;color:#1c1c1a"></select><div class="mo-box" style="min-height:60px;color:#5c5b57">Loading the last 24 hours…</div>` +
-      `<div style="margin-top:4px"><a class="mo-csv" href="/api/cydom/history.csv?station=${encodeURIComponent(p.id)}&days=1" download style="color:#2a78d6">Download CSV (24 hours)</a> · ` +
-      (EMBED ? `<a href="/app/#/met/${encodeURIComponent(p.id)}" target="_top" style="color:#2a78d6">More</a>` : `<a href="/metoffice.html#${encodeURIComponent(p.id)}" style="color:#2a78d6">All data for this station</a>`) + `</div></div>` +
-    `<div style="color:#5c5b57;margin-top:4px">© Cyprus Department of Meteorology</div>`;
-}, { popup: { maxWidth: '320px' }, after: cydomHistory });
-popupOn('sea-dots', (p) => `<b>Sea point</b><br>Sea temperature ${p.sst} °C<br>Waves ${p.wave} m`);
-popupOn('wind-arrows', (p) => `<b>Weather model</b><br>Temperature ${p.t} °C<br>Wind ${r1(Number(p.ws))} m/s`);
+  const timeOk = p.time && p.time !== 'null' && isFinite(Date.parse(p.time));
+  const sub = [];
+  if (isNum(p.hum)) sub.push(`${T('Humidity', 'Υγρασία')} ${r1(Number(p.hum))} %`);
+  if (isNum(p.ws)) sub.push(`${T('Wind', 'Άνεμος')} ${r1(Number(p.ws))} m/s${isNum(p.wd) ? ' ' + compass(Number(p.wd)) : ''}`);
+  const rows = obs.map((o) => `<tr><td>${esc(o.name)}</td><td>${esc(o.value)} ${esc(o.unit === 'Celcius' ? '°C' : o.unit)}</td></tr>`).join('');
+  return `<div class="pp"><div class="pp-h"><i class="dia"></i><div><b>${esc(p.name)}</b><small>${T('Met Office station', 'Σταθμός Μετεωρολογικής Υπηρεσίας')} · ${timeOk ? esc(hm(Date.parse(p.time))) + ' · ' + esc(ago(p.time)) : T('unknown time', 'άγνωστη ώρα')}</small></div></div>` +
+    (isNum(p.temp) ? `<div class="pp-big"><span class="num">${r1(Number(p.temp))}</span><span class="u">°C</span>${timeOk && isOld(p.time) ? `<span class="old">${T('old reading', 'παλιά μέτρηση')}</span>` : ''}</div>` : '') +
+    (sub.length ? `<div class="pp-sub">${sub.join(' · ')}</div>` : '') +
+    `<div class="mo-hist" data-station="${esc(p.id)}"><select class="mo-key" aria-label="${esc(T('Reading to chart', 'Μέτρηση για το γράφημα'))}"></select><div class="mo-box">${T('Loading the last 24 hours…', 'Φόρτωση των τελευταίων 24 ωρών…')}</div><div class="pp-gap"></div></div>` +
+    (rows ? `<div class="pp-obs"><table>${rows}</table></div>` : '') +
+    `<div class="pp-f"><a class="btn mo-csv" href="/api/cydom/history.csv?station=${encodeURIComponent(p.id)}&days=1" download>${icon('dl')}${T('Download CSV · 24 hours', 'Λήψη CSV · 24 ώρες')}</a>` +
+    `<a class="btn" href="/#/weather/${encodeURIComponent(p.id)}" target="_top">${T('All data for this station', 'Όλα τα δεδομένα του σταθμού')}</a></div>` +
+    `<div class="pp-credit">© Cyprus Department of Meteorology</div></div>`;
+}
+const CYDOM_POPUP = { popup: { maxWidth: '320px' }, after: cydomHistory };
+popupOn('cydom-dots', cydomHtml, CYDOM_POPUP);
+// ?station=<id>: open that station (the shell passes it from its route)
+function openStation(id) {
+  const p = state.cydom && state.cydom.points.find((x) => String(x.id).toLowerCase() === String(id).toLowerCase());
+  if (!p) return false;
+  const props = { ...p, obs: JSON.stringify(p.obs || []) };
+  openPopup([p.lng, p.lat], cydomHtml(props), CYDOM_POPUP, cydomHistory, props);
+  map.easeTo({ center: [p.lng, p.lat], zoom: Math.max(map.getZoom(), 10), duration: 800 });
+  return true;
+}
+const popRow = (k, v) => (isNum(v) ? `<tr><td>${k}</td><td>${r1(Number(v))}</td></tr>` : '');
+popupOn('schools-dots', (p) => `<div class="pp"><div class="pp-h"><i class="dia sch"></i><div><b>${esc(p.name)}</b><small>${T('School', 'Σχολείο')}</small></div></div>` +
+  `<div class="pp-f"><a class="btn" href="/#/schools?school=${encodeURIComponent(p.slug)}" target="_top">${T('Teams and sensors', 'Ομάδες και αισθητήρες')}</a></div></div>`);
+popupOn('open-dots', (p) => `<div class="pp"><div class="pp-h"><i class="dia" style="background:#59d98e;box-shadow:0 0 10px #59d98e"></i><div><b>${T('Open sensor', 'Ανοιχτός αισθητήρας')} ${esc(p.id)}</b><small>Sensor.Community</small></div></div>` +
+  `<div class="pp-obs"><table>${popRow('PM2.5 (µg/m³)', p.pm25)}${popRow('PM10 (µg/m³)', p.pm10)}${popRow(T('Temperature (°C)', 'Θερμοκρασία (°C)'), p.temp)}${popRow(T('Humidity (%)', 'Υγρασία (%)'), p.hum)}</table></div></div>`);
+popupOn('sea-dots', (p) => `<div class="pp"><div class="pp-h"><i class="dia" style="background:#4C8BEA;box-shadow:0 0 10px #4C8BEA"></i><div><b>${T('Sea point', 'Σημείο θάλασσας')}</b><small>Open-Meteo</small></div></div>` +
+  `<div class="pp-obs"><table>${popRow(T('Sea temperature (°C)', 'Θερμοκρασία θάλασσας (°C)'), p.sst)}${popRow(T('Waves (m)', 'Κύματα (m)'), p.wave)}</table></div></div>`);
+popupOn('wind-arrows', (p) => `<div class="pp"><div class="pp-h"><i class="dia" style="background:#8fb8ff;box-shadow:0 0 10px #8fb8ff"></i><div><b>${T('Weather model', 'Μοντέλο καιρού')}</b><small>Open-Meteo</small></div></div>` +
+  `<div class="pp-obs"><table>${popRow(T('Temperature (°C)', 'Θερμοκρασία (°C)'), p.t)}${popRow(T('Wind (m/s)', 'Άνεμος (m/s)'), p.ws)}</table></div></div>`);
 
 document.querySelectorAll('#base button').forEach((b) => b.addEventListener('click', () => setBase(b.dataset.b)));
-['lDots', 'lCols', 'lHill', 'lRoads', 'lLabels', 'lWind', 'lOpen', 'lCydom', 'lSea', 'lTerrain'].forEach((id) => $(id).addEventListener('change', applyToggles));
+['lDots', 'lCols', 'lSchools', 'lHill', 'lRoads', 'lLabels', 'lWind', 'lOpen', 'lCydom', 'lSea', 'lTerrain'].forEach((id) => $(id).addEventListener('change', applyToggles));
 $('exag').addEventListener('input', applyToggles);
 document.querySelectorAll('input[name=surf]').forEach((r) => r.addEventListener('change', renderSurface));
 $('surfOp').addEventListener('input', () => map.getLayer('surface-layer') && map.setPaintProperty('surface-layer', 'raster-opacity', Number($('surfOp').value)));
 document.querySelectorAll('input[name=nasa]').forEach((r) => r.addEventListener('change', applyNasa));
+// A radio row looks like a switch: pressing the row that is on turns the whole group off.
+function radioSwitch(name, after) {
+  const off = document.querySelector('input[name=' + name + '][value=off]');
+  document.querySelectorAll('input[name=' + name + ']').forEach((r) => {
+    if (r.value === 'off') return;
+    r.addEventListener('pointerdown', () => { r.dataset.was = r.checked ? '1' : ''; });
+    r.addEventListener('click', () => { if (r.dataset.was === '1' && r.checked && off) { off.checked = true; r.dataset.was = ''; after(); } });
+    r.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && r.checked && off) { e.preventDefault(); off.checked = true; after(); } });
+  });
+}
+radioSwitch('surf', renderSurface);
+radioSwitch('nasa', applyNasa);
 $('nasaDate').addEventListener('change', applyNasa);
 $('nasaOp').addEventListener('input', () => { const s = document.querySelector('input[name=nasa]:checked').value; if (s !== 'off' && map.getLayer('nasa-' + s)) map.setPaintProperty('nasa-' + s, 'raster-opacity', Number($('nasaOp').value)); });
 $('measure').addEventListener('change', (e) => { state.mid = e.target.value; updateAll(); loadTrails(); });
 $('trailWin').addEventListener('change', (e) => { state.trailWin = Number(e.target.value); applyToggles(); loadTrails(); });
 $('lPulse').addEventListener('change', applyToggles);
-$('lWindAnim').addEventListener('change', () => { wind.box = null; });
+$('lWindAnim').addEventListener('change', () => { wind.box = null; syncCount(); });
 $('btnTour').addEventListener('click', () => (state.tour ? stopTour() : startTour()));
 $('btnLapse').addEventListener('click', () => {
-  if ($('replay').style.display === 'flex') { $('replay').style.display = 'none'; if (state.replay) stopReplay(); } else $('replay').style.display = 'flex';
+  if ($('replay').style.display === 'flex') { setReplayBar(false); if (state.replay) stopReplay(); } else setReplayBar(true);
 });
 $('rpPlay').addEventListener('click', async () => {
   if (!state.replay) { await startReplay(null); return; }
@@ -1154,26 +1530,59 @@ $('rpSlider').addEventListener('input', async (e) => {
   r.cur = r.t0 + (Number(e.target.value) / 1000) * (r.t1 - r.t0);
   updateSensors(); updateTrails(); syncReplayUi();
 });
-$('rpSpeed').addEventListener('change', (e) => { if (state.replay) state.replay.mult = Number(e.target.value); });
+document.querySelectorAll('#rpSpeeds button').forEach((b) => b.addEventListener('click', () => {
+  state.rpMult = Number(b.dataset.v) || 1;
+  document.querySelectorAll('#rpSpeeds button').forEach((x) => x.classList.toggle('on', x === b));
+  if (state.replay) state.replay.mult = state.rpMult;
+}));
 $('rpLive').addEventListener('click', () => stopReplay());
-$('rpClose').addEventListener('click', () => { $('replay').style.display = 'none'; stopReplay(); });
+$('rpClose').addEventListener('click', () => { setReplayBar(false); stopReplay(); });
 ['mousedown', 'touchstart', 'wheel'].forEach((ev) => map.on(ev, stopAuto));
-$('fold').addEventListener('click', () => $('layers').classList.toggle('closed'));
+$('fold').addEventListener('click', () => { const closed = $('layers').classList.toggle('closed'); $('fold').setAttribute('aria-expanded', closed ? 'false' : 'true'); });
+if (innerWidth < 760) $('layers').classList.add('closed');   // on a phone the layers start folded away
+function syncCount() {
+  const n = [...document.querySelectorAll('.lay > input')].filter((i) => i.checked && i.value !== 'off').length;
+  $('onCount').textContent = T(n + ' on', n + ' ενεργά');
+}
+syncCount();
+
+function showBanner(text, retry) {
+  $('bannerTxt').textContent = text;
+  $('bannerBtn').style.display = retry ? '' : 'none';
+  $('bannerBtn').onclick = retry || null;
+  $('banner').hidden = false;
+}
+function hideBanner() { $('banner').hidden = true; }
 
 async function start() {
-  try { state.cfg = await getJson('/api/config'); } catch (e) { $('status').textContent = 'Could not load: ' + e.message; return; }
-  await Promise.all(['sensors', 'weather', 'air', 'sea', 'open', 'cydom'].map(refresh));
+  try { state.cfg = await getJson('/api/config'); } catch (e) {
+    $('status').textContent = T('Could not load: ', 'Δεν φορτώθηκε: ') + e.message;
+    showBanner(T('The map data could not be loaded. ', 'Δεν φορτώθηκαν τα δεδομένα του χάρτη. ') + e.message, start);
+    return;
+  }
+  hideBanner();
+  await Promise.all(['sensors', 'schools', 'weather', 'air', 'sea', 'open', 'cydom'].map(refresh));
   await loadTrails();
+  if (state.errors.sensors) showBanner(T('Our sensors could not be loaded. ', 'Δεν φορτώθηκαν οι αισθητήρες μας. ') + state.errors.sensors, () => { hideBanner(); refresh('sensors'); });
   setInterval(() => refresh('sensors'), 30000);
   setInterval(() => refresh('weather'), 300000);
   setInterval(() => refresh('air'), 900000);
   setInterval(() => refresh('sea'), 900000);
   setInterval(() => refresh('open'), 300000);
   setInterval(() => refresh('cydom'), 600000);
+  setInterval(() => refresh('schools'), 3600000);
   setInterval(loadTrails, 300000);
   setInterval(showStatus, 15000);
-  const hash = decodeURIComponent(location.hash.slice(1));
-  if (hash && state.devices.some((d) => d.eui === hash)) showDetail(hash);
+  // The shell passes its route query: ?eui=<vehicle> opens that vehicle and its trail, ?station=<id> opens a Met Office station.
+  const eui = qp('eui') || decodeURIComponent(String(location.hash || '').slice(1));
+  if (eui) {
+    if (state.devices.some((d) => d.eui === eui)) {
+      if (!state.trailWin) { $('trailWin').value = '6'; state.trailWin = 6; applyToggles(); await loadTrails(); }
+      showDetail(eui);
+    } else if (qp('eui')) showBanner(T('That vehicle is not on the map right now.', 'Αυτό το όχημα δεν βρίσκεται αυτή τη στιγμή στον χάρτη.'));
+  }
+  const station = qp('station');
+  if (station && !openStation(station)) showBanner(T('That station is not on the map right now.', 'Αυτός ο σταθμός δεν βρίσκεται αυτή τη στιγμή στον χάρτη.'));
 }
 </script>
 </body>

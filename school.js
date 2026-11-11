@@ -251,6 +251,10 @@ function createApp(opts = {}) {
   const limiter = new Limiter();
   const sweeper = setInterval(() => limiter.sweep(), 600000);
   sweeper.unref();
+  // Per-network counters of the public Ask are kept for a full day, so they get their own limiter and sweep.
+  const askLimiter = new Limiter();
+  const askSweeper = setInterval(() => askLimiter.sweep(DAY), 600000);
+  askSweeper.unref();
 
   /* ---------- users, sessions ---------- */
 
@@ -381,6 +385,34 @@ function createApp(opts = {}) {
     open_join: Boolean(opts.openJoin && opts.openJoin(req)),
   }));
 
+  // Names only: no join codes, no members.
+  route('GET', /^\/app\/api\/schools\/public$/, 'none', ({ res }) => {
+    res.setHeader('Cache-Control', 'public, max-age=30');
+    const teams = all('SELECT id, school_id, name, device_eui FROM teams ORDER BY name COLLATE NOCASE, id');
+    return {
+      schools: all('SELECT id, slug, name, short, lat, lng FROM schools ORDER BY id').map((s) => ({
+        slug: s.slug, name: s.name, short: s.short, lat: s.lat, lng: s.lng,
+        teams: teams.filter((t) => t.school_id === s.id).map((t) => ({ id: t.id, name: t.name, device_eui: t.device_eui || null })),
+      })),
+    };
+  });
+
+  // The last 10 messages that teachers or admins posted to All schools. The author is only ever a role and a school, never a name.
+  let annCache = null;
+  const annFresh = () => { annCache = null; };
+  route('GET', /^\/app\/api\/announcements$/, 'none', ({ res }) => {
+    res.setHeader('Cache-Control', 'public, max-age=30');
+    if (annCache && Date.now() - annCache.at < 30000) return annCache.out;
+    const rows = all(`SELECT m.id, m.created_at, m.body, u.role, u.school_id FROM messages m JOIN users u ON u.id = m.user_id
+      WHERE m.channel = 'all' AND m.deleted_at IS NULL AND u.role IN ('teacher', 'admin') ORDER BY m.id DESC LIMIT 10`);
+    const out = { items: rows.map((r) => {
+      const s = schoolOf(r.school_id);
+      return { id: r.id, at: r.created_at, text: r.body, by: (r.role === 'admin' ? 'Admin' : 'Teacher') + (s ? ', ' + s.short : '') };
+    }) };
+    annCache = { at: Date.now(), out };
+    return out;
+  });
+
   route('POST', /^\/app\/api\/join$/, 'none', async ({ req, res, body }) => {
     // A whole class joins from one school network, so only wrong codes are counted tightly.
     if (limiter.count('join-fail:' + clientIp(req), 15 * 60000) >= 10) fail(429, 'Too many wrong codes. Wait 15 minutes and ask your teacher for the code.', 'rate');
@@ -498,6 +530,7 @@ function createApp(opts = {}) {
   });
 
   route('POST', /^\/app\/api\/messages$/, 'active', ({ user, body }) => {
+    if (!isStaff(user)) fail(403, CHAT_CLOSED, 'chat_closed');
     const ch = String(body.channel || '');
     if (!canAccess(user, ch)) fail(403, 'You cannot write in that channel.');
     const fresh = userRow(user.id);
@@ -512,6 +545,7 @@ function createApp(opts = {}) {
     const id = run('INSERT INTO messages(channel, user_id, body, created_at) VALUES (?,?,?,?)', ch, user.id, text, Date.now()).id;
     run('INSERT INTO reads(user_id, channel, last_id) VALUES (?,?,?) ON CONFLICT(user_id, channel) DO UPDATE SET last_id = excluded.last_id', user.id, ch, id);
     const msg = messageOut(get('SELECT * FROM messages WHERE id = ?', id));
+    annFresh();
     broadcast((u) => canAccess(u, ch), 'message', msg);
     return { message: msg };
   });
@@ -597,37 +631,50 @@ function createApp(opts = {}) {
   }
 
   // ---- the assistant ----
+  const noBot = () => !bot || !bot.status().configured;
+  const cleanQuestion = (body) => String(body.question || '').trim().slice(0, 600);
+  const cleanHistory = (body) => (Array.isArray(body.history) ? body.history : []).slice(-8)
+    .filter((h) => h && (h.role === 'user' || h.role === 'assistant') && typeof h.text === 'string' && h.text.trim())
+    .map((h) => ({ role: h.role, text: h.text.slice(0, 1500) }));
+  // Join codes never go anywhere near the assistant.
+  const schoolsForBot = () => all('SELECT id, slug, name, short, match, lat, lng FROM schools ORDER BY id');
+  const botGlobalLimit = () => envInt('BOT_GLOBAL_DAILY', 800);
+
+  // Runs the assistant and streams one JSON object per line: {type:'tool'} while it looks things up, then {type:'answer'} or {type:'error'}.
+  async function streamAnswer({ req, res, logId, ctx, extra }) {
+    res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no', 'X-Content-Type-Options': 'nosniff' });
+    const send = (o) => { if (!res.writableEnded) res.write(JSON.stringify(o) + '\n'); };
+    const t0 = Date.now();
+    const ctrl = new AbortController();
+    req.on('close', () => { if (!res.writableEnded) ctrl.abort(); });
+    try {
+      const r = await bot.ask({ ...ctx, onTool: (name) => send({ type: 'tool', name }), signal: ctrl.signal });
+      run('UPDATE bot_logs SET answer = ?, tools = ?, ms = ?, tokens_in = ?, tokens_out = ? WHERE id = ?', r.text, JSON.stringify(r.tools), Date.now() - t0, r.tokensIn || 0, r.tokensOut || 0, logId);
+      send({ type: 'answer', text: r.text, id: logId, tools: r.tools, ...extra() });
+    } catch (e) {
+      run('UPDATE bot_logs SET error = ?, ms = ? WHERE id = ?', String(e.message).slice(0, 300), Date.now() - t0, logId);
+      log('Assistant error: ' + e.message);
+      send({ type: 'error', message: e.code === 'not_configured' ? 'The assistant is not switched on yet.' : 'The assistant could not answer just now. Try again in a moment.', ...extra() });
+    }
+    res.end();
+    return STREAMED;
+  }
+
+  // For signed-in members (students keep their old accounts; teachers and admins use it too).
   route('POST', /^\/app\/api\/bot$/, 'active', async ({ req, res, user, body }) => {
-    if (!bot || !bot.status().configured) fail(503, 'The assistant is not switched on yet. Ask your teacher or admin.', 'not_configured');
-    const question = String(body.question || '').trim().slice(0, 600);
+    if (noBot()) fail(503, 'The assistant is not switched on yet. Ask your teacher or admin.', 'not_configured');
+    const question = cleanQuestion(body);
     if (!question) fail(400, 'Type a question first.');
-    const history = (Array.isArray(body.history) ? body.history : []).slice(-8)
-      .filter((h) => h && (h.role === 'user' || h.role === 'assistant') && typeof h.text === 'string' && h.text.trim())
-      .map((h) => ({ role: h.role, text: h.text.slice(0, 1500) }));
+    const history = cleanHistory(body);
     const lim = opts.botLimits || {};
-    const perMin = lim.perMinute || 6, perDay = lim.perDay || Number(process.env.BOT_DAILY_LIMIT) || 40, global = lim.global || Number(process.env.BOT_GLOBAL_DAILY) || 1500;
+    const perMin = lim.perMinute || 6, perDay = lim.perDay || envInt('BOT_DAILY_LIMIT', 40), global = lim.global || botGlobalLimit();
     const now = Date.now();
     if (get('SELECT COUNT(*) AS n FROM bot_logs WHERE user_id = ? AND created_at > ?', user.id, now - 60000).n >= perMin) fail(429, 'One moment, you are asking quickly. Try again in a minute.', 'rate');
     if (get('SELECT COUNT(*) AS n FROM bot_logs WHERE user_id = ? AND created_at > ?', user.id, now - DAY).n >= perDay) fail(429, `You used your ${perDay} questions for today. They come back tomorrow.`, 'daily');
     if (get('SELECT COUNT(*) AS n FROM bot_logs WHERE created_at > ?', now - DAY).n >= global) fail(429, 'The assistant is resting for today because the whole project used its daily limit.', 'global');
     const school = schoolOf(user.school_id), team = teamOf(user.team_id);
-    res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' });
-    const send = (o) => { if (!res.writableEnded) res.write(JSON.stringify(o) + '\n'); };
-    const t0 = Date.now();
     const logId = run('INSERT INTO bot_logs(user_id, school_id, created_at, question) VALUES (?,?,?,?)', user.id, user.school_id, now, question).id;
-    let ctrl = new AbortController();
-    req.on('close', () => { if (!res.writableEnded) ctrl.abort(); });
-    try {
-      const r = await bot.ask({ user: publicUser(user), school, team, schools: all('SELECT * FROM schools ORDER BY id'), history, question, onTool: (name) => send({ type: 'tool', name }), signal: ctrl.signal, handbook: handbookSearch });
-      run('UPDATE bot_logs SET answer = ?, tools = ?, ms = ?, tokens_in = ?, tokens_out = ? WHERE id = ?', r.text, JSON.stringify(r.tools), Date.now() - t0, r.tokensIn || 0, r.tokensOut || 0, logId);
-      send({ type: 'answer', text: r.text, id: logId, tools: r.tools });
-    } catch (e) {
-      run('UPDATE bot_logs SET error = ?, ms = ? WHERE id = ?', String(e.message).slice(0, 300), Date.now() - t0, logId);
-      log('Assistant error: ' + e.message);
-      send({ type: 'error', message: e.code === 'not_configured' ? 'The assistant is not switched on yet.' : 'The assistant could not answer just now. Try again in a moment.' });
-    }
-    res.end();
-    return STREAMED;
+    return streamAnswer({ req, res, logId, extra: () => ({}), ctx: { user: publicUser(user), school, team, schools: schoolsForBot(), history, question, handbook: (q) => handbookSearch(q) } });
   });
 
   route('POST', /^\/app\/api\/bot\/(\d+)\/report$/, 'active', ({ user, params, body }) => {
@@ -640,10 +687,99 @@ function createApp(opts = {}) {
     return { ok: true };
   });
 
-  function handbookSearch(query) {
+  /* ---- Ask for visitors: no account, no name. A random cookie (sc_v) tells visitors apart; only a short hash of it is stored. ----
+     Limits: 6 a minute and BOT_VISITOR_DAILY a day per visitor, BOT_IP_MINUTE a minute and BOT_IP_DAILY a day per network address,
+     BOT_GLOBAL_DAILY for everyone together. Days are rolling 24 hours, so every refusal can say when a question frees up. */
+  const askLimits = () => ({ perMinute: 6, visitorDaily: envInt('BOT_VISITOR_DAILY', 30), ipDaily: envInt('BOT_IP_DAILY', 150), ipMinute: envInt('BOT_IP_MINUTE', 30), global: botGlobalLimit() });
+  const VISITOR_RE = /^[A-Za-z0-9_-]{22,64}$/;
+  function visitorCookie(req) {
+    const raw = parseCookies(req.headers.cookie).sc_v;
+    return raw && VISITOR_RE.test(raw) ? raw : null;
+  }
+  const visitorHash = (id) => sha(id).slice(0, 12);
+  function visitorOf(req, res) {
+    let id = visitorCookie(req);
+    if (!id) {
+      id = crypto.randomBytes(18).toString('base64url');
+      res.setHeader('Set-Cookie', `sc_v=${id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${365 * 86400}${isHttps(req) ? '; Secure' : ''}`);
+    }
+    return visitorHash(id);
+  }
+  // How many rows of the log match, and when one more would be allowed (0 = now).
+  function logWindow(where, args, max, windowMs, now) {
+    const since = now - windowMs;
+    const n = get(`SELECT COUNT(*) AS n FROM bot_logs WHERE ${where} AND created_at > ?`, ...args, since).n;
+    if (n < max) return { n, wait: 0 };
+    const row = get(`SELECT created_at FROM bot_logs WHERE ${where} AND created_at > ? ORDER BY created_at ASC LIMIT 1 OFFSET ?`, ...args, since, n - max);
+    return { n, wait: Math.max(1000, row.created_at + windowMs - now) };
+  }
+  const leftToday = (vh, L, now) => Math.max(0, L.visitorDaily - get('SELECT COUNT(*) AS n FROM bot_logs WHERE visitor = ? AND created_at > ?', vh, now - DAY).n);
+  const slow = (code, msg, wait, now, L, vh) => fail(429, msg, code, { retry_after: Math.ceil(wait / 1000), retry_at: now + wait, remaining: vh ? leftToday(vh, L, now) : 0, limit: L.visitorDaily });
+
+  route('POST', /^\/app\/api\/ask$/, 'none', async ({ req, res, body }) => {
+    const vh = visitorOf(req, res);
+    if (noBot()) fail(503, 'The assistant is not switched on yet.', 'not_configured');
+    const question = cleanQuestion(body);
+    if (!question) fail(400, 'Type a question first.');
+    const history = cleanHistory(body);
+    const L = askLimits(), now = Date.now(), ip = clientIp(req);
+    let w = logWindow('visitor = ?', [vh], L.perMinute, 60000, now);
+    if (w.wait) slow('rate', `You are asking quickly. Please wait ${Math.ceil(w.wait / 1000)} seconds and try again.`, w.wait, now, L, vh);
+    w = askLimiter.wait('ip-min:' + ip, L.ipMinute, 60000);
+    if (w) slow('rate', `Many questions are coming from this network at once. Please wait ${Math.ceil(w / 1000)} seconds and try again.`, w, now, L, vh);
+    w = logWindow('visitor = ?', [vh], L.visitorDaily, DAY, now);
+    if (w.wait) slow('daily', `You have used your ${L.visitorDaily} questions for the last 24 hours. You can ask again at ${whenText(now + w.wait, now)}.`, w.wait, now, L, vh);
+    w = askLimiter.wait('ip-day:' + ip, L.ipDaily, DAY);
+    if (w) slow('ip', `Too many questions came from this network in the last 24 hours (the limit is ${L.ipDaily}). You can ask again at ${whenText(now + w, now)}.`, w, now, L, vh);
+    w = logWindow('1 = 1', [], L.global, DAY, now);
+    if (w.wait) slow('global', `The assistant is resting because everyone together used the daily limit of ${L.global} questions. It will be free again at ${whenText(now + w.wait, now)}.`, w.wait, now, L, vh);
+    askLimiter.take('ip-min:' + ip, L.ipMinute, 60000);
+    askLimiter.take('ip-day:' + ip, L.ipDaily, DAY);
+    const logId = run('INSERT INTO bot_logs(user_id, school_id, created_at, question, visitor) VALUES (NULL, NULL, ?, ?, ?)', now, question, vh).id;
+    return streamAnswer({
+      req, res, logId, extra: () => ({ remaining: leftToday(vh, L, Date.now()), limit: L.visitorDaily }),
+      ctx: { public: true, user: null, school: null, team: null, schools: schoolsForBot(), history, question, handbook: (q) => handbookSearch(q, true) },
+    });
+  });
+
+  route('GET', /^\/app\/api\/ask\/status$/, 'none', ({ req }) => {
+    const L = askLimits(), now = Date.now(), id = visitorCookie(req);
+    const out = { enabled: !noBot(), remaining: id ? leftToday(visitorHash(id), L, now) : L.visitorDaily, limit: L.visitorDaily };
+    // The site-wide limits can stop a visitor who still has questions left of their own.
+    const ipWait = askLimiter.wait('ip-day:' + clientIp(req), L.ipDaily, DAY);
+    const gWait = logWindow('1 = 1', [], L.global, DAY, now).wait;
+    const wait = Math.max(ipWait, gWait);
+    out.available = out.enabled && !wait;
+    if (wait) out.retry_at = now + wait;
+    return out;
+  });
+
+  // Anyone may report an answer they were given. No name is stored; the cookie only proves the answer was theirs.
+  route('POST', /^\/app\/api\/ask\/(\d+)\/report$/, 'none', ({ req, params, body }) => {
+    const id = visitorCookie(req);
+    const b = id ? get('SELECT * FROM bot_logs WHERE id = ? AND user_id IS NULL AND visitor = ?', Number(params[0]), visitorHash(id)) : null;
+    if (!b) fail(404, 'Answer not found.');
+    if (get('SELECT 1 AS x FROM reports WHERE kind = ? AND ref_id = ?', 'bot', b.id)) return { ok: true, already: true };
+    const key = 'ask-report:' + clientIp(req);
+    const wait = askLimiter.wait(key, 5, 3600000);
+    if (wait) fail(429, `Too many reports from this network. Please try again at ${whenText(Date.now() + wait)}.`, 'rate', { retry_after: Math.ceil(wait / 1000), retry_at: Date.now() + wait });
+    askLimiter.take(key, 5, 3600000);
+    const rid = run('INSERT INTO reports(kind, ref_id, reporter_id, reason, note, created_at, school_id, author_id, author_role, snapshot) VALUES (?,?,?,?,?,?,?,?,?,?)',
+      'bot', b.id, null, REPORT_REASONS[body.reason] ? body.reason : 'other', String(body.note || '').slice(0, 300), Date.now(), null, null, 'assistant', JSON.stringify({ question: b.question, answer: b.answer, visitor: true })).id;
+    broadcast((u) => u.role === 'admin' || u.role === 'teacher', 'refresh', { what: 'reports', id: rid });
+    return { ok: true };
+  });
+
+  // The pages the assistant may read. Teacher pages stay as they are; a starter page that is still the old text about the
+  // login-and-chat app is skipped, the code-owned SITE_GUIDE pages are added, and visitors never get "Staff", "Private" or "Internal" pages.
+  const PRIVATE_TITLE = /^\s*(staff|private|internal)\b/i;
+  function handbookDocs(pub) {
+    const docs = all('SELECT title, body FROM handbook').filter((d) => knowledge.LEGACY[d.title] !== d.body && !(pub && PRIVATE_TITLE.test(d.title)));
+    return [...docs, ...knowledge.SITE_GUIDE];
+  }
+  function handbookSearch(query, pub) {
     const words = String(query || '').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 2);
-    const docs = all('SELECT title, body FROM handbook');
-    const scored = docs.map((d) => {
+    const scored = handbookDocs(pub).map((d) => {
       const t = d.title.toLowerCase(), b = d.body.toLowerCase();
       let s = 0;
       for (const w of words) { if (t.includes(w)) s += 5; const hits = b.split(w).length - 1; s += Math.min(hits, 5); }
@@ -651,7 +787,7 @@ function createApp(opts = {}) {
     }).filter((x) => x.s > 0 || !words.length).sort((a, b) => b.s - a.s).slice(0, 3);
     return scored.map((x) => ({ title: x.d.title, text: x.d.body.slice(0, 2500) }));
   }
-  const handbookTitles = () => all('SELECT title FROM handbook ORDER BY title').map((r) => r.title);
+  const handbookTitles = (pub) => handbookDocs(pub).map((d) => d.title).sort();
   if (bot && bot.setHandbookTitles) bot.setHandbookTitles(handbookTitles);
 
   route('GET', /^\/app\/api\/handbook$/, 'active', () => ({ docs: all('SELECT id, title, body, updated_at FROM handbook ORDER BY title') }));
@@ -676,10 +812,11 @@ function createApp(opts = {}) {
     const schools = all(`SELECT id, name, short, match, student_code${user.role === 'admin' ? ', teacher_code' : ''} FROM schools ${sid == null ? '' : 'WHERE id = ?'} ORDER BY id`, ...args);
     const members = all(`SELECT id, school_id, name, role, status, team_id, created_at, last_seen, muted_until, mute_reason FROM users ${sid == null ? "WHERE status != 'removed'" : "WHERE school_id = ? AND status != 'removed'"} ORDER BY status = 'pending' DESC, role, name`, ...args);
     const teams = all(`SELECT id, school_id, name, device_eui FROM teams ${where} ORDER BY school_id, name`, ...args);
-    let reports = all(`SELECT * FROM reports WHERE resolved_at IS NULL ${sid == null ? '' : "AND school_id = ? AND (author_role = 'student' OR author_role = 'assistant')"} ORDER BY id DESC LIMIT 100`, ...args);
+    // Reports about answers that visitors got belong to no school, so every teacher sees them.
+    let reports = all(`SELECT * FROM reports WHERE resolved_at IS NULL ${sid == null ? '' : "AND ((school_id = ? AND (author_role = 'student' OR author_role = 'assistant')) OR (school_id IS NULL AND kind = 'bot'))"} ORDER BY id DESC LIMIT 100`, ...args);
     reports = reports.map((r) => {
       const reporter = r.reporter_id ? userRow(r.reporter_id) : null;
-      return { id: r.id, kind: r.kind, ref_id: r.ref_id, reason: r.reason, reasonText: REPORT_REASONS[r.reason] || r.reason, note: r.note, at: r.created_at, reporter: reporter ? reporter.name : '?', author_id: r.author_id, author_role: r.author_role, school_id: r.school_id, snapshot: JSON.parse(r.snapshot || '{}') };
+      return { id: r.id, kind: r.kind, ref_id: r.ref_id, reason: r.reason, reasonText: REPORT_REASONS[r.reason] || r.reason, note: r.note, at: r.created_at, reporter: reporter ? reporter.name : r.kind === 'bot' ? 'A visitor' : '?', author_id: r.author_id, author_role: r.author_role, school_id: r.school_id, snapshot: JSON.parse(r.snapshot || '{}') };
     });
     // Teachers may only act on student authors; admins on everyone except admins.
     return { schools, members, teams, reports, pending: members.filter((m) => m.status === 'pending' && (user.role === 'admin' || m.role === 'student')).length };
@@ -759,12 +896,13 @@ function createApp(opts = {}) {
   route('POST', /^\/app\/api\/manage\/reports\/(\d+)\/resolve$/, 'staff', ({ user, params, body }) => {
     const r = get('SELECT * FROM reports WHERE id = ?', Number(params[0]));
     if (!r || r.resolved_at) fail(404, 'Report not found.');
-    if (user.role !== 'admin' && !(r.school_id === user.school_id && (r.author_role === 'student' || r.author_role === 'assistant'))) fail(403, 'Only an admin can handle this report.');
+    if (user.role !== 'admin' && !((r.school_id === user.school_id && (r.author_role === 'student' || r.author_role === 'assistant')) || (r.school_id == null && r.kind === 'bot'))) fail(403, 'Only an admin can handle this report.');
     const action = ['dismiss', 'delete', 'delete_mute'].includes(body.action) ? body.action : 'dismiss';
     if (r.kind === 'message' && action !== 'dismiss') {
       const m = get('SELECT * FROM messages WHERE id = ?', r.ref_id);
       if (m && !m.deleted_at) {
         run('UPDATE messages SET deleted_at = ?, deleted_by = ? WHERE id = ?', Date.now(), user.id, m.id);
+        annFresh();
         broadcast((u) => canAccess(u, m.channel), 'deleted', { channel: m.channel, id: m.id });
       }
       if (action === 'delete_mute' && r.author_id) {
@@ -785,6 +923,7 @@ function createApp(opts = {}) {
     if (!m.deleted_at) {
       run('UPDATE messages SET deleted_at = ?, deleted_by = ? WHERE id = ?', Date.now(), user.id, m.id);
       audit(user, 'message-delete', m.id, m.channel);
+      annFresh();
       broadcast((u) => canAccess(u, m.channel), 'deleted', { channel: m.channel, id: m.id });
     }
     return { ok: true };
@@ -810,10 +949,11 @@ function createApp(opts = {}) {
   route('GET', /^\/app\/api\/manage\/botlog$/, 'staff', ({ user, url }) => {
     const sid = scopeSchool(user);
     const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit')) || 60));
+    // Questions that visitors asked have no school and no name; every teacher can read them.
     const rows = sid == null
       ? all('SELECT * FROM bot_logs ORDER BY id DESC LIMIT ?', limit)
-      : all('SELECT * FROM bot_logs WHERE school_id = ? ORDER BY id DESC LIMIT ?', sid, limit);
-    return { rows: rows.map((r) => { const u = r.user_id ? userRow(r.user_id) : null; return { id: r.id, at: r.created_at, user: u ? u.name : 'Deleted user', school_id: r.school_id, question: r.question, answer: r.answer, tools: r.tools ? JSON.parse(r.tools) : [], error: r.error, ms: r.ms }; }) };
+      : all('SELECT * FROM bot_logs WHERE school_id = ? OR (user_id IS NULL AND visitor IS NOT NULL) ORDER BY id DESC LIMIT ?', sid, limit);
+    return { rows: rows.map((r) => { const u = r.user_id ? userRow(r.user_id) : null; return { id: r.id, at: r.created_at, user: u ? u.name : r.visitor ? 'Visitor' : 'Deleted user', visitor: !!r.visitor, school_id: r.school_id, question: r.question, answer: r.answer, tools: r.tools ? JSON.parse(r.tools) : [], error: r.error, ms: r.ms }; }) };
   });
 
   route('POST', /^\/app\/api\/manage\/handbook$/, 'staff', ({ user, body }) => {
@@ -844,7 +984,8 @@ function createApp(opts = {}) {
 
   const SECURITY = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' };
   function sendJson(res, status, obj) {
-    res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...SECURITY });
+    // A route may set its own Cache-Control first (the public lists do); everything else is never cached.
+    res.writeHead(status, { 'Content-Type': 'application/json', ...(res.hasHeader('Cache-Control') ? {} : { 'Cache-Control': 'no-store' }), ...SECURITY });
     res.end(JSON.stringify(obj));
   }
 
@@ -866,14 +1007,18 @@ function createApp(opts = {}) {
         if (r.auth === 'staff' && !isStaff(user)) fail(403, 'Teachers only.');
         if (r.auth === 'admin' && user.role !== 'admin') fail(403, 'Admins only.');
       }
-      const body = await readJson(req, r.pattern.source.includes('bot') ? 65536 : 32768);
+      const body = await readJson(req, /bot|ask/.test(r.pattern.source) ? 65536 : 32768);
       const params = r.pattern.exec(url.pathname).slice(1);
       const out = await r.handler({ req, res, url, params, body, user });
       if (out === STREAMED) return true;
       sendJson(res, 200, out);
     } catch (e) {
       if (e instanceof HttpError) {
-        if (!res.headersSent) sendJson(res, e.status, { error: e.message, code: e.code });
+        if (!res.headersSent) {
+          if (e.extra && e.extra.retry_after) res.setHeader('Retry-After', String(e.extra.retry_after));
+          res.removeHeader('Cache-Control');
+          sendJson(res, e.status, { error: e.message, code: e.code, ...(e.extra || {}) });
+        }
         else res.end();
       } else {
         console.error('Student app error:', e && e.stack || e);
@@ -902,7 +1047,7 @@ function createApp(opts = {}) {
     authorise: (req) => { const u = sessionUser(req); return u && u.status === 'active' ? u : null; },
     info: () => ({ users: get('SELECT COUNT(*) AS n FROM users').n, schools: get('SELECT COUNT(*) AS n FROM schools').n, db: dbFile }),
     db: { get, all, run },
-    close() { clearInterval(heartbeat); clearInterval(sweeper); clearInterval(purger); for (const set of streams.values()) for (const r of set) r.end(); try { db.close(); } catch (e) { /* closed */ } },
+    close() { clearInterval(heartbeat); clearInterval(sweeper); clearInterval(askSweeper); clearInterval(purger); for (const set of streams.values()) for (const r of set) r.end(); try { db.close(); } catch (e) { /* closed */ } },
   };
 }
 

@@ -1,7 +1,9 @@
 'use strict';
-/* Group chat (all schools, school, team) with reporting and teacher tools, and the Ask screen for the assistant. */
+/* Channels (all schools, school, team) with reporting and teacher tools, and the Ask screen for the assistant.
+   Chat is closed for students: they read what teachers post, only teachers and admins can write. */
 (function () {
   const { h, api, fmt } = App;
+  const CHAT_CLOSED = 'Chat is closed. Teachers post announcements here.';
 
   /* ---------- channel list ---------- */
 
@@ -24,8 +26,9 @@
           h('div', { class: 'list chanlist' }, list.map((c) => h('a', { class: 'item', href: '#/chat/' + encodeURIComponent(c.id) }, kindDot(c),
             h('div', { class: 'grow' }, h('b', null, c.name), h('span', null, c.last ? preview(c.last) : c.sub + ' · no messages yet')),
             c.unread ? h('span', { class: 'unread' }, c.unread > 99 ? '99+' : c.unread) : (c.last ? h('span', { class: 'when' }, fmt.clock(c.last.at)) : null))))]),
-        me.role === 'student' && !me.team ? h('p', { class: 'muted small' }, 'You are not in a team yet. A teacher adds you to a team, and then its channel shows up here.') : null,
-        h('p', { class: 'muted small', style: 'margin-top:14px' }, 'There are no private messages. Everything is shared with a group, and teachers can read it.'));
+        h('p', { class: 'muted small', style: 'margin-top:14px' }, me.role === 'student'
+          ? CHAT_CLOSED
+          : 'What you post in All schools is shown on the public website as an announcement, signed with your role and school, never your name. Students can read channels but cannot reply.'));
     };
     await draw();
     let t = null;
@@ -134,17 +137,20 @@
 
     list.append(loadMoreBtn);
     loadMoreBtn.classList.toggle('hidden', !hasMore);
-    if (!App.store('sc_rules_seen')) {
-      const rules = h('div', { class: 'rules' }, h('b', null, 'Chat rules'), h('p', { style: 'margin:4px 0 8px' }, 'Be kind. Keep private details private: no phone numbers, e-mails, links or social media. Tap the ⋯ on a message to report it. Teachers can read this chat.'), h('button', { class: 'btn small', onclick: () => { App.store('sc_rules_seen', '1'); rules.remove(); } }, 'Got it'));
-      list.append(rules);
+    const staff = me.role !== 'student';
+    if (staff && meta.kind === 'all' && !App.store('sc_ann_seen')) {
+      const note = h('div', { class: 'rules' }, h('b', null, 'Announcements'), h('p', { style: 'margin:4px 0 8px' }, 'Messages in All schools are shown on the public website, signed with your role and school, not your name. Students can read them but cannot reply. Do not post private details.'), h('button', { class: 'btn small', onclick: () => { App.store('sc_ann_seen', '1'); note.remove(); } }, 'Got it'));
+      list.append(note);
     }
-    if (!first.messages.length) list.append(h('div', { class: 'empty' }, 'No messages yet. Say hello and share what your sensors found.'));
+    if (!first.messages.length) list.append(h('div', { class: 'empty' }, staff ? 'No messages yet. Post an announcement for the students.' : 'No announcements yet.'));
     append(first.messages);
 
     const muted = me.muted_until && me.muted_until > Date.now();
-    const ta = h('textarea', { rows: '1', maxlength: '800', placeholder: 'Write a message', 'aria-label': 'Message' });
+    const ta = h('textarea', { rows: '1', maxlength: '800', placeholder: meta.kind === 'all' ? 'Write an announcement' : 'Write a message', 'aria-label': 'Message' });
     const send = h('button', { class: 'send', 'aria-label': 'Send message', disabled: true }, App.icon('send'));
-    const composer = muted
+    const composer = !staff
+      ? h('div', { class: 'composer locked' }, CHAT_CLOSED)
+      : muted
       ? h('div', { class: 'composer locked' }, `You are muted until ${fmt.full(me.muted_until)}.`)
       : h('form', { class: 'composer', onsubmit: async (e) => {
         e.preventDefault();
@@ -160,8 +166,10 @@
         send.disabled = !ta.value.trim();
         ta.focus();
       } }, ta, send);
-    ta.addEventListener('input', () => { send.disabled = !ta.value.trim(); ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px'; });
-    ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer: fine)').matches) { e.preventDefault(); composer.requestSubmit(); } });
+    if (staff && !muted) {
+      ta.addEventListener('input', () => { send.disabled = !ta.value.trim(); ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px'; });
+      ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer: fine)').matches) { e.preventDefault(); composer.requestSubmit(); } });
+    }
 
     view.append(h('div', { class: 'chatwrap' }, list, composer));
     list.scrollTop = list.scrollHeight;

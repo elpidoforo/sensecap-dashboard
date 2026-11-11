@@ -1,0 +1,113 @@
+/* Home page ("Eight windows, one city"). Page-only styles, prefix hm-. Tokens and shell classes come from site.css. */
+.hm { position: relative; isolation: isolate; display: flex; flex-direction: column; gap: var(--nm-gap); }
+.hm-sky { position: absolute; inset: -20px -38px 0; z-index: -1; pointer-events: none; background:
+  radial-gradient(760px 420px at 50% 52%, rgba(76,203,234,.13), transparent 62%),
+  radial-gradient(520px 340px at 8% 40%, rgba(89,217,142,.05), transparent 60%),
+  radial-gradient(520px 340px at 92% 62%, rgba(143,123,255,.07), transparent 60%); }
+@media (max-width: 899px) { .hm-sky { inset: -20px -16px 0; } }
+
+/* head */
+.hm-head { gap: 8px 18px; }
+.hm-head > * { flex: 1 1 100%; }
+.hm-head .lede { max-width: 1010px; margin-top: 2px; }
+.hm-head .tag-row { align-items: center; gap: 6px; margin-top: 4px; }
+.hm-head .t { cursor: help; }
+.hm-tagnote { margin-left: 8px; font: 400 12.5px/1.3 var(--nm-font); color: var(--nm-mute); }
+
+/* tour route bar */
+.hm-route { display: flex; flex-wrap: nowrap; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 22px;
+  background: linear-gradient(160deg, rgba(40,68,108,.42), rgba(14,30,52,.62)); border: 1px solid rgba(143,227,247,.24); box-shadow: inset 0 1px 0 rgba(255,255,255,.06); }
+.hm-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 4px; flex: 1 1 0; min-width: 0; }
+.hm-rl { font: 700 11px/1 var(--nm-font); letter-spacing: .12em; text-transform: uppercase; color: var(--nm-info); margin-right: 4px; white-space: nowrap; }
+.hm-step { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px 5px 5px; white-space: nowrap; border-radius: 999px; background: rgba(76,203,234,.08); border: 1px solid rgba(76,203,234,.28);
+  color: #E6F6FC; font: 500 13px/1 var(--nm-font); text-decoration: none; transition: background .2s, transform .2s; }
+.hm-step:hover { background: rgba(76,203,234,.18); transform: translateY(-2px); }
+.hm-step i { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--nm-cyan); color: #04121f; font: 700 11px/1 var(--nm-font); font-style: normal; }
+.hm-route em { color: #6f8fb3; font-style: normal; font-size: 13px; margin: 0 -2px; }
+.hm-go.nm-btn { margin-left: 4px; flex: none; min-height: 38px; padding: 6px 16px 6px 13px; font-size: 14px; border-radius: 999px; }
+.hm-go svg { width: 11px; height: 11px; }
+@media (max-width: 760px) { .hm-route { flex-wrap: wrap; } .hm-steps { flex: 1 1 100%; } .hm-go.nm-btn { margin-left: 0; } }
+
+/* stage: the island, the pillars and the ring of eight windows */
+.hm-stage { position: relative; height: 600px; perspective: 1500px; margin-top: -8px; overflow-x: clip; }
+.hm-ring { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.hm-dash { animation: hm-da 2.4s linear infinite; }
+.hm-plane { position: absolute; left: 52%; top: 52%; width: 61%; transform: translate(-50%, -50%) rotateX(52deg) rotateZ(-8deg); }
+.hm-plane > svg { width: 100%; display: block; overflow: visible; filter: drop-shadow(0 34px 38px rgba(0,0,0,.65)) drop-shadow(0 0 28px rgba(76,203,234,.42)); }
+.hm-mk { position: absolute; width: 2px; height: 2px; margin: -1px 0 0 -1px; }
+.hm-pil { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 1; }
+.hm-grow { transform-box: fill-box; transform-origin: 50% 100%; animation: hm-gr 1.2s var(--nm-ease) both; }
+.hm-pulse { transform-box: fill-box; transform-origin: center; animation: hm-pr 3.2s ease-out infinite; }
+.hm-bl { animation: hm-bl 2.6s ease-in-out infinite; }
+.hm-tags { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+
+.hm-pl { position: absolute; z-index: 2; transform: translate(-50%, -100%); display: flex; align-items: center; gap: 8px; padding: 5px 12px 5px 9px; border-radius: 999px; white-space: nowrap;
+  background: rgba(6,16,30,.84); border: 1px solid rgba(143,227,247,.42); color: #fff; font: 600 12px/1.2 var(--nm-font); box-shadow: 0 0 16px -6px rgba(76,203,234,.7), 0 8px 18px -10px #000; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.hm-pl::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--nm-dot-ok); box-shadow: 0 0 8px var(--nm-dot-ok); flex: none; }
+.hm-pl.warn::before { background: #F2B24C; box-shadow: 0 0 8px #F2B24C; }
+.hm-pl.none::before { background: #6f8fb3; box-shadow: none; }
+.hm-pl .tx { display: flex; flex-direction: column; gap: 2px; }
+.hm-pl small { font: 500 11px/1 var(--nm-font); color: var(--nm-info); }
+.hm-pl.wrap { white-space: normal; max-width: 160px; border-radius: 16px; align-items: flex-start; }
+.hm-pl.wrap::before { margin-top: 4px; }
+
+.hm-node { position: absolute; z-index: 3; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 8px; padding: 6px 13px 6px 6px; border-radius: 999px; white-space: nowrap;
+  background: rgba(6,16,30,.9); border: 1px solid color-mix(in srgb, var(--c) 52%, transparent); color: #fff; font: 700 13.5px/1 var(--nm-font); text-decoration: none;
+  box-shadow: 0 0 18px -8px var(--c), 0 10px 24px -12px rgba(0,0,0,.85); transition: transform .2s; animation: hm-rise .7s var(--nm-ease) both; }
+a.hm-node:hover { transform: translate(-50%, -50%) scale(1.06); }
+.hm-node .n { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--c); color: #04121f; font: 800 11.5px/1 var(--nm-font); box-shadow: 0 0 12px var(--c); flex: none; }
+.hm-node .dia { width: 11px; height: 11px; flex: none; filter: drop-shadow(0 0 4px rgba(247,196,107,.8)); }
+.hm-node.gate { border-color: #F7C46B; color: #FDE9B8; padding-right: 12px; box-shadow: 0 0 22px -6px #F7C46B, 0 10px 24px -12px rgba(0,0,0,.85); animation: hm-rise .7s var(--nm-ease) both, hm-glow 2.4s ease-in-out .7s infinite; }
+.hm-node.soon { cursor: help; opacity: .78; border-style: dashed; }
+.hm-node .soon-tag { font: 700 9.5px/1 var(--nm-font); letter-spacing: .08em; text-transform: uppercase; color: var(--nm-muted); padding: 3px 6px; border: 1px solid var(--nm-edge-2); border-radius: 5px; }
+.hm-node.up small { top: auto; bottom: calc(100% + 8px); }
+.hm-node small { position: absolute; left: 50%; top: calc(100% + 8px); transform: translateX(-50%); width: 236px; text-align: center; white-space: normal; pointer-events: none;
+  font: 400 11.5px/1.35 var(--nm-font); color: var(--nm-muted); text-shadow: 0 1px 10px #000, 0 0 4px #000; }
+.hm-node:focus-visible { outline: 3px solid var(--nm-copper-2); outline-offset: 3px; }
+
+/* narrow stage: the island alone, the eight windows as a list underneath */
+.hm-list { display: none; margin: 0; padding: 0; list-style: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.hm-list li { min-width: 0; }
+.hm-li { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 16px; text-decoration: none; color: #fff; height: 100%;
+  background: rgba(6,16,30,.7); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); }
+.hm-li .n { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--c); color: #04121f; font: 800 12px/1 var(--nm-font); flex: none; }
+.hm-li b { display: block; font: 700 14px/1.2 var(--nm-font); }
+.hm-li small { display: block; margin-top: 3px; font: 400 12px/1.35 var(--nm-font); color: var(--nm-muted); }
+.hm-li.gate { border-color: #F7C46B; }
+.hm-li.soon { border-style: dashed; opacity: .8; }
+.hm.compact .hm-stage { height: 400px; }
+.hm.compact .hm-ring, .hm.compact .hm-node { display: none; }
+.hm.compact .hm-plane { left: 50%; width: 94%; }
+.hm.compact .hm-list { display: grid; }
+@media (max-width: 520px) { .hm-list { grid-template-columns: 1fr; } .hm.compact .hm-stage { height: 300px; } .hm.compact .hm-plane { width: 100%; } }
+
+/* legend */
+.hm-legend { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 20px; padding: 12px 18px; margin-top: -6px; border-radius: 18px; }
+.hm-lg { display: flex; align-items: flex-start; gap: 10px; font: 400 12.5px/1.4 var(--nm-font); color: var(--nm-lede); }
+.hm-lg svg { width: 22px; height: 22px; flex: none; }
+.hm-lg b { color: #fff; font-weight: 600; }
+
+.hm-note { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.hm-note .nm-btn { min-height: 36px; padding: 4px 12px; font-size: 14px; }
+
+/* what you can do */
+.hm-sec { display: flex; flex-direction: column; gap: 14px; }
+.hm-sec h2 { margin: 6px 0 0; font: 600 26px/1.15 var(--nm-font-display); letter-spacing: -.02em; color: #fff; }
+.hm-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--nm-gap-s); }
+.hm-card { display: flex; flex-direction: column; gap: 10px; padding: 18px 18px 16px; text-decoration: none; color: var(--nm-text); }
+.hm-card h3 { margin: 4px 0 0; font: 600 18px/1.2 var(--nm-font-display); letter-spacing: -.01em; }
+.hm-card p { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--nm-lede); flex: 1; }
+.hm-card .go { display: inline-flex; align-items: center; gap: 6px; font: 600 14px/1 var(--nm-font); color: var(--nm-copper-2); }
+.hm-card .go svg { width: 16px; height: 16px; }
+.hm-card .nm-icon-tile svg { width: 22px; height: 22px; }
+.hm-card:focus-visible { outline: 3px solid var(--nm-copper-2); outline-offset: 2px; }
+
+@keyframes hm-da { to { stroke-dashoffset: -14; } }
+@keyframes hm-rise { from { opacity: 0; transform: translate(-50%, -46%); } }
+@keyframes hm-glow { 50% { box-shadow: 0 0 8px -2px #F7C46B, 0 10px 24px -12px rgba(0,0,0,.85); } }
+@keyframes hm-gr { from { transform: scaleY(0); } }
+@keyframes hm-pr { 0% { transform: scale(.55); opacity: .9; } 100% { transform: scale(1.9); opacity: 0; } }
+@keyframes hm-bl { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .hm *, .hm-node { animation: none !important; } .hm-step, .hm-node { transition: none; } }
+@media (max-width: 1300px) { .hm-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .hm-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .hm-cards, .hm-legend { grid-template-columns: 1fr; } .hm-sec h2 { font-size: 23px; } }
