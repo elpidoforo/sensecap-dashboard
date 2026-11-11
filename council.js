@@ -689,6 +689,20 @@ function createCouncil(opts) {
     return rows.map(listItem);
   }
 
+  // The teachers' Submitted work queue (GET /studio/api/submitted) asks every 'queue:' provider for its items.
+  // Staff see the drafts they may review; everybody else sees published sessions only. Author labels are a role and a school, never a name.
+  if (typeof appCore.provide === 'function') {
+    appCore.provide('queue:council', async ({ staff, pending, user }) => {
+      const rows = pending
+        ? db.all("SELECT * FROM council_sessions WHERE status = 'draft' ORDER BY created_at LIMIT 100").filter((s) => user && canReview(user, s))
+        : db.all("SELECT * FROM council_sessions WHERE status = 'published' ORDER BY COALESCE(reviewed_at, created_at) DESC, id DESC LIMIT 100");
+      return rows.map((s) => {
+        const a = authorOf(s);
+        return { kind: 'council', id: s.id, title: [...s.question].slice(0, 140).join(''), author_label: a.label, school: a.author.school, at: (pending ? s.created_at : s.reviewed_at) || s.created_at, status: pending ? 'pending' : 'approved' };
+      });
+    });
+  }
+
   /* ---------- POST /council/api/ask ---------- */
 
   const BAD_Q = 'Please leave out phone numbers, e-mail addresses, links and social media names.';

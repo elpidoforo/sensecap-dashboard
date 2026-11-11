@@ -321,6 +321,26 @@ function createReports(opts) {
     return false;
   }
 
+  // The teachers' Submitted work queue (GET /studio/api/submitted) asks every 'queue:' provider for its items.
+  // Staff see the reports waiting for a decision (drafts they may manage); everybody else sees released ones only.
+  if (typeof appCore.provide === 'function') {
+    appCore.provide('queue:reports', async ({ staff, pending, user }) => {
+      const rows = pending
+        ? db.all("SELECT * FROM council_reports WHERE status = 'draft' ORDER BY created_at LIMIT 100").filter((r) => user && canManage(user, r))
+        : db.all("SELECT * FROM council_reports WHERE status = 'released' ORDER BY released_at DESC LIMIT 100");
+      return rows.map((r) => {
+        const s = r.school === 'all' ? null : db.get('SELECT short FROM schools WHERE slug = ?', r.school);
+        const by = pending && r.generated_by ? db.get('SELECT role, school_id FROM users WHERE id = ?', r.generated_by) : null;
+        const bySchool = by && by.role === 'teacher' ? schoolRow(by.school_id) : null;
+        return {
+          kind: 'report', id: r.id, title: r.title, title_el: r.title_el || null,
+          author_label: pending ? (bySchool ? `Teacher, ${bySchool.short}` : 'Teacher') : 'Weekly report',   // a role and a school, never a name
+          school: s ? s.short : 'All schools', at: (pending ? r.created_at : r.released_at) || r.created_at, status: pending ? 'pending' : 'approved',
+        };
+      });
+    });
+  }
+
   async function handle(req, res, url) {
     if (!url.pathname.startsWith('/council/api/reports')) return false;
     try {

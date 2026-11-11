@@ -111,7 +111,7 @@
 .vh-trips .nm-table td { font-size: 15px; }
 .vh-trips .nm-table th.num, .vh-trips .nm-table td.num { text-align: right; white-space: nowrap; }
 .vh-trips .nm-table tbody tr { cursor: pointer; }
-.vh-veh { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; color: #fff; text-decoration: none; border-radius: 6px; }
+.vh-veh { white-space: nowrap; display: inline-flex; align-items: center; gap: 10px; font-weight: 600; color: #fff; text-decoration: none; border-radius: 6px; }
 .vh-veh:hover { text-decoration: underline; text-underline-offset: 4px; }
 .vh-veh i { width: 9px; height: 9px; border-radius: 50%; background: var(--o); box-shadow: 0 0 8px var(--o); flex: none; }
 .vh-trips td.mut { color: var(--nm-lede); }
@@ -164,6 +164,6 @@
   .vh-hero { padding: 16px; }
   .vh-note { align-items: flex-start; font-size: 14px; }
   .vh-trips .hs { display: none; }
+  .vh-cmd .grow { display: none; }
 }
-@media (max-width: 400px) { .vh-reads { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { .vh-orb.live::after { animation: none; opacity: 0; } }

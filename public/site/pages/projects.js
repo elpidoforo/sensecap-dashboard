@@ -56,7 +56,7 @@
     return {
       id: p.id, title: String(p.title || p.question || ''), question: String(p.question || p.title || ''), team: p.team || null, school: sch || null,
       notes: String(p.notes || p.note || ''), status, steps, sensors, data, reviewNote: p.reviewNote || p.review_note || null,
-      approved: Boolean(p.approved), progress: typeof p.progress === 'number' ? Math.max(0, Math.min(100, Math.round(p.progress))) : null,
+      approved: Boolean(p.approved) || status === 'approved', progress: typeof p.progress === 'number' ? Math.max(0, Math.min(100, Math.round(p.progress))) : null,
       at: toMs(p.updatedAt || p.updated_at || p.at), label: p.author_label || null,
     };
   }

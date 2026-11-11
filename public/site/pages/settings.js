@@ -227,7 +227,8 @@
       const toggle = sw(draft.enabled, t('Rule on: ', 'Κανόνας ενεργός: ') + name, (v) => { draft.enabled = v; refresh(); });
       const th = el('input', { class: 'nm-input st-num', id: id + '-th', type: 'text', inputmode: 'decimal', autocomplete: 'off', maxlength: 8, value: draft.th, 'aria-describedby': id + '-th-m', disabled: !hasTh });
       th.addEventListener('input', () => { draft.th = th.value; refresh(); });
-      const sev = el('select', { class: 'nm-input st-sel', id: id + '-sev' }, Object.keys(SEV).map((k) => el('option', { value: k }, t(SEV[k][0][0], SEV[k][0][1]) + ' · ' + t(SEV[k][1][0], SEV[k][1][1]))));
+      const sev = el('select', { class: 'nm-input st-sel', id: id + '-sev', 'aria-describedby': id + '-sev-h' }, Object.keys(SEV).map((k) => el('option', { value: k }, t(SEV[k][0][0], SEV[k][0][1]))));
+      const sevHint = el('div', { class: 'st-hint2', id: id + '-sev-h' });
       if (!SEV[draft.severity]) sev.append(el('option', { value: draft.severity }, String(draft.severity)));
       sev.value = draft.severity;
       sev.addEventListener('change', () => { draft.severity = sev.value; refresh(); });
@@ -246,6 +247,7 @@
       }
       function refresh() {
         onTxt.textContent = draft.enabled ? t('On', 'Ενεργός') : t('Off', 'Ανενεργός');
+        sevHint.textContent = SEV[draft.severity] ? t(SEV[draft.severity][1][0], SEV[draft.severity][1][1]) : '';
         card.classList.toggle('off', !draft.enabled);
         const p = parsed(), d = dirty();
         thMsg.textContent = hasTh && d && p.msg ? p.msg : '';
@@ -287,7 +289,7 @@
           el('div', { class: 'st-ctl' }, el('span', { class: 'st-lb' }, t('Rule', 'Κανόνας')), el('div', { class: 'st-swrow' }, toggle, onTxt)),
           el('div', { class: 'st-ctl' }, el('label', { class: 'st-lb', for: id + '-th' }, t('Threshold', 'Όριο')),
             hasTh ? el('div', { class: 'st-unit' }, th, rule.unit ? el('span', null, rule.unit) : null) : el('div', { class: 'st-na' }, t('No number to set', 'Δεν υπάρχει αριθμός να οριστεί')), thMsg),
-          el('div', { class: 'st-ctl' }, el('label', { class: 'st-lb', for: id + '-sev' }, t('How serious', 'Πόσο σοβαρό')), sev),
+          el('div', { class: 'st-ctl' }, el('label', { class: 'st-lb', for: id + '-sev' }, t('How serious', 'Πόσο σοβαρό')), sev, sevHint),
           el('div', { class: 'st-act' }, save, undo)),
         msg);
       refresh();
@@ -514,7 +516,7 @@
       function drawEditor() {
         if (!cur) {
           editHost.replaceChildren(el('p', { class: 'card-eye' }, t('Editor', 'Επεξεργασία')), el('h2', { class: 'card-h st-h' }, t('Choose a page', 'Επιλέξτε μια σελίδα')),
-            el('p', { class: 'st-sub' }, t('Pick a page on the left to change it, or start a new one.', 'Επιλέξτε μια σελίδα αριστερά για να την αλλάξετε, ή ξεκινήστε νέα.')));
+            el('p', { class: 'st-sub' }, t('Pick a page from the list to change it, or start a new one.', 'Επιλέξτε μια σελίδα από τη λίστα για να την αλλάξετε, ή ξεκινήστε νέα.')));
           return;
         }
         const isNew = cur.id == null;

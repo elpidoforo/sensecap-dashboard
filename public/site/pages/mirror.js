@@ -176,7 +176,7 @@
         const line = (f0, f1_, col, w, op) => { const a = pt(f0), b = pt(f1_); return sv('line', { x1: a[0].toFixed(2), y1: a[1].toFixed(2), x2: b[0].toFixed(2), y2: b[1].toFixed(2), stroke: col, 'stroke-width': w, 'stroke-linecap': 'round', 'vector-effect': 'non-scaling-stroke', opacity: op }); };
         svg.append(line(0, 1, 'rgba(6,13,26,.75)', 8, 1));
         R.segs.forEach((s) => svg.append(line(s.f0, s.f1, s.v != null ? band(s.v) : '#8CA0B8', 4.5, s.v != null ? 1 : 0.7)));
-        const lab = (p, text, dy, anchor) => sv('text', { x: p[0].toFixed(2), y: (p[1] + dy * u).toFixed(2), 'text-anchor': anchor || 'middle', class: 'mr-lab', style: 'font-size:' + (12 * u).toFixed(2) + 'px;stroke-width:' + (3 * u).toFixed(2) + 'px' }, text);
+        const lab = (p, text, dy, anchor) => sv('text', { x: p[0].toFixed(2), y: (p[1] + dy * u).toFixed(2), 'text-anchor': anchor || 'middle', class: 'mr-tx', 'font-size': (12 * u).toFixed(2), 'stroke-width': (3 * u).toFixed(2) }, text);
         svg.append(sv('circle', { cx: pa[0].toFixed(2), cy: pa[1].toFixed(2), r: (6 * u).toFixed(2), fill: '#0C1626', stroke: '#fff', 'stroke-width': (2 * u).toFixed(2) }));
         svg.append(sv('circle', { cx: pb[0].toFixed(2), cy: pb[1].toFixed(2), r: (7 * u).toFixed(2), fill: '#E07F3F', stroke: '#fff', 'stroke-width': (2 * u).toFixed(2) }));
         const left = pa[0] > pb[0];
@@ -190,10 +190,10 @@
 
       /* ---------- results ---------- */
       const doseAt = (R, id, p) => {
-        const m = R.modes[id], M = MODES[id], base = R.cbar != null ? 1 : 1;
+        const m = R.modes[id], M = MODES[id];
         let sum = 0;
         R.segs.forEach((s) => { const w = Math.max(0, Math.min(s.f1, p) - s.f0); sum += (s.v != null ? s.v : R.cbar != null ? R.cbar : 1) * w; });
-        return sum * M.ratio * M.vent * m.h * base;
+        return sum * M.ratio * M.vent * m.h;
       };
       const unitStr = (R) => (R.cbar != null ? 'µg' : T('relative units', 'σχετικές μονάδες'));
       function summary(R) {
@@ -210,7 +210,7 @@
             el('div', null, el('span', { class: 'k' }, rel ? T('Breathed in (relative)', 'Εισπνοή (σχετική)') : T('PM2.5 breathed in', 'PM2.5 που εισπνέετε')), el('strong', null, rel ? SC.num(m.dose, 1) : f1(m.dose), el('small', null, rel ? '' : 'µg')),
               el('span', { class: 'sub' }, T('range ', 'εύρος ') + SC.num(m.lo, 1) + T(' to ', ' έως ') + SC.num(m.hi, 1) + (rel ? '' : ' µg')))),
           el('p', { class: 'mr-line' }, rel ? T('No PM2.5 reading is available right now, so these are typical ratios only (an air value of 1 along the whole route). Compare the modes with each other, not with a limit.', 'Δεν υπάρχει αυτή τη στιγμή μέτρηση PM2.5, γι’ αυτό είναι μόνο τυπικοί λόγοι (τιμή αέρα 1 σε όλη τη διαδρομή). Συγκρίνετε τους τρόπους μεταξύ τους, όχι με κάποιο όριο.')
-            : T('Air along the route averages ' + f1(R.cbar) + ' µg/m³. Inside or beside a ' + M.l[0].toLowerCase() + ' it is taken as ' + f1(m.inside) + ' µg/m³ (' + SC.num(M.ratio, 1) + ' times), and you breathe ' + SC.num(M.vent, 1) + ' m³ of air an hour.', 'Ο αέρας κατά μήκος της διαδρομής έχει μέσο όρο ' + f1(R.cbar) + ' µg/m³. Μέσα ή δίπλα σε ' + M.l[1].toLowerCase() + ' θεωρείται ' + f1(m.inside) + ' µg/m³ (' + SC.num(M.ratio, 1) + ' φορές) και αναπνέετε ' + SC.num(M.vent, 1) + ' m³ αέρα την ώρα.')),
+            : T('Air along the route averages ' + f1(R.cbar) + ' µg/m³. For ' + M.l[0].toLowerCase() + ' it is taken as ' + f1(m.inside) + ' µg/m³ (' + SC.num(M.ratio, 1) + ' times that), and you breathe ' + SC.num(M.vent, 1) + ' m³ of air an hour.', 'Ο αέρας κατά μήκος της διαδρομής έχει μέσο όρο ' + f1(R.cbar) + ' µg/m³. Για ' + M.l[1].toLowerCase() + ' θεωρείται ' + f1(m.inside) + ' µg/m³ (' + SC.num(M.ratio, 1) + ' φορές αυτό) και αναπνέετε ' + SC.num(M.vent, 1) + ' m³ αέρα την ώρα.')),
           el('div', { class: 'mr-playrow' }, play, el('span', { class: 'mr-so' }, T('Breathed in so far: ', 'Έχετε εισπνεύσει μέχρι τώρα: '), counter, ' ', unitStr(R))));
       }
       function compare(R) {
@@ -270,7 +270,7 @@
               el('thead', null, el('tr', null, el('th', null, T('Way', 'Τρόπος')), el('th', null, T('Speed, up to 10 km / over 10 km', 'Ταχύτητα, έως 10 χλμ. / πάνω από 10 χλμ.')), el('th', null, T('Breathing', 'Αναπνοή')), el('th', null, T('Air ratio (low – high)', 'Λόγος αέρα (χαμηλός – υψηλός)')), el('th', null, T('Why', 'Γιατί')))),
               el('tbody', null, rows)))),
             el('p', { class: 'mr-srcs' }, T('Where the numbers come from: speeds are our assumptions for school-day traffic in Cyprus. Breathing rates are rounded from the US EPA Exposure Factors Handbook (2011): about 0.5 m³/h seated and about 1.2 m³/h walking, for an adult; a child breathes less in absolute terms but the walking-to-seated ratio is similar. The air ratios are our rounded assumptions, informed by the review of in-transport air pollution studies by Cepeda et al. 2017 (Lancet Public Health 2:e23-e34), which found that levels depend heavily on the city, the vehicle and the traffic; the ranges are wide on purpose. The WHO 24-hour guide for PM2.5 is 15 µg/m³ (global air quality guidelines 2021); the colours above use 5, 15 and 35 µg/m³ only as a rough scale.',
-              'Από πού προέρχονται οι αριθμοί: οι ταχύτητες είναι δικές μας παραδοχές για την κυκλοφορία σχολικής ημέρας στην Κύπρο. Οι ρυθμοί αναπνοής είναι στρογγυλεμένοι από το Exposure Factors Handbook της EPA των ΗΠΑ (2011): περίπου 0,5 m³/ώρα καθιστός και περίπου 1,2 m³/ώρα περπατώντας, για ενήλικα· ένα παιδί αναπνέει λιγότερο σε απόλυτους όρους αλλά ο λόγος περπάτημα προς κάθισμα είναι παρόμοιος. Οι λόγοι αέρα είναι δικές μας στρογγυλεμένες παραδοχές, βασισμένες στην ανασκόπηση μελετών ρύπανσης κατά τη μετακίνηση των Cepeda και συν. 2017 (Lancet Public Health 2:e23-e34), που βρήκε ότι τα επίπεδα εξαρτώνται πολύ από την πόλη, το όχημα και την κυκλοφορία· τα εύρη είναι μεγάλα σκόπιμα. Ο οδηγός 24 ωρών του ΠΟΥ για το PM2.5 είναι 15 µg/m³ (παγκόσμιες οδηγίες 2021)· τα χρώματα παραπάνω χρησιμοποιούν τα 5, 15 και 35 µg/m³ μόνο ως χονδρική κλίμακα.')));
+              'Από πού προέρχονται οι αριθμοί: οι ταχύτητες είναι δικές μας παραδοχές για την κυκλοφορία σχολικής ημέρας στην Κύπρο. Οι ρυθμοί αναπνοής είναι στρογγυλεμένοι από το Exposure Factors Handbook της EPA των ΗΠΑ (2011): περίπου 0,5 m³/ώρα καθιστός και περίπου 1,2 m³/ώρα περπατώντας, για ενήλικα· ένα παιδί αναπνέει λιγότερο σε απόλυτους όρους αλλά ο λόγος περπάτημα προς κάθισμα είναι παρόμοιος. Οι λόγοι αέρα είναι δικές μας στρογγυλεμένες παραδοχές, βασισμένες στην ανασκόπηση μελετών ρύπανσης κατά τη μετακίνηση των Cepeda και συν. 2017 (Lancet Public Health 2:e23-e34), που βρήκε ότι τα επίπεδα εξαρτώνται πολύ από την πόλη, το όχημα και την κυκλοφορία· τα εύρη είναι μεγάλα σκόπιμα. Ο οδηγός 24 ωρών του ΠΟΥ για το PM2.5 είναι 15 µg/m³ (παγκόσμιες οδηγίες 2021)· τα χρώματα παραπάνω χρησιμοποιούν τα 5, 15 και 35 µg/m³ μόνο ως χονδρική κλίμακα.'))));
         return det;
       }
 

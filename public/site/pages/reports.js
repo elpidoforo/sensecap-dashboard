@@ -133,7 +133,7 @@
     return el('article', { class: 'rp-sheet', 'aria-label': title },
       el('header', { class: 'rp-sh-head' }, logo(), el('div', { class: 'rp-sh-brand' }, el('b', null, 'SMART CITIES'), el('small', null, T('Cyprus · live from our schools', 'Κύπρος · ζωντανά από τα σχολεία μας'))),
         stamp ? el('span', { class: 'rp-stamp' }, stamp) : null),
-      el('h1', { class: 'rp-sh-title' }, title), sub ? el('p', { class: 'rp-sh-sub' }, sub) : null,
+      el('h2', { class: 'rp-sh-title' }, title), sub ? el('p', { class: 'rp-sh-sub' }, sub) : null,
       children,
       el('footer', { class: 'rp-sh-foot' }, foot));
   }
@@ -168,14 +168,14 @@
     const pic = (rows.length || useCells) ? islandPicture({ cells: r.cells, rows, mode: useCells ? 'squares' : 'temp', schools: SCHOOL_PLACES, label: T('Map of Cyprus with the four districts' + (useCells ? ' and the route squares of the week' : ', coloured by average temperature'), 'Χάρτης της Κύπρου με τις τέσσερις επαρχίες' + (useCells ? ' και τα τετράγωνα διαδρομής της εβδομάδας' : ', χρωματισμένες ανά μέση θερμοκρασία')) }) : null;
     const temps = rows.filter((x) => x.d && fin(x.temp)).map((x) => x.temp);
     const kids = [
-      el('section', { class: 'rp-sec' }, el('h2', null, T('In short', 'Με δυο λόγια')),
+      el('section', { class: 'rp-sec' }, el('h3', null, T('In short', 'Με δυο λόγια')),
         r.summary ? el('p', { class: 'rp-summary' }, r.summary) : el('p', { class: 'rp-none' }, T('No summary was written for this report.', 'Δεν γράφτηκε σύνοψη για αυτή την αναφορά.')),
         r.summary ? el('p', { class: 'rp-ai' }, r.ai ? T('AI summary: written by the assistant from the numbers below and checked by a teacher before release. It can be wrong; the numbers are the record.', 'Σύνοψη τεχνητής νοημοσύνης: γράφτηκε από τον βοηθό με βάση τους αριθμούς παρακάτω και ελέγχθηκε από εκπαιδευτικό πριν τη δημοσίευση. Μπορεί να έχει λάθη· οι αριθμοί είναι το αρχείο.') : T('Written by a teacher.', 'Γράφτηκε από εκπαιδευτικό.')) : null),
-      el('section', { class: 'rp-sec' }, el('h2', null, T('The numbers', 'Οι αριθμοί')),
+      el('section', { class: 'rp-sec' }, el('h3', null, T('The numbers', 'Οι αριθμοί')),
         rows.length ? numbersTable(rows) : el('p', { class: 'rp-none' }, T('This report has no numbers.', 'Αυτή η αναφορά δεν έχει αριθμούς.')),
         rows.length ? el('p', { class: 'rp-small' }, T('Weekly averages of what the school sensors read; the range in brackets is the lowest to the highest reading. Vehicle sensors measure the air around the vehicle, not the weather of the town.', 'Εβδομαδιαίοι μέσοι όροι όσων μέτρησαν οι αισθητήρες των σχολείων· το εύρος σε παρένθεση είναι από τη χαμηλότερη έως την υψηλότερη μέτρηση. Οι αισθητήρες των οχημάτων μετρούν τον αέρα γύρω από το όχημα, όχι τον καιρό της πόλης.')) : null),
-      el('section', { class: 'rp-sec rp-keep' }, el('h2', null, T('Met Office warnings seen this week', 'Προειδοποιήσεις της Μετεωρολογικής που καταγράφηκαν')), warningsBlock(r)),
-      el('section', { class: 'rp-sec rp-keep' }, el('h2', null, T('The island picture', 'Η εικόνα του νησιού')),
+      el('section', { class: 'rp-sec rp-keep' }, el('h3', null, T('Met Office warnings seen this week', 'Προειδοποιήσεις της Μετεωρολογικής που καταγράφηκαν')), warningsBlock(r)),
+      el('section', { class: 'rp-sec rp-keep' }, el('h3', null, T('The island picture', 'Η εικόνα του νησιού')),
         pic ? el('figure', { class: 'rp-fig' }, pic, el('figcaption', null, useCells
           ? T('Squares show where the schools’ vehicles drove this week, about 1 km wide, from points at least 2 hours old. They are drawn about twice their true width so that they can be seen.', 'Τα τετράγωνα δείχνουν πού κινήθηκαν τα οχήματα των σχολείων αυτή την εβδομάδα, πλάτους περίπου 1 χλμ, από σημεία παλαιότερα των 2 ωρών. Σχεδιάζονται περίπου διπλάσια σε πλάτος ώστε να φαίνονται.')
           : T('Each district is coloured by the average temperature of its school’s sensors' + (temps.length ? ' (' + SC.num(Math.min(...temps), 1) + ' °C cooler end to ' + SC.num(Math.max(...temps), 1) + ' °C warmer end)' : '') + '. Colours are only comparable inside this picture.', 'Κάθε επαρχία χρωματίζεται με τη μέση θερμοκρασία των αισθητήρων του σχολείου της' + (temps.length ? ' (από ' + SC.num(Math.min(...temps), 1) + ' °C στο ψυχρότερο άκρο έως ' + SC.num(Math.max(...temps), 1) + ' °C στο θερμότερο)' : '') + '. Τα χρώματα συγκρίνονται μόνο μέσα σε αυτή την εικόνα.'))) : el('p', { class: 'rp-none' }, T('This report has no island picture.', 'Αυτή η αναφορά δεν έχει εικόνα του νησιού.'))),
@@ -358,12 +358,12 @@
           el('button', { class: 'nm-btn nm-btn--primary', type: 'button', onclick: () => window.print() }, SC.icon('file', 16), T('Print', 'Εκτύπωση')));
         const noSensors = !rowsOv.some((r) => fin(r.temp) || fin(r.humidity) || fin(r.co2));
         const kids = [
-          el('section', { class: 'rp-sec' }, el('h2', null, T('Four schools. One living data classroom.', 'Τέσσερα σχολεία. Μία ζωντανή τάξη δεδομένων.')),
+          el('section', { class: 'rp-sec' }, el('h3', null, T('Four schools. One living data classroom.', 'Τέσσερα σχολεία. Μία ζωντανή τάξη δεδομένων.')),
             el('p', { class: 'rp-summary' }, T('Sensors on school buses and cars help students in Larnaka, Lefkosia, Lemesos and Pafos understand heat and air in their own cities. The numbers below are the newest readings; the picture shows where the vehicles drove in the last 24 hours.', 'Αισθητήρες σε σχολικά λεωφορεία και αυτοκίνητα βοηθούν τους μαθητές σε Λάρνακα, Λευκωσία, Λεμεσό και Πάφο να καταλάβουν τη θερμότητα και τον αέρα της πόλης τους. Οι αριθμοί παρακάτω είναι οι νεότερες μετρήσεις· η εικόνα δείχνει πού κινήθηκαν τα οχήματα τις τελευταίες 24 ώρες.'))),
-          el('section', { class: 'rp-sec rp-keep' }, el('h2', null, T('The island', 'Το νησί')),
+          el('section', { class: 'rp-sec rp-keep' }, el('h3', null, T('The island', 'Το νησί')),
             el('figure', { class: 'rp-fig' }, islandPicture({ cells, rows: rowsOv, mode: 'squares', schools: SCHOOL_PLACES, label: T('Map of Cyprus with the four school districts and ' + cells.length + ' route squares', 'Χάρτης της Κύπρου με τις τέσσερις σχολικές επαρχίες και ' + cells.length + ' τετράγωνα διαδρομής') }),
               el('figcaption', null, cells.length ? T('Dots are schools. Squares are grouped, delayed routes (about ' + (ov.cellKm || 1) + ' km, at least ' + Math.round((ov.delayMinutes || 120) / 60) + ' hours old), drawn about twice their true width so that they can be seen.', 'Οι κουκκίδες είναι σχολεία. Τα τετράγωνα είναι ομαδοποιημένες διαδρομές με καθυστέρηση (περίπου ' + (ov.cellKm || 1) + ' χλμ, παλαιότερες των ' + Math.round((ov.delayMinutes || 120) / 60) + ' ωρών), σχεδιασμένα περίπου διπλάσια σε πλάτος ώστε να φαίνονται.') : T('Dots are schools. No route square yet: squares appear for trips that are more than 2 hours old.', 'Οι κουκκίδες είναι σχολεία. Δεν υπάρχει ακόμα τετράγωνο διαδρομής: τα τετράγωνα εμφανίζονται για διαδρομές παλαιότερες των 2 ωρών.')))),
-          el('section', { class: 'rp-sec' }, el('h2', null, T('Latest averages per school', 'Τελευταίοι μέσοι όροι ανά σχολείο')), noSensors ? el('p', { class: 'rp-none' }, T('No school sensor has a reading right now.', 'Κανένας αισθητήρας σχολείου δεν έχει μέτρηση αυτή τη στιγμή.')) : numbersTable(rowsOv),
+          el('section', { class: 'rp-sec' }, el('h3', null, T('Latest averages per school', 'Τελευταίοι μέσοι όροι ανά σχολείο')), noSensors ? el('p', { class: 'rp-none' }, T('No school sensor has a reading right now.', 'Κανένας αισθητήρας σχολείου δεν έχει μέτρηση αυτή τη στιγμή.')) : numbersTable(rowsOv),
             el('p', { class: 'rp-small' }, T('Differences between schools are the start of a question, not an answer: vehicle sensors read the air around the vehicle.', 'Οι διαφορές μεταξύ σχολείων είναι η αρχή μιας ερώτησης, όχι απάντηση: οι αισθητήρες των οχημάτων μετρούν τον αέρα γύρω από το όχημα.'))),
         ];
         stage.append(tools, sheet({ title: T('Smart Cities: the one-page summary', 'Smart Cities: η σύνοψη μίας σελίδας'), sub: T('For mayors, media and parents · ' + (upd ? SC.date(upd) : ''), 'Για δημάρχους, μέσα ενημέρωσης και γονείς · ' + (upd ? SC.date(upd) : '')), stamp: T('Live numbers', 'Ζωντανοί αριθμοί'), children: kids,

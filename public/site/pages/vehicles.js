@@ -107,7 +107,7 @@
     if (d.online !== false && m && now - m <= HOUR) return 'on';
     return m && now - m <= DAY ? 'quiet' : 'off';
   }
-  const LBL = { road: T('On the road', 'Στον δρόμο'), park: T('Parked', 'Σταθμευμένο'), live: T('Reporting', 'Αναφέρει'), quiet: T('Quiet over 1 h', 'Σιωπηλό > 1 ώρα'), off: T('Offline', 'Εκτός λειτουργίας') };
+  const LBL = { road: T('On the road', 'Στον δρόμο'), park: T('Parked', 'Σταθμευμένο'), live: T('Reporting', 'Αναφέρει'), quiet: T('Quiet over 1 h', 'Σιωπηλό'), off: T('Offline', 'Εκτός λειτουργίας') };
   // "PASCAL Larnaka bus 12" -> "Bus 12" (the school is printed on its own line); any other name stays as it is
   function shortName(d) {
     const m = /\b(bus|minibus|coach|shuttle|car|van|taxi|vehicle)\s*#?\s*(\d+)\b/i.exec(d.name || '');
@@ -435,17 +435,17 @@
     };
 
     function paintTiles(vs) {
-      const now = Date.now(), h = Math.max(1, Math.round(c.delayMin() / 60)), ago = c.exact() ? T('now', 'τώρα') : T('about ' + h + ' h ago', 'πριν από περίπου ' + h + ' ώρες');
+      const now = Date.now(), h = Math.max(1, Math.round(c.delayMin() / 60)), ago = c.exact() ? T('now', 'τώρα') : T('about ' + h + ' h ago', 'πριν περίπου ' + h + ' ώρες');
       const road = vs.filter((v) => v.st === 'road'), park = vs.filter((v) => v.st === 'park'), live = vs.filter((v) => v.st === 'live'), q = vs.filter((v) => v.st === 'quiet' || v.st === 'off');
       const sub1 = road.length ? kinds(road) + ', ' + T('moving ' + ago, 'σε κίνηση ' + ago) : T('None was moving ' + ago + ' at its public position.', 'Κανένα δεν κινούνταν ' + ago + ' στη δημόσια θέση του.');
-      const sub2 = (park.length ? T('Stopped ' + ago + ', sensors still reading', 'Σταματημένα ' + ago + ', οι αισθητήρες συνεχίζουν να μετρούν') : T('None was stopped ' + ago + '.', 'Κανένα δεν ήταν σταματημένο ' + ago + '.'))
+      const sub2 = (park.length ? T('Stopped ' + ago + ', sensors still reading', 'Σταματημένα ' + ago + ', μετρούν ακόμα') : T('None was stopped ' + ago + '.', 'Κανένα δεν ήταν σταματημένο ' + ago + '.'))
         + (live.length ? ' ' + T('+' + live.length + ' with no public position yet.', '+' + live.length + ' χωρίς ακόμα δημόσια θέση.') : '');
       const oldest = q.slice().sort((a, b) => a.seen - b.seen)[0];
       const sub3 = !q.length ? T('Every vehicle sensor reported in the last hour.', 'Όλοι οι αισθητήρες οχημάτων έστειλαν μέτρηση την τελευταία ώρα.')
         : (q.length > 1 ? T(shortName(oldest.d) + ' and ' + (q.length - 1) + ' more', shortName(oldest.d) + ' και ' + (q.length - 1) + ' ακόμα') : shortName(oldest.d)) + ', ' + (oldest.seen ? T('no signal since ' + when(oldest.seen), 'κανένα σήμα από ' + when(oldest.seen)) : T('never reported', 'δεν έχει στείλει ποτέ'));
       void now;
       fill(tilesBox, tile('', 'road', 'bus', T('On the road', 'Στον δρόμο'), road.length, vs.length, sub1), tile('', 'park', 'pin', T('Parked', 'Σταθμευμένα'), park.length, vs.length, sub2),
-        tile(' q', 'quiet', 'sensor', T('Quiet over 1 h', 'Σιωπηλά πάνω από 1 ώρα'), q.length, vs.length, sub3));
+        tile(' q', 'quiet', 'sensor', T('Quiet over 1 h', 'Σιωπηλά > 1 ώρα'), q.length, vs.length, sub3));
     }
 
     function readTile(v, m) {

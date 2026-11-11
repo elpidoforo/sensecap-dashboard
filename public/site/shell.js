@@ -400,7 +400,8 @@
     try {
       const dv = await SC.cached('/api/devices', 60000);
       const t = document.getElementById('fresh-text'), s = document.getElementById('fresh-sub'), dot = document.getElementById('fresh-dot');
-      if (!t || !Array.isArray(dv)) return;
+      if (!t) return;
+      if (!Array.isArray(dv)) throw new Error('no device list');
       const seen = dv.map((d) => (d.lastSeen ? new Date(d.lastSeen).getTime() : 0)).filter(Boolean);
       const last = seen.length ? Math.max(...seen) : 0;
       const nSch = SCHOOL_RE.filter((re) => dv.some((d) => re.test(d.group || '') || re.test(d.name || ''))).length || 4;
@@ -409,7 +410,10 @@
       else if (stale) { t.textContent = SC.t('Readings from ' + nSch + ' schools and the Met Office', 'Μετρήσεις από ' + nSch + ' σχολεία και τη Μετεωρολογική'); s.textContent = SC.t('last reading ' + SC.ago(last), 'τελευταία μέτρηση ' + SC.ago(last)); }
       else { t.textContent = SC.t('Live from ' + nSch + ' schools and the Met Office', 'Ζωντανά από ' + nSch + ' σχολεία και τη Μετεωρολογική'); s.textContent = SC.t('updated ' + SC.ago(last), 'ενημερώθηκε ' + SC.ago(last)); }
       dot.classList.toggle('stale', stale);
-    } catch (e) { /* the chip keeps its default text */ }
+    } catch (e) {   // say so, rather than keep claiming "Live"
+      const t = document.getElementById('fresh-text'), s = document.getElementById('fresh-sub'), dot = document.getElementById('fresh-dot');
+      if (t && s && dot) { t.textContent = SC.t('The sensors cannot be reached right now', 'Οι αισθητήρες δεν είναι προσβάσιμοι αυτή τη στιγμή'); s.textContent = SC.t('trying again every minute', 'νέα προσπάθεια κάθε λεπτό'); dot.classList.add('stale'); }
+    }
   }
 
   function buildTopbar() {

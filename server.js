@@ -992,6 +992,7 @@ function startMetOffice() {
   setTimeout(collectPages, 20000);
   setInterval(collectPages, PAGES_EVERY);
   setInterval(() => history.prune(HISTORY_DAYS), 6 * 3600000);
+  setTimeout(() => archive.summary().catch(() => {}), 60000).unref();   // count the saved files once in the background, so the first visitor to the archive does not wait
 }
 
 /* ---------- student and team app (accounts, chat, assistant) ---------- */
