@@ -166,6 +166,7 @@ function createStudio(opts) {
     title TEXT NOT NULL, question TEXT NOT NULL DEFAULT '', sensors_json TEXT, data_json TEXT, notes TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'draft', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, submitted_at INTEGER,
     reviewed_by INTEGER, reviewed_at INTEGER, review_note TEXT)`);
+  addCol('studio_plans', 'stage', 'TEXT');   // running or done: how far the team got, kept when the plan is sent in and approved
   db.run('CREATE INDEX IF NOT EXISTS studio_plans_status ON studio_plans(status, school_id)');
   db.run('CREATE INDEX IF NOT EXISTS studio_plans_author ON studio_plans(author_kind, school_id)');
 
@@ -470,7 +471,7 @@ function createStudio(opts) {
     const staff = Boolean(v) && v.kind === 'user' && isStaff(v.user);
     const out = {
       id: p.id, title: p.title, question: p.question, sensors: parseList(p.sensors_json), data: parseList(p.data_json), team: p.team_label || (t ? t.name : null), notes: p.notes,
-      status: p.status, school: s ? s.short : null, author_label: planLabel(p), authorKind: p.author_kind === 'class' ? 'class' : 'user',
+      status: p.status, stage: p.stage === 'running' || p.stage === 'done' ? p.stage : null, school: s ? s.short : null, author_label: planLabel(p), authorKind: p.author_kind === 'class' ? 'class' : 'user',
       createdAt: p.created_at, updatedAt: p.updated_at, submittedAt: p.submitted_at || null, reviewedAt: p.reviewed_at || null,
       reviewNote: (mine || staff) && (p.status === 'approved' || p.status === 'sent_back') ? p.review_note : null,
     };
@@ -583,6 +584,9 @@ function createStudio(opts) {
     }
     const now = Date.now();
     const cols = { ...sets, status, updated_at: now };
+    if (status === 'running' || status === 'done') cols.stage = status;
+    else if (status === 'draft') cols.stage = null;
+    else if (status === 'submitted' && p.status !== 'submitted') cols.stage = p.status === 'done' ? 'done' : 'running';   // sent in from draft or running: the work is under way
     if (status === 'submitted' && p.status !== 'submitted') cols.submitted_at = now;
     if (status !== 'submitted' && status !== 'approved') cols.submitted_at = null;
     if (p.status === 'approved' || (status === 'submitted' && p.status !== 'submitted')) { cols.reviewed_by = null; cols.reviewed_at = null; cols.review_note = null; }

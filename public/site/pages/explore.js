@@ -1092,6 +1092,7 @@ h('aside', { class: 'nm-callout nm-callout--info how' }, h('b', { class: 't1' },
         else if (S.tool === 'official') { if (S.of.sensor) p.set('a', S.of.sensor); if (S.of.station) p.set('b', S.of.station); p.set('fam', S.of.fam); p.set('r', S.of.r); }
         else if (S.tool === 'download') { if (S.dl.a) p.set('a', S.dl.a); p.set('r', S.dl.hours); }
         try { window.history.replaceState(null, '', '#/explore?' + p.toString()); } catch (e) { /* the address stays as it is */ }
+        if (rank) rank.restyle();
       };
 
       async function boot() {

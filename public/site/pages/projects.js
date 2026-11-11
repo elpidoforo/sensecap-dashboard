@@ -62,7 +62,7 @@
   }
   const isWaiting = (p) => ['submitted', 'pending', 'review', 'in_review'].includes(p.status);
   const isBack = (p) => ['sent_back', 'rejected', 'changes', 'needs_changes'].includes(p.status) || (p.status === 'draft' && Boolean(p.reviewNote));
-  const phase = (p) => (p.status === 'done' ? 'done' : p.status === 'running' ? 'running' : p.status === 'draft' ? 'draft' : p.progress === 100 ? 'done' : 'running');
+  const phase = (p) => (p.status === 'done' || (p.status !== 'draft' && p.stage === 'done') ? 'done' : p.status === 'running' ? 'running' : p.status === 'draft' ? 'draft' : p.progress === 100 ? 'done' : 'running');
   function progress(p) {
     if (p.status === 'done') return { pct: 100, done: p.steps.length, of: p.steps.length };
     if (p.steps.length) { const d = p.steps.filter((s) => s.done).length; return { pct: Math.round((100 * d) / p.steps.length), done: d, of: p.steps.length }; }
