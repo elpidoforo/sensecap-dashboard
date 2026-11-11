@@ -336,9 +336,10 @@ function createBot(cfg) {
     ctx.schools = ctx.schools || [];
     const messages = buildMessages(ctx.history || [], ctx.question);
     const used = [];
+    const sysBlocks = systemBlocks(ctx);
     let tokensIn = 0, tokensOut = 0;
     for (let step = 0; step < MAX_STEPS; step++) {
-      const resp = await call({ model, max_tokens: 1200, system: systemBlocks(ctx), tools: TOOLS, messages }, ctx.signal);
+      const resp = await call({ model, max_tokens: 1200, system: sysBlocks, tools: TOOLS, messages }, ctx.signal);
       tokensIn += (resp.usage && resp.usage.input_tokens) || 0;
       tokensOut += (resp.usage && resp.usage.output_tokens) || 0;
       const blocks = resp.content || [];
