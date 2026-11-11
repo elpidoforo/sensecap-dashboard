@@ -137,22 +137,20 @@
       function islandSvg(s) {
         const box = el('div', { class: 'sx-map' });
         if (typeof ISLAND === 'undefined') return box;
+        const sv = SC.svgEl;
         const rgba = (h, a) => { const n = parseInt(h.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; };
-        let extra = '';
+        const svg = sv('svg', { viewBox: '0 0 ' + ISLAND.W + ' ' + ISLAND.H, role: 'img', 'aria-label': T('Map of Cyprus with ' + s.name + ' marked', 'Χάρτης της Κύπρου με σημειωμένο το σχολείο ' + s.name) });
+        Object.keys(ISLAND.districts).forEach((n) => svg.append(sv('path', { d: ISLAND.districts[n], fill: s.d === n ? rgba(s.col, 0.62) : 'rgba(76,203,234,.10)', stroke: 'rgba(143,227,247,.2)', 'stroke-width': 0.4 })));
         D.schools.forEach((o) => {
           if (o === s || !fin(o.lat) || !fin(o.lng)) return;
           const q = ISLAND.project(o.lng, o.lat);
-          extra += '<circle cx="' + Number(q[0]).toFixed(1) + '" cy="' + Number(q[1]).toFixed(1) + '" r="15" fill="rgba(255,255,255,.45)"/>';
+          svg.append(sv('circle', { cx: q[0].toFixed(1), cy: q[1].toFixed(1), r: 15, fill: 'rgba(255,255,255,.45)' }));
         });
         if (fin(s.lat) && fin(s.lng)) {
-          const p = ISLAND.project(s.lng, s.lat);
-          extra += '<circle cx="' + Number(p[0]).toFixed(1) + '" cy="' + Number(p[1]).toFixed(1) + '" r="58" fill="' + s.col + '" opacity=".3"/><circle cx="' + Number(p[0]).toFixed(1) + '" cy="' + Number(p[1]).toFixed(1) + '" r="26" fill="' + s.col + '" stroke="#fff" stroke-width="9"/>';
+          const p = ISLAND.project(s.lng, s.lat), cx = p[0].toFixed(1), cy = p[1].toFixed(1);
+          svg.append(sv('circle', { cx, cy, r: 58, fill: s.col, opacity: 0.3 }), sv('circle', { cx, cy, r: 26, fill: s.col, stroke: '#fff', 'stroke-width': 9 }));
         }
-        const fill = {};
-        if (s.d) fill[s.d] = rgba(s.col, 0.62);
-        box.innerHTML = ISLAND.svg({ fill, stroke: 'rgba(143,227,247,.2)', sw: 0.4, extra });   // only constants and numbers go in here
-        const svg = box.firstChild;
-        if (svg) { svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', T('Map of Cyprus with ' + s.name + ' marked', 'Χάρτης της Κύπρου με σημειωμένο το σχολείο ' + s.name)); }
+        box.append(svg);
         return box;
       }
       const when = (t) => (t == null ? T('no reading yet', 'καμία μέτρηση ακόμα') : SC.ago(t));
@@ -341,7 +339,7 @@
         const ms = mids(d);
         if (!ms.length) { pane.append(el('div', { class: 'empty' }, T('This sensor reports no measurements yet.', 'Αυτός ο αισθητήρας δεν αναφέρει ακόμα μετρήσεις.'))); return; }
         if (!chartMid || !ms.includes(chartMid)) chartMid = ms.includes('4097') ? '4097' : ms[0];
-        const box = el('div', { class: 'sx-chart', role: 'img' });
+        const box = el('div', { class: 'sx-chart' });
         const sel = el('select', { class: 'nm-input sx-sel', 'aria-label': T('Reading to chart', 'Μέτρηση για το γράφημα'), onchange: (e) => { chartMid = e.target.value; load24(); } },
           ms.map((m) => el('option', { value: m, selected: m === chartMid }, nameOf(m) + (unitOf(m) ? ' (' + unitOf(m) + ')' : ''))));
         pane.append(el('div', { class: 'sx-chartbox' }, el('div', { class: 'sx-ch-h' }, el('div', null, el('div', { class: 'sx-eb2' }, T('Last 24 hours', 'Τελευταίες 24 ώρες')), el('div', { class: 'muted sx-ch-s' }, d.name)), sel), box));

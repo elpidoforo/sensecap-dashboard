@@ -1053,7 +1053,7 @@ const SITE_CSP = "default-src 'self'; img-src 'self' data: blob:; style-src 'sel
 
 // The old pages now live inside the site shell. Opened on their own they send people there. With ?embed=1 the shell (or the
 // student app) gets the page itself, to show in a same-origin frame.
-const SHELL_ROUTES = { '/metoffice.html': '/#/weather', '/dashboard.html': '/#/vehicles', '/map.html': '/#/map', '/3d.html': '/#/3d' };
+const SHELL_ROUTES = { '/metoffice.html': '/#/weather', '/dashboard.html': '/#/vehicles', '/map.html': '/#/map', '/3d.html': '/#/city3d' };
 function redirectFor(url) {
   const p = url.pathname;
   if (p === '/index.html') return '/';
