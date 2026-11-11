@@ -19,6 +19,8 @@
 
   const HOUR = 3600000, FRESH = 3 * HOUR;
   const enc = encodeURIComponent;
+  // a custom property cannot go through el({style:{}}); the CSSOM setProperty is allowed by the site CSP
+  const tint = (node, c) => { node.style.setProperty('--sc', c); return node; };
   const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const fin = (v) => typeof v === 'number' && isFinite(v);
   const plural = (n, en, el1) => T(n + ' ' + (n === 1 ? en[0] : en[1]), n + ' ' + (n === 1 ? el1[0] : el1[1]));
@@ -72,7 +74,7 @@
         const words = k ? k.words : String(raw.short || raw.name || '').toLowerCase().split(/[^a-zα-ωά-ώ]+/i).filter((w) => w.length > 3 && !STOP.has(w));
         return {
           slug: raw.slug, id: raw.slug, lat: raw.lat, lng: raw.lng, key: k ? k.key : String(raw.slug).split('-')[0],
-          name: k ? T(k.name[0], k.name[1]) : raw.name, short: k ? T(k.short[0], k.short[1]) : raw.short || raw.name, apiShort: raw.short || raw.name, apiName: raw.name,
+          name: k && raw.name === k.name[0] ? T(k.name[0], k.name[1]) : raw.name, short: k ? T(k.short[0], k.short[1]) : raw.short || raw.name, apiShort: raw.short || raw.name, apiName: raw.name,
           dist: k ? T(k.dist[0], k.dist[1]) : '', d: k ? k.d : null, col: k ? k.col : SPARE[i % SPARE.length], words,
           teams: (raw.teams || []).map((t) => ({ id: t.id, name: t.name, eui: t.device_eui || null, school: raw.slug })),
         };
@@ -83,6 +85,7 @@
         return D.schools.find((s) => s.words.some((w) => g.includes(w)));
       }
       const deviceOf = (eui) => (eui ? D.devices.find((d) => d.eui === eui) || null : null);
+      const devIcon = (d) => (!d ? 'users' : /bus|λεωφ/i.test(d.name) ? 'bus' : isVehicle(d) ? 'route' : 'sensor');
       const isVehicle = (d) => d.measurements && gpsIds().some((g) => d.measurements.map(String).includes(g));
       const mids = (d) => (d.measurements || []).map(String).filter((m) => !gpsIds().includes(m));
       function status(d) {
@@ -183,7 +186,7 @@
           const pick = el('button', { type: 'button', class: 'sx-pick', 'data-k': 'sch-' + s.slug, 'aria-pressed': sel ? 'true' : 'false',
             'aria-label': T('Show the teams of ' + s.name, 'Εμφάνιση των ομάδων του σχολείου ' + s.name), onclick: () => { setFilter(sel ? 'all' : s.slug); } },
             plural(s.teams.length, ['team', 'teams'], ['ομάδα', 'ομάδες']), icon('arrow', 16));
-          A.schools.append(el('article', { class: 'nm-card nm-lift sx-sch' + (sel ? ' is-sel' : '') + (dim ? ' dim' : ''), style: { '--sc': s.col } },
+          A.schools.append(tint(el('article', { class: 'nm-card nm-lift sx-sch' + (sel ? ' is-sel' : '') + (dim ? ' dim' : '') },
             el('div', { class: 'sx-sch-top' },
               el('span', { class: 'sx-eb' }, el('i'), s.dist || T('School', 'Σχολείο')),
               D.devErr ? el('span', { class: 'sx-live off' }, T('No live data', 'Χωρίς ζωντανά δεδομένα'))
@@ -193,7 +196,7 @@
               el('div', null, el('dt', null, T('Teams', 'Ομάδες')), el('dd', null, String(s.teams.length))),
               el('div', null, el('dt', null, T('Sensors online', 'Αισθητήρες σε λειτουργία')), el('dd', null, D.devErr ? '–' : String(on), D.devErr ? null : el('small', null, ' ' + T('of ' + devs.length, 'από ' + devs.length)))),
               el('div', null, el('dt', null, T('Vehicles with sensors', 'Οχήματα με αισθητήρες')), el('dd', null, D.devErr ? '–' : String(veh)))),
-            el('div', { class: 'sx-foot' }, pick)));
+            el('div', { class: 'sx-foot' }, pick)), s.col));
         });
       }
 
@@ -201,7 +204,7 @@
       function drawPills() {
         const n = allTeams().length;
         A.pills.replaceChildren(el('button', { type: 'button', class: S.filter === 'all' ? 'on' : '', 'data-k': 'pill-all', 'aria-pressed': S.filter === 'all' ? 'true' : 'false', onclick: () => setFilter('all') }, T('All', 'Όλα'), el('em', null, String(n))),
-          D.schools.map((s) => el('button', { type: 'button', class: S.filter === s.slug ? 'on' : '', 'data-k': 'pill-' + s.slug, 'aria-pressed': S.filter === s.slug ? 'true' : 'false', onclick: () => setFilter(s.slug) }, s.short, el('em', null, String(s.teams.length)))));
+          ...D.schools.map((s) => el('button', { type: 'button', class: S.filter === s.slug ? 'on' : '', 'data-k': 'pill-' + s.slug, 'aria-pressed': S.filter === s.slug ? 'true' : 'false', onclick: () => setFilter(s.slug) }, s.short, el('em', null, String(s.teams.length)))));
         const withData = allTeams().filter(({ d }) => { const st = d && status(d); return st && st.st === 'ok'; }).length;
         A.badge.replaceChildren();
         if (n && !D.devErr) A.badge.append(el('span', { class: 'nm-badge nm-badge--info sx-count' }, el('span', { class: 'dot' }), T(withData + ' of ' + n + ' teams with fresh data', withData + ' από ' + n + ' ομάδες με πρόσφατα δεδομένα')));
@@ -216,7 +219,7 @@
         const st = status(d);
         const sel = S.sel === t.id;
         const open = el('button', { type: 'button', class: 'sx-open', 'data-k': 'team-' + t.id, 'aria-pressed': sel ? 'true' : 'false', 'aria-label': T('Open the profile of team ' + t.name, 'Άνοιγμα του προφίλ της ομάδας ' + t.name), onclick: () => selectTeam(t.id, true) }, t.name);
-        const ic = d ? (/bus|λεωφ/i.test(d.name) ? 'bus' : isVehicle(d) ? 'route' : 'sensor') : 'users';
+        const ic = devIcon(d);
         let device;
         if (!t.eui) device = el('p', { class: 'sx-none' }, T('No sensor linked yet', 'Δεν έχει συνδεθεί ακόμα αισθητήρας'));
         else if (D.devErr) device = el('p', { class: 'sx-none' }, T('Live readings are not available right now', 'Οι ζωντανές μετρήσεις δεν είναι διαθέσιμες αυτή τη στιγμή'));
@@ -227,31 +230,33 @@
             el('div', { class: 'sx-dev-n' }, icon(isVehicle(d) ? 'route' : 'sensor', 15), el('span', null, d.name)),
             rs.length ? el('ul', { class: 'sx-reads' }, rs.map((m) => el('li', { title: nameOf(m) }, el('b', null, val(d, m)), el('small', null, nameOf(m))))) : el('p', { class: 'sx-none' }, T('No reading yet', 'Καμία μέτρηση ακόμα')));
         }
-        return el('article', { class: 'nm-card nm-lift sx-team' + (sel ? ' nm-card--selected' : ''), style: { '--sc': s.col } },
+        return tint(el('article', { class: 'nm-card nm-lift sx-team' + (sel ? ' nm-card--selected' : '') },
           el('div', { class: 'sx-team-hd' }, el('span', { class: 'sx-emb' }, icon(ic, 22)),
             el('div', null, el('h4', null, open), el('div', { class: 'sx-where' }, el('i'), s.short))),
           device,
           el('div', { class: 'sx-team-ft' },
             el('span', null, el('i', { class: 'dot' + (!st ? ' off' : st.st === 'ok' ? '' : st.st === 'stale' ? ' warn' : ' bad') }),
-              !t.eui ? T('Waiting for a sensor', 'Αναμονή για αισθητήρα') : st ? T('Last reading ', 'Τελευταία μέτρηση ') + when(st.t) : T('No data', 'Χωρίς δεδομένα'))));
+              !t.eui ? T('Waiting for a sensor', 'Αναμονή για αισθητήρα') : st ? T('Last reading ', 'Τελευταία μέτρηση ') + when(st.t) : T('No data', 'Χωρίς δεδομένα')))), s.col);
       }
       function drawTeams(select) {
         const list = visibleTeams();
         A.teams.replaceChildren();
         const total = allTeams().length;
         const sch = S.filter === 'all' ? null : schoolOf(S.filter);
+        const nTeams = plural(total, ['team', 'teams'], ['ομάδα', 'ομάδες']);
         A.count.textContent = !total ? T('No teams yet', 'Δεν υπάρχουν ακόμα ομάδες')
-          : S.filter === 'all' && !S.q && !S.fresh ? T('Showing all ' + plural(total, ['team', 'teams'], ['ομάδα', 'ομάδες']).replace(/^\d+ /, '') + ' · sorted by ' + (S.sort === 'name' ? 'team name' : 'school'), 'Εμφάνιση όλων των ' + total + ' ομάδων · ταξινόμηση ανά ' + (S.sort === 'name' ? 'όνομα ομάδας' : 'σχολείο'))
-            : T('Showing ' + plural(list.length, ['team', 'teams'], ['ομάδα', 'ομάδες']) + (sch ? ' at ' + sch.name : ''), 'Εμφάνιση ' + plural(list.length, ['ομάδας', 'ομάδων'], ['ομάδας', 'ομάδων']).replace(/^(\d+) .*/, '$1') + ' ομάδων' + (sch ? ' · ' + sch.name : ''));
+          : S.filter === 'all' && !S.q && !S.fresh ? T('Showing all ' + nTeams + ' · sorted by ' + (S.sort === 'name' ? 'team name' : 'school'), 'Εμφάνιση όλων των ομάδων (' + total + ') · ταξινόμηση ανά ' + (S.sort === 'name' ? 'όνομα ομάδας' : 'σχολείο'))
+            : T('Showing ' + list.length + ' of ' + nTeams + (sch ? ' · ' + sch.name : ''), 'Εμφάνιση ' + list.length + ' από ' + nTeams + (sch ? ' · ' + sch.name : ''));
         A.sortBox.hidden = total < 2;
         if (!total) {
           A.teams.className = 'sx-teams empty-wrap';
           A.teams.append(el('div', { class: 'empty' }, el('b', null, T('No teams yet.', 'Δεν υπάρχουν ακόμα ομάδες.')), el('br'),
             T('A teacher creates a team in the student app and links one sensor to it. Until then you can look at all vehicles.', 'Ένας εκπαιδευτικός δημιουργεί μια ομάδα στην εφαρμογή των μαθητών και τη συνδέει με έναν αισθητήρα. Μέχρι τότε μπορείτε να δείτε όλα τα οχήματα.'),
             el('div', { style: { marginTop: '12px' } }, el('a', { class: 'pill-link', href: '#/vehicles' }, T('See the vehicles', 'Δείτε τα οχήματα')))));
-          drawDetail();
+          A.detail.hidden = true; A.split.classList.add('solo');
           return;
         }
+        A.detail.hidden = false; A.split.classList.remove('solo');
         if (!list.length) {
           A.teams.className = 'sx-teams empty-wrap';
           A.teams.append(el('div', { class: 'empty' }, S.filter !== 'all' && !S.q && !S.fresh && sch ? T(sch.name + ' has no teams yet.', 'Το σχολείο ' + sch.name + ' δεν έχει ακόμα ομάδες.') : T('No team matches. Clear the search or pick another school.', 'Καμία ομάδα δεν ταιριάζει. Καθαρίστε την αναζήτηση ή διαλέξτε άλλο σχολείο.'),
@@ -272,7 +277,7 @@
       function selectTeam(id, user) {
         S.sel = id;
         keepFocus(() => { drawTeams(false); });
-        if (user && A.detail && window.innerWidth < 980) A.detail.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'start' });
+        if (user && A.detail && window.innerWidth < 1180) A.detail.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'start' });
       }
 
       /* ---------- the team profile ---------- */
@@ -299,7 +304,7 @@
         const pane = el('div', { class: 'sx-pane', id: 'sx-pane', role: 'tabpanel', 'aria-labelledby': 'sx-tab-' + S.tab, tabindex: '0' });
         A.detail.append(
           el('div', { class: 'sx-det-head' },
-            el('span', { class: 'sx-emb lg' }, el('span', null, icon(d ? (isVehicle(d) ? 'route' : 'sensor') : 'users', 34))),
+            el('span', { class: 'sx-emb lg' }, el('span', null, icon(devIcon(d), 34))),
             el('div', { class: 'sx-det-t' }, el('div', { class: 'sx-eb2' }, T('Team profile', 'Προφίλ ομάδας')), el('h2', null, t.name),
               el('div', { class: 'sx-sub' }, s.name + (d ? ' · ' + T('carries ', 'φέρει ') + d.name : ''))),
             el('div', { class: 'sx-badges' }, d ? badge(st.st) : null, D.cfg && D.cfg.demo ? el('span', { class: 't demo' }, T('Demo data', 'Δοκιμαστικά δεδομένα')) : null)),
@@ -324,7 +329,7 @@
         if (rs.length) pane.append(el('div', { class: 'sx-mini' }, rs.map((m) => el('div', null, el('div', { class: 'kpi-label' }, nameOf(m)), el('div', { class: 'n' }, SC.num(Number(D.latest[d.eui][m].v), Math.abs(Number(D.latest[d.eui][m].v)) >= 100 ? 0 : 1), el('small', null, ' ' + unitOf(m)))))));
         else pane.append(el('div', { class: 'empty' }, T('No reading yet from this sensor.', 'Καμία μέτρηση ακόμα από αυτόν τον αισθητήρα.')));
         pane.append(el('div', null, el('div', { class: 'sx-eb2', style: { marginBottom: '6px' } }, T('Sensor this team looks after', 'Ο αισθητήρας που φροντίζει η ομάδα')),
-          el('ul', { class: 'sx-list' }, el('li', null, el('span', { class: 'sx-ic' }, icon(isVehicle(d) ? 'route' : 'sensor', 22)),
+          el('ul', { class: 'sx-list' }, el('li', null, el('span', { class: 'sx-ic' }, icon(devIcon(d), 22)),
             el('div', null, el('span', { class: 't1' }, d.name), el('small', null, isVehicle(d)
               ? T('Vehicle sensor. On the map its position is shown about ' + hours() + ' hours late and rounded to about ' + gridKm() + ' km.', 'Αισθητήρας οχήματος. Στον χάρτη η θέση του εμφανίζεται με καθυστέρηση περίπου ' + hours() + ' ωρών και στρογγυλοποιημένη στο ' + gridKm() + ' χλμ.')
               : T('Fixed sensor', 'Σταθερός αισθητήρας'))),
@@ -350,7 +355,7 @@
             const rows = await SC.cached('/api/series?eui=' + enc(eui) + '&mid=' + enc(mid) + '&days=1', 120000);
             if (dead || !box.isConnected || chartMid !== mid) return;
             const pts = (Array.isArray(rows) ? rows : []).map((r) => ({ t: Date.parse(r.t), v: Number(r.v) })).filter((p) => isFinite(p.t) && isFinite(p.v));
-            SCChart.line(box, [{ name: nameOf(mid), color: '#E07F3F', area: true, pts }], { unit: unitOf(mid), dec: 1, h: 220, label: nameOf(mid) + ', ' + d.name + ', ' + T('last 24 hours', 'τελευταίες 24 ώρες'), empty: T('No readings saved for the last 24 hours yet.', 'Δεν έχουν αποθηκευτεί ακόμα μετρήσεις για τις τελευταίες 24 ώρες.') });
+            SCChart.line(box, [{ name: nameOf(mid), color: '#E07F3F', area: true, pts }], { unit: unitOf(mid), dec: 1, w: Math.max(320, Math.round(box.clientWidth || 460)), h: 220, label: nameOf(mid) + ', ' + d.name + ', ' + T('last 24 hours', 'τελευταίες 24 ώρες'), empty: T('No readings saved for the last 24 hours yet.', 'Δεν έχουν αποθηκευτεί ακόμα μετρήσεις για τις τελευταίες 24 ώρες.') });
           } catch (e) {
             if (dead || !box.isConnected) return;
             box.replaceChildren(el('div', { class: 'err', role: 'alert' }, T('The chart could not be loaded. ', 'Το γράφημα δεν φορτώθηκε. ') + e.message), el('div', { style: { marginTop: '10px' } }, el('button', { class: 'nm-btn', type: 'button', onclick: load24 }, T('Try again', 'Δοκιμάστε ξανά'))));
@@ -360,8 +365,8 @@
         const st = status(d);
         const rows = ms.filter((m) => D.latest[d.eui] && D.latest[d.eui][m]);
         pane.append(el('div', { class: 'sx-eb2' }, T('Latest readings from this team’s sensor', 'Τελευταίες μετρήσεις από τον αισθητήρα της ομάδας')),
-          rows.length ? el('div', { class: 'nm-table-wrap' }, el('table', { class: 'nm-table' }, el('thead', null, el('tr', null, ['Reading', 'Value', 'Last', 'Status'].map((h, i) => el('th', null, T(h, ['Μέτρηση', 'Τιμή', 'Πότε', 'Κατάσταση'][i]))))),
-            el('tbody', null, rows.map((m) => { const r = D.latest[d.eui][m]; const tt = Date.parse(r.t); return el('tr', null, el('td', null, nameOf(m)), el('td', null, el('b', { class: 'sx-v' }, val(d, m))), el('td', { class: 'muted' }, isFinite(tt) ? SC.ago(tt) : '–'), el('td', null, badge(st.st))); }))))
+          rows.length ? el('div', { class: 'nm-table-wrap' }, el('table', { class: 'nm-table' }, el('thead', null, el('tr', null, ['Reading', 'Value', 'Last'].map((h, i) => el('th', null, T(h, ['Μέτρηση', 'Τιμή', 'Πότε'][i]))))),
+            el('tbody', null, rows.map((m) => { const r = D.latest[d.eui][m]; const tt = Date.parse(r.t); return el('tr', null, el('td', null, nameOf(m)), el('td', null, el('b', { class: 'sx-v' }, val(d, m))), el('td', { class: 'muted sx-when' }, isFinite(tt) ? SC.ago(tt) : '–')); }))))
             : el('div', { class: 'empty' }, T('No reading yet from this sensor.', 'Καμία μέτρηση ακόμα από αυτόν τον αισθητήρα.')),
           el('div', { class: 'sx-links' }, el('a', { class: 'pill-link', href: '#/vehicles/' + enc(d.eui) }, T('Open its full history and CSV', 'Πλήρες ιστορικό και CSV'))));
       }
@@ -390,7 +395,7 @@
           return;
         }
         pane.append(el('div', { class: 'sx-eb2' }, plural(mine.length, ['approved project', 'approved projects'], ['εγκεκριμένο έργο', 'εγκεκριμένα έργα'])),
-          mine.map((p) => el('div', { class: 'sx-pj' }, el('span', { class: 'sx-pj-i' }, icon('file', 24)),
+          ...mine.map((p) => el('div', { class: 'sx-pj' }, el('span', { class: 'sx-pj-i' }, icon('file', 24)),
             el('div', { class: 'sx-pj-b' }, el('b', null, p.title), p.idea ? el('div', { class: 'muted sx-pj-s' }, p.idea) : null, el('div', { class: 'muted sx-pj-s' }, T('Updated ', 'Ενημερώθηκε ') + (p.updatedAt ? SC.ago(p.updatedAt) : '–'))),
             el('span', { class: 'sp' }), el('a', { class: 'pill-link', href: '/studio/p/' + enc(p.id), target: '_blank', rel: 'noopener' }, T('Open', 'Άνοιγμα'), icon('external', 14)))),
           el('div', { class: 'nm-callout nm-callout--info' }, T('Teams can have several projects. Start one in the Build studio. A teacher approves it before it goes public.', 'Οι ομάδες μπορούν να έχουν πολλά έργα. Ξεκινήστε ένα στο Στούντιο. Ένας εκπαιδευτικός το εγκρίνει πριν γίνει δημόσιο.')));
@@ -429,6 +434,7 @@
         A.teams = el('div', { class: 'sx-teams' });
         A.detail = el('aside', { class: 'nm-card sx-detail', 'aria-label': T('Team profile', 'Προφίλ ομάδας') });
         A.warn = el('div', { class: 'sx-warn' });
+        A.split = el('div', { class: 'sx-split' }, A.teams, A.detail);
         const hrs = hours(), km = gridKm();
         body.append(A.ann, A.warn,
           el('div', { class: 'sx-searchbar' }, el('label', { class: 'sx-field' }, icon('search', 20), A.q)),
@@ -438,7 +444,7 @@
               'Αυτός ο ιστότοπος δεν εμφανίζει ονόματα ή φωτογραφίες μαθητών. Οι θέσεις των οχημάτων εμφανίζονται με καθυστέρηση περίπου ' + hrs + ' ωρών και στρογγυλοποιημένες στο ' + km + ' χλμ. Οι εκπαιδευτικοί βλέπουν τις ακριβείς θέσεις.'))),
           A.schools,
           el('div', { class: 'sx-sec' }, el('div', null, el('div', { class: 'sx-eb2 cu' }, T('Teams', 'Ομάδες')), el('h2', null, T('Each team, and the sensor it carries.', 'Κάθε ομάδα και ο αισθητήρας που φέρει.')), A.count), A.sortBox),
-          el('div', { class: 'sx-split' }, A.teams, A.detail));
+          A.split);
         drawWarn();
         drawAnnouncements();
         drawPills();

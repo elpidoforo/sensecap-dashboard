@@ -1,8 +1,25 @@
 # sensecap-dashboard
 
-Web dashboard for all sensors on the SenseCAP / SenseCraft Data Platform: live map, history charts, device table and CSV download.
+Smart Cities for four Cyprus schools: one site that shows the SenseCAP / SenseCraft sensors on buses, cars and classrooms next to the official Met Office data. There is no visitor login. Only teachers sign in (to approve work and manage the school).
 
 The server keeps your API credentials private and calls the SenseCAP HTTP API; the browser only talks to this server.
+
+## The site
+
+One page app at `/`, in the Nemesis Classic look (navy glass, copper and cyan, side menu), English by default with a Greek switch (`EN | EL`). The shell is `public/index.html` with `public/site/` (`shell.js` router, menu, welcome pop-up and tour; `site.css`; `charts.js`; `island.js`). Every page is a module in `public/site/pages/<id>.js` that registers itself with `SC.register(id, {...})` and is loaded on demand. Routes are hash routes (`/#/board`, `/#/vehicles/<eui>`, `/#/weather/<station>`).
+
+| Menu | Page | What it is |
+| --- | --- | --- |
+| The whole project | `home` | The eight windows on one island, tour mode |
+| Today | `board`, `city3d` | City board with live school readings; Cyprus 3D (embeds `/3d.html?embed=1`) |
+| The record | `weather`, `explore` | Met Office record (warnings, forecast, radar, sea, stations); Explore data (compare, timeline, number finder, sensor vs official, download) |
+| Schools and places | `schools` | Schools and teams, announcements from teachers |
+| In the field | `map`, `vehicles` | Live map (embeds `/map.html?embed=1`); vehicles and trips |
+| Output | `studio` | Build studio: gallery of approved tools; students build with the class code |
+| Ask | `ask` | The assistant, open to visitors with limits |
+| Oversight (teachers only) | `approvals` | Approve tools and accounts |
+
+Menu entries appear only for pages that exist (`READY` in `shell.js`). More pages from the original plan (alerts, council room, what-if, reports and others) are not built yet. The older `/app/` (student and team app, teacher management) and `/studio/` keep working; Settings and the teacher management screens still live in `/app/`.
 
 ## Run locally
 
@@ -66,7 +83,7 @@ What the public view looks like:
 
 Switching `LOCK_DASHBOARD`, `DASHBOARD_PASSWORD` or the class sign-in on only decides who may open the site. It never makes a visitor, a student or a class sign-in exact.
 
-Old addresses are redirected into the site: `/index.html` to `/`, `/cities/` to `/#/`, `/metoffice.html` to `/#/weather`, `/dashboard.html` to `/#/vehicles`, `/map.html` to `/#/map`, `/3d.html` to `/#/3d`. Add `?embed=1` to get the page itself (so the site can show `map.html` and `3d.html` in same-origin frames).
+Old addresses are redirected into the site: `/index.html` to `/`, `/cities/` to `/#/`, `/metoffice.html` to `/#/weather`, `/dashboard.html` to `/#/vehicles`, `/map.html` to `/#/map`, `/3d.html` to `/#/city3d`. Add `?embed=1` to get the page itself (so the site can show `map.html` and `3d.html` in same-origin frames).
 
 ## 3D view
 

@@ -390,8 +390,8 @@ function createApp(opts = {}) {
     res.setHeader('Cache-Control', 'public, max-age=30');
     const teams = all('SELECT id, school_id, name, device_eui FROM teams ORDER BY name COLLATE NOCASE, id');
     return {
-      schools: all('SELECT id, slug, name, short, lat, lng FROM schools ORDER BY id').map((s) => ({
-        slug: s.slug, name: s.name, short: s.short, lat: s.lat, lng: s.lng,
+      schools: all('SELECT id, slug, name, short, match, lat, lng FROM schools ORDER BY id').map((s) => ({
+        slug: s.slug, name: s.name, short: s.short, lat: s.lat, lng: s.lng, match: s.match || '',
         teams: teams.filter((t) => t.school_id === s.id).map((t) => ({ id: t.id, name: t.name, device_eui: t.device_eui || null })),
       })),
     };
