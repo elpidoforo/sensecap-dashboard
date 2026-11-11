@@ -29,7 +29,7 @@
   // A window with no built page is shown as "coming soon", never as a dead link. gate: a person decides here.
   const WIN = [
     { c: '#59d98e', n: T('Sensors in', 'Αισθητήρες'), s: T('Buses, cars, classrooms and open data', 'Λεωφορεία, αυτοκίνητα, τάξεις και ανοιχτά δεδομένα'), to: ['feeds', 'vehicles'] },
-    { c: '#F7C46B', gate: 1, n: T('Check', 'Έλεγχος'), s: T('Is it fresh and believable?', 'Είναι πρόσφατο και αξιόπιστο;'), to: ['warnwatch', 'weather'] },
+    { c: '#F7C46B', gate: 1, n: T('Check', 'Έλεγχος'), s: T('Is it fresh and believable?', 'Είναι πρόσφατο και αξιόπιστο;'), to: ['warnings', 'weather'] },
     { c: '#5BA8FF', n: T('Archive', 'Αρχείο'), s: T('History kept every 10 minutes', 'Ιστορικό που κρατιέται ανά 10 λεπτά'), to: ['archive', 'explore'] },
     { c: '#4CCBEA', n: T('The picture', 'Η εικόνα'), s: T('Map, 3D and city board', 'Χάρτης, 3D και πίνακας πόλης'), to: ['board'] },
     { c: '#A5B4FC', n: T('Schools and teams', 'Σχολεία και ομάδες'), s: T('Four schools, student teams of five or more', 'Τέσσερα σχολεία, ομάδες μαθητών 5 ή περισσότερων'), to: ['schools'] },
@@ -39,9 +39,10 @@
   ];
   const TOUR_LABEL = {
     city3d: T('Cyprus 3D', 'Κύπρος 3D'), board: T('City board', 'Πίνακας πόλης'), weather: T('Met Office record', 'Μετεωρολογικό αρχείο'),
-    explore: T('Explore data', 'Εξερεύνηση'), map: T('Live map', 'Ζωντανός χάρτης'), ask: T('Ask', 'Ρωτήστε'),
+    explore: T('Explore data', 'Εξερεύνηση'), council: T('Council room', 'Αίθουσα συμβουλίου'), map: T('Live map', 'Ζωντανός χάρτης'), ask: T('Ask', 'Ρωτήστε'),
   };
-  const TOUR = ['city3d', 'board', 'weather', 'explore', 'map', 'ask'];
+  // the same six steps as the Tour mode switch in the menu (the shell decides: Council room, or Live map until that page exists)
+  const tourIds = () => (SC.tourSteps ? SC.tourSteps() : ['city3d', 'board', 'weather', 'explore', 'map', 'ask']);
 
   const TAGS = [
     ['live', T('LIVE', 'ΖΩΝΤΑΝΟ'), T('read from the sensors and the Met Office as it arrives', 'διαβάζεται από τους αισθητήρες και τη Μετεωρολογική μόλις φτάνει')],
@@ -52,10 +53,11 @@
   ];
 
   const CARDS = [
-    { ic: 'board', id: 'board', h: T('See the city now', 'Δείτε την πόλη τώρα'), p: T('Open the City board for live readings from the four schools, with the Met Office warnings and temperatures beside them.', 'Ανοίξτε τον Πίνακα πόλης για ζωντανές μετρήσεις από τα τέσσερα σχολεία, με τις προειδοποιήσεις και τις θερμοκρασίες της Μετεωρολογικής δίπλα τους.'), a: T('City board', 'Πίνακας πόλης') },
+    { ic: 'board', id: 'board', h: T('See the city now', 'Δείτε την πόλη τώρα'), p: T('Open the City board for live readings from the four schools, with the Met Office warnings and forecast beside them.', 'Ανοίξτε τον Πίνακα πόλης για ζωντανές μετρήσεις από τα τέσσερα σχολεία, με τις προειδοποιήσεις και την πρόγνωση της Μετεωρολογικής δίπλα τους.'), a: T('City board', 'Πίνακας πόλης') },
     { ic: 'globe', id: 'city3d', h: T('Explore the island', 'Εξερευνήστε το νησί'), p: T('Turn the 3D island or open the layered map: sensors, Met Office stations, radar and warnings, one layer at a time.', 'Γυρίστε το νησί σε 3D ή ανοίξτε τον χάρτη με επίπεδα: αισθητήρες, σταθμούς της Μετεωρολογικής, ραντάρ και προειδοποιήσεις, ένα επίπεδο τη φορά.'), a: T('Cyprus 3D', 'Κύπρος 3D') },
     { ic: 'sparkle', id: 'ask', h: T('Ask, then check the source', 'Ρωτήστε και ελέγξτε την πηγή'), p: T('Ask in plain words. Helpers answer from the data and show the readings and the official pages they used.', 'Ρωτήστε με απλά λόγια. Οι βοηθοί απαντούν από τα δεδομένα και δείχνουν τις μετρήσεις και τις επίσημες σελίδες που χρησιμοποίησαν.'), a: T('Ask', 'Ρωτήστε') },
-    { ic: 'bus', id: 'vehicles', h: T('Follow a bus trip', 'Ακολουθήστε μια διαδρομή λεωφορείου'), p: T('Pick a bus or car, then follow its trip on the map. Positions are shown about 2 hours late and rounded to about 1 km, to protect students.', 'Διαλέξτε ένα λεωφορείο ή αυτοκίνητο και ακολουθήστε τη διαδρομή του στον χάρτη. Οι θέσεις εμφανίζονται με καθυστέρηση περίπου 2 ωρών και στρογγυλοποιημένες στο 1 χλμ., για την προστασία των μαθητών.'), a: T('Vehicles', 'Οχήματα') },
+    { ic: 'bus', id: 'trip', alt: 'vehicles', h: T('Follow a bus trip', 'Ακολουθήστε μια διαδρομή λεωφορείου'), p: T('Watch one trip on the map. Positions are shown about 2 hours late and rounded to about 1 km, to protect students.', 'Παρακολουθήστε μία διαδρομή στον χάρτη. Οι θέσεις εμφανίζονται με καθυστέρηση περίπου 2 ωρών και στρογγυλοποιημένες στο 1 χλμ., για την προστασία των μαθητών.'), a: T('Follow one trip', 'Ακολουθήστε μία διαδρομή'),
+      altP: T('Pick a bus or car, then follow its trip on the map. Positions are shown about 2 hours late and rounded to about 1 km, to protect students.', 'Διαλέξτε ένα λεωφορείο ή αυτοκίνητο και ακολουθήστε τη διαδρομή του στον χάρτη. Οι θέσεις εμφανίζονται με καθυστέρηση περίπου 2 ωρών και στρογγυλοποιημένες στο 1 χλμ., για την προστασία των μαθητών.'), altA: T('Vehicles', 'Οχήματα') },
   ];
 
   const link = (id) => '#/' + id;
@@ -89,7 +91,7 @@
       pageHead.append(tagRow);
 
       /* ---------- tour route ---------- */
-      const steps = TOUR.filter(ready);
+      const steps = tourIds().filter((id) => TOUR_LABEL[id]);
       const routeKids = [];
       steps.forEach((id, i) => {
         if (i) routeKids.push(el('em', { 'aria-hidden': 'true' }, '›'));
@@ -147,7 +149,7 @@
 
       const status = el('div');
       const arrow = () => SC.icon('arrow', 16);
-      const cards = el('div', { class: 'hm-cards' }, CARDS.filter((c) => ready(c.id)).map((c) =>
+      const cards = el('div', { class: 'hm-cards' }, CARDS.map((c) => (ready(c.id) || !c.alt ? c : Object.assign({}, c, { id: c.alt, p: c.altP, a: c.altA }))).filter((c) => ready(c.id)).map((c) =>
         el('a', { class: 'nm-card nm-lift hm-card', href: link(c.id) }, el('span', { class: 'nm-icon-tile' }, SC.icon(c.ic)), el('h3', null, c.h), el('p', null, c.p), el('span', { class: 'go' }, c.a, ' ', arrow()))));
       const sec = el('section', { class: 'hm-sec' },
         el('div', null, el('div', { class: 'eyebrow' }, T('No sign-in needed', 'Χωρίς σύνδεση')), el('h2', null, T('What you can do right now', 'Τι μπορείτε να κάνετε τώρα'))),
@@ -282,14 +284,16 @@
         SCH.forEach((s) => { live[s.id] = { total: 0, on: 0 }; });
         devices.forEach((d) => { const id = schoolOf(d); if (!id) return; live[id].total++; if (isOn(d, now)) live[id].on++; });
         loaded = true;
-        if (cfg && cfg.demo && !tagRow.querySelector('.t.demo')) tagRow.insertBefore(el('span', { class: 't demo', title: T('demo data, not real readings', 'δεδομένα επίδειξης, όχι πραγματικές μετρήσεις') }, T('DEMO DATA', 'ΔΕΔΟΜΕΝΑ ΕΠΙΔΕΙΞΗΣ')), tagRow.querySelector('.hm-tagnote'));
+        if (cfg && cfg.demo && !tagRow.querySelector('.t.demo')) tagRow.insertBefore(el('span', { class: 't demo', title: T('sample numbers, not real readings', 'δειγματικοί αριθμοί, όχι πραγματικές μετρήσεις') }, T('SAMPLE', 'ΔΕΙΓΜΑ')), tagRow.querySelector('.hm-tagnote'));
         drawDots(devices);
         drawPillars();
         if (!devices.length) note('info', T('No sensors are listed yet. When the sensor feed is connected, the pillars show how many are online at each school.', 'Δεν έχουν καταχωριστεί ακόμα αισθητήρες. Όταν συνδεθεί η τροφοδοσία αισθητήρων, οι στήλες θα δείχνουν πόσοι είναι σε λειτουργία σε κάθε σχολείο.'));
         else {
+          // the name tags on the pillars already say "n of m online": a line here only when readings are old
           const on = devices.filter((d) => isOn(d, now)).length;
           const last = Math.max(0, ...devices.map(seenMs));
-          note('info', T(on + ' of ' + devices.length + ' sensors online', on + ' από ' + devices.length + ' αισθητήρες σε λειτουργία') + (last ? ' · ' + T('last reading ' + SC.ago(last), 'τελευταία μέτρηση ' + SC.ago(last)) : ''));
+          if (!last || now - last > HOUR) note('info', T(on + ' of ' + devices.length + ' sensors online', on + ' από ' + devices.length + ' αισθητήρες σε λειτουργία') + (last ? ' · ' + T('last reading ' + SC.ago(last), 'τελευταία μέτρηση ' + SC.ago(last)) : ''));
+          else note(null, '');
         }
       }
 

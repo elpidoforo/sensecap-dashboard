@@ -39,6 +39,17 @@
     return t(d + ' days', d + ' ημέρες');
   }
   const when = (ms) => (ms ? SC.dateTime(ms) : '');
+  const kb = (n) => { const v = n / 1000; return (v < 10 ? v.toFixed(1) : String(Math.round(v))).replace('.', SC.lang === 'el' ? ',' : '.'); };
+  // "today 14:05", "yesterday 09:30", "Tuesday 10 Nov, 16:40" (Cyprus time)
+  const fmtWd = new Intl.DateTimeFormat(SC.lang === 'el' ? 'el-GR' : 'en-GB', { timeZone: 'Asia/Nicosia', weekday: 'long', day: 'numeric', month: 'short' });
+  const dayKey = (ms) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Nicosia' }).format(ms);
+  function whenLong(ms) {
+    if (!ms) return '';
+    const k = dayKey(ms), now = Date.now();
+    if (k === dayKey(now)) return t('today ', 'σήμερα ') + SC.time(ms);
+    if (k === dayKey(now - 86400000)) return t('yesterday ', 'χθες ') + SC.time(ms);
+    return fmtWd.format(ms) + ', ' + SC.time(ms);
+  }
   const plural = (n, one, many, oneEl, manyEl) => (n === 1 ? t(n + ' ' + one, n + ' ' + oneEl) : t(n + ' ' + many, n + ' ' + manyEl));
 
   /* ---------- a sandboxed page asks the site for the live overview ---------- */
@@ -188,8 +199,8 @@
     }
 
     /* ----- head, banner, gates, tabs ----- */
-    function drawHead() {
-      headHost.replaceChildren(SC.head({
+    function mkHead() {
+      return SC.head({
         title: t('Approve what goes public.', 'Εγκρίνετε ό,τι γίνεται δημόσιο.'),
         lede: t('Check each tool and each new account. Nothing is public until a teacher says yes. Every decision is saved in the trail, so students can see why.', 'Ελέγξτε κάθε εργαλείο και κάθε νέο λογαριασμό. Τίποτα δεν γίνεται δημόσιο αν δεν πει ναι ένας εκπαιδευτικός. Κάθε απόφαση καταγράφεται στο ιστορικό, ώστε οι μαθητές να βλέπουν το γιατί.'),
         tags: S.demo ? [{ text: t('Demo data', 'Δεδομένα επίδειξης'), cls: 'demo' }] : [],
@@ -197,8 +208,9 @@
           'Tools that student teams send for review wait here, one card at a time. Open the preview, tick your three checks (safe, honest, clear), then approve it, or send it back with a note the team can read. New student accounts wait on the Accounts tab. Visitors never see this page.',
           'Τα εργαλεία που στέλνουν οι ομάδες για έλεγχο περιμένουν εδώ, μία κάρτα τη φορά. Ανοίξτε την προεπισκόπηση, επιλέξτε τους τρεις ελέγχους (ασφαλές, ειλικρινές, κατανοητό) και μετά εγκρίνετέ το ή στείλτε το πίσω με σημείωμα που μπορεί να διαβάσει η ομάδα. Οι νέοι λογαριασμοί μαθητών περιμένουν στην καρτέλα Λογαριασμοί. Οι επισκέπτες δεν βλέπουν ποτέ αυτή τη σελίδα.',
         ],
-      }));
+      });
     }
+    function drawHead() { headHost.replaceChildren(mkHead()); }
 
     async function signOut(btn) {
       btn.disabled = true;
@@ -223,6 +235,7 @@
     const tabsHost = el('div', { class: 'ap-tabs', role: 'tablist', 'aria-label': t('Approval sections', 'Ενότητες εγκρίσεων') });
     const paneHost = el('div', { role: 'tabpanel', id: 'ap-pane' });
     const trailHost = el('aside', { class: 'nm-card ap-trailc', 'aria-labelledby': 'ap-trail-h' });
+    const weekHost = el('aside', { class: 'nm-card ap-week', 'aria-labelledby': 'ap-week-h' });
     const moreHost = el('aside', { class: 'nm-card ap-more', 'aria-labelledby': 'ap-more-h' });
 
     // [English, Greek] for "at <school>"
@@ -239,7 +252,7 @@
           el('p', null, !S.review.ok ? t('The list could not be loaded just now.', 'Η λίστα δεν φορτώθηκε αυτή τη στιγμή.')
             : nT ? t('Student tools sent for review by teams ' + at()[0] + '. The oldest has waited ' + span(Date.now() - oldest) + '.', 'Εργαλεία που έστειλαν για έλεγχο ομάδες ' + at()[1] + '. Το παλαιότερο περιμένει ' + span(Date.now() - oldest) + '.')
               : t('Nothing is waiting. A tool shows up here when a team presses Send to teacher.', 'Δεν περιμένει τίποτα. Ένα εργαλείο εμφανίζεται εδώ όταν μια ομάδα πατήσει «Αποστολή στον εκπαιδευτικό».')),
-          nT ? el('button', { class: 'nm-btn nm-btn--primary', type: 'button', onclick: () => setTab('tools', true) }, plural(nT, 'tool to review', 'tools to review', 'εργαλείο προς έλεγχο', 'εργαλεία προς έλεγχο')) : null),
+          nT ? el('button', { class: 'nm-btn nm-btn--primary', type: 'button', onclick: () => setTab('tools', true) }, t('Review ' + nT + (nT === 1 ? ' tool' : ' tools'), 'Έλεγχος ' + nT + (nT === 1 ? ' εργαλείου' : ' εργαλείων'))) : null),
         art(ART_TOOLS));
       const g2 = el('article', { class: 'nm-card ap-gate cy' + (nA ? '' : ' zero') },
         el('div', null,
@@ -247,10 +260,11 @@
           el('div', { class: 'ap-gate-n' }, S.ov ? String(nA) : '–'),
           el('h3', null, t('Accounts to approve', 'Λογαριασμοί προς έγκριση')),
           el('p', null, !S.ov ? t('The list could not be loaded just now.', 'Η λίστα δεν φορτώθηκε αυτή τη στιγμή.')
-            : nA ? (isAdmin ? t('People asked to join with a school code. Check you know them, then let them in.', 'Άτομα που ζήτησαν να μπουν με κωδικό σχολείου. Ελέγξτε ότι τα γνωρίζετε και μετά αφήστε τα να μπουν.')
+            : nA ? (isAdmin ? (nA === 1 ? t('Someone asked to join with a school code. Check you know them, then let them in.', 'Κάποιος ζήτησε να μπει με κωδικό σχολείου. Ελέγξτε ότι τον γνωρίζετε και μετά αφήστε τον να μπει.') : t('People asked to join with a school code. Check you know them, then let them in.', 'Άτομα που ζήτησαν να μπουν με κωδικό σχολείου. Ελέγξτε ότι τα γνωρίζετε και μετά αφήστε τα να μπουν.'))
+              : nA === 1 ? t('A student asked to join ' + (school ? school.name : 'your school') + ' with the school code. Check you know them, then let them in.', 'Ένας μαθητής ζήτησε να μπει ' + at()[1] + ' με τον κωδικό σχολείου. Ελέγξτε ότι τον γνωρίζετε και μετά αφήστε τον να μπει.')
               : t('Students asked to join ' + (school ? school.name : 'your school') + ' with the school code. Check you know them, then let them in.', 'Μαθητές ζήτησαν να μπουν ' + at()[1] + ' με τον κωδικό σχολείου. Ελέγξτε ότι τους γνωρίζετε και μετά αφήστε τους να μπουν.'))
               : t('No one is waiting to join.', 'Κανείς δεν περιμένει να μπει.')),
-          nA ? el('button', { class: 'nm-btn nm-btn--primary', type: 'button', onclick: () => setTab('accounts', true) }, plural(nA, 'account to review', 'accounts to review', 'λογαριασμός προς έλεγχο', 'λογαριασμοί προς έλεγχο')) : null),
+          nA ? el('button', { class: 'nm-btn nm-btn--primary', type: 'button', onclick: () => setTab('accounts', true) }, t('Review ' + nA + (nA === 1 ? ' account' : ' accounts'), 'Έλεγχος ' + nA + (nA === 1 ? ' λογαριασμού' : ' λογαριασμών'))) : null),
         art(ART_ACCT));
       gatesHost.replaceChildren(g1, g2);
     }
@@ -283,7 +297,7 @@
         ['honest', t('Honest', 'Ειλικρινές'), t('The numbers match the data it reads.', 'Οι αριθμοί ταιριάζουν με τα δεδομένα που διαβάζει.')],
         ['clear', t('Clear', 'Κατανοητό'), t('A classmate would understand it.', 'Ένας συμμαθητής θα το καταλάβαινε.')]];
       const boxes = checks.map(([id]) => el('input', { type: 'checkbox', id: 'ap-ck-' + id }));
-      const note = el('textarea', { class: 'nm-input ap-note', id: 'ap-note', maxlength: 300, 'aria-label': t('Note to the team', 'Σημείωμα προς την ομάδα'), placeholder: t('Note to the team. They read it if you send the tool back.', 'Σημείωμα προς την ομάδα. Το διαβάζουν αν στείλετε το εργαλείο πίσω.') });
+      const note = el('textarea', { class: 'nm-input ap-note', id: 'ap-note', maxlength: 300, 'aria-label': t('Note to the team', 'Σημείωμα προς την ομάδα'), placeholder: t('Note to the team. Shown to them if you send it back.', 'Σημείωμα προς την ομάδα. Το διαβάζουν αν στείλετε το εργαλείο πίσω.') });
       const errBox = el('div', { 'aria-live': 'assertive' });
       const ok = el('button', { class: 'nm-btn nm-btn--primary', type: 'button', disabled: true }, ic('checkc'), t('Approve and publish', 'Έγκριση και δημοσίευση'));
       const back = el('button', { class: 'nm-btn', type: 'button', disabled: true }, ic('back'), t('Send back', 'Επιστροφή'));
@@ -310,7 +324,7 @@
           const m = decision === 'approve' ? t('Approved. The tool is now public.', 'Εγκρίθηκε. Το εργαλείο είναι πλέον δημόσιο.') : t('Sent back to the team with your note.', 'Επιστράφηκε στην ομάδα με το σημείωμά σας.');
           SC.toast(m); live.textContent = m + ' ' + plural(S.tools.length, 'tool still waiting.', 'tools still waiting.', 'εργαλείο περιμένει ακόμη.', 'εργαλεία περιμένουν ακόμη.');
           S.busy = false;
-          drawGates(); drawTabs(); drawPane(); drawTrail(); focusCard();
+          drawGates(); drawTabs(); drawPane(); drawTrail(); drawWeek(); focusCard();
           if (isAdmin) refreshAudit();
         } catch (e) {
           S.busy = false; sync();
@@ -329,24 +343,23 @@
       const idea = p.idea && String(p.idea).trim();
       return el('article', { class: 'nm-card nm-card--glow ap-top', 'aria-labelledby': 'ap-card-h' },
         el('div', { class: 'ap-top-h' }, el('span', { class: 'ap-eb cu', id: 'ap-counter' }, t('Card ' + i + ' of ' + n, 'Κάρτα ' + i + ' από ' + n)), el('span', { class: 'ap-sp' }),
-          el('span', { class: 'nm-badge nm-badge--warn' }, t('Waiting ' + span(waited), 'Αναμονή ' + span(waited)))),
+          el('span', { class: 'nm-badge nm-badge--warn' }, el('i', { class: 'ap-dot' }), t('Waiting ' + span(waited), 'Αναμονή ' + span(waited)))),
         el('h2', { id: 'ap-card-h', tabindex: -1 }, p.title),
-        el('div', { class: 'ap-who' }, el('i'), el('span', null, p.author_label || t('Unknown team', 'Άγνωστη ομάδα')), p.updatedAt ? [el('span', { class: 'dim' }, '·'), el('span', null, t('Sent ', 'Στάλθηκε ') + when(p.updatedAt))] : null),
-        el('div', { class: 'ap-pvbar' },
-          el('span', { class: 'ap-pvtag' }, ic('lock'), t('Preview in a safe box, no internet', 'Προεπισκόπηση σε ασφαλές κουτί, χωρίς internet')), el('span', { class: 'ap-sp' }),
-          el('a', { class: 'nm-btn nm-btn--sm', href: '/studio/p/' + p.id, target: '_blank', rel: 'noopener' }, ic('ext'), t('Open full screen', 'Άνοιγμα σε πλήρη οθόνη'))),
-        el('div', { class: 'ap-preview' }, el('iframe', { class: 'ap-frame', sandbox: 'allow-scripts', src: '/studio/p/' + p.id, title: t('Preview of ' + p.title, 'Προεπισκόπηση: ' + p.title), referrerpolicy: 'no-referrer' })),
+        el('div', { class: 'ap-who' }, el('i'), el('span', null, p.author_label ? String(p.author_label).replace(', ', ' · ') : t('Unknown team', 'Άγνωστη ομάδα')), p.updatedAt ? [el('span', { class: 'dim' }, '·'), el('span', null, t('Sent ', 'Στάλθηκε ') + whenLong(p.updatedAt))] : null),
+        el('div', { class: 'ap-preview' }, el('iframe', { class: 'ap-frame', sandbox: 'allow-scripts', src: '/studio/p/' + p.id, title: t('Preview of ' + p.title, 'Προεπισκόπηση: ' + p.title), referrerpolicy: 'no-referrer' }),
+          el('span', { class: 'ap-pvtag' }, ic('lock'), t('Preview in a safe box, no internet', 'Προεπισκόπηση σε ασφαλές κουτί, χωρίς internet')),
+          el('a', { class: 'nm-btn nm-btn--sm ap-full', href: '/studio/p/' + p.id, target: '_blank', rel: 'noopener' }, ic('ext'), t('Open full screen', 'Άνοιγμα σε πλήρη οθόνη'))),
         el('div', { class: 'ap-cols2' },
           el('div', null, el('div', { class: 'ap-eb' }, t('What the team says it does', 'Τι λέει η ομάδα ότι κάνει')),
             idea ? el('p', null, '“' + idea + '”') : el('p', { class: 'none' }, t('The team did not write a description.', 'Η ομάδα δεν έγραψε περιγραφή.'))),
           el('div', null, el('div', { class: 'ap-eb' }, t('Checked by the studio', 'Έλεγχος από το στούντιο')),
             el('ul', { class: 'ap-autoc' },
-              el('li', null, ic('checkc'), t('Runs in a safe box with no internet', 'Τρέχει σε ασφαλές κουτί χωρίς internet')),
-              el('li', null, ic('checkc'), t('Can only ask the site for the delayed, rounded overview', 'Μπορεί να ζητήσει από τον ιστότοπο μόνο τη συνολική εικόνα με καθυστέρηση και στρογγυλοποίηση')),
-              el('li', null, ic('checkc'), t(size.toLocaleString('en-GB') + ' of ' + S.maxHtml.toLocaleString('en-GB') + ' characters allowed', size.toLocaleString('el-GR') + ' από ' + S.maxHtml.toLocaleString('el-GR') + ' επιτρεπόμενους χαρακτήρες')),
+              el('li', null, ic('checkc'), t('Runs with no internet', 'Τρέχει χωρίς internet')),
+              el('li', null, ic('checkc'), t('Reads only the delayed, rounded overview', 'Διαβάζει μόνο τη συνολική εικόνα με καθυστέρηση και στρογγυλοποίηση')),
+              el('li', null, ic('checkc'), t(kb(size) + ' KB of the ' + kb(S.maxHtml) + ' KB limit', kb(size) + ' KB από το όριο των ' + kb(S.maxHtml) + ' KB')),
               flagged
                 ? el('li', { class: 'warn' }, ic('warn'), t('The page seems to contain map coordinates. Look for exact positions before you approve.', 'Η σελίδα φαίνεται να περιέχει συντεταγμένες. Ελέγξτε για ακριβείς θέσεις πριν εγκρίνετε.'))
-                : el('li', null, ic('checkc'), t('No map coordinates found by the automatic check', 'Δεν βρέθηκαν συντεταγμένες στον αυτόματο έλεγχο'))))),
+                : el('li', null, ic('checkc'), t('No map coordinates found', 'Δεν βρέθηκαν συντεταγμένες χάρτη'))))),
         el('hr', { class: 'ap-hr' }),
         el('div', { class: 'ap-eb' }, t('Your three checks', 'Οι τρεις έλεγχοί σας')),
         el('div', { class: 'ap-chk3' }, checks.map(([id, h, small], k) => el('label', { for: 'ap-ck-' + id }, boxes[k], el('span', null, el('b', null, h), el('small', null, small))))),
@@ -387,7 +400,7 @@
           S.ov.members = S.ov.members.filter((x) => x.id !== m.id);
           const msg = kind === 'approve' ? t('Account approved.', 'Ο λογαριασμός εγκρίθηκε.') : t('Account declined.', 'Ο λογαριασμός απορρίφθηκε.');
           SC.toast(msg); live.textContent = msg;
-          drawGates(); drawTabs(); drawPane(); drawTrail(); focusCard();
+          drawGates(); drawTabs(); drawPane(); drawTrail(); drawWeek(); focusCard();
           if (isAdmin) refreshAudit();
         } catch (e) {
           ok.disabled = no.disabled = false;
@@ -405,7 +418,7 @@
       const roleTxt = m.role === 'teacher' ? t('Teacher account', 'Λογαριασμός εκπαιδευτικού') : t('Student account', 'Λογαριασμός μαθητή');
       return el('article', { class: 'nm-card nm-card--glow ap-acct', 'aria-label': roleTxt + ': ' + m.name },
         el('div', { class: 'ap-top-h' }, el('span', { class: 'ap-eb cy' }, t('Account request', 'Αίτημα λογαριασμού')), el('span', { class: 'ap-sp' }),
-          el('span', { class: 'nm-badge nm-badge--warn' }, t('Waiting ' + span(Date.now() - (m.created_at || Date.now())), 'Αναμονή ' + span(Date.now() - (m.created_at || Date.now()))))),
+          el('span', { class: 'nm-badge nm-badge--warn' }, el('i', { class: 'ap-dot' }), t('Waiting ' + span(Date.now() - (m.created_at || Date.now())), 'Αναμονή ' + span(Date.now() - (m.created_at || Date.now()))))),
         el('h3', null, m.name),
         el('div', { class: 'ap-who' }, el('span', null, roleTxt), el('span', { class: 'dim' }, '·'), el('span', null, sc ? sc.name : t('Unknown school', 'Άγνωστο σχολείο')), el('span', { class: 'dim' }, '·'), el('span', null, t('Asked ', 'Ζήτησε ') + when(m.created_at))),
         el('ul', { class: 'ap-autoc' },
@@ -445,6 +458,7 @@
     }
 
     /* ----- decision trail ----- */
+    const lab = (p) => String(p.author_label || '').replace(', ', ' · ');
     function trailItems() {
       const rows = [];
       if (isAdmin && S.audit) {
@@ -463,48 +477,107 @@
           const sch = parts && S.ov ? S.ov.schools.find((x) => String(x.short || '').toLowerCase().replace(/\s+/g, '-') === parts[0]) : null;
           const who = parts ? t('Team ' + parts[1], 'Ομάδα ' + parts[1]) + (sch ? ', ' + sch.short : '') : '';
           rows.push({ at: r.at, kind: m[0], head: m[1], tail: isTool ? (known ? known.title : t('Tool #' + r.target, 'Εργαλείο #' + r.target)) : (r.detail || ''),
-            sub: (who ? who + ' · ' : '') + (r.actor && r.actor !== 'system' ? t('by ', 'από ') + r.actor + ' · ' : '') + when(r.at) });
+            sub: (who ? who + ' · ' : '') + (r.actor && r.actor !== 'system' ? t('by ', 'από ') + r.actor + ' · ' : '') + whenLong(r.at) });
         });
       } else {
-        S.tools.forEach((p) => rows.push({ at: p.updatedAt, kind: 'submitted', head: t('Submitted', 'Υποβλήθηκε'), tail: p.title, sub: (p.author_label || '') + ' · ' + when(p.updatedAt) }));
-        accounts().forEach((m) => rows.push({ at: m.created_at, kind: 'account', head: t('Account requested', 'Αίτημα λογαριασμού'), tail: m.name, sub: when(m.created_at) }));
+        S.tools.forEach((p) => rows.push({ at: p.updatedAt, kind: 'submitted', head: t('Submitted', 'Υποβλήθηκε'), tail: p.title, sub: lab(p) + ' · ' + whenLong(p.updatedAt) }));
+        accounts().forEach((m) => rows.push({ at: m.created_at, kind: 'account', head: t('Account requested', 'Αίτημα λογαριασμού'), tail: m.name, sub: whenLong(m.created_at) }));
         const mine = new Set(S.decisions.map((d) => d.id));
-        S.gallery.filter((p) => !mine.has(p.id) && (!school || p.school === school.short)).slice(0, 6).forEach((p) => rows.push({ at: p.updatedAt, kind: 'approved', head: t('Approved', 'Εγκρίθηκε'), tail: p.title, sub: (p.author_label || '') + ' · ' + when(p.updatedAt) + ' · ' + t('now public', 'δημόσιο τώρα') }));
-        S.decisions.forEach((d) => rows.push({ at: d.at, kind: d.kind, head: ({ approved: t('Approved by you', 'Εγκρίθηκε από εσάς'), back: t('Sent back by you', 'Επιστράφηκε από εσάς'), accountok: t('Account approved', 'Εγκρίθηκε λογαριασμός'), declined: t('Account declined', 'Απορρίφθηκε λογαριασμός') })[d.kind], tail: d.title, sub: (d.who ? d.who + ' · ' : '') + when(d.at), note: d.kind === 'back' ? d.note : '' }));
+        S.gallery.filter((p) => !mine.has(p.id) && (!school || p.school === school.short)).slice(0, 6).forEach((p) => rows.push({ at: p.updatedAt, kind: 'approved', head: t('Approved', 'Εγκρίθηκε'), tail: p.title, sub: lab(p) + ' · ' + whenLong(p.updatedAt) + ' · ' + t('now public', 'δημόσιο τώρα') }));
+        S.decisions.forEach((d) => rows.push({ at: d.at, kind: d.kind, head: ({ approved: t('Approved by you', 'Εγκρίθηκε από εσάς'), back: t('Sent back by you', 'Επιστράφηκε από εσάς'), accountok: t('Account approved', 'Εγκρίθηκε λογαριασμός'), declined: t('Account declined', 'Απορρίφθηκε λογαριασμός') })[d.kind], tail: d.title, sub: (d.who ? d.who + ' · ' : '') + whenLong(d.at), note: d.kind === 'back' ? d.note : '' }));
       }
-      return rows.sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 12);
+      return rows.sort((a, b) => (b.at || 0) - (a.at || 0));
     }
     function drawTrail() {
-      const items = trailItems();
+      const all = trailItems(), items = all.slice(0, S.trailAll ? 40 : 6);
       const sub = isAdmin ? t('Every approval, send-back and account decision, newest first.', 'Κάθε έγκριση, επιστροφή και απόφαση για λογαριασμό, με τα νεότερα πρώτα.')
         : t('Recent activity ' + at()[0] + ', newest first.', 'Πρόσφατη δραστηριότητα ' + at()[1] + ', με τα νεότερα πρώτα.');
-      trailHost.replaceChildren(el('h2', { id: 'ap-trail-h' }, t('Decision trail', 'Ιστορικό αποφάσεων')), el('p', { class: 'card-sub' }, sub),
+      trailHost.replaceChildren(...[el('h2', { id: 'ap-trail-h' }, t('Decision trail', 'Ιστορικό αποφάσεων')), el('p', { class: 'card-sub' }, sub),
         isAdmin && S.auditError ? el('div', { class: 'err', role: 'alert' }, t('The record could not be loaded. ', 'Το αρχείο δεν φορτώθηκε. ') + errText(S.auditError))
           : items.length ? el('ul', { class: 'ap-trail' }, items.map((r) => {
             const [color, icon] = TRAIL[r.kind] || TRAIL.submitted;
-            return el('li', { style: { '--nd': color } }, el('span', { class: 'nd' }, ic(icon)),
+            return el('li', { style: '--nd:' + color }, el('span', { class: 'nd' }, ic(icon)),
               el('div', { class: 'tx' }, el('div', { class: 'tt' }, r.head, r.tail ? [' ', el('span', null, '· ' + r.tail)] : null), el('div', { class: 'tm' }, r.sub), r.note ? el('blockquote', null, r.note) : null));
           })) : el('div', { class: 'empty' }, t('Nothing has happened yet. Decisions and submissions appear here.', 'Δεν έχει γίνει τίποτα ακόμη. Οι αποφάσεις και οι υποβολές εμφανίζονται εδώ.')),
-        !isAdmin ? el('p', { class: 'ap-trail-end' }, t('Send-backs are listed here only for this visit. An admin can read the full record.', 'Οι επιστροφές εμφανίζονται εδώ μόνο για αυτή την επίσκεψη. Ένας διαχειριστής μπορεί να διαβάσει το πλήρες αρχείο.')) : null);
+        all.length > 6 ? el('div', { class: 'ap-trail-more' }, el('button', { class: 'link', type: 'button', 'aria-expanded': S.trailAll ? 'true' : 'false', onclick: () => { S.trailAll = !S.trailAll; drawTrail(); } }, S.trailAll ? t('Show fewer', 'Λιγότερες') : t('See all decisions', 'Όλες οι αποφάσεις'))) : null].filter(Boolean));
     }
     async function refreshAudit() {
       try { const r = await SC.api('/app/api/manage/audit'); S.audit = r.rows || []; S.auditError = null; } catch (e) { S.auditError = e; }
-      if (alive) drawTrail();
+      if (alive) { drawTrail(); drawWeek(); }
+    }
+
+    /* ----- this week: decisions since Monday (Cyprus time), from what this teacher is allowed to see ----- */
+    function weekStart() {
+      const wd = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Nicosia', weekday: 'short' }).format(Date.now());
+      const back = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(wd);
+      const k = dayKey(Date.now() - back * 86400000);   // the Monday, as YYYY-MM-DD
+      return { key: k, idx: (ms) => { const d = Math.round((Date.parse(dayKey(ms) + 'T00:00:00Z') - Date.parse(k + 'T00:00:00Z')) / 86400000); return d; } };
+    }
+    function weekData() {
+      const w = weekStart(), days = [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]];
+      const seen = new Set();
+      const add = (ms, kind, id) => {
+        const d = w.idx(ms); if (d < 0 || d > 6) return;
+        const key = kind + ':' + id; if (seen.has(key)) return; seen.add(key);
+        days[d][kind === 'ok' ? 0 : 1]++;
+      };
+      S.gallery.filter((p) => isAdmin || !school || p.school === school.short).forEach((p) => add(p.updatedAt, 'ok', p.id));
+      S.decisions.forEach((d) => { if (d.kind === 'approved') add(d.at, 'ok', d.id); else if (d.kind === 'back') add(d.at, 'back', d.id); });
+      if (isAdmin && S.audit) S.audit.forEach((r) => { if (r.action === 'studio.approve') add(r.at, 'ok', r.target); else if (r.action === 'studio.reject') add(r.at, 'back', r.target); });
+      return days;
+    }
+    function weekChart(days) {
+      const last = Math.max(4, days.reduce((m, d, i) => (d[0] || d[1] ? i : m), 0));
+      const names = SC.lang === 'el' ? ['Δευ', 'Τρί', 'Τετ', 'Πέμ', 'Παρ', 'Σάβ', 'Κυρ'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const n = last + 1, W = 300, step = (W - 32) / n, top = Math.max(1, ...days.map((d) => d[0] + d[1]));
+      const svg = SC.svgEl('svg', { viewBox: '0 0 300 118', width: '100%', role: 'img', 'aria-label': t('Decisions per day this week', 'Αποφάσεις ανά ημέρα αυτή την εβδομάδα') });
+      svg.append(SC.svgEl('line', { x1: 8, x2: 292, y1: 82, y2: 82, stroke: 'rgba(255,255,255,.16)' }));
+      const lg = SC.lang === 'el' ? [56, 150] : [150, 222];
+      svg.append(SC.svgEl('circle', { cx: lg[0], cy: 10, r: 4, fill: '#59d98e' }), SC.svgEl('text', { x: lg[0] + 8, y: 14, 'font-size': 11, fill: '#B9C8DA' }, t('approved', 'εγκρίθηκαν')));
+      svg.append(SC.svgEl('circle', { cx: lg[1], cy: 10, r: 4, fill: '#F2B24C' }), SC.svgEl('text', { x: lg[1] + 8, y: 14, 'font-size': 11, fill: '#B9C8DA' }, t('sent back', 'επιστράφηκαν')));
+      days.slice(0, n).forEach((d, i) => {
+        const cx = 16 + step * i + step / 2, bw = Math.min(22, step - 10);
+        let y = 82;
+        [[d[0], '#59d98e'], [d[1], '#F2B24C']].forEach(([v, c]) => {
+          if (!v) return;
+          const h = Math.max(8, Math.round((v / top) * 40)); y -= h;
+          svg.append(SC.svgEl('rect', { x: cx - bw / 2, y, width: bw, height: h, rx: 5, fill: c }));
+          y -= 2;
+        });
+        svg.append(SC.svgEl('text', { x: cx, y: 100, 'text-anchor': 'middle', 'font-size': 12, fill: '#8CA0B8' }, names[i]));
+      });
+      return svg;
+    }
+    function drawWeek() {
+      const days = weekData();
+      const ok = days.reduce((a, d) => a + d[0], 0), back = days.reduce((a, d) => a + d[1], 0);
+      const waiting = S.tools.length;
+      const oldest = S.tools.reduce((m, p) => Math.min(m, p.updatedAt || Date.now()), Date.now());
+      const box = (n, en, el2) => el('div', null, el('b', null, String(n)), el('span', null, t(en, el2)));
+      weekHost.replaceChildren(...[el('h2', { id: 'ap-week-h' }, t('This week', 'Αυτή την εβδομάδα')),
+        el('p', { class: 'card-sub' }, isAdmin ? t('Decisions at all schools since Monday.', 'Αποφάσεις σε όλα τα σχολεία από τη Δευτέρα.') : t('Decisions ' + at()[0] + ' since Monday.', 'Αποφάσεις ' + at()[1] + ' από τη Δευτέρα.')),
+        el('div', { class: 'ap-wk-n' }, box(ok, 'approved', 'εγκρίθηκαν'), box(back, 'sent back', 'επιστράφηκαν'), box(S.review.ok ? waiting : '–', 'still waiting', 'σε αναμονή')),
+        weekChart(days),
+        el('div', { class: 'nm-callout' }, waiting
+          ? [t('Oldest tool waiting: ', 'Το παλαιότερο εργαλείο περιμένει: '), el('b', null, span(Date.now() - oldest)), t('. Faster answers keep teams building.', '. Γρηγορότερες απαντήσεις κρατούν τις ομάδες σε κίνηση.')]
+          : t('Nothing is waiting right now.', 'Τίποτα δεν περιμένει αυτή τη στιγμή.')),
+        !isAdmin ? el('p', { class: 'ap-trail-end' }, t('Sent-back tools are counted only while this page is open. An admin can read the full record.', 'Τα εργαλεία που επιστρέφονται μετρούν μόνο όσο είναι ανοιχτή η σελίδα. Ένας διαχειριστής μπορεί να διαβάσει το πλήρες αρχείο.')) : null].filter(Boolean));
     }
 
     function drawMore() {
       const reports = S.ov ? (S.ov.reports || []).length : null;
-      moreHost.replaceChildren(el('h2', { id: 'ap-more-h' }, t('More teacher tools', 'Περισσότερα εργαλεία εκπαιδευτικών')),
+      moreHost.replaceChildren(...[el('h2', { id: 'ap-more-h' }, t('More teacher tools', 'Περισσότερα εργαλεία εκπαιδευτικών')),
         el('p', null, t('Teams, school codes, reports, the handbook and member settings live in the student app.', 'Οι ομάδες, οι κωδικοί σχολείου, οι αναφορές, το εγχειρίδιο και οι ρυθμίσεις μελών βρίσκονται στην εφαρμογή των μαθητών.')),
         reports != null ? el('ul', null, el('li', null, ic('flag'), el('span', null, el('b', null, String(reports)), ' ' + (reports === 1 ? t('open report to look at', 'ανοιχτή αναφορά για έλεγχο') : t('open reports to look at', 'ανοιχτές αναφορές για έλεγχο'))))) : null,
-        el('a', { class: 'nm-btn', href: '/app/#/manage' }, ic('gear'), t('Open teacher tools', 'Άνοιγμα εργαλείων εκπαιδευτικών')));
+        el('a', { class: 'nm-btn', href: '/app/#/manage' }, ic('gear'), t('Open teacher tools', 'Άνοιγμα εργαλείων εκπαιδευτικών'))].filter(Boolean));
     }
 
     /* ----- load, refresh, signed out ----- */
     function drawAll() {
-      drawHead();
-      wrap.replaceChildren(banner(), gatesHost, tabsHost, el('div', { class: 'ap-split' }, paneHost, el('div', { class: 'ap-aside' }, trailHost, moreHost)), live);
-      drawGates(); drawTabs(); drawPane(); drawTrail(); drawMore();
+      const hd = mkHead();
+      headHost.replaceChildren();
+      wrap.replaceChildren(hd.querySelector('.how-btn'), banner(), hd.querySelector('.page-head'), gatesHost, tabsHost, el('div', { class: 'ap-split' }, paneHost, el('div', { class: 'ap-aside' }, trailHost, weekHost, moreHost)), live);
+      drawGates(); drawTabs(); drawPane(); drawTrail(); drawWeek(); drawMore();
     }
     function signedOut() {
       alive = false; clearInterval(timer); stopBridge();
@@ -522,7 +595,7 @@
       const had = S.curId, hadN = shown.n;
       try { await fetchAll(); } catch (e) { if (e.signedOut) signedOut(); return; }
       if (!alive) return;
-      drawGates(); drawTabs(); drawTrail(); drawMore();
+      drawGates(); drawTabs(); drawTrail(); drawWeek(); drawMore();
       if (S.tab === 'tools') {
         const pristine = !paneHost.querySelector('input:checked') && !(paneHost.querySelector('#ap-note') || { value: '' }).value;
         if (S.curId !== had || !S.tools.length || !hadN || (S.tools.length !== hadN && pristine)) drawPane();

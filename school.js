@@ -27,6 +27,62 @@ const CHAT_CLOSED = 'Chat is closed. Teachers post announcements here.';
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const REPORT_REASONS = { unkind: 'Unkind or bullying', inappropriate: 'Inappropriate', private: 'Shares private information', other: 'Something else' };
 
+/* Alert rules. The words, the unit and the allowed range belong to the code (so the Greek always matches the site); a teacher can only
+   switch a rule on or off, move its limit inside the range, and pick how serious it looks. Those three live in the table alert_rules. */
+const SEVERITIES = ['info', 'watch', 'warn'];
+const ALERT_RULES = [
+  {
+    key: 'co2_high', unit: 'ppm', threshold: 1000, min: 400, max: 5000, severity: 'watch',
+    name: ['High CO2', 'Υψηλό CO2'],
+    text: ['Raise an alert when a sensor reads CO2 above the limit. Above about 1000 ppm the air feels stuffy, which usually means little fresh air.',
+      'Ειδοποίηση όταν ένας αισθητήρας μετρά CO2 πάνω από το όριο. Πάνω από περίπου 1000 ppm ο αέρας γίνεται αποπνικτικός, κάτι που συνήθως σημαίνει ότι μπαίνει λίγος καθαρός αέρας.'],
+  },
+  {
+    key: 'pm25_spike', unit: 'µg/m³', threshold: 35, min: 5, max: 500, severity: 'watch',
+    name: ['PM2.5 spike', 'Απότομη αύξηση PM2.5'],
+    text: ['Raise an alert when fine particles (PM2.5) jump above the limit, for example in a dust event or near smoke. Only sensors that measure particles can set it off.',
+      'Ειδοποίηση όταν τα λεπτά σωματίδια (PM2.5) ξεπερνούν το όριο, για παράδειγμα σε επεισόδιο σκόνης ή κοντά σε καπνό. Την ενεργοποιούν μόνο αισθητήρες που μετρούν σωματίδια.'],
+  },
+  {
+    key: 'met_warning', unit: '', threshold: null, min: null, max: null, severity: 'warn',
+    name: ['Met Office warning', 'Προειδοποίηση Τμήματος Μετεωρολογίας'],
+    text: ['Raise an alert when the Cyprus Department of Meteorology (Met Office) publishes a weather warning.',
+      'Ειδοποίηση όταν το Τμήμα Μετεωρολογίας Κύπρου εκδίδει προειδοποίηση καιρού.'],
+  },
+  {
+    key: 'sensor_quiet', unit: 'min', threshold: 60, min: 10, max: 1440, severity: 'info',
+    name: ['Sensor gone quiet', 'Αισθητήρας χωρίς σήμα'],
+    text: ['Raise an alert when a sensor has sent nothing for longer than the limit. It may be switched off, out of battery or out of range.',
+      'Ειδοποίηση όταν ένας αισθητήρας δεν έχει στείλει τίποτα για περισσότερο από το όριο. Μπορεί να είναι κλειστός, χωρίς μπαταρία ή εκτός εμβέλειας.'],
+  },
+  {
+    key: 'battery_low', unit: '%', threshold: 20, min: 5, max: 50, severity: 'watch',
+    name: ['Low battery', 'Χαμηλή μπαταρία'],
+    text: ['Raise an alert when the battery of a sensor falls below the limit, so that someone can charge or replace it.',
+      'Ειδοποίηση όταν η μπαταρία ενός αισθητήρα πέφτει κάτω από το όριο, ώστε κάποιος να τη φορτίσει ή να την αντικαταστήσει.'],
+  },
+  {
+    key: 'temp_high', unit: '°C', threshold: 35, min: 25, max: 60, severity: 'warn',
+    name: ['High temperature', 'Υψηλή θερμοκρασία'],
+    text: ['Raise an alert when the air temperature at a sensor goes above the limit. A parked vehicle in the sun can pass it on an ordinary warm day.',
+      'Ειδοποίηση όταν η θερμοκρασία του αέρα σε έναν αισθητήρα ξεπερνά το όριο. Ένα σταθμευμένο όχημα στον ήλιο μπορεί να το ξεπεράσει και μια συνηθισμένη ζεστή μέρα.'],
+  },
+];
+// The raw GPS measurement numbers are never shown to visitors, not even inside a handbook page (the assistant's tools do the same).
+const noGpsIds = (t) => String(t).replace(/\b4197\s+longitude\b/gi, 'longitude').replace(/\b4198\s+latitude\b/gi, 'latitude').replace(/\b419[78]\b/g, 'GPS');
+const ALERT_RULE = Object.fromEntries(ALERT_RULES.map((r) => [r.key, r]));
+
+/* The optional school League (off until a teacher or admin switches it on). It compares schools, never people. */
+const LEAGUE = { sensorPoints: 2, sensorMax: 5, toolPoints: 5, toolMax: 10, planPoints: 5, planMax: 10 };
+const LEAGUE_BASIS = [
+  `The League compares schools, never people. A school gets ${LEAGUE.sensorPoints} points for each of its sensors that is online now (at most ${LEAGUE.sensorMax} sensors count), ${LEAGUE.toolPoints} points for each tool a teacher approved (at most ${LEAGUE.toolMax}) and ${LEAGUE.planPoints} points for each finished team plan, which is a plan marked done or sent to a teacher (at most ${LEAGUE.planMax}).`,
+  'Schools with more vehicles have more sensors to keep running, so the points are a friendly comparison and not a measure of who is better. A tool counts only after a teacher approved it, a plan counts when its team marks it done or sends it, and no student names are used.',
+];
+const LEAGUE_BASIS_EL = [
+  `Η Κατάταξη συγκρίνει σχολεία, ποτέ ανθρώπους. Κάθε σχολείο παίρνει ${LEAGUE.sensorPoints} πόντους για κάθε αισθητήρα του που είναι ενεργός τώρα (μετρούν το πολύ ${LEAGUE.sensorMax} αισθητήρες), ${LEAGUE.toolPoints} πόντους για κάθε εργαλείο που ενέκρινε ένας εκπαιδευτικός (το πολύ ${LEAGUE.toolMax}) και ${LEAGUE.planPoints} πόντους για κάθε ολοκληρωμένο σχέδιο ομάδας, δηλαδή σχέδιο που σημειώθηκε ως ολοκληρωμένο ή στάλθηκε σε εκπαιδευτικό (το πολύ ${LEAGUE.planMax}).`,
+  'Τα σχολεία με περισσότερα οχήματα έχουν περισσότερους αισθητήρες να συντηρούν, οπότε οι πόντοι είναι μια φιλική σύγκριση και όχι μέτρο του ποιος είναι καλύτερος. Ένα εργαλείο μετράει μόνο αφού το εγκρίνει εκπαιδευτικός, ένα σχέδιο μετράει όταν η ομάδα του το σημειώσει ως ολοκληρωμένο ή το στείλει και δεν χρησιμοποιούνται ονόματα μαθητών.',
+];
+
 class HttpError extends Error {
   constructor(status, message, code, extra) { super(message); this.status = status; this.code = code || null; this.extra = extra || null; }
 }
@@ -221,6 +277,10 @@ function createApp(opts = {}) {
     CREATE INDEX IF NOT EXISTS bot_logs_user ON bot_logs(user_id, created_at);
     CREATE TABLE IF NOT EXISTS handbook (id INTEGER PRIMARY KEY, title TEXT UNIQUE NOT NULL, body TEXT NOT NULL, updated_at INTEGER, updated_by INTEGER);
     CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, actor_id INTEGER, action TEXT NOT NULL, target TEXT, detail TEXT);
+    CREATE TABLE IF NOT EXISTS alert_rules (
+      id INTEGER PRIMARY KEY, key TEXT UNIQUE NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, threshold REAL, severity TEXT NOT NULL,
+      updated_at INTEGER, updated_by INTEGER
+    );
   `);
 
   // Databases made before the public Ask have no visitor column. Adding it changes no existing row.
@@ -247,6 +307,14 @@ function createApp(opts = {}) {
     for (const k of knowledge.STARTER) run('INSERT OR IGNORE INTO handbook(title, body, updated_at) VALUES (?,?,?)', k.title, k.body, Date.now());
     run("INSERT OR REPLACE INTO meta(key, value) VALUES ('handbook_seeded', '1')");
   }
+  // The sensor guides are seeded once, also into databases that were made before they existed. A page that already has the same title is
+  // left alone, and after the flag is set a teacher can edit or delete a guide for good.
+  if (!get("SELECT value FROM meta WHERE key = 'sensor_guides_seeded'")) {
+    for (const k of knowledge.SENSOR_GUIDES) run('INSERT OR IGNORE INTO handbook(title, body, updated_at) VALUES (?,?,?)', k.title, k.body, Date.now());
+    run("INSERT OR REPLACE INTO meta(key, value) VALUES ('sensor_guides_seeded', '1')");
+  }
+  // Alert rules: a row for every rule the code knows. A row that exists (and maybe was changed by a teacher) is never touched.
+  for (const r of ALERT_RULES) run('INSERT OR IGNORE INTO alert_rules(key, enabled, threshold, severity, updated_at) VALUES (?,1,?,?,?)', r.key, r.threshold, r.severity, Date.now());
 
   const limiter = new Limiter();
   const sweeper = setInterval(() => limiter.sweep(), 600000);
@@ -368,6 +436,8 @@ function createApp(opts = {}) {
   /* ---------- bot ---------- */
 
   const bot = opts.bot || null;
+  // Other modules (the Build studio) hand the app things it cannot reach itself, e.g. the figures for the League.
+  const providers = {};
 
   /* ---------- routes ---------- */
 
@@ -774,7 +844,7 @@ function createApp(opts = {}) {
   // login-and-chat app is skipped, the code-owned SITE_GUIDE pages are added, and visitors never get "Staff", "Private" or "Internal" pages.
   const PRIVATE_TITLE = /^\s*(staff|private|internal)\b/i;
   function handbookDocs(pub) {
-    const docs = all('SELECT title, body FROM handbook').filter((d) => knowledge.LEGACY[d.title] !== d.body && !(pub && PRIVATE_TITLE.test(d.title)));
+    const docs = all('SELECT id, title, body, updated_at FROM handbook').filter((d) => knowledge.LEGACY[d.title] !== d.body && !(pub && PRIVATE_TITLE.test(d.title)));
     return [...docs, ...knowledge.SITE_GUIDE];
   }
   function handbookSearch(query, pub) {
@@ -791,6 +861,86 @@ function createApp(opts = {}) {
   if (bot && bot.setHandbookTitles) bot.setHandbookTitles(handbookTitles);
 
   route('GET', /^\/app\/api\/handbook$/, 'active', () => ({ docs: all('SELECT id, title, body, updated_at FROM handbook ORDER BY title') }));
+
+  // What the assistant reads for visitors, as pages: the teachers' pages without "Staff", "Private" and "Internal" ones, the old login-and-chat
+  // pages left out, plus the code-owned site guide. The site guide has no edit time of its own, so it shows when the code was last changed.
+  let guideAt = 0;
+  try { guideAt = Math.round(fs.statSync(path.join(__dirname, 'knowledge.js')).mtimeMs); } catch (e) { guideAt = Date.now(); }
+  route('GET', /^\/app\/api\/handbook\/public$/, 'none', ({ res }) => {
+    res.setHeader('Cache-Control', 'public, max-age=30');
+    const docs = handbookDocs(true).map((d) => ({
+      id: d.id == null ? 'site-' + d.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : 'p' + d.id,
+      title: noGpsIds(d.title), body: noGpsIds(d.body), updated_at: d.updated_at || guideAt,
+      kind: d.id == null ? 'site' : d.title.startsWith(knowledge.GUIDE_PREFIX) ? 'sensor-guide' : 'page',
+    }));
+    docs.sort((x, y) => x.title.localeCompare(y.title, 'en'));
+    return { docs };
+  });
+
+  /* ---- alert rules: anybody can read them, teachers and admins change them ---- */
+  const ruleOut = (r) => {
+    const d = ALERT_RULE[r.key];
+    return { id: r.id, key: r.key, name: d.name, text: d.text, enabled: !!r.enabled, threshold: r.threshold == null ? null : r.threshold, unit: d.unit, severity: r.severity, min: d.min, max: d.max, default: d.threshold, updated_at: r.updated_at || null };
+  };
+  const ruleRows = () => all('SELECT * FROM alert_rules').filter((r) => ALERT_RULE[r.key]).sort((a, b) => ALERT_RULES.findIndex((x) => x.key === a.key) - ALERT_RULES.findIndex((x) => x.key === b.key));
+  route('GET', /^\/app\/api\/alerts\/rules$/, 'none', ({ user }) => ({ rules: ruleRows().map(ruleOut), canEdit: Boolean(user && user.status === 'active' && isStaff(user)) }));
+
+  route('PUT', /^\/app\/api\/alerts\/rules\/([A-Za-z0-9_]{1,40})$/, 'staff', ({ user, params, body }) => {
+    const row = /^\d+$/.test(params[0]) ? get('SELECT * FROM alert_rules WHERE id = ?', Number(params[0])) : get('SELECT * FROM alert_rules WHERE key = ?', params[0]);
+    const def = row && ALERT_RULE[row.key];
+    if (!def) fail(404, 'Alert rule not found.');
+    const has = (k) => Object.prototype.hasOwnProperty.call(body, k);
+    if (!has('enabled') && !has('threshold') && !has('severity')) fail(400, 'Send enabled, threshold or severity.', 'empty');
+    let enabled = row.enabled, threshold = row.threshold, severity = row.severity;
+    if (has('enabled')) {
+      if (typeof body.enabled !== 'boolean') fail(400, 'enabled must be true or false.', 'enabled');
+      enabled = body.enabled ? 1 : 0;
+    }
+    if (has('severity')) {
+      if (!SEVERITIES.includes(body.severity)) fail(400, 'severity must be info, watch or warn.', 'severity');
+      severity = body.severity;
+    }
+    if (has('threshold')) {
+      if (def.min == null) { if (body.threshold !== null) fail(400, 'This rule has no limit to set.', 'threshold'); }
+      else {
+        const t = body.threshold;
+        if (typeof t !== 'number' || !Number.isFinite(t)) fail(400, 'The limit must be a number.', 'threshold');
+        if (t < def.min || t > def.max) fail(400, `The limit must be between ${def.min} and ${def.max} ${def.unit}.`, 'threshold');
+        threshold = Math.round(t * 10) / 10;
+      }
+    }
+    run('UPDATE alert_rules SET enabled = ?, threshold = ?, severity = ?, updated_at = ?, updated_by = ? WHERE id = ?', enabled, threshold, severity, Date.now(), user.id, row.id);
+    audit(user, 'alert-rule', row.key, `enabled=${enabled ? 'on' : 'off'} limit=${threshold == null ? '-' : threshold} severity=${severity}`);
+    return { rule: ruleOut(get('SELECT * FROM alert_rules WHERE id = ?', row.id)) };
+  });
+
+  /* ---- the optional League: off until a teacher or admin switches it on; schools only, never people ---- */
+  const leagueOn = () => { const r = get("SELECT value FROM meta WHERE key = 'league_enabled'"); return Boolean(r) && r.value === '1'; };
+  async function leagueOut() {
+    if (!leagueOn()) return { enabled: false };
+    let counts = null, partial = false;
+    if (providers.league) { try { const got = (await providers.league()) || {}; counts = got.schools || {}; partial = got.partial === true; } catch (e) { log('League: ' + e.message); } }
+    const n = (v) => Math.max(0, Math.floor(Number(v) || 0));
+    const schools = all('SELECT id, slug, short FROM schools ORDER BY id').map((s) => {
+      const c = (counts && counts[s.id]) || {};
+      const sensors = n(c.online), tools = n(c.tools), plans = n(c.plans);
+      const points = Math.min(sensors, LEAGUE.sensorMax) * LEAGUE.sensorPoints + Math.min(tools, LEAGUE.toolMax) * LEAGUE.toolPoints + Math.min(plans, LEAGUE.planMax) * LEAGUE.planPoints;
+      return { school: s.short, slug: s.slug, points, parts: [
+        { key: 'sensors', label: 'Sensors online', label_el: 'Ενεργοί αισθητήρες', value: sensors },
+        { key: 'tools', label: 'Approved tools', label_el: 'Εγκεκριμένα εργαλεία', value: tools },
+        { key: 'plans', label: 'Plans done', label_el: 'Ολοκληρωμένα σχέδια', value: plans },
+      ] };
+    });
+    schools.sort((a, b) => b.points - a.points || a.school.localeCompare(b.school));
+    return { enabled: true, basis: LEAGUE_BASIS.join(' '), basis_el: LEAGUE_BASIS_EL.join(' '), schools, ...(counts && !partial ? {} : { partial: true }) };
+  }
+  route('GET', /^\/app\/api\/league$/, 'none', () => leagueOut());
+  route('PUT', /^\/app\/api\/league$/, 'staff', ({ user, body }) => {
+    if (typeof body.enabled !== 'boolean') fail(400, 'enabled must be true or false.', 'enabled');
+    run("INSERT OR REPLACE INTO meta(key, value) VALUES ('league_enabled', ?)", body.enabled ? '1' : '0');
+    audit(user, 'league', body.enabled ? 'on' : 'off', '');
+    return leagueOut();
+  });
 
   // ---- teachers and admins ----
   function scopeSchool(user) { return user.role === 'admin' ? null : user.school_id; }
@@ -1007,7 +1157,8 @@ function createApp(opts = {}) {
         if (r.auth === 'staff' && !isStaff(user)) fail(403, 'Teachers only.');
         if (r.auth === 'admin' && user.role !== 'admin') fail(403, 'Admins only.');
       }
-      const body = await readJson(req, /bot|ask/.test(r.pattern.source) ? 65536 : 32768);
+      const parsed = await readJson(req, /bot|ask/.test(r.pattern.source) ? 65536 : 32768);
+      const body = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
       const params = r.pattern.exec(url.pathname).slice(1);
       const out = await r.handler({ req, res, url, params, body, user });
       if (out === STREAMED) return true;
@@ -1047,6 +1198,8 @@ function createApp(opts = {}) {
     authorise: (req) => { const u = sessionUser(req); return u && u.status === 'active' ? u : null; },
     info: () => ({ users: get('SELECT COUNT(*) AS n FROM users').n, schools: get('SELECT COUNT(*) AS n FROM schools').n, db: dbFile }),
     db: { get, all, run },
+    // provide('league', async () => ({ schools: { [schoolId]: { online, tools, plans } }, partial })): the figures the League is built from.
+    provide: (name, fn) => { if (typeof fn === 'function') providers[name] = fn; },
     close() { clearInterval(heartbeat); clearInterval(sweeper); clearInterval(askSweeper); clearInterval(purger); for (const set of streams.values()) for (const r of set) r.end(); try { db.close(); } catch (e) { /* closed */ } },
   };
 }

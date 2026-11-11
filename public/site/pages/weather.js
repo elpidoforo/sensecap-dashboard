@@ -1,15 +1,17 @@
 /*
   Met Office record. What the Cyprus Department of Meteorology publishes, shown as published:
-  warnings (with earlier versions), forecast tables, radar, sea and aviation texts, the NET list and 54 stations
+  warnings (with earlier versions), the five-day forecast, radar, sea and aviation texts, the NET list and the stations
   with a trend each and a station detail with a history chart. Route: #/weather and #/weather/<STATION>.
-  Data: /api/dom/page, /api/dom/pages/history, /api/dom/img, /api/dom/net, /api/cydom, /api/cydom/history(.csv|/info).
+  Data: /api/dom/page, /api/dom/pages/history, /api/dom/img, /api/dom/net, /api/cydom, /api/cydom/history(.csv|/info),
+  and /api/forecast (a model forecast; the Department itself publishes its forecast only as pictures, tables A, B and C).
+  If /api/forecast is not there, the pictures are shown instead of the day cards.
 */
 (function () {
   'use strict';
-  const T = SC.t, h = SC.el;
+  const T = SC.t, h = SC.el, sv = SC.svgEl;
   SC.css('/site/pages/weather.css');
 
-  const HOUR = 3600000;
+  const HOUR = 3600000, TZ = 'Asia/Nicosia';
   const isOld = (ms) => !ms || Date.now() - ms > 3 * HOUR;
   const compass = (d) => (d == null ? '' : ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round((((d % 360) + 360) % 360) / 45) % 8]);
   const nice = (s) => String(s).replace(/_/g, ' ').toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
@@ -26,6 +28,12 @@
     const hh = Math.floor(m / 60), mm = m % 60;
     return hh + ' h' + (mm ? ' ' + mm + ' min' : '');
   };
+  const lt = (t) => {   // local Cyprus date and time of an instant
+    const o = {};
+    LT.formatToParts(t).forEach((x) => { o[x.type] = x.value; });
+    return { h: +o.hour % 24, m: +o.minute, key: o.year + '-' + o.month + '-' + o.day };
+  };
+  const LT = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
   // replaceChildren() would print an array or null as text, so flatten and skip empty values first.
   const fill = (el, ...kids) => { el.replaceChildren(...kids.flat(Infinity).filter((x) => x != null && x !== false)); return el; };
@@ -45,11 +53,11 @@
   function sourceLine(page) {
     return h('p', { class: 'wx-hint' }, T('Read from ', 'Διαβάστηκε από '),
       page.url ? h('a', { class: 'wx-lnk', href: page.url, target: '_blank', rel: 'noopener' }, T('the Met Office page', 'τη σελίδα της Υπηρεσίας')) : T('the Met Office page', 'τη σελίδα της Υπηρεσίας'),
-      ' ' + SC.ago(Date.parse(page.fetched)) + '.');
+      ' ' + SC.ago(Date.parse(page.fetched)) + T(', text as published.', ', κείμενο όπως δημοσιεύεται.'));
   }
   // chips: [[id, label]]; returns { el, set }
-  function chipRow(items, current, onPick, label) {
-    const row = h('div', { class: 'wx-chips', role: 'group', 'aria-label': label });
+  function chipRow(items, current, onPick, label, cls) {
+    const row = h('div', { class: 'wx-chips' + (cls ? ' ' + cls : ''), role: 'group', 'aria-label': label });
     const btns = new Map();
     const set = (id) => btns.forEach((b, k) => { b.classList.toggle('on', k === id); b.setAttribute('aria-pressed', String(k === id)); });
     items.forEach(([id, text]) => {
@@ -71,6 +79,188 @@
     return go;
   }
 
+  /* ---------- which district a station is in: point in polygon on the real district outlines ---------- */
+  const DNAME = { nicosia: ['Lefkosia district', 'Επαρχία Λευκωσίας'], larnaca: ['Larnaka district', 'Επαρχία Λάρνακας'], limassol: ['Limassol district', 'Επαρχία Λεμεσού'],
+    paphos: ['Paphos district', 'Επαρχία Πάφου'], famagusta: ['Famagusta district', 'Επαρχία Αμμοχώστου'], kyrenia: ['Kyrenia district', 'Επαρχία Κερύνειας'] };
+  let polyCache = null;
+  function polys() {
+    if (polyCache) return polyCache;
+    polyCache = [];
+    if (typeof ISLAND === 'undefined') return polyCache;
+    Object.keys(ISLAND.districts).forEach((name) => ISLAND.districts[name].split('Z').forEach((s) => {
+      if (!s) return;
+      const pts = s.replace(/^M/, '').split('L').map((p) => p.split(' ').map(Number)).filter((p) => p.length === 2 && isFinite(p[0]) && isFinite(p[1]));
+      if (pts.length > 2) polyCache.push({ name, pts });
+    }));
+    return polyCache;
+  }
+  function inPoly(x, y, pts) {
+    let c = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      if ((pts[i][1] > y) !== (pts[j][1] > y) && x < ((pts[j][0] - pts[i][0]) * (y - pts[i][1])) / (pts[j][1] - pts[i][1]) + pts[i][0]) c = !c;
+    }
+    return c;
+  }
+  const distCache = new Map();
+  function districtOf(p) {
+    if (!p || p.lat == null || p.lng == null || typeof ISLAND === 'undefined') return '';
+    if (distCache.has(p.id)) return distCache.get(p.id);
+    const q = ISLAND.project(p.lng, p.lat);
+    let best = null, bd = Infinity;
+    for (const poly of polys()) if (inPoly(q[0], q[1], poly.pts)) { best = poly.name; break; }
+    if (!best) {   // on the coast the point can fall just outside the outline: take the nearest outline point
+      for (const poly of polys()) for (const pt of poly.pts) { const d = (pt[0] - q[0]) * (pt[0] - q[0]) + (pt[1] - q[1]) * (pt[1] - q[1]); if (d < bd) { bd = d; best = poly.name; } }
+      if (Math.sqrt(bd) > 40) best = null;   // far from any land: no district is claimed
+    }
+    const out = best && DNAME[best] ? T(DNAME[best][0], DNAME[best][1]) : '';
+    distCache.set(p.id, out);
+    return out;
+  }
+
+  /* ---------- forecast day cards: icons drawn from the weather code ---------- */
+  const WMO = (c) => {
+    if (c === 0) return ['sun', 'Sunny', 'Ηλιοφάνεια'];
+    if (c === 1) return ['sun', 'Mostly sunny', 'Κυρίως ηλιοφάνεια'];
+    if (c === 2) return ['part', 'Sunny spells, some cloud', 'Ηλιοφάνεια με λίγη νέφωση'];
+    if (c === 3) return ['cloud', 'Cloudy', 'Συννεφιά'];
+    if (c === 45 || c === 48) return ['cloud', 'Fog', 'Ομίχλη'];
+    if (c >= 51 && c <= 57) return ['rain', 'Light drizzle', 'Ελαφριά ψιχάλα'];
+    if (c >= 61 && c <= 67) return ['rain', 'Rain', 'Βροχή'];
+    if ((c >= 71 && c <= 77) || c === 85 || c === 86) return ['snow', 'Snow', 'Χιόνι'];
+    if (c >= 80 && c <= 82) return ['rain', 'Showers', 'Μπόρες'];
+    if (c >= 95) return ['storm', 'Thunderstorms', 'Καταιγίδες'];
+    return ['cloud', 'Cloudy', 'Συννεφιά'];
+  };
+  let icN = 0;
+  function wxIcon(kind) {
+    const n = ++icN;
+    const grad = (id, y2, a, b) => sv('linearGradient', { id: id + n, x1: 0, y1: 0, x2: y2 ? 0 : 1, y2: 1 }, sv('stop', { offset: 0, 'stop-color': a }), sv('stop', { offset: 1, 'stop-color': b }));
+    const s = sv('svg', { class: 'wx-fc-ic', viewBox: '0 0 64 64', 'aria-hidden': 'true' }, sv('defs', null, grad('s', 0, '#F7C46B', '#E8963F'), grad('c', 1, '#F4F8FC', '#B9C8DA'), grad('d', 1, '#C6D3E3', '#7F97B5')));
+    const sun = (cx, cy, r, ray) => {
+      const g = sv('g', { stroke: '#F7C46B', 'stroke-width': 3, 'stroke-linecap': 'round' });
+      [0, 45, 90, 135, 180, 225, 270, 315].forEach((a) => g.append(sv('path', { d: 'M' + cx + ' ' + (cy - r - 5) + 'v' + ray, transform: 'rotate(' + a + ' ' + cx + ' ' + cy + ')' })));
+      s.append(g, sv('circle', { cx, cy, r, fill: 'url(#s' + n + ')' }));
+    };
+    const cloud = (dx, dy, sc, f) => s.append(sv('path', { transform: 'translate(' + dx + ' ' + dy + ') scale(' + sc + ')', d: 'M18 46a10 10 0 0 1 1.5-19.9A14.5 14.5 0 0 1 47.6 28.6 9 9 0 0 1 47 46z', fill: 'url(#' + f + n + ')' }));
+    if (kind === 'sun') sun(32, 32, 12, 6);
+    else if (kind === 'part') { sun(24, 24, 9.5, 5); cloud(8, 5, 0.9, 'c'); }
+    else if (kind === 'cloud') cloud(0, 2, 1, 'c');
+    else if (kind === 'rain') { cloud(0, -7, 1, 'd'); s.append(sv('path', { d: 'M23 44l-3 8M33 44l-3 8M43 44l-3 8', stroke: '#4CCBEA', 'stroke-width': 3.2, 'stroke-linecap': 'round', fill: 'none' })); }
+    else if (kind === 'storm') { cloud(0, -7, 1, 'd'); s.append(sv('path', { d: 'M34 40l-7 10h6l-3 9 10-12h-6l3-7z', fill: '#F7C46B' })); }
+    else if (kind === 'snow') { cloud(0, -7, 1, 'd'); [[22, 49], [32, 52], [42, 49]].forEach(([x, y]) => s.append(sv('circle', { cx: x, cy: y, r: 2.4, fill: '#EAF0F7' }))); }
+    return s;
+  }
+  const windArrow = (deg) => sv('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2.2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', style: 'transform:rotate(' + (((deg || 0) + 180) % 360) + 'deg)' }, sv('path', { d: 'M12 20V5M6 11l6-6 6 6' }));
+
+  /* ---------- the station history chart: gradient area, open gaps, round local times, readout bubble ---------- */
+  const lpf = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hourCycle: 'h23', hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' });
+  const lparts = (t) => { const o = {}; lpf.formatToParts(t).forEach((x) => { o[x.type] = x.value; }); return { h: +o.hour % 24, m: +o.minute, day: +o.day, mon: o.month }; };
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const hmS = (t) => { const p = lparts(t); return pad2(p.h) + ':' + pad2(p.m); };
+  const dmS = (t) => { const p = lparts(t); return p.day + ' ' + p.mon; };
+  const niceStep = (raw) => { const p = Math.pow(10, Math.floor(Math.log10(raw))); const f = raw / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; };
+  let gid = 0;
+  function wxChart(box, o) {
+    const W = o.w || 470, H = o.h || 236, m = { l: 40, r: 14, t: 34, b: 26 };
+    const id = 'wxg' + (++gid), ink = '#8CA0B8', bg = '#16243b';
+    box.replaceChildren();
+    const pts = o.pts;
+    let lo = Math.min(...pts.map((p) => p.v)), hi = Math.max(...pts.map((p) => p.v));
+    if (o.zero) lo = 0;
+    if (hi - lo < 1e-9) { lo -= 1; hi += 1; }
+    const step = niceStep((hi - lo) / 4);
+    const y0 = Math.floor(lo / step + 1e-9) * step, y1 = Math.ceil(hi / step - 1e-9) * step;
+    const axisDec = step >= 1 ? 0 : step >= 0.1 ? 1 : 2;
+    const t0 = o.t0, t1 = o.t1;
+    const X = (t) => m.l + ((t - t0) / Math.max(1, t1 - t0)) * (W - m.l - m.r);
+    const Y = (v) => H - m.b - ((v - y0) / (y1 - y0)) * (H - m.t - m.b);
+    const s = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, width: '100%', role: 'img', tabindex: '0', 'aria-label': o.aria });
+    s.style.display = 'block'; s.style.touchAction = 'pan-y';
+    const lg = sv('linearGradient', { id, x1: 0, y1: 0, x2: 0, y2: 1 }, sv('stop', { offset: 0, 'stop-color': o.color, 'stop-opacity': 0.3 }), sv('stop', { offset: 1, 'stop-color': o.color, 'stop-opacity': 0 }));
+    s.append(sv('defs', null, lg));
+    const n = Math.round((y1 - y0) / step);
+    for (let i = 0; i <= n; i++) {
+      const v = y0 + i * step, y = Y(v);
+      s.append(sv('line', { x1: m.l, x2: W - m.r, y1: y, y2: y, stroke: 'rgba(255,255,255,.08)' }), sv('text', { x: m.l - 8, y: y + 4, 'text-anchor': 'end', 'font-size': 11, fill: ink }, SC.num(v, axisDec)));
+    }
+    if (o.unit) s.append(sv('text', { x: m.l - 8, y: m.t - 12, 'text-anchor': 'end', 'font-size': 10.5, 'font-weight': 600, fill: ink }, o.unit));
+    // day lines at local midnight, with the date
+    for (let t = Math.ceil(t0 / HOUR) * HOUR; t <= t1; t += HOUR) {
+      const p = lparts(t);
+      if (p.h !== 0 || p.m !== 0) continue;
+      const x = X(t);
+      if (x < m.l + 2 || x > W - m.r - 2) continue;
+      s.append(sv('line', { x1: x, x2: x, y1: m.t - 4, y2: H - m.b, stroke: 'rgba(255,255,255,.2)', 'stroke-dasharray': '2 4' }), sv('text', { x: x + 5, y: m.t - 9, 'font-size': 10.5, 'font-weight': 600, fill: ink }, dmS(t)));
+    }
+    // time labels on whole local hours (or on midnights for long periods)
+    const long = t1 - t0 > 36 * HOUR, cand = [];
+    for (let t = Math.ceil(t0 / 1800000) * 1800000; t <= t1; t += 1800000) { const p = lparts(t); if (p.m === 0 && (!long || p.h === 0)) cand.push({ t, h: p.h }); }
+    const steps = long ? [1, 2, 3, 5, 7, 10, 14] : [1, 2, 3, 4, 6, 12], maxL = W < 520 ? 6 : 9;
+    const pick = (k) => cand.filter((c, i) => (long ? i % k === 0 : c.h % k === 0));
+    const k = steps.find((q) => pick(q).length <= maxL) || steps[steps.length - 1];
+    pick(k).forEach((c) => {
+      const x = X(c.t);
+      if (x < m.l + 14 || x > W - m.r - 14) return;
+      s.append(sv('line', { x1: x, x2: x, y1: H - m.b, y2: H - m.b + 4, stroke: 'rgba(255,255,255,.22)' }), sv('text', { x, y: H - 6, 'text-anchor': 'middle', 'font-size': 11, fill: ink }, long ? dmS(c.t) : hmS(c.t)));
+    });
+    // gaps: an amber band where more than an hour of readings is missing
+    const gaps = [];
+    for (let i = 1; i < pts.length; i++) if (pts[i].t - pts[i - 1].t > (o.gapMs || HOUR)) gaps.push({ a: pts[i - 1].t, b: pts[i].t, label: pts[i].t - pts[i - 1].t >= 90 * 60000 ? T('No readings', 'Χωρίς μετρήσεις') : '' });
+    gaps.forEach((g) => {
+      const xa = X(g.a), xb = X(g.b);
+      s.append(sv('rect', { x: xa, y: m.t - 4, width: Math.max(1, xb - xa), height: H - m.b - m.t + 4, fill: 'rgba(240,185,74,.08)' }),
+        sv('line', { x1: xa, x2: xa, y1: m.t - 4, y2: H - m.b, stroke: 'rgba(242,207,134,.55)', 'stroke-dasharray': '3 3' }),
+        sv('line', { x1: xb, x2: xb, y1: m.t - 4, y2: H - m.b, stroke: 'rgba(242,207,134,.55)', 'stroke-dasharray': '3 3' }));
+      if (g.label && xb - xa > 40) s.append(sv('text', { x: (xa + xb) / 2, y: m.t + 9, 'text-anchor': 'middle', 'font-size': 10.5, 'font-weight': 600, fill: '#F2CF86', stroke: bg, 'stroke-width': 3, 'paint-order': 'stroke' }, g.label));
+    });
+    if (o.bars) {
+      const bw = Math.max(1.6, ((W - m.l - m.r) / Math.max(1, (t1 - t0) / (10 * 60000))) * 0.72);
+      pts.forEach((p) => { if (p.v > 0) s.append(sv('rect', { x: X(p.t) - bw / 2, y: Y(p.v), width: bw, height: Math.max(1, Y(y0) - Y(p.v)), rx: 1, fill: o.color })); });
+    } else {
+      const segs = []; let cur = [];
+      pts.forEach((p, i) => { if (i && p.t - pts[i - 1].t > (o.gapMs || HOUR)) { segs.push(cur); cur = []; } cur.push(p); });
+      if (cur.length) segs.push(cur);
+      segs.forEach((sg) => {
+        if (sg.length < 2) { s.append(sv('circle', { cx: X(sg[0].t), cy: Y(sg[0].v), r: 2, fill: o.color })); return; }
+        const d = sg.map((p, i) => (i ? 'L' : 'M') + X(p.t).toFixed(1) + ' ' + Y(p.v).toFixed(1)).join('');
+        s.append(sv('path', { d: d + 'L' + X(sg[sg.length - 1].t).toFixed(1) + ' ' + Y(y0).toFixed(1) + 'L' + X(sg[0].t).toFixed(1) + ' ' + Y(y0).toFixed(1) + 'Z', fill: 'url(#' + id + ')', stroke: 'none' }),
+          sv('path', { d, fill: 'none', stroke: o.color, 'stroke-width': 2.2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+      });
+    }
+    const guide = sv('line', { y1: m.t - 4, y2: H - m.b, stroke: 'rgba(255,255,255,.55)', 'stroke-dasharray': '3 3' });
+    const dot = sv('circle', { r: 4.5, fill: o.color, stroke: '#0C1626', 'stroke-width': 2 });
+    s.append(guide, dot);
+    const tip = h('div', { class: 'wx-tip' });
+    const readout = h('div', { class: 'wx-readout', 'aria-live': 'polite' });
+    box.append(s, tip, readout);
+    let idx = pts.length - 1;
+    const show = (i) => {
+      idx = Math.max(0, Math.min(pts.length - 1, i));
+      const p = pts[idx], x = X(p.t), y = Y(p.v);
+      guide.setAttribute('x1', x); guide.setAttribute('x2', x);
+      dot.setAttribute('cx', x); dot.setAttribute('cy', y);
+      const txt = SC.num(p.v, o.dec) + ' ' + (o.unit || '');
+      fill(tip, h('b', null, txt), h('span', null, dmS(p.t) + ' ' + hmS(p.t)));
+      tip.style.display = 'block';
+      const rc = s.getBoundingClientRect(), kk = rc.width / W || 1, tw = tip.offsetWidth;
+      tip.style.left = Math.min(Math.max(x * kk, tw / 2 + 2), Math.max(tw / 2 + 2, rc.width - tw / 2 - 2)) + 'px';
+      if (y * kk < 64) { tip.style.top = (y * kk + 14) + 'px'; tip.style.transform = 'translate(-50%, 0)'; }
+      else { tip.style.top = (y * kk - 12) + 'px'; tip.style.transform = 'translate(-50%, -100%)'; }
+      readout.textContent = idx === pts.length - 1 ? T('Latest ', 'Τελευταία ') + txt + ' · ' + dmS(p.t) + ' ' + hmS(p.t) : txt + ' · ' + dmS(p.t) + ' ' + hmS(p.t);
+    };
+    const nearest = (t) => { let b = 0; for (let i = 1; i < pts.length; i++) if (Math.abs(pts[i].t - t) < Math.abs(pts[b].t - t)) b = i; return b; };
+    const at = (cx) => { const rc = s.getBoundingClientRect(); show(nearest(t0 + ((((cx - rc.left) / Math.max(1, rc.width)) * W - m.l) / (W - m.l - m.r)) * (t1 - t0))); };
+    s.addEventListener('pointermove', (e) => at(e.clientX));
+    s.addEventListener('pointerdown', (e) => at(e.clientX));
+    s.addEventListener('pointerleave', () => show(pts.length - 1));
+    s.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') { e.preventDefault(); show(idx - 1); } else if (e.key === 'ArrowRight') { e.preventDefault(); show(idx + 1); }
+      else if (e.key === 'Home') { e.preventDefault(); show(0); } else if (e.key === 'End') { e.preventDefault(); show(pts.length - 1); }
+    });
+    requestAnimationFrame(() => show(pts.length - 1));
+    return { gaps };
+  }
+
   SC.register('weather', {
     title: ['Met Office record', 'Μετεωρολογικό αρχείο'],
     render(root, ctx) {
@@ -85,8 +275,8 @@
         fresh: T('Official source', 'Επίσημη πηγή'),
         lede: T('What the Cyprus Department of Meteorology publishes: warnings, the forecast, radar, sea and aviation texts, and readings from its weather stations. We show it as published and never change it. Our own sensors sit beside it on the other pages.',
           'Όσα δημοσιεύει το Τμήμα Μετεωρολογίας Κύπρου: προειδοποιήσεις, πρόγνωση, ραντάρ, κείμενα για τη θάλασσα και την αεροπλοΐα, και μετρήσεις από τους μετεωρολογικούς του σταθμούς. Τα εμφανίζουμε όπως δημοσιεύονται και δεν τα αλλάζουμε. Οι δικοί μας αισθητήρες βρίσκονται δίπλα τους στις άλλες σελίδες.'),
-        help: ['Everything here comes from the Cyprus Department of Meteorology (dom.org.cy). Use the buttons under the title to jump to warnings, the forecast tables, the radar picture, the sea and aviation texts or the weather stations. Click a station to see its history, download it as a CSV file, or open it on the map. Our server keeps its own copy of each station reading, about every 10 minutes, so history charts are possible.',
-          'Όλα εδώ προέρχονται από το Τμήμα Μετεωρολογίας Κύπρου (dom.org.cy). Χρησιμοποιήστε τα κουμπιά κάτω από τον τίτλο για να μεταβείτε στις προειδοποιήσεις, τους πίνακες πρόγνωσης, το ραντάρ, τα κείμενα για τη θάλασσα και την αεροπλοΐα ή τους μετεωρολογικούς σταθμούς. Πατήστε έναν σταθμό για να δείτε το ιστορικό του, να το κατεβάσετε ως αρχείο CSV ή να τον ανοίξετε στον χάρτη. Ο διακομιστής μας κρατά δικό του αντίγραφο κάθε μέτρησης σταθμού, περίπου ανά 10 λεπτά, ώστε να υπάρχουν διαγράμματα ιστορικού.'],
+        help: ['Everything here comes from the Cyprus Department of Meteorology (dom.org.cy), except the five day cards, which are a weather model and say so. Use the buttons under the title to jump to warnings, the forecast, the radar picture, the sea and aviation texts or the weather stations. Click a station to see its history, download it as a CSV file, or open it on the map. Our server keeps its own copy of each station reading, about every 10 minutes, so history charts are possible.',
+          'Όλα εδώ προέρχονται από το Τμήμα Μετεωρολογίας Κύπρου (dom.org.cy), εκτός από τις κάρτες των πέντε ημερών, που είναι μετεωρολογικό μοντέλο και το αναφέρουν. Χρησιμοποιήστε τα κουμπιά κάτω από τον τίτλο για να μεταβείτε στις προειδοποιήσεις, την πρόγνωση, το ραντάρ, τα κείμενα για τη θάλασσα και την αεροπλοΐα ή τους μετεωρολογικούς σταθμούς. Πατήστε έναν σταθμό για να δείτε το ιστορικό του, να το κατεβάσετε ως αρχείο CSV ή να τον ανοίξετε στον χάρτη. Ο διακομιστής μας κρατά δικό του αντίγραφο κάθε μέτρησης σταθμού, περίπου ανά 10 λεπτά, ώστε να υπάρχουν διαγράμματα ιστορικού.'],
       }));
 
       /* ---------- section pills ---------- */
@@ -115,10 +305,11 @@
         warnChecked = Date.parse(p.fetched);
         pageMeta.textContent = ' · ' + T('warnings page checked ', 'η σελίδα προειδοποιήσεων ελέγχθηκε ') + hhmm(warnChecked);
         const icon = h('span', { class: 'wx-wn-ic' + (none ? '' : ' warn') }, SC.icon(none ? 'check' : 'bell'));
+        const lv = (c, en, el) => h('span', { class: 'wx-lv' }, h('i', { style: { background: c } }), T(en, el));
+        const page = h('a', { class: 'wx-lnk', href: p.url, target: '_blank', rel: 'noopener' }, T('warnings page', 'σελίδα προειδοποιήσεων'));
         const levels = h('p', null, T('The Department warns at three levels: ', 'Το Τμήμα εκδίδει προειδοποιήσεις σε τρία επίπεδα: '),
-          h('span', { class: 'wx-lv' }, h('i', { style: { background: '#F0B94A' } }), T('yellow', 'κίτρινο')), ', ', h('span', { class: 'wx-lv' }, h('i', { style: { background: '#F28C3F' } }), T('orange', 'πορτοκαλί')), T(' and ', ' και '),
-          h('span', { class: 'wx-lv' }, h('i', { style: { background: '#FF5C6C' } }), T('red', 'κόκκινο')), '. ',
-          none ? T('Its warnings page lists none right now.', 'Η σελίδα προειδοποιήσεών του δεν αναφέρει καμία αυτή τη στιγμή.') : T('Read the text below, exactly as published.', 'Διαβάστε το κείμενο παρακάτω, όπως ακριβώς δημοσιεύεται.'));
+          lv('#F0B94A', 'yellow', 'κίτρινο'), ', ', lv('#F28C3F', 'orange', 'πορτοκαλί'), T(' and ', ' και '), lv('#FF5C6C', 'red', 'κόκκινο'), '. ',
+          none ? [T('Its ', 'Η '), page, T(' lists none right now.', ' δεν αναφέρει καμία αυτή τη στιγμή.')] : [T('Read the text below, exactly as published, from its ', 'Διαβάστε το κείμενο παρακάτω, όπως ακριβώς δημοσιεύεται, από τη '), page, '.']);
         const head = h('div', { class: 'wx-wn nm-callout ' + (none ? 'nm-callout--ok' : 'nm-callout--warn'), role: 'status' }, icon,
           h('div', { class: 'wx-wn-body' },
             h('div', null, h('b', null, none ? T('No warnings in force.', 'Δεν υπάρχουν ενεργές προειδοποιήσεις.') : T('Warnings may be in force.', 'Ενδέχεται να ισχύουν προειδοποιήσεις.')),
@@ -127,7 +318,6 @@
         const extra = [];
         if (!none) extra.push(h('pre', { class: 'wx-txt' }, text));
         useful(p.images).slice(0, 4).forEach((u) => extra.push(pic(imgByAddress(u), T('Picture from the Met Office warnings page', 'Εικόνα από τη σελίδα προειδοποιήσεων της Υπηρεσίας'))));
-        extra.push(h('p', { class: 'wx-hint' }, T('Read from the Met Office ', 'Διαβάστηκε από τη '), h('a', { class: 'wx-lnk', href: p.url, target: '_blank', rel: 'noopener' }, T('warnings page', 'σελίδα προειδοποιήσεων')), ' ' + SC.ago(warnChecked) + T('. This server keeps a copy whenever the text changes.', '. Ο διακομιστής κρατά αντίγραφο κάθε φορά που αλλάζει το κείμενο.')));
         return [head, ...extra];
       }
       const reloadWarnings = loader(warnBox, 'the warnings', 'των προειδοποιήσεων', drawWarnings);
@@ -137,7 +327,7 @@
           const v = (await SC.api('/api/dom/pages/history?name=warnings&days=30')).slice().reverse().slice(0, 20);
           oldLoaded = true;
           if (!v.length) { fill(oldBox, h('div', { class: 'empty' }, T('No earlier versions are saved yet. The server saves one each time the warnings text changes.', 'Δεν έχουν αποθηκευτεί ακόμη προηγούμενες εκδόσεις. Ο διακομιστής αποθηκεύει μία κάθε φορά που αλλάζει το κείμενο των προειδοποιήσεων.'))); return; }
-          fill(oldBox, h('p', { class: 'wx-hint' }, T(v.length + ' saved versions, newest first.', v.length + ' αποθηκευμένες εκδόσεις, οι νεότερες πρώτα.')),
+          fill(oldBox, h('p', { class: 'wx-hint' }, T(v.length + ' saved versions, newest first. The server keeps a copy whenever the text changes.', v.length + ' αποθηκευμένες εκδόσεις, οι νεότερες πρώτα. Ο διακομιστής κρατά αντίγραφο κάθε φορά που αλλάζει το κείμενο.')),
             v.map((x) => h('details', { class: 'wx-ver' }, h('summary', null, when(x.t) + ' · ' + ((x.text || '').replace(/\s+/g, ' ').slice(0, 90) || T('empty', 'κενό'))), h('pre', { class: 'wx-txt' }, x.text || ''))));
         } catch (e) { fill(oldBox, errBox('the earlier versions', 'των προηγούμενων εκδόσεων', e, loadOld)); }
       }
@@ -148,46 +338,99 @@
       }
       root.append(sec('warnings', warnBox, oldBox));
 
-      /* ---------- forecast tables ---------- */
-      const fcPic = h('div');
-      let fcId = 'table_a';
-      const drawFc = (id) => {
+      /* ---------- forecast: five day cards, and the Department's own tables behind a link ---------- */
+      const fcBox = h('div', { class: 'wx-fc' }, h('div', { class: 'loading' }, T('Loading', 'Φόρτωση')));
+      const fcNote = h('span', { class: 'wx-small' });
+      const tablesPic = h('div');
+      let fcId = 'table_a', tablesOpen = false;
+      const drawTable = (id) => {
         fcId = id;
-        fill(fcPic, pic(imgUrl(id), T('Met Office forecast, table ' + id.slice(-1).toUpperCase(), 'Πρόγνωση Μετεωρολογικής Υπηρεσίας, πίνακας ' + id.slice(-1).toUpperCase())),
+        fill(tablesPic, pic(imgUrl(id), T('Met Office forecast, table ' + id.slice(-1).toUpperCase(), 'Πρόγνωση Μετεωρολογικής Υπηρεσίας, πίνακας ' + id.slice(-1).toUpperCase())),
           h('p', { class: 'wx-hint' }, h('a', { class: 'wx-lnk', href: imgUrl(id), target: '_blank', rel: 'noopener' }, T('Open the picture full size', 'Άνοιγμα της εικόνας σε πλήρες μέγεθος')),
             ' · ' + T('Pictures published by the Met Office, shown through this server.', 'Εικόνες που δημοσιεύει η Μετεωρολογική Υπηρεσία, εμφανίζονται μέσω του διακομιστή μας.')));
       };
-      const fcChips = chipRow([['table_a', T('Table A', 'Πίνακας Α')], ['table_b', T('Table B', 'Πίνακας Β')], ['table_c', T('Table C', 'Πίνακας Γ')]], fcId, drawFc, T('Forecast tables', 'Πίνακες πρόγνωσης'));
-      drawFc(fcId);
-      root.append(sec('forecast', h('div', { class: 'nm-card wx-br' },
-        h('div', { class: 'wx-ch' }, h('span', { class: 'kpi-label' }, T('Forecast · the Department’s tables', 'Πρόγνωση · οι πίνακες του Τμήματος')), h('span', { class: 'wx-sp' }), fcChips.el),
-        fcPic)));
+      const tabChips = chipRow([['table_a', T('Table A', 'Πίνακας Α')], ['table_b', T('Table B', 'Πίνακας Β')], ['table_c', T('Table C', 'Πίνακας Γ')]], fcId, drawTable, T('Forecast tables', 'Πίνακες πρόγνωσης'));
+      const tablesCard = h('div', { class: 'nm-card wx-br wx-tables', id: 'wx-tables', hidden: true },
+        h('div', { class: 'wx-ch' }, h('span', { class: 'kpi-label' }, T('The Department’s forecast tables', 'Οι πίνακες πρόγνωσης του Τμήματος')), h('span', { class: 'wx-sp' }), tabChips.el), tablesPic);
+      drawTable(fcId);
+      const tablesBtn = h('button', { class: 'wx-lnk wx-linkbtn', type: 'button', 'aria-expanded': 'false', 'aria-controls': 'wx-tables', onclick: () => setTables(!tablesOpen) }, T('Full tables A, B and C', 'Πλήρεις πίνακες Α, Β και Γ'));
+      function setTables(open) {
+        tablesOpen = open; tablesCard.hidden = !open; tablesBtn.setAttribute('aria-expanded', String(open));
+        tablesBtn.textContent = open ? T('Hide the full tables', 'Απόκρυψη των πινάκων') : T('Full tables A, B and C', 'Πλήρεις πίνακες Α, Β και Γ');
+      }
+      const weekday = new Intl.DateTimeFormat(SC.lang === 'el' ? 'el-GR' : 'en-GB', { timeZone: TZ, weekday: 'long' });
+      const weekdayS = new Intl.DateTimeFormat(SC.lang === 'el' ? 'el-GR' : 'en-GB', { timeZone: TZ, weekday: 'short' });
+      async function drawForecast() {
+        let f = null;
+        try { f = await SC.api('/api/forecast'); } catch (e) { f = null; }
+        if (!alive) return;
+        const days = f && Array.isArray(f.days) ? f.days.filter((d) => d && d.date && isFinite(d.tmax) && isFinite(d.tmin)).slice(0, 5) : [];
+        if (!days.length) {
+          fill(fcBox, h('div', { class: 'wx-fc-none', role: 'status' }, T('The Department publishes its forecast as pictures (tables A, B and C). They are shown here as published.', 'Το Τμήμα δημοσιεύει την πρόγνωσή του ως εικόνες (πίνακες Α, Β και Γ). Εμφανίζονται εδώ όπως δημοσιεύονται.')));
+          fcNote.textContent = '';
+          tablesBtn.hidden = true;
+          setTables(true);
+          return;
+        }
+        tablesBtn.hidden = false;
+        const upd = f.updated ? Date.parse(f.updated) : null;
+        fcNote.textContent = T('Weather model for ' + (f.place || 'central Cyprus') + (f.source ? ' (' + f.source + ')' : '') + (upd ? ', updated ' + hhmm(upd) : '') + '. Not the Department’s own forecast. Big number is the high, small is the low.',
+          'Μοντέλο καιρού για ' + (f.place ? f.place : 'την κεντρική Κύπρο') + (f.source ? ' (' + f.source + ')' : '') + (upd ? ', ενημερώθηκε ' + hhmm(upd) : '') + '. Δεν είναι η πρόγνωση του ίδιου του Τμήματος. Ο μεγάλος αριθμός είναι η μέγιστη, ο μικρός η ελάχιστη.');
+        const lo = Math.min(...days.map((d) => d.tmin)) - 2, hi = Math.max(...days.map((d) => d.tmax)) + 2;
+        const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(Date.now());
+        fill(fcBox, days.map((d, i) => {
+          const noon = Date.parse(d.date + 'T12:00:00Z'), isToday = d.date === todayKey, w = WMO(d.code);
+          const a = ((d.tmin - lo) / (hi - lo)) * 100, b = ((d.tmax - lo) / (hi - lo)) * 100;
+          const wind = d.wind != null && isFinite(d.wind) ? T('Wind ' + compass(d.windDir) + ', ' + Math.round(d.wind) + ' m/s', 'Άνεμος ' + compass(d.windDir) + ', ' + Math.round(d.wind) + ' m/s') : T('Wind not given', 'Χωρίς στοιχεία ανέμου');
+          return h('article', { class: 'nm-glass wx-fc-t nm-lift' + (isToday ? ' today' : '') },
+            h('div', { class: 'wx-fc-d' }, h('b', null, isToday ? T('Today', 'Σήμερα') : weekday.format(noon)), h('span', null, (isToday ? weekdayS.format(noon) + ' ' : '') + SC.date(noon))),
+            h('div', { class: 'wx-fc-mid' }, wxIcon(w[0]), h('div', { class: 'wx-fc-cond' }, T(w[1], w[2]))),
+            h('div', null, h('div', { class: 'wx-fc-temp', title: T('High ' + Math.round(d.tmax) + ' °C, low ' + Math.round(d.tmin) + ' °C', 'Μέγιστη ' + Math.round(d.tmax) + ' °C, ελάχιστη ' + Math.round(d.tmin) + ' °C') }, h('b', null, Math.round(d.tmax) + '°'), h('span', null, Math.round(d.tmin) + '°')),
+              h('div', { class: 'wx-fc-range', 'aria-hidden': 'true' }, h('i', { style: { left: a.toFixed(1) + '%', right: (100 - b).toFixed(1) + '%' } }))),
+            h('div', { class: 'wx-fc-wind' }, d.wind != null && isFinite(d.wind) ? windArrow(d.windDir) : null, h('span', null, wind)));
+        }));
+      }
+      drawForecast();
+      every(drawForecast, 1800000);
+      root.append(sec('forecast',
+        h('div', { class: 'wx-sec-h' }, h('span', { class: 'kpi-label' }, T('Forecast · next 5 days', 'Πρόγνωση · επόμενες 5 ημέρες')), fcNote, h('span', { class: 'wx-sp' }), tablesBtn),
+        fcBox, tablesCard));
 
-      /* ---------- radar ---------- */
+      /* ---------- radar: the Department's picture in a frame, with its animation behind the play button ---------- */
       const radBox = h('div', { class: 'wx-radar' });
       const radStamp = h('span', { class: 'wx-tag wx-tag-r' });
-      let radId = 'radar', radLoaded = 0;
+      let radId = 'radar', radAnim = false, radLoaded = 0;
+      const radNames = { radar: T('Cyprus', 'Κύπρος'), radar_pfo: T('Paphos', 'Πάφος'), radar_lca: T('Larnaka', 'Λάρνακα') };
+      const playBtn = h('button', { class: 'wx-play', type: 'button', 'aria-label': T('Play the Department’s radar animation', 'Αναπαραγωγή της κίνησης του ραντάρ του Τμήματος'), 'aria-pressed': 'false', onclick: () => { setAnim(!radAnim); } });
+      const playIc = (on) => sv('svg', { viewBox: '0 0 24 24', fill: 'currentColor', 'aria-hidden': 'true' }, sv('path', { d: on ? 'M7 5h3.5v14H7zM13.5 5H17v14h-3.5z' : 'M7 4.5v15l13-7.5z' }));
+      const modePills = h('div', { class: 'wx-tl-pills', role: 'group', 'aria-label': T('Radar view', 'Προβολή ραντάρ') });
       const drawRadar = (bust) => {
         radLoaded = Date.now();
-        const names = { radar: T('Cyprus', 'Κύπρος'), radar_anim: T('Animation', 'Κίνηση'), radar_pfo: T('Paphos', 'Πάφος'), radar_lca: T('Larnaca', 'Λάρνακα') };
-        const img = h('img', { class: 'wx-radar-img', src: imgUrl(radId) + (bust ? '&r=' + Date.now() : ''), alt: T('Met Office radar picture, ' + names[radId], 'Εικόνα ραντάρ της Μετεωρολογικής Υπηρεσίας, ' + names[radId]) });
+        const id = radAnim ? 'radar_anim' : radId;
+        const label = radAnim ? T('Animation', 'Κίνηση') : radNames[radId];
+        const img = h('img', { class: 'wx-radar-img', src: imgUrl(id) + (bust ? '&r=' + Date.now() : ''), alt: T('Met Office radar picture, ' + label, 'Εικόνα ραντάρ της Μετεωρολογικής Υπηρεσίας, ' + label) });
         img.addEventListener('error', () => fill(radBox, h('p', { class: 'wx-miss', role: 'status' }, T('This radar picture is not available from the Met Office right now. Try again in a few minutes.', 'Αυτή η εικόνα ραντάρ δεν είναι διαθέσιμη αυτή τη στιγμή. Δοκιμάστε ξανά σε λίγα λεπτά.'))));
-        fill(radBox, img, h('span', { class: 'wx-tag wx-tag-l' }, T('Rain radar · ', 'Ραντάρ βροχής · ') + names[radId]), radStamp);
+        fill(radBox, img, h('span', { class: 'wx-tag wx-tag-l' }, T('Rain radar', 'Ραντάρ βροχής') + (radAnim ? ' · ' + label : '')), radStamp);
         fill(radStamp, h('i'), T('Loaded ', 'Φορτώθηκε ') + hhmm(radLoaded));
+        fill(playBtn, playIc(radAnim)); playBtn.setAttribute('aria-pressed', String(radAnim));
+        fill(modePills, [[false, T('Still picture', 'Στατική εικόνα')], [true, T('Animation', 'Κίνηση')]].map(([a, l]) => h('button', { type: 'button', class: a === radAnim ? 'on' : '', 'aria-pressed': String(a === radAnim), disabled: a && radId !== 'radar' ? true : null, onclick: () => setAnim(a) }, l)));
       };
-      const radChips = chipRow([['radar', T('Cyprus', 'Κύπρος')], ['radar_anim', T('Animation', 'Κίνηση')], ['radar_pfo', T('Paphos', 'Πάφος')], ['radar_lca', T('Larnaca', 'Λάρνακα')]], radId, (id) => { radId = id; drawRadar(false); }, T('Radar pictures', 'Εικόνες ραντάρ'));
+      function setAnim(on) { radAnim = on && radId === 'radar'; drawRadar(false); }
+      const radChips = chipRow([['radar', radNames.radar], ['radar_pfo', radNames.radar_pfo], ['radar_lca', radNames.radar_lca]], radId, (id) => { radId = id; radAnim = false; drawRadar(false); }, T('Radar pictures', 'Εικόνες ραντάρ'));
       drawRadar(false);
       const radarCard = h('div', { class: 'nm-card wx-br wx-radar-card' },
         h('div', { class: 'wx-ch' }, h('span', { class: 'kpi-label' }, T('Radar · rain over Cyprus', 'Ραντάρ · βροχή πάνω από την Κύπρο')), h('span', { class: 'wx-sp' }), radChips.el),
         radBox,
-        h('p', { class: 'wx-cap' }, T('The picture is published by the Department and updates about every 10 minutes. ', 'Η εικόνα δημοσιεύεται από το Τμήμα και ανανεώνεται περίπου ανά 10 λεπτά. '),
+        h('div', { class: 'wx-tl' }, playBtn, modePills),
+        h('p', { class: 'wx-cap' }, h('b', null, T('The Department’s own picture, shown as published.', 'Η εικόνα του ίδιου του Τμήματος, όπως δημοσιεύεται.')), ' ', T('It updates about every 10 minutes. ', 'Ανανεώνεται περίπου ανά 10 λεπτά. '),
           h('button', { class: 'wx-lnk wx-linkbtn', type: 'button', onclick: () => drawRadar(true) }, T('Reload picture', 'Ανανέωση εικόνας'))));
       every(() => drawRadar(true), 600000);
 
       /* ---------- sea and aviation ---------- */
-      const SEA = [['sea_a', T('Sea A', 'Θάλασσα Α')], ['sea_b', T('Sea B', 'Θάλασσα Β')], ['sea_c', T('Sea C', 'Θάλασσα Γ')], ['sea_d', T('Sea D', 'Θάλασσα Δ')], ['navtex', 'NAVTEX'], ['fir', T('Flight information region', 'Περιοχή πληροφοριών πτήσεων')], ['laf', T('Aviation (LAF)', 'Αεροπορικά (LAF)')]];
+      const SEA = [['sea', T('Sea', 'Θάλασσα'), 'sea_a'], ['navtex', 'NAVTEX', 'navtex'], ['fir', T('Flight region', 'Περιοχή πτήσεων'), 'fir'], ['laf', T('Aviation', 'Αεροπορικά'), 'laf']];
+      const SEA_PAGES = [['sea_a', 'A'], ['sea_b', 'B'], ['sea_c', 'C'], ['sea_d', 'D']];
       const seaBox = h('div');
-      let seaId = 'sea_a', seaToken = 0;
+      let seaGroup = 'sea', seaId = 'sea_a', seaToken = 0;
       async function drawSea() {
         const my = ++seaToken, id = seaId;
         fill(seaBox, h('div', { class: 'loading' }, T('Loading', 'Φόρτωση')));
@@ -195,35 +438,37 @@
           const p = await SC.api('/api/dom/page?name=' + id);
           if (my !== seaToken || !alive) return;
           const text = (p.text || '').trim();
-          fill(seaBox, 
-            p.title ? h('h3', { class: 'wx-h3' }, p.title) : null,
-            text ? h('pre', { class: 'wx-txt' }, text) : h('div', { class: 'empty' }, T('This Met Office page has no text right now.', 'Αυτή η σελίδα της Υπηρεσίας δεν έχει κείμενο αυτή τη στιγμή.')),
+          fill(seaBox,
+            text ? h('pre', { class: 'wx-txt wx-sea-txt' }, text) : h('div', { class: 'empty' }, T('This Met Office page has no text right now.', 'Αυτή η σελίδα της Υπηρεσίας δεν έχει κείμενο αυτή τη στιγμή.')),
             useful(p.images).slice(0, 3).map((u) => pic(imgByAddress(u), T('Picture from the Met Office page', 'Εικόνα από τη σελίδα της Υπηρεσίας'))),
             sourceLine(p));
         } catch (e) { if (my === seaToken && alive) fill(seaBox, errBox('this page', 'αυτής της σελίδας', e, drawSea)); }
       }
-      const seaChips = chipRow(SEA, seaId, (id) => { seaId = id; drawSea(); }, T('Sea and aviation texts', 'Κείμενα θάλασσας και αεροπλοΐας'));
+      const seaChips = chipRow(SEA.map(([k, l]) => [k, l]), seaGroup, (k) => { seaGroup = k; seaId = SEA.find((x) => x[0] === k)[2]; subChips.set(seaId); seaSub.hidden = k !== 'sea'; drawSea(); }, T('Sea and aviation texts', 'Κείμενα θάλασσας και αεροπλοΐας'));
+      const subChips = chipRow(SEA_PAGES, seaId, (id) => { seaId = id; drawSea(); }, T('Sea forecast pages', 'Σελίδες πρόγνωσης θάλασσας'), 'wx-sub-chips');
+      const seaSub = h('div', { class: 'wx-sea-sub' }, h('span', null, T('Sea pages', 'Σελίδες θάλασσας')), subChips.el);
       drawSea();
       every(drawSea, 300000);
 
       /* ---------- NET (feels like) ---------- */
-      const netBox = h('div'), netInner = h('div');
+      const netBox = h('div'), netInner = h('div'), netTitle = h('span', { class: 'kpi-label' });
       const netState = { rows: [], time: null, all: false, order: -1, sort: { key: 'net', dir: -1 } };
       function drawNet() {
         const rows = netState.rows;
-        const sorted = rows.filter((r) => r.net != null).sort((a, b) => (a.net - b.net) * -netState.order);   // order -1: warmest first
-        const vals = sorted.map((r) => r.net), lo = Math.min(...vals), hi = Math.max(...vals);
-        const list = h('ul', { class: 'wx-net' }, sorted.slice(0, 8).map((r) => {
-          const tt = hi > lo ? (r.net - lo) / (hi - lo) : 0.5;
+        const sorted = rows.filter((r) => r.net != null).sort((a, b) => (b.net - a.net) * (netState.order === -1 ? 1 : -1));   // order -1: warmest first
+        netTitle.textContent = T('Feels like (NET) · ' + (netState.order === -1 ? 'warmest first' : 'coolest first'), 'Αίσθηση θερμοκρασίας (NET) · ' + (netState.order === -1 ? 'πρώτα τα θερμότερα' : 'πρώτα τα δροσερότερα'));
+        const list = h('ul', { class: 'wx-net' }, sorted.slice(0, 6).map((r) => {
+          const tt = Math.max(0.05, Math.min(1, (r.net - 4) / 20));   // a fixed scale of 4 to 24 on the bar, so a small gap looks small
           return h('li', { title: [r.temp != null ? SC.num(r.temp) + ' °C' : '', r.hum != null ? SC.num(r.hum, 0) + ' %' : '', r.wind != null ? SC.num(r.wind) + ' kn' : ''].filter(Boolean).join(' · ') },
-            h('span', { class: 'wx-net-n' }, nice(r.station)), h('span', { class: 'wx-net-tr', 'aria-hidden': 'true' }, h('i', { style: { width: Math.round(8 + 92 * tt) + '%' } })), h('b', null, SC.num(r.net)));
+            h('span', { class: 'wx-net-n' }, nice(r.station)), h('span', { class: 'wx-net-tr', 'aria-hidden': 'true' }, h('i', { style: { width: Math.round(100 * tt) + '%' } })), h('b', null, SC.num(r.net)));
         }));
-        const order = chipRow([['warm', T('Warmest first', 'Πρώτα τα θερμότερα')], ['cool', T('Coolest first', 'Πρώτα τα δροσερότερα')]], netState.order === -1 ? 'warm' : 'cool', (id) => { netState.order = id === 'warm' ? -1 : 1; drawNet(); }, T('Order', 'Σειρά'));
-        const tableBtn = h('button', { class: 'nm-btn', type: 'button', 'aria-expanded': String(netState.all), onclick: () => { netState.all = !netState.all; drawNet(); } }, netState.all ? T('Hide the table', 'Απόκρυψη πίνακα') : T('Show all ' + rows.length + ' stations', 'Εμφάνιση και των ' + rows.length + ' σταθμών'));
+        const foot = h('div', { class: 'wx-net-foot' },
+          h('button', { class: 'wx-lnk wx-linkbtn', type: 'button', onclick: () => { netState.order = netState.order === -1 ? 1 : -1; drawNet(); } }, netState.order === -1 ? T('Coolest first', 'Πρώτα τα δροσερότερα') : T('Warmest first', 'Πρώτα τα θερμότερα')),
+          h('button', { class: 'wx-lnk wx-linkbtn', type: 'button', 'aria-expanded': String(netState.all), onclick: () => { netState.all = !netState.all; drawNet(); } }, netState.all ? T('Hide the table', 'Απόκρυψη πίνακα') : T('Show all ' + rows.length + ' stations', 'Εμφάνιση και των ' + rows.length + ' σταθμών')));
         const parts = [
-          h('p', { class: 'wx-sub' }, T('Net effective temperature mixes temperature, humidity and wind into one number. Higher feels warmer. Reference time ' + (netState.time ? when(netState.time) : 'unknown') + ' (' + rows.length + ' stations). The Met Office explains the official comfort bands on its site.',
-            'Η καθαρή ενεργός θερμοκρασία συνδυάζει θερμοκρασία, υγρασία και άνεμο σε έναν αριθμό. Όσο μεγαλύτερος, τόσο πιο ζεστά αισθάνεται κανείς. Ώρα αναφοράς ' + (netState.time ? when(netState.time) : 'άγνωστη') + ' (' + rows.length + ' σταθμοί). Η Υπηρεσία εξηγεί τα επίσημα επίπεδα άνεσης στον ιστότοπό της.')),
-          order.el, list, h('div', { class: 'wx-actions' }, tableBtn)];
+          h('p', { class: 'wx-sub wx-net-sub' }, T('Net effective temperature mixes temperature, humidity and wind into one number. Higher feels warmer. Reference time ' + (netState.time ? when(netState.time) : 'unknown') + '. The Met Office explains the official comfort bands on its site.',
+            'Η καθαρή ενεργός θερμοκρασία συνδυάζει θερμοκρασία, υγρασία και άνεμο σε έναν αριθμό. Όσο μεγαλύτερος, τόσο πιο ζεστά αισθάνεται κανείς. Ώρα αναφοράς ' + (netState.time ? when(netState.time) : 'άγνωστη') + '. Η Υπηρεσία εξηγεί τα επίσημα επίπεδα άνεσης στον ιστότοπό της.')),
+          list, foot];
         if (netState.all) {
           const cols = [['station', T('Station', 'Σταθμός'), (r) => r.station, (r) => nice(r.station)], ['temp', T('Temperature °C', 'Θερμοκρασία °C'), (r) => r.temp, (r) => SC.num(r.temp)], ['hum', T('Humidity %', 'Υγρασία %'), (r) => r.hum, (r) => SC.num(r.hum, 0)],
             ['wind', T('Wind kn', 'Άνεμος kn'), (r) => r.wind, (r) => SC.num(r.wind)], ['net', 'NET', (r) => r.net, (r) => SC.num(r.net)]];
@@ -243,26 +488,27 @@
         drawNet();
         return netInner;
       });
+      netTitle.textContent = T('Feels like (NET)', 'Αίσθηση θερμοκρασίας (NET)');
       every(() => reloadNet(true), 600000);
-      const netCard = h('div', { class: 'nm-card wx-br' }, h('div', { class: 'wx-ch' }, h('span', { class: 'kpi-label' }, T('Feels like (NET)', 'Αίσθηση θερμοκρασίας (NET)'))), netBox);
+      const netCard = h('div', { class: 'nm-card wx-br' }, h('div', { class: 'wx-ch' }, netTitle), netBox);
 
       root.append(h('div', { class: 'wx-row' },
         sec('radar', radarCard),
         h('div', { class: 'wx-col' },
           sec('sea', h('div', { class: 'nm-card wx-br' },
-            h('div', { class: 'wx-ch' }, h('span', { class: 'kpi-label' }, T('Sea and aviation', 'Θάλασσα και αεροπλοΐα'))), seaChips.el, seaBox)),
+            h('div', { class: 'wx-ch' }, h('span', { class: 'kpi-label' }, T('Sea and aviation', 'Θάλασσα και αεροπλοΐα'))), seaChips.el, seaSub, seaBox)),
           netCard)));
 
       /* ---------- stations ---------- */
-      const S = { points: [], stationCount: 0, feedTime: null, copyright: '', q: '', sel: null, key: 'temp', hours: 24, sort: { key: 'name', dir: 1 }, trend: new Map(), hist: new Map(), token: 0, info: null };
+      const S = { points: [], stationCount: 0, feedTime: null, copyright: '', q: '', sel: null, key: 'temp', more: false, hours: 24, sort: { key: 'name', dir: 1 }, trend: new Map(), hist: new Map(), token: 0, info: null };
       const tableBody = h('tbody');
       const tableHead = h('thead');
-      const countEl = h('span', { class: 'wx-sub' });
+      const countEl = h('span', { class: 'wx-sub wx-count' });
       const search = h('input', { class: 'nm-input', type: 'search', placeholder: T('Search stations', 'Αναζήτηση σταθμών'), 'aria-label': T('Search stations', 'Αναζήτηση σταθμών') });
       search.addEventListener('input', () => { S.q = search.value; drawTable(); });
       const titleEl = h('span', { class: 'kpi-label' }, T('Stations', 'Σταθμοί'));
-      const histNote = h('p', { class: 'wx-hint' });
-      const tableWrap = h('div', { class: 'nm-table-wrap wx-scroll' }, h('table', { class: 'nm-table wx-table wx-st', id: 'wx-sttable' }, tableHead, tableBody));
+      const histNote = h('p', { class: 'wx-hint wx-histnote' });
+      const tableWrap = h('div', { class: 'wx-scrollbox' }, h('div', { class: 'nm-table-wrap wx-scroll' }, h('table', { class: 'nm-table wx-table wx-st', id: 'wx-sttable' }, tableHead, tableBody)));
       const stState = h('div');
       const detailCard = h('div', { class: 'nm-card wx-br wx-detail', id: 'wx-detail' });
 
@@ -275,9 +521,9 @@
       ];
       function drawTable() {
         const q = S.q.trim().toLowerCase();
-        const rows = q ? S.points.filter((p) => p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)) : S.points;
-        countEl.textContent = rows.length === S.points.length ? T(rows.length + ' stations', rows.length + ' σταθμοί') : T(rows.length + ' of ' + S.points.length + ' stations', rows.length + ' από ' + S.points.length + ' σταθμούς');
-        fill(tableHead, h('tr', null, COLS.map((c) => h('th', { class: c.k === 'name' ? '' : 'n', 'aria-sort': S.sort.key === c.k ? (S.sort.dir > 0 ? 'ascending' : 'descending') : 'none' },
+        const rows = q ? S.points.filter((p) => p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q) || districtOf(p).toLowerCase().includes(q)) : S.points;
+        countEl.textContent = rows.length === S.points.length ? '' : T(rows.length + ' of ' + S.points.length + ' stations', rows.length + ' από ' + S.points.length + ' σταθμούς');
+        fill(tableHead, h('tr', null, COLS.map((c) => h('th', { class: c.k === 'name' ? '' : c.k === 'trend' ? 'wx-th-sp' : 'n', 'aria-sort': S.sort.key === c.k ? (S.sort.dir > 0 ? 'ascending' : 'descending') : 'none' },
           c.get ? h('button', { class: 'wx-th', type: 'button', onclick: () => { S.sort = { key: c.k, dir: S.sort.key === c.k ? -S.sort.dir : (c.k === 'name' ? 1 : -1) }; drawTable(); } }, c.label + (S.sort.key === c.k ? (S.sort.dir > 0 ? ' ▲' : ' ▼') : '')) : c.label))));
         const col = COLS.find((c) => c.k === S.sort.key) || COLS[0];
         const sorted = rows.slice().sort((a, b) => {
@@ -288,10 +534,10 @@
           return (typeof x === 'string' ? x.localeCompare(y) : x - y) * S.sort.dir;
         });
         fill(tableBody, sorted.map((p) => {
-          const tm = p.time ? Date.parse(p.time) : null, old = isOld(tm);
+          const tm = p.time ? Date.parse(p.time) : null, old = isOld(tm), dist = districtOf(p);
           const tr = h('tr', { class: p.id === S.sel ? 'sel' : '', 'data-id': p.id },
             h('td', null, h('button', { class: 'wx-stbtn', type: 'button', 'aria-current': p.id === S.sel ? 'true' : null, onclick: (e) => { e.stopPropagation(); selectStation(p.id, true); } }, h('span', { class: 'wx-nm1' }, p.name)),
-              h('div', { class: 'wx-nm2' + (old ? ' old' : '') }, tm ? (old ? T('Reading ' + hhmm(tm) + ', old', 'Μέτρηση ' + hhmm(tm) + ', παλιά') : hhmm(tm) + ' · ' + SC.ago(tm)) : T('no reading time', 'χωρίς ώρα μέτρησης'))),
+              h('div', { class: 'wx-nm2' + (old ? ' old' : '') }, !tm ? T('no reading time', 'χωρίς ώρα μέτρησης') : old ? T('Reading ' + hhmm(tm) + ', old', 'Μέτρηση ' + hhmm(tm) + ', παλιά') : (dist || hhmm(tm) + ' · ' + SC.ago(tm)))),
             h('td', { class: 'n' }, h('b', null, SC.num(p.temp))), h('td', { class: 'n' }, SC.num(p.hum, 0)),
             h('td', { class: 'n' }, p.ws == null ? '–' : [SC.num(p.ws), h('small', null, compass(p.wd))]),
             h('td', { class: 'n wx-spk' }, trendCell(p.id)));
@@ -336,8 +582,8 @@
           const i = await SC.api('/api/cydom/history/info');
           S.info = i;
           const first = i.firstT ? SC.date(i.firstT) : null;
-          fill(histNote, first ? T('This server saves every new reading (about every 10 minutes). History starts ' + first + ': ' + i.files + ' days saved, ' + i.stations + ' stations.', 'Ο διακομιστής αποθηκεύει κάθε νέα μέτρηση (περίπου ανά 10 λεπτά). Το ιστορικό ξεκινά στις ' + first + ': ' + i.files + ' ημέρες αποθηκευμένες, ' + i.stations + ' σταθμοί.')
-            : T('This server saves every new reading, about every 10 minutes. No history has been saved yet.', 'Ο διακομιστής αποθηκεύει κάθε νέα μέτρηση, περίπου ανά 10 λεπτά. Δεν έχει αποθηκευτεί ακόμη ιστορικό.'),
+          fill(histNote, first ? T('This server saves every new reading. History starts ' + first + ': ' + i.files + ' days saved, ' + i.stations + ' stations.', 'Ο διακομιστής αποθηκεύει κάθε νέα μέτρηση. Το ιστορικό ξεκινά στις ' + first + ': ' + i.files + ' ημέρες αποθηκευμένες, ' + i.stations + ' σταθμοί.')
+            : T('This server saves every new reading. No history has been saved yet.', 'Ο διακομιστής αποθηκεύει κάθε νέα μέτρηση. Δεν έχει αποθηκευτεί ακόμη ιστορικό.'),
           i.persistent === false ? h('span', { class: 'wx-banner' }, T('This server has no storage volume, so the saved history is lost whenever it restarts.', 'Αυτός ο διακομιστής δεν έχει όγκο αποθήκευσης, οπότε το ιστορικό χάνεται σε κάθε επανεκκίνηση.')) : null);
         } catch (e) { histNote.textContent = ''; }
       }
@@ -370,8 +616,8 @@
 
       /* ----- station detail ----- */
       const KEYS = [
-        ['temp', T('Temperature', 'Θερμοκρασία'), 1], ['hum', T('Humidity', 'Υγρασία'), 0], ['ws10', T('Wind 10 m', 'Άνεμος 10 m'), 1], ['ws2', T('Wind 2 m', 'Άνεμος 2 m'), 1],
-        ['pmsl', T('Pressure', 'Πίεση'), 1], ['pstn', T('Station pressure', 'Πίεση σταθμού'), 1], ['rain10', T('Rain (10 min)', 'Βροχή (10 λεπτά)'), 1], ['dsr', T('Direct sun', 'Άμεσος ήλιος'), 0], ['tmax', T('Day max', 'Μέγιστη ημέρας'), 1], ['tmin', T('Day min', 'Ελάχιστη ημέρας'), 1],
+        ['temp', T('Temperature', 'Θερμοκρασία'), 1, 0], ['hum', T('Humidity', 'Υγρασία'), 0, 0], ['ws10', T('Wind 10 m', 'Άνεμος 10 m'), 1, 0], ['pmsl', T('Pressure', 'Πίεση'), 1, 0], ['rain10', T('Rain', 'Βροχή'), 1, 0],
+        ['ws2', T('Wind 2 m', 'Άνεμος 2 m'), 1, 1], ['pstn', T('Station pressure', 'Πίεση σταθμού'), 1, 1], ['dsr', T('Direct sun', 'Άμεσος ήλιος'), 0, 1], ['tmax', T('Day max', 'Μέγιστη ημέρας'), 1, 1], ['tmin', T('Day min', 'Ελάχιστη ημέρας'), 1, 1],
       ];
       const COLORS = { temp: SCChart.COLORS[1], hum: SCChart.COLORS[0], ws10: SCChart.COLORS[2], ws2: SCChart.COLORS[2], pmsl: SCChart.COLORS[3], pstn: SCChart.COLORS[3], rain10: '#4CCBEA', dsr: SCChart.COLORS[4], tmax: SCChart.COLORS[1], tmin: SCChart.COLORS[0] };
       const pointsOf = (s, key) => { const i = s.keys.indexOf(key); return i < 0 ? [] : s.rows.filter((r) => r[i + 1] != null).map((r) => ({ t: r[0], v: Number(r[i + 1]) })); };
@@ -382,11 +628,6 @@
           S.hist.set(k, p); p.catch(() => S.hist.delete(k));
         }
         return S.hist.get(k);
-      }
-      function gapBands(pts, gap) {
-        const bands = [];
-        for (let i = 1; i < pts.length; i++) if (pts[i].t - pts[i - 1].t > gap) bands.push({ from: pts[i - 1].t, to: pts[i].t, label: pts[i].t - pts[i - 1].t >= 90 * 60000 ? T('No readings', 'Χωρίς μετρήσεις') : '' });
-        return bands;
       }
       function selectStation(id, scroll) {
         S.sel = id; S.hist.clear();
@@ -404,22 +645,21 @@
           return;
         }
         const name = p ? p.name : nice(S.sel);
-        const tm = p && p.time ? Date.parse(p.time) : null, old = isOld(tm);
+        const tm = p && p.time ? Date.parse(p.time) : null, old = isOld(tm), dist = p ? districtOf(p) : '';
         const stats = p ? [
           [T('Humidity', 'Υγρασία'), SC.num(p.hum, 0), '%'],
-          [T('Wind 10 m', 'Άνεμος 10 m'), p.ws == null ? '–' : SC.num(p.ws) + (p.wd != null ? ' ' + compass(p.wd) : ''), 'm/s'],
+          [T('Wind 10 m', 'Άνεμος 10 m'), p.ws == null ? '–' : SC.num(p.ws), 'm/s' + (p.ws != null && p.wd != null ? ' ' + compass(p.wd) : '')],
           [T('Pressure', 'Πίεση'), SC.num(p.pmsl, 0), 'hPa'],
-          [T('Rain, 24 h', 'Βροχή, 24 ώρες'), SC.num(p.rain24), 'mm'],
-          [T('Today max / min', 'Σήμερα μέγ. / ελάχ.'), p.tmax != null && p.tmin != null ? SC.num(p.tmax) + ' / ' + SC.num(p.tmin) : '–', '°C'],
+          [T('Rain 24 h', 'Βροχή 24 ω'), SC.num(p.rain24), 'mm'],
         ] : [];
         const big = h('div', { class: 'wx-d-big' }, h('span', { class: 'wx-bt' }, p ? SC.num(p.temp) : '–'), h('span', { class: 'wx-bu' }, '°C'), h('div', { class: 'wx-bd' }));
-        const chipsBox = h('div'), chartBox = h('div', { class: 'wx-chart' }, h('div', { class: 'loading' }, T('Loading', 'Φόρτωση'))), noteBox = h('p', { class: 'wx-hint' });
+        const chipsBox = h('div'), chartBox = h('div', { class: 'wx-chart' }, h('div', { class: 'loading' }, T('Loading', 'Φόρτωση'))), noteBox = h('p', { class: 'wx-hint wx-chart-note' });
         const rangeBtns = h('span', { class: 'wx-rng', role: 'group', 'aria-label': T('Period', 'Περίοδος') });
         const csvLink = h('a', { class: 'nm-btn', download: '', href: '#' }, SC.icon('download', 17), h('span'));
-        fill(detailCard, 
+        fill(detailCard,
           h('div', { class: 'wx-ch' }, h('span', { class: 'kpi-label' }, T('Station detail', 'Λεπτομέρειες σταθμού'))),
           h('div', { class: 'wx-d-head' }, h('div', null, h('h2', { class: 'wx-d-name' }, name),
-            h('p', { class: 'wx-sub' }, tm ? T('Reading ' + when(tm) + ' (' + SC.ago(tm) + ')', 'Μέτρηση ' + when(tm) + ' (' + SC.ago(tm) + ')') : T('No current reading in the Met Office feed', 'Καμία τρέχουσα μέτρηση στην πηγή της Υπηρεσίας'))),
+            h('p', { class: 'wx-sub' }, (dist ? dist + ' · ' : '') + (tm ? T('reading ' + hhmm(tm) + ', ' + SC.ago(tm), 'μέτρηση ' + hhmm(tm) + ', ' + SC.ago(tm)) : T('no current reading in the Met Office feed', 'καμία τρέχουσα μέτρηση στην πηγή της Υπηρεσίας')))),
             p ? h('span', { class: 'nm-badge ' + (old ? 'nm-badge--warn' : 'nm-badge--ok') }, old ? T('Old reading', 'Παλιά μέτρηση') : T('Up to date', 'Ενημερωμένη')) : null),
           big,
           p ? h('div', { class: 'wx-d-stats' }, stats.map(([k, v, u]) => h('div', null, h('div', { class: 'k' }, k), h('div', { class: 'v' }, v, h('small', null, ' ' + u))))) : null,
@@ -431,7 +671,7 @@
             h('div', { class: 'nm-table-wrap' }, h('table', { class: 'nm-table wx-table' }, h('tbody', null, p.obs.map((o) => h('tr', null, h('td', null, o.name), h('td', { class: 'n' }, SC.num(o.value, 2) + ' ' + (/celcius|celsius/i.test(o.unit) ? '°C' : o.unit || ''))))))))
             : null);
         if (!p) detailCard.querySelector('.wx-d-head .wx-sub').after(h('p', { class: 'wx-sub' }, T('This station is not in the latest feed, so only saved history can be shown.', 'Αυτός ο σταθμός δεν βρίσκεται στην πιο πρόσφατη πηγή, οπότε μπορεί να εμφανιστεί μόνο το αποθηκευμένο ιστορικό.')));
-        // the 24 h numbers next to the big temperature
+        // the numbers next to the big temperature: change since 06:00 local (or in the last 3 hours), and the 24 h range
         const drawBig = async () => {
           try {
             const s24 = await loadHist(S.sel, 24);
@@ -440,10 +680,15 @@
             const bd = big.querySelector('.wx-bd');
             if (!tp.length) { bd.textContent = ''; return; }
             const last = tp[tp.length - 1];
-            const ref = tp.reduce((b, q) => (Math.abs(q.t - (last.t - 3 * HOUR)) < Math.abs(b.t - (last.t - 3 * HOUR)) ? q : b), tp[0]);
             const lo = Math.min(...tp.map((q) => q.v)), hi = Math.max(...tp.map((q) => q.v));
             const lines = [];
-            if (last.t - ref.t > 2 * HOUR && last.t - ref.t < 4 * HOUR) { const d = last.v - ref.v; lines.push(T((d >= 0 ? 'Up ' : 'Down ') + SC.num(Math.abs(d)) + ' °C in the last 3 hours', (d >= 0 ? 'Ανεβαίνει ' : 'Κατεβαίνει ') + SC.num(Math.abs(d)) + ' °C τις τελευταίες 3 ώρες'), h('br')); }
+            const lk = lt(last.t);
+            const six = tp.find((q) => { const x = lt(q.t); return x.key === lk.key && x.h * 60 + x.m >= 360 && x.h * 60 + x.m <= 400; });
+            if (six && lk.h * 60 + lk.m > 400 && last.t - six.t > HOUR) { const d = last.v - six.v; lines.push(T((d >= 0 ? 'Up ' : 'Down ') + SC.num(Math.abs(d)) + ' °C since 06:00', (d >= 0 ? 'Ανεβαίνει ' : 'Κατεβαίνει ') + SC.num(Math.abs(d)) + ' °C από τις 06:00'), h('br')); }
+            else {
+              const ref = tp.reduce((b, q) => (Math.abs(q.t - (last.t - 3 * HOUR)) < Math.abs(b.t - (last.t - 3 * HOUR)) ? q : b), tp[0]);
+              if (last.t - ref.t > 2 * HOUR && last.t - ref.t < 4 * HOUR) { const d = last.v - ref.v; lines.push(T((d >= 0 ? 'Up ' : 'Down ') + SC.num(Math.abs(d)) + ' °C in the last 3 hours', (d >= 0 ? 'Ανεβαίνει ' : 'Κατεβαίνει ') + SC.num(Math.abs(d)) + ' °C τις τελευταίες 3 ώρες'), h('br')); }
+            }
             lines.push(T('Last 24 h: low ', 'Τελευταίες 24 ώρες: χαμηλότερη '), h('b', null, SC.num(lo)), T(', high ', ', υψηλότερη '), h('b', null, SC.num(hi)));
             fill(bd, ...lines);
             if (!p) big.querySelector('.wx-bt').textContent = SC.num(last.v);
@@ -453,7 +698,8 @@
         const draw = async () => {
           fill(rangeBtns, [[24, T('24 h', '24 ώρες')], [168, T('7 days', '7 ημέρες')], [720, T('30 days', '30 ημέρες')]].map(([n, label]) => h('button', { type: 'button', class: n === S.hours ? 'on' : '', 'aria-pressed': String(n === S.hours), onclick: () => { S.hours = n; drawDetail(); } }, label)));
           csvLink.href = '/api/cydom/history.csv?station=' + encodeURIComponent(S.sel) + '&days=' + Math.ceil(S.hours / 24);
-          csvLink.querySelector('span').textContent = T('Download CSV', 'Λήψη CSV') + ' (' + (S.hours === 24 ? T('24 hours', '24 ώρες') : T(S.hours / 24 + ' days', S.hours / 24 + ' ημέρες')) + ')';
+          csvLink.querySelector('span').textContent = T('Download CSV', 'Λήψη CSV');
+          csvLink.title = T('All readings of this station for the last ' + (S.hours === 24 ? '24 hours' : S.hours / 24 + ' days'), 'Όλες οι μετρήσεις αυτού του σταθμού για ' + (S.hours === 24 ? 'τις τελευταίες 24 ώρες' : 'τις τελευταίες ' + S.hours / 24 + ' ημέρες'));
           try {
             const s = await loadHist(S.sel, S.hours);
             if (my !== S.token) return;
@@ -466,24 +712,30 @@
               return;
             }
             if (!avail.some((k) => k[0] === S.key)) S.key = avail[0][0];
-            const label = (KEYS.find((k) => k[0] === S.key) || [])[1] || S.key;
+            const cur = KEYS.find((k) => k[0] === S.key) || [];
+            const label = cur[1] || S.key;
+            if (cur[3]) S.more = true;
+            const main = avail.filter((k) => !k[3]), more = avail.filter((k) => k[3]);
+            const chip = ([k, l]) => h('button', { type: 'button', class: 'wx-chip' + (k === S.key ? ' on' : ''), 'aria-pressed': String(k === S.key), onclick: () => { S.key = k; draw(); } }, l);
             fill(chipsBox, h('div', { class: 'wx-chips wx-detail-chips', role: 'group', 'aria-label': T('Reading to chart', 'Μέτρηση για το διάγραμμα') },
-              avail.map(([k, l]) => h('button', { type: 'button', class: 'wx-chip' + (k === S.key ? ' on' : ''), 'aria-pressed': String(k === S.key), onclick: () => { S.key = k; draw(); } }, l))));
+              main.map(chip),
+              more.length ? h('button', { type: 'button', class: 'wx-chip wx-more', 'aria-expanded': String(S.more), onclick: () => { S.more = !S.more; draw(); } }, S.more ? T('Fewer', 'Λιγότερα') : T('More', 'Περισσότερα')) : null,
+              S.more ? more.map(chip) : null));
             let unit = (s.units[S.key] || {}).unit || '', f = 1;
             if (/^kn/i.test(unit)) { f = 0.514444; unit = 'm/s'; }
             let pts = pointsOf(s, S.key).map((q) => ({ t: q.t, v: q.v * f }));
             const all = pts;
             if (pts.length > 1500) { const st = Math.ceil(pts.length / 1200); pts = pts.filter((q, i) => i % st === 0 || i === pts.length - 1); }
-            detailCard.querySelector('.wx-chart-title').textContent = label + ', ' + (S.hours === 24 ? T('last 24 hours', 'τελευταίες 24 ώρες') : T('last ' + S.hours / 24 + ' days', 'τελευταίες ' + S.hours / 24 + ' ημέρες'));
-            const bands = gapBands(pts, HOUR);
-            SCChart.line(chartBox, [{ name: label, color: COLORS[S.key] || SCChart.COLORS[0], pts, area: S.key === 'rain10' }], { unit, dec: (KEYS.find((k) => k[0] === S.key) || [0, 0, 1])[2], w: Math.max(300, Math.round(chartBox.getBoundingClientRect().width) || 460), h: 240, label: name + ', ' + label, band: bands, latest: T('Latest ', 'Τελευταία ') });
-            const lastT = all[all.length - 1].t;
-            const bits = [];
-            if (bands.length) bits.push(T(bands.length + (bands.length === 1 ? ' gap' : ' gaps') + ' with no readings (longest ' + fmtDur(Math.max(...bands.map((b) => b.to - b.from))) + '). The line is left open there.', bands.length + (bands.length === 1 ? ' κενό' : ' κενά') + ' χωρίς μετρήσεις (το μεγαλύτερο ' + fmtDur(Math.max(...bands.map((b) => b.to - b.from))) + '). Η γραμμή μένει ανοιχτή εκεί.'));
+            detailCard.querySelector('.wx-chart-title').textContent = label + (S.key === 'rain10' ? T(', per 10 min', ', ανά 10 λεπτά') : '') + ', ' + (S.hours === 24 ? T('last 24 hours', 'τελευταίες 24 ώρες') : T('last ' + S.hours / 24 + ' days', 'τελευταίες ' + S.hours / 24 + ' ημέρες'));
+            const lastT = all[all.length - 1].t, endT = Math.max(Date.now(), lastT);
+            const info = wxChart(chartBox, { pts, unit, dec: cur[2] == null ? 1 : cur[2], color: COLORS[S.key] || SCChart.COLORS[0], bars: S.key === 'rain10', zero: S.key === 'rain10' || S.key === 'dsr',
+              t0: endT - S.hours * HOUR, t1: endT, w: Math.max(300, Math.round(chartBox.getBoundingClientRect().width) || 470), h: 236,
+              aria: name + ', ' + label + ', ' + (S.hours === 24 ? T('last 24 hours', 'τελευταίες 24 ώρες') : T('last ' + S.hours / 24 + ' days', 'τελευταίες ' + S.hours / 24 + ' ημέρες')) + T('. Latest ', '. Τελευταία ') + SC.num(all[all.length - 1].v, cur[2] == null ? 1 : cur[2]) + ' ' + unit + T('. Use the left and right arrow keys to read other values.', '. Χρησιμοποιήστε τα βέλη αριστερά και δεξιά για να διαβάσετε άλλες τιμές.') });
+            const bits = [T('Point at the chart to read a value.', 'Στρέψτε τον δείκτη στο διάγραμμα για να διαβάσετε μια τιμή.')];
+            if (info.gaps.length) bits.push(T('Where readings are missing, the line is left open and an amber band marks the time (' + info.gaps.length + (info.gaps.length === 1 ? ' gap' : ' gaps') + ', longest ' + fmtDur(Math.max(...info.gaps.map((b) => b.b - b.a))) + ').', 'Όπου λείπουν μετρήσεις, η γραμμή μένει ανοιχτή και μια κεχριμπαρί ζώνη σημειώνει την ώρα (' + info.gaps.length + (info.gaps.length === 1 ? ' κενό' : ' κενά') + ', το μεγαλύτερο ' + fmtDur(Math.max(...info.gaps.map((b) => b.b - b.a))) + ').'));
             if (isOld(lastT)) bits.push(T('The newest saved reading is from ' + when(lastT) + ' (' + SC.ago(lastT) + ').', 'Η νεότερη αποθηκευμένη μέτρηση είναι από ' + when(lastT) + ' (' + SC.ago(lastT) + ').'));
             if (S.key === 'rain10') { const sum = all.reduce((a, q) => a + q.v, 0); bits.push(T('Rain saved in this period: ' + SC.num(sum) + ' mm (the sum of the 10-minute readings we hold).', 'Βροχή που αποθηκεύτηκε στην περίοδο: ' + SC.num(sum) + ' mm (άθροισμα των μετρήσεων 10 λεπτών που διαθέτουμε).')); }
             if (/^kn/i.test((s.units[S.key] || {}).unit || '')) bits.push(T('The Department publishes this wind in knots; it is shown here in m/s.', 'Το Τμήμα δημοσιεύει αυτόν τον άνεμο σε κόμβους· εδώ εμφανίζεται σε m/s.'));
-            bits.push(T('Point at the chart to read a value.', 'Στρέψτε τον δείκτη στο διάγραμμα για να διαβάσετε μια τιμή.'));
             noteBox.textContent = bits.join(' ');
             noteBox.classList.toggle('old', isOld(lastT));
           } catch (e) {
@@ -496,17 +748,18 @@
 
       const stCard = h('div', { class: 'nm-card wx-br nm-table-card wx-stcard' },
         h('div', { class: 'wx-ch' }, titleEl, h('span', { class: 'wx-sp' }), h('span', { class: 'wx-sub' }, T('Saved about every 10 minutes', 'Αποθηκεύονται περίπου ανά 10 λεπτά'))),
-        histNote,
-        h('div', { class: 'wx-tools' }, h('label', { class: 'wx-search' }, SC.icon('search', 17), search), countEl),
-        h('div', { class: 'wx-csv' }, h('a', { class: 'wx-lnk', href: '/api/cydom/history.csv?days=1', download: '' }, T('All stations, 24 h (CSV)', 'Όλοι οι σταθμοί, 24 ώρες (CSV)')), h('a', { class: 'wx-lnk', href: '/api/cydom/history.csv?days=7', download: '' }, T('7 days (CSV)', '7 ημέρες (CSV)'))),
+        h('div', { class: 'wx-tools' }, h('label', { class: 'wx-search' }, SC.icon('search', 17), search),
+          h('span', { class: 'wx-csv' }, h('a', { class: 'wx-lnk', href: '/api/cydom/history.csv?days=1', download: '' }, T('All stations, 24 h (CSV)', 'Όλοι οι σταθμοί, 24 ώρες (CSV)')), h('a', { class: 'wx-lnk', href: '/api/cydom/history.csv?days=7', download: '' }, T('7 days', '7 ημέρες')))),
+        countEl,
         stState, tableWrap,
-        h('p', { class: 'wx-legend' }, h('i'), T('Amber means the newest reading is more than 3 hours old. Click a row to see its history.', 'Το κεχριμπαρί σημαίνει ότι η νεότερη μέτρηση είναι παλαιότερη από 3 ώρες. Πατήστε μια γραμμή για να δείτε το ιστορικό.')));
+        h('p', { class: 'wx-legend' }, h('i'), T('Amber means the newest reading is more than 3 hours old. Click a row to see its history.', 'Το κεχριμπαρί σημαίνει ότι η νεότερη μέτρηση είναι παλαιότερη από 3 ώρες. Πατήστε μια γραμμή για να δείτε το ιστορικό.')),
+        histNote);
       fill(stState, h('div', { class: 'loading' }, T('Loading', 'Φόρτωση')));
       if (ctx.args && ctx.args[0]) { S.sel = ctx.args[0]; fill(detailCard, h('div', { class: 'wx-ch' }, h('span', { class: 'kpi-label' }, T('Station detail', 'Λεπτομέρειες σταθμού'))), h('div', { class: 'loading' }, T('Loading', 'Φόρτωση'))); } else drawDetail();
       root.append(sec('stations', h('div', { class: 'wx-st-grid' }, stCard, detailCard)));
       const src = h('p', { class: 'wx-src' }, T('Source: Cyprus Department of Meteorology, ', 'Πηγή: Τμήμα Μετεωρολογίας Κύπρου, '), h('a', { class: 'wx-lnk', href: 'https://www.dom.org.cy', target: '_blank', rel: 'noopener' }, 'dom.org.cy'),
-        T('. Shown as published. ', '. Εμφανίζεται όπως δημοσιεύεται. '), h('span', { class: 'wx-copy' }, T('Weather data copyright The Cyprus Department of Meteorology', 'Τα μετεωρολογικά δεδομένα ανήκουν στο Τμήμα Μετεωρολογίας Κύπρου')),
-        T('. We keep our own copy of each station reading so the charts can show history. Check the Department’s terms before using the data outside a classroom.', '. Κρατάμε δικό μας αντίγραφο κάθε μέτρησης σταθμού ώστε τα διαγράμματα να δείχνουν ιστορικό. Ελέγξτε τους όρους του Τμήματος πριν χρησιμοποιήσετε τα δεδομένα εκτός τάξης.'));
+        T('. Weather data copyright The Cyprus Department of Meteorology', '. Τα μετεωρολογικά δεδομένα ανήκουν στο Τμήμα Μετεωρολογίας Κύπρου'),
+        T('. We keep our own copy of each reading so the charts can show history. Check the Department’s terms before using the data outside a classroom.', '. Κρατάμε δικό μας αντίγραφο κάθε μέτρησης ώστε τα διαγράμματα να δείχνουν ιστορικό. Ελέγξτε τους όρους του Τμήματος πριν χρησιμοποιήσετε τα δεδομένα εκτός τάξης.'));
       root.append(src);
 
       /* ---------- start ---------- */

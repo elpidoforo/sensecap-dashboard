@@ -1,0 +1,65 @@
+/* League (public/site/pages/league.js). Classes are prefixed lg- so they never meet other pages. */
+
+.lg { display: flex; flex-direction: column; gap: var(--nm-gap-s); min-width: 0; }
+.lg :is(h1, h2, h3) { color: #fff; }
+
+/* switched off: calm, one idea */
+.lg-off { padding: 34px 32px 30px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; max-width: 760px; }
+.lg-trophy { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 18px; background: var(--nm-copper-soft); border: 1px solid var(--nm-copper-line); color: var(--nm-copper-2); margin-bottom: 8px; }
+.lg-trophy svg { width: 28px; height: 28px; }
+.lg-off h2 { margin: 0; font: 600 clamp(24px, 3vw, 32px)/1.15 var(--nm-font-display); letter-spacing: -.02em; }
+.lg-lead { margin: 2px 0 14px; font-size: 16.5px; line-height: 1.5; color: var(--nm-lede); max-width: 52ch; }
+.lg-pt { padding: 18px 18px 16px; border-radius: 20px; background: rgba(255, 255, 255, .04); border: 1px solid var(--nm-edge); }
+.lg-pt b { display: block; margin: 12px 0 4px; color: #fff; font: 600 16px/1.25 var(--nm-font); }
+.lg-pt p { margin: 0; color: var(--nm-muted); font-size: 14px; line-height: 1.5; }
+
+/* ranking */
+.lg-main { align-items: start; }
+.lg-main > * { min-width: 0; }
+.lg-left, .lg-right { display: flex; flex-direction: column; gap: var(--nm-gap-s); min-width: 0; }
+.lg-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--nm-gap-s); }
+.lg-row { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 16px; align-items: start; padding: 20px 22px; }
+.lg-row.first { border-color: var(--nm-copper-line); background: radial-gradient(320px 140px at 0 0, rgba(247, 196, 107, .14), transparent 70%), var(--nm-panel); }
+.lg-rank { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: rgba(255, 255, 255, .07); border: 1px solid var(--nm-edge-2); color: var(--nm-ink-soft); font: 700 20px/1 var(--nm-font-display); }
+.lg-row.first .lg-rank { background: var(--nm-gold-grad); color: var(--nm-gold-ink); border: 0; box-shadow: 0 8px 18px -6px rgba(232, 150, 63, .75); }
+.lg-mid { min-width: 0; }
+.lg-mid h3 { margin: 2px 0 10px; font: 600 19px/1.25 var(--nm-font-display); overflow-wrap: anywhere; }
+.lg-bar { height: 14px; border-radius: 8px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+.lg-fill { display: flex; height: 100%; border-radius: 8px; overflow: hidden; }
+.lg-fill i { display: block; min-width: 2px; }
+.lg-fill i + i { box-shadow: -2px 0 0 rgba(12, 22, 38, .7); }
+.lg-parts { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.lg-parts li { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; color: var(--nm-text); }
+.lg-parts i, .lg-legend i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.lg-parts b { color: #fff; font-weight: 650; }
+.lg-say { margin: 10px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--nm-muted); }
+.lg-pts { text-align: right; white-space: nowrap; }
+.lg-pts b { display: block; color: #fff; font: 600 40px/1 var(--nm-font-display); letter-spacing: -.03em; }
+.lg-pts span { color: var(--nm-muted); font-size: 13px; }
+.lg-fine { margin: 0; padding: 0 4px; font-size: 13px; line-height: 1.5; }
+
+/* explanation + safeguarding */
+.lg-how, .lg-safe { padding: 20px 22px 18px; }
+.lg-how .card-sub { margin-bottom: 14px; }
+.lg-legend { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.lg-legend li { display: flex; gap: 11px; align-items: flex-start; }
+.lg-legend i { margin-top: 5px; }
+.lg-legend b { color: #fff; font-weight: 600; font-size: 15px; }
+.lg-legend p { margin: 2px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--nm-muted); }
+.lg-how .pill-link { margin-top: 12px; }
+.lg-safe { border-left: 3px solid var(--nm-cyan); }
+.lg-safe-h { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.lg-safe-h .card-h { margin: 0; }
+.lg-safe p { margin: 0 0 10px; font-size: 14.5px; line-height: 1.6; color: var(--nm-text); }
+.lg-safe p:last-child { margin-bottom: 0; }
+
+@media (max-width: 700px) {
+  .lg-row { grid-template-columns: 44px minmax(0, 1fr); padding: 16px 16px 14px; gap: 12px; }
+  .lg-rank { width: 40px; height: 40px; font-size: 17px; }
+  .lg-row { position: relative; }
+  .lg-pts { position: absolute; top: 14px; right: 16px; text-align: right; }
+  .lg-pts b { font-size: 28px; }
+  .lg-pts span { display: block; font-size: 12px; }
+  .lg-mid h3 { padding-right: 78px; }
+  .lg-off { padding: 24px 20px 22px; }
+}

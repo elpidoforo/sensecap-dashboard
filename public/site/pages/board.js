@@ -161,7 +161,7 @@
   }
 
   /* ---------- small charts ---------- */
-  function ringSvg(on, quiet, off, veh, fixed, other) {
+  function ringSvg(on, quiet, off, moving, parked, fixed, other) {
     const cx = 77, cy = 77, r = 62, sw = 16, C = 2 * Math.PI * r, gap = 4, total = on + quiet + off;
     const kids = [sv('circle', { cx, cy, r, fill: 'none', stroke: 'rgba(255,255,255,.06)', 'stroke-width': sw })];
     let acc = 0;
@@ -174,7 +174,7 @@
     const r2 = 47, C2 = 2 * Math.PI * r2;
     kids.push(sv('circle', { cx, cy, r: r2, fill: 'none', stroke: '#3b5478', 'stroke-opacity': 0.45, 'stroke-width': 4 }));
     let a2 = 0;
-    [[veh, '#4CCBEA'], [fixed, '#7d93b3'], [other, '#4b6a8c']].forEach(([n, c]) => {
+    [[moving, '#4CCBEA'], [parked, '#2d8ba3'], [fixed, '#3b5478'], [other, '#4b6a8c']].forEach(([n, c]) => {
       if (!n || !total) return;
       const len = C2 * n / total, g = n === total ? 0 : 3;
       kids.push(sv('circle', { cx, cy, r: r2, fill: 'none', stroke: c, 'stroke-width': 4, 'stroke-dasharray': f1(len - g) + ' ' + f1(C2), 'stroke-dashoffset': f1(-a2), transform: 'rotate(-90 ' + cx + ' ' + cy + ')' }));
@@ -263,6 +263,7 @@
       const R = {};                 // fetched data: R.name = { ok, v } or { ok: false, e }
       const st = { cat: null, series: null, met: null, airApi: null, open: null };
       const timers = [];
+      root.classList.add('pg-board');   // page-only tweaks of the shared head (see board.css)
 
       const val = (k) => (R[k] && R[k].ok ? R[k].v : null);
       const cfg = () => val('cfg') || { names: {}, gps: ['4198', '4197'] };
@@ -308,8 +309,8 @@
       const pageHead = head.querySelector('.page-head');
 
       const links = el('nav', { class: 'bd-links', 'aria-label': T('Related pages', 'Σχετικές σελίδες') },
-        [['weather', T('Weather', 'Καιρός')], ['explore', T('Air', 'Αέρας')], ['vehicles', T('Vehicles', 'Οχήματα')], ['city3d', T('Cyprus 3D', 'Κύπρος 3D')]]
-          .concat(SC.me ? [['approvals', T('Oversight', 'Εποπτεία')]] : []).filter(([id]) => ready(id))
+        [['weather', T('Weather', 'Καιρός')], ['explore', T('Air', 'Αέρας')], ['vehicles', T('Vehicles', 'Οχήματα')], SC.me ? ['approvals', T('Oversight', 'Εποπτεία')] : ['city3d', T('Cyprus 3D', 'Κύπρος 3D')]]
+          .filter(([id]) => ready(id))
           .map(([id, l]) => el('a', { class: 'bd-lk', href: '#/' + id }, l, arrowSvg())));
 
       const ticker = el('div', { class: 'bd-ticker', 'aria-label': T('Latest events', 'Τελευταία γεγονότα') }, el('span', { class: 'tk lead' }, T('Latest on the board', 'Τελευταία στον πίνακα')), el('span', { class: 'tk' }, T('Loading…', 'Φόρτωση…')));
@@ -321,11 +322,11 @@
       const valsList = el('ul', { class: 'bd-vals', 'aria-label': T('Reading at each school', 'Μέτρηση σε κάθε σχολείο') });
       const mapBox = el('div', { class: 'bd-mapbox' }, mapSvg);
       const mapMsg = el('div');
-      const scaleNote = el('span', { class: 'lg' });
+      const rampBar = el('span', { class: 'ramp' });
       const mapCard = el('section', { class: 'nm-card bd-br bd-map', 'aria-label': T('Island map', 'Χάρτης νησιού') },
         el('div', { class: 'bd-mc-head' }, el('div', null, el('div', { class: 'bd-eb' }, T('Cyprus · the four schools', 'Κύπρος · τα τέσσερα σχολεία')), mapDesc), chipsBox),
         mapMsg, mapBox, valsList,
-        el('div', { class: 'bd-foot' }, el('span', { class: 'lg' }, el('span', null, T('Lower', 'Χαμηλότερο')), el('span', { class: 'ramp' }), el('span', null, T('Higher', 'Υψηλότερο'))), scaleNote,
+        el('div', { class: 'bd-foot' }, el('span', { class: 'lg' }, el('span', null, T('Lower', 'Χαμηλότερο')), rampBar, el('span', null, T('Higher', 'Υψηλότερο'))),
           el('span', { class: 'lg' }, el('span', { class: 'sq' }), T('School (column)', 'Σχολείο (στήλη)')), el('span', { class: 'lg' }, el('span', { class: 'st' }), T('Met Office station', 'Σταθμός Μετεωρολογικής')),
           ready('city3d') ? inl('city3d', T('Turn it in Cyprus 3D', 'Γυρίστε το σε 3D')) : null));
 
@@ -353,7 +354,7 @@
         pill.lastChild.textContent = T('Live · ' + SC.ago(last), 'Ζωντανά · ' + SC.ago(last));
         const demo = val('cfg') && val('cfg').demo;
         const has = pageHead.querySelector('.t.demo');
-        if (demo && !has) pageHead.insertBefore(el('span', { class: 't demo' }, T('Demo data', 'Δεδομένα επίδειξης')), lede);
+        if (demo && !has) pageHead.insertBefore(el('span', { class: 't demo' }, T('Sample numbers', 'Δειγματικοί αριθμοί')), lede);
         if (!demo && has) has.remove();
       }
       function paintLede() {
@@ -389,14 +390,21 @@
           return { s, val: v, n: vals.length, t: v == null ? null : Math.max(0, Math.min(1, (v - C.lo) / (C.hi - C.lo))), txt: v == null ? '' : fmt(v, C.dec), unit: unit || C.unit };
         });
         const unit = (cols.find((c) => c.val != null) || { unit: C.unit }).unit;
-        mapDesc.textContent = T('Height and colour show the chosen reading, averaged over each school’s sensors that reported in the last 3 hours. Fixed scale: ' + C.lo + ' to ' + C.hi + ' ' + unit + '. Blue lower, copper higher.',
-          'Το ύψος και το χρώμα δείχνουν την επιλεγμένη μέτρηση, με μέσο όρο των αισθητήρων κάθε σχολείου που έστειλαν μέτρηση τις τελευταίες 3 ώρες. Σταθερή κλίμακα: ' + C.lo + ' έως ' + C.hi + ' ' + unit + '. Μπλε χαμηλότερο, χάλκινο υψηλότερο.');
-        scaleNote.textContent = C.lo + ' – ' + C.hi + ' ' + unit;
+        mapDesc.textContent = T('Height = the chosen reading, averaged over each school’s sensors (last 3 h). Colour: blue lower, copper higher, on a fixed ' + C.lo + ' to ' + C.hi + ' ' + unit + ' scale.',
+          'Ύψος = η επιλεγμένη μέτρηση, με μέσο όρο των αισθητήρων κάθε σχολείου (τελευταίες 3 ώ.). Χρώμα: μπλε χαμηλότερο, χάλκινο υψηλότερο, σε σταθερή κλίμακα ' + C.lo + ' έως ' + C.hi + ' ' + unit + '.');
+        rampBar.title = C.lo + ' – ' + C.hi + ' ' + unit;
         mapSvg.setAttribute('aria-label', T('Pseudo-3D map of Cyprus with a column at each school: ', 'Ψευδο-τρισδιάστατος χάρτης της Κύπρου με μία στήλη σε κάθε σχολείο: ') + cols.map((c) => c.s.short + ' ' + (c.val == null ? T('no reading', 'χωρίς μέτρηση') : c.txt + ' ' + c.unit)).join(', '));
         fill(valsList, ...cols.map((c) => el('li', null, c.s.n, el('b', null, c.val == null ? T('no reading', 'χωρίς μέτρηση') : c.txt + ' ' + c.unit), c.val == null ? null : T(c.n + (c.n === 1 ? ' sensor' : ' sensors'), c.n + (c.n === 1 ? ' αισθητήρας' : ' αισθητήρες')))));
         const cy = val('cydom'), pts = cy && Array.isArray(cy.points) ? cy.points.filter((p) => fin(p.lat) && fin(p.lng)) : [];
         const hot = pts.filter((p) => fin(p.temp)).sort((a, b) => b.temp - a.temp)[0];
         drawIsland(mapSvg, cols, pts.map((p) => ({ lat: p.lat, lng: p.lng, hot: hot && p.id === hot.id })));
+      }
+
+      function delayInfo() {
+        const c = val('cfg') || {}, tr = val('trails');
+        const exactNow = !!c.exactPositions;
+        const delayMin = exactNow ? 0 : (fin(c.posDelayMin) ? c.posDelayMin : tr && fin(tr.delayMinutes) ? tr.delayMinutes : 120);
+        return { exactNow, delayMin, delayH: Math.max(1, Math.round(delayMin / 60)) };
       }
 
       /* ---------- paint: ring ---------- */
@@ -408,19 +416,24 @@
         const sts = dv.map((d) => stateOf(d, now));
         const n = (k) => sts.filter((x) => x === k).length;
         const on = n('on'), quiet = n('quiet'), off = n('off');
+        // vehicle, fixed or neither follows the device name; moving or parked comes from the public (delayed, rounded) trails
         const kinds = dv.map(kindOf), kn = (k) => kinds.filter((x) => x === k).length;
-        const veh = kn('veh'), fixed = kn('fixed'), other = kn('other');
+        const fixed = kn('fixed'), other = kn('other'), veh = kn('veh');
+        const tr = val('trails'), di = delayInfo(), haveTrails = !!(tr && tr.trails);
+        const moving = haveTrails ? dv.filter((d, i) => kinds[i] === 'veh' && sts[i] === 'on' && movingAt(tr.trails[d.eui], now - di.delayMin * 60000)).length : 0;
+        const parked = haveTrails ? veh - moving : 0;
         const pct = Math.round(on / dv.length * 100);
         const li = (color, text, n_) => el('li', null, el('i', { style: 'background:' + color }), text, el('b', null, n_));
         const bad = dv.map((d, i) => ({ d, s: sts[i], m: seenMs(d) })).filter((x) => x.s !== 'on').sort((a, b) => a.m - b.m).slice(0, 4);
         fill(ringBody, 
           el('div', { class: 'bd-eb' }, T('Sensors online · all ' + dv.length + ' sensors', 'Αισθητήρες σε λειτουργία · και οι ' + dv.length)),
-          el('div', { class: 'bd-ringtop' }, ringSvg(on, quiet, off, veh, fixed, other),
+          el('div', { class: 'bd-ringtop' }, ringSvg(on, quiet, off, haveTrails ? moving : veh, parked, fixed, other),
             el('ul', { class: 'bd-leg' }, li('#59d98e', T('Online', 'Σε λειτουργία'), on), li('#F2B24C', T('Quiet for over an hour', 'Σιωπηλοί πάνω από μία ώρα'), quiet), li('#FF7A6A', T('Offline', 'Εκτός λειτουργίας'), off), el('hr'),
-              li('#4CCBEA', T('Named as bus or car', 'Ονομάζονται λεωφορείο/αυτοκίνητο'), veh), li('#7d93b3', T('Named as classroom or fixed', 'Ονομάζονται τάξη/σταθερός'), fixed), li('#4b6a8c', T('Name does not say', 'Το όνομα δεν το δηλώνει'), other))),
+              haveTrails ? li('#4CCBEA', T('Moving on vehicles', 'Σε κίνηση σε οχήματα'), moving) : li('#4CCBEA', T('On vehicles', 'Σε οχήματα'), veh),
+              haveTrails ? li('#2d8ba3', T('Parked vehicle', 'Σταθμευμένο όχημα'), parked) : null, li('#3b5478', T('Fixed at schools', 'Σταθερός στα σχολεία'), fixed), other ? li('#4b6a8c', T('Name does not say', 'Το όνομα δεν το δηλώνει'), other) : null)),
           el('div', null, el('div', { class: 'bd-bigok' + (pct < 50 ? ' bad' : pct < 80 ? ' warn' : '') }, String(pct), el('small', null, T('% online', '% σε λειτουργία'))),
             el('p', { style: 'margin-top:4px' }, T(on + ' of ' + dv.length + ' sensors sent a reading in the last hour. ', on + ' από ' + dv.length + ' αισθητήρες έστειλαν μέτρηση την τελευταία ώρα. '), ready('vehicles') ? inl('vehicles', T('Vehicles', 'Οχήματα')) : null)),
-          el('div', { class: 'nm-callout nm-callout--info' }, T('Quiet: nothing sent for over an hour. Offline: nothing for over a day. Moving or fixed is not guessed: it follows the device name.', 'Σιωπηλός: τίποτα για πάνω από μία ώρα. Εκτός λειτουργίας: τίποτα για πάνω από μία ημέρα. Το αν κινείται ή είναι σταθερός δεν εικάζεται: ακολουθεί το όνομα της συσκευής.')),
+          el('div', { class: 'nm-callout nm-callout--warn' }, T('Quiet sensors are usually parked or switched off. Quiet: nothing for over an hour. Offline: nothing for over a day. Vehicle or fixed follows the device name.', 'Οι σιωπηλοί αισθητήρες είναι συνήθως σταθμευμένοι ή κλειστοί. Σιωπηλός: τίποτα για πάνω από μία ώρα. Εκτός λειτουργίας: τίποτα για πάνω από μία ημέρα. Όχημα ή σταθερός: ακολουθεί το όνομα της συσκευής.')),
           bad.length ? el('ul', { class: 'bd-quiet' }, bad.map((x) => el('li', null, el('i', { style: 'background:' + (x.s === 'quiet' ? '#F2B24C' : '#FF7A6A') }), el('em', { title: x.d.name }, x.d.name),
             el('span', null, !x.m ? T('never seen', 'δεν έχει εμφανιστεί') : x.s === 'quiet' ? T('quiet for ' + span(now - x.m), 'σιωπηλός ' + span(now - x.m)) : T('offline since ' + SC.date(x.m), 'εκτός από ' + SC.date(x.m)))))) : null);
       }

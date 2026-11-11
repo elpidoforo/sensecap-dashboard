@@ -26,6 +26,7 @@
     pencil: '<path d="M4 20l1-5L16 4l4 4L9 19zM14 6l4 4"/>',
     user: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3-6 7-6s7 2.4 7 6"/>',
     sparkle: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M18 16l.8 2.2L21 19l-2.2.8L18 22l-.8-2.2L15 19l2.2-.8z"/>',
+    chev: '<path d="M6 9l6 6 6-6"/>',
     trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>',
   };
   function ic(name) {
@@ -161,6 +162,9 @@
     };
     let alive = true, timer = 0;
     const stopBridge = bridge();
+    const outside = { fn: null };
+    const onDoc = (e) => { if (outside.fn) outside.fn(e); };
+    document.addEventListener('click', onDoc);
 
     const V = () => (S.status && S.status.viewer) || { kind: 'visitor' };
     const isClass = () => V().kind === 'class';
@@ -219,11 +223,15 @@
     }
 
     /* ----- head, stats ----- */
+    function galleryBtn() {
+      return el('button', { class: 'nm-btn nm-btn--sm sd-galbtn', type: 'button', onclick: () => { const bd = document.getElementById('sd-board'); if (bd) bd.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); } }, ic('ext'), t('Open the public gallery', 'Άνοιγμα της δημόσιας συλλογής'));
+    }
     function drawHead() {
       headHost.replaceChildren(SC.head({
         title: t('From an idea to a public tool.', 'Από μια ιδέα σε δημόσιο εργαλείο.'),
         lede: t('Describe a small tool in plain words. A draft is built from our live data. A teacher checks it, then anyone can open it.', 'Περιγράψτε ένα μικρό εργαλείο με απλά λόγια. Φτιάχνεται ένα προσχέδιο από τα ζωντανά μας δεδομένα. Ένας εκπαιδευτικός το ελέγχει και μετά μπορεί να το ανοίξει οποιοσδήποτε.'),
         tags: S.status && S.status.demo ? [{ text: t('Demo data', 'Δεδομένα επίδειξης'), cls: 'demo' }] : [],
+        actions: [galleryBtn()],
         help: [
           'Students build with the class code from their teacher and a team name: no account and no password. Describe a tool, the studio builds a draft, you preview it and change it, then send it to your teacher. Drafts stay in this browser until you send them. A teacher checks every tool before anyone else can open it. Approved tools are in the public gallery below.',
           'Οι μαθητές φτιάχνουν με τον κωδικό τάξης από τον εκπαιδευτικό τους και ένα όνομα ομάδας: χωρίς λογαριασμό και χωρίς κωδικό πρόσβασης. Περιγράφετε ένα εργαλείο, το στούντιο φτιάχνει ένα προσχέδιο, το βλέπετε και το αλλάζετε και μετά το στέλνετε στον εκπαιδευτικό σας. Τα προσχέδια μένουν σε αυτό το πρόγραμμα περιήγησης μέχρι να τα στείλετε. Ένας εκπαιδευτικός ελέγχει κάθε εργαλείο πριν το ανοίξει οποιοσδήποτε άλλος. Τα εγκεκριμένα εργαλεία είναι στη δημόσια συλλογή παρακάτω.',
@@ -232,11 +240,13 @@
     }
     function drawStats() {
       const items = [];
-      if (canBuild()) { const n = draftCount(); items.push([n, n === 1 ? t('draft', 'προσχέδιο') : t('drafts', 'προσχέδια')], [pendingMine().length, t('waiting for a teacher', 'περιμένουν εκπαιδευτικό')]); }
+      if (canBuild()) {
+        const n = draftCount(), w = pendingMine().length, tot = n + w + (S.galErr ? 0 : S.gallery.length);
+        items.push([tot, tot === 1 ? t('tool', 'εργαλείο') : t('tools', 'εργαλεία')], [n, n === 1 ? t('draft', 'προσχέδιο') : t('drafts', 'προσχέδια')], [w, t('waiting for a teacher', 'περιμένουν εκπαιδευτικό')]);
+      }
       items.push([S.galErr ? '–' : S.gallery.length, t('public', 'δημόσια')]);
-      const gal = el('button', { class: 'nm-btn nm-btn--sm sd-galbtn', type: 'button', onclick: () => { const bd = document.getElementById('sd-board'); if (bd) bd.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); } }, ic('ext'), t('Open the public gallery', 'Άνοιγμα της δημόσιας συλλογής'));
       statsHost.replaceChildren(el('div', { class: 'sd-stats', role: 'group', 'aria-label': t('Tools in numbers', 'Τα εργαλεία σε αριθμούς') },
-        ...items.flatMap(([n, label], i) => [i ? el('span', { class: 'sep', 'aria-hidden': 'true' }) : null, el('span', null, el('b', null, String(n)), ' ' + label)]).filter(Boolean), el('span', { class: 'sd-sp' }), gal),
+        ...items.flatMap(([n, label], i) => [i ? el('span', { class: 'sep', 'aria-hidden': 'true' }) : null, el('span', null, el('b', null, String(n)), ' ' + label)]).filter(Boolean)),
       el('div', { class: 'nm-callout nm-callout--info sd-open' }, ic('eye'), el('span', null, el('b', null, t('Anyone can open a published tool, no sign-in needed.', 'Οποιοσδήποτε μπορεί να ανοίξει ένα δημοσιευμένο εργαλείο, χωρίς σύνδεση.')), ' ' + t('Students build with their class code. Teachers sign in to approve.', 'Οι μαθητές φτιάχνουν με τον κωδικό τάξης. Οι εκπαιδευτικοί συνδέονται για να εγκρίνουν.'))));
     }
 
@@ -288,6 +298,24 @@
       return f;
     }
 
+    // The "Team: Hermes" pill by the Build button: it opens a small panel with who is building, the school and how long the class session lasts.
+    function whoPill() {
+      const v = V();
+        const strip = el('div', { class: 'sd-as' }, el('span', { class: 'sd-tic' }, ic('user')),
+          el('div', { class: 'sd-as-t' }, el('b', null, v.kind === 'class' ? t('Building as ', 'Φτιάχνετε ως ') + asTeam() : t('Building as ' + (S.status.user ? S.status.user.name : 'you') + (v.role === 'teacher' ? ' (teacher)' : v.role === 'admin' ? ' (admin)' : ''), 'Φτιάχνετε ως ' + (S.status.user ? S.status.user.name : 'εσείς') + (v.role === 'teacher' ? ' (εκπαιδευτικός)' : v.role === 'admin' ? ' (διαχειριστής)' : ''))),
+            v.kind === 'class' && v.expiresAt ? el('small', null, t('This class session lasts until ' + SC.time(v.expiresAt) + '.', 'Αυτή η συνεδρία τάξης διαρκεί έως τις ' + SC.time(v.expiresAt) + '.')) : v.kind === 'user' ? el('small', null, t('Your drafts are saved to your account.', 'Τα προσχέδιά σας αποθηκεύονται στον λογαριασμό σας.')) : null),
+          v.kind === 'class' ? el('button', { class: 'nm-btn nm-btn--sm', type: 'button', onclick: leaveClass }, t('Leave', 'Αποχώρηση')) : null);
+      const name = v.kind === 'class' ? v.team : (S.status.user ? S.status.user.name : '');
+      const pop = el('div', { class: 'sd-pop', role: 'group', 'aria-label': t('Who is building', 'Ποιος φτιάχνει'), hidden: true }, strip);
+      const btn = el('button', { class: 'sd-pill', type: 'button', 'aria-haspopup': 'true', 'aria-expanded': 'false' }, v.kind === 'class' ? t('Team: ', 'Ομάδα: ') : t('Signed in: ', 'Συνδεδεμένος: '), el('b', null, name), ic('chev'));
+      const close = () => { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); };
+      btn.addEventListener('click', () => { pop.hidden = !pop.hidden; btn.setAttribute('aria-expanded', pop.hidden ? 'false' : 'true'); });
+      const wrap = el('div', { class: 'sd-pillw' }, btn, pop);
+      wrap.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !pop.hidden) { close(); btn.focus(); } });
+      outside.fn = (e) => { if (!pop.hidden && !wrap.contains(e.target)) close(); };
+      return wrap;
+    }
+
     function buildForm() {
       const D = S.cur, lim = limitInfo();
       const out = lim && lim.left <= 0;
@@ -300,7 +328,7 @@
       go.id = 'sd-go';
       go.addEventListener('click', build);
       const stop = el('button', { class: 'nm-btn', type: 'button', onclick: () => { if (S.ctrl) S.ctrl.abort(); } }, ic('stop'), t('Stop', 'Διακοπή'));
-      const row = el('div', { class: 'sd-actions' }, S.building ? stop : go);
+      const row = el('div', { class: 'sd-actions' }, S.building ? stop : go, S.building ? null : whoPill());
       if (D && !S.building) {
         if (S.mode === 'rebuild') row.append(el('button', { class: 'nm-btn nm-btn--ghost', type: 'button', onclick: () => { S.mode = 'update'; ta.value = ''; drawMaker(); ta.focus(); } }, t('Keep changing the draft', 'Συνεχίστε να αλλάζετε το προσχέδιο')));
         else if (D.prompt) row.append(el('button', { class: 'nm-btn nm-btn--ghost', type: 'button', onclick: () => { S.mode = 'rebuild'; ta.value = D.prompt.slice(0, MAX_TEXT); drawMaker(); ta.focus(); } }, ic('pencil'), t('Edit my description and rebuild', 'Αλλάξτε την περιγραφή και ξαναφτιάξτε')));
@@ -351,11 +379,7 @@
       } else if (!S.loaded) who = el('div', { class: 'loading' }, t('Loading', 'Φόρτωση'));
       else if (v.kind === 'visitor') who = gateForm();
       else {
-        const strip = el('div', { class: 'sd-as' }, el('span', { class: 'sd-tic' }, ic('user')),
-          el('div', { class: 'sd-as-t' }, el('b', null, v.kind === 'class' ? t('Building as ', 'Φτιάχνετε ως ') + asTeam() : t('Building as ' + (S.status.user ? S.status.user.name : 'you') + (v.role === 'teacher' ? ' (teacher)' : v.role === 'admin' ? ' (admin)' : ''), 'Φτιάχνετε ως ' + (S.status.user ? S.status.user.name : 'εσείς') + (v.role === 'teacher' ? ' (εκπαιδευτικός)' : v.role === 'admin' ? ' (διαχειριστής)' : ''))),
-            v.kind === 'class' && v.expiresAt ? el('small', null, t('This class session lasts until ' + SC.time(v.expiresAt) + '.', 'Αυτή η συνεδρία τάξης διαρκεί έως τις ' + SC.time(v.expiresAt) + '.')) : v.kind === 'user' ? el('small', null, t('Your drafts are saved to your account.', 'Τα προσχέδιά σας αποθηκεύονται στον λογαριασμό σας.')) : null),
-          v.kind === 'class' ? el('button', { class: 'nm-btn nm-btn--sm', type: 'button', onclick: leaveClass }, t('Leave', 'Αποχώρηση')) : null);
-        who = el('div', null, strip, !configured() ? el('div', { class: 'nm-callout nm-callout--warn', style: { margin: '0 0 14px' } }, t('The Build studio is not switched on yet. You can still open the public gallery below. Ask your teacher or an admin to switch it on.', 'Το στούντιο δεν έχει ενεργοποιηθεί ακόμη. Μπορείτε να ανοίξετε τη δημόσια συλλογή παρακάτω. Ζητήστε από τον εκπαιδευτικό σας ή έναν διαχειριστή να το ενεργοποιήσει.')) : null, buildForm());
+        who = el('div', null, !configured() ? el('div', { class: 'nm-callout nm-callout--warn', style: { margin: '0 0 14px' } }, t('The Build studio is not switched on yet. You can still open the public gallery below. Ask your teacher or an admin to switch it on.', 'Το στούντιο δεν έχει ενεργοποιηθεί ακόμη. Μπορείτε να ανοίξετε τη δημόσια συλλογή παρακάτω. Ζητήστε από τον εκπαιδευτικό σας ή έναν διαχειριστή να το ενεργοποιήσει.')) : null, buildForm());
       }
       makerHost.replaceChildren(el('div', { class: 'sd-maker-l' }, el('div', { class: 'sd-eb cu' }, t('New tool', 'Νέο εργαλείο')), el('h2', { id: 'sd-maker-h' }, t('Describe a tool', 'Περιγράψτε ένα εργαλείο')),
         el('p', { class: 'sd-lede2' }, t('Say what you want to show and who it is for. The studio builds a draft from the same live readings you see on the City board. You can change it before you send it.', 'Πείτε τι θέλετε να δείξετε και για ποιον είναι. Το στούντιο φτιάχνει ένα προσχέδιο από τις ίδιες ζωντανές μετρήσεις που βλέπετε στον Πίνακα πόλης. Μπορείτε να το αλλάξετε πριν το στείλετε.')), who), stepsPanel());
@@ -651,7 +675,7 @@
       if (!alive) return () => {};
       drawHead(); drawAll();
       timer = setInterval(tickRefresh, 60000);
-      return () => { alive = false; clearInterval(timer); stopBridge(); if (S.ctrl) S.ctrl.abort(); };
+      return () => { alive = false; clearInterval(timer); stopBridge(); document.removeEventListener('click', onDoc); if (S.ctrl) S.ctrl.abort(); };
     })();
   }
 

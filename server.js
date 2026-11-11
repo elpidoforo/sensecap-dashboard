@@ -28,14 +28,23 @@ let measurementNames = { ...FALLBACK_NAMES };
 const { createCache } = require('./cache');
 const { createPrivacy, GPS_MIDS } = require('./privacy');
 const priv = createPrivacy();
+const { createFeeds, createArchive } = require('./feeds');
 
 // Every cache is bounded. `cached` holds the fixed keys (devices, weather, Met Office pages...). The keys that come from a
 // request have their own caches with a small cap each, so odd query strings cannot make the memory grow.
-const cached = createCache({ max: 100, staleMs: 30 * 60000 }).get;   // when a refresh fails, the last good answer (up to 30 min old) is served
+const cachedStore = createCache({ max: 100, staleMs: 30 * 60000 });
+const cached = cachedStore.get;   // when a refresh fails, the last good answer (up to 30 min old) is served
 const seriesCache = createCache({ max: 200, staleMs: 6 * 3600000 });
 const trailCache = createCache({ max: 60, staleMs: 30 * 60000 });                  // a trail answer is large, so fewer of them
 const imageCache = createCache({ max: 100, maxBytes: 60e6, sizeOf: (v) => v.buf.length });
 const publicViews = createCache({ max: 200 });                // answers for visitors, see "who sees what" below
+
+/* A feed a teacher has switched off makes no calls. Its endpoints still serve what the caches hold, however old (a time to live of
+ * Infinity), and answer 503 'switched off by a teacher' when the cache has nothing. `getFrom` is the get of one of the caches above. */
+function viaFeed(feed, getFrom, key, ttl, fn) {
+  if (feeds.enabled(feed)) return getFrom(key, ttl, fn);
+  return getFrom(key, Infinity, async () => { throw feeds.off(feed); });
+}
 
 const whole = (v, dflt, min, max) => Math.min(max, Math.max(min, Math.round(Number(v) || dflt)));   // hours and days are whole numbers
 
@@ -62,6 +71,7 @@ function upstreamSlot() {
 function upstreamDone() { upstream.active--; upstreamNext(); }
 
 async function api(endpoint, { method = 'GET', query = {}, body } = {}) {
+  feeds.guard('sensecap');                                   // a teacher can switch the feed off: no call is made then
   if (Date.now() < upstream.coolUntil) throw new Error(`SenseCAP is busy, waiting ${Math.ceil((upstream.coolUntil - Date.now()) / 1000)} s before asking again`);
   const url = new URL(HOST + endpoint);
   for (const [k, v] of Object.entries(query)) {
@@ -70,24 +80,32 @@ async function api(endpoint, { method = 'GET', query = {}, body } = {}) {
   await upstreamSlot();
   try {
     if (Date.now() < upstream.coolUntil) throw new Error('SenseCAP is busy, waiting before asking again');
-    const res = await fetch(url, {
-      method,
-      headers: {
-        Authorization: 'Basic ' + Buffer.from(`${ID}:${KEY}`).toString('base64'),
-        'Content-Type': 'application/json; charset=utf-8',
-      },
-      body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(30000),
-    });
-    const text = await res.text();
-    let json = null;
-    try { json = JSON.parse(text); } catch { /* a web page, not data */ }
-    if (!res.ok || json === null) {
-      if (res.status === 429 || res.status >= 500 || json === null) upstream.coolUntil = Date.now() + UP_COOL_MS;
-      throw new Error(`SenseCAP ${endpoint} returned ${json === null ? 'a web page instead of data' : 'HTTP ' + res.status} (HTTP ${res.status})`);
+    feeds.guard('sensecap');
+    // Only a call that was really sent is counted for the feed list; waiting at the gate above is not an answer from SenseCAP.
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: {
+          Authorization: 'Basic ' + Buffer.from(`${ID}:${KEY}`).toString('base64'),
+          'Content-Type': 'application/json; charset=utf-8',
+        },
+        body: body ? JSON.stringify(body) : undefined,
+        signal: AbortSignal.timeout(30000),
+      });
+      const text = await res.text();
+      let json = null;
+      try { json = JSON.parse(text); } catch { /* a web page, not data */ }
+      if (!res.ok || json === null) {
+        if (res.status === 429 || res.status >= 500 || json === null) upstream.coolUntil = Date.now() + UP_COOL_MS;
+        throw new Error(`SenseCAP ${endpoint} returned ${json === null ? 'a web page instead of data' : 'HTTP ' + res.status} (HTTP ${res.status})`);
+      }
+      if (String(json.code) !== '0') throw new Error(`SenseCAP ${endpoint} error code ${json.code}: ${json.message || ''}`);
+      feeds.record('sensecap', true);
+      return json.data;
+    } catch (e) {
+      feeds.record('sensecap', false, e);
+      throw e;
     }
-    if (String(json.code) !== '0') throw new Error(`SenseCAP ${endpoint} error code ${json.code}: ${json.message || ''}`);
-    return json.data;
   } finally {
     upstreamDone();
   }
@@ -138,10 +156,11 @@ function fixLatLng(lat, lng) {
 /* ---------- live data ---------- */
 
 // A failed optional call becomes an empty list, unless the API is busy: then the whole refresh fails and the cache serves the last good answer.
-const softFail = (e) => { if (Date.now() < upstream.coolUntil) throw e; return []; };
+const softFail = (e) => { if (feeds.isOff(e) || Date.now() < upstream.coolUntil) throw e; return []; };
 
+let lastDevices = null;   // counts only (never a position): how many vehicles the last answer had and how many were online
 async function liveDevices() {
-  return cached('devices', 60000, async () => {
+  return viaFeed('sensecap', cached, 'devices', 60000, async () => {
     const groups = await api('/list_groups').catch(softFail);
     const all = await api('/list_devices', { query: { device_type: 2 } });
     const groupOf = {};
@@ -164,7 +183,7 @@ async function liveDevices() {
       st.forEach((d) => (status[d.device_eui] = d));
       ch.forEach((d) => (channels[d.device_eui] = d.channels || []));
     }
-    return all.map((d) => {
+    const out = all.map((d) => {
       const det = details[d.device_eui] || {};
       const st = status[d.device_eui] || {};
       const pos = det.position || {};
@@ -190,11 +209,13 @@ async function liveDevices() {
         channelOf: chanMap,
       };
     });
+    lastDevices = { at: Date.now(), total: out.length, online: out.filter((d) => d.online).length };
+    return out;
   });
 }
 
 async function liveLatest() {
-  return cached('latest', 60000, async () => {
+  return viaFeed('sensecap', cached, 'latest', 60000, async () => {
     const devices = await liveDevices();
     const rows = await mapLimit(devices, 5, async (d) => {
       const data = await api('/view_latest_telemetry_data', { query: { device_eui: d.eui } });
@@ -214,7 +235,7 @@ async function liveLatest() {
 }
 
 async function liveSeries(eui, mid, channel, days) {
-  return seriesCache.get(`series:${eui}:${mid}:${channel}:${days}`, 120000, async () => {
+  return viaFeed('sensecap', seriesCache.get, `series:${eui}:${mid}:${channel}:${days}`, 120000, async () => {
     const end = Date.now();
     const start = end - days * 86400000;
     const interval = Math.max(10, Math.round((days * 24 * 60) / 240));
@@ -312,7 +333,7 @@ async function liveTrail(dev, hours, mid) {
 }
 
 async function liveTrails(hours, mid) {
-  return trailCache.get(`trails:${hours}:${mid}`, hours <= 6 ? 240000 : 900000, async () => {
+  return viaFeed('sensecap', trailCache.get, `trails:${hours}:${mid}`, hours <= 6 ? 240000 : 900000, async () => {
     const devices = await liveDevices();
     const rows = await mapLimit(devices, 3, (d) => liveTrail(d, hours, mid));
     return assembleTrails(devices, rows, hours, mid);
@@ -421,6 +442,12 @@ function demoSeries(eui, mid, days) {
 /* ---------- terrain and weather (Open-Meteo: free, no key, non-commercial use) ---------- */
 
 const MOCK = process.env.OPEN_METEO_MOCK === '1';
+// The addresses of the free weather services. The variables only exist so a test can point them at a fake service.
+const OM_BASE = (process.env.OPEN_METEO_BASE || 'https://api.open-meteo.com').replace(/\/$/, '');
+const OM_AIR_BASE = (process.env.OPEN_METEO_AIR_BASE || 'https://air-quality-api.open-meteo.com').replace(/\/$/, '');
+const OM_MARINE_BASE = (process.env.OPEN_METEO_MARINE_BASE || 'https://marine-api.open-meteo.com').replace(/\/$/, '');
+const SC_BASE = (process.env.SENSOR_COMMUNITY_BASE || 'https://data.sensor.community').replace(/\/$/, '');
+const METAR_BASE = (process.env.METAR_BASE || 'https://aviationweather.gov').replace(/\/$/, '');
 const B = { lat0: 34.5, lat1: 35.75, lng0: 32.2, lng1: 34.7, step: 0.04 };
 const WG = { lat0: 34.5, latStep: 0.25, rows: 6, lng0: 32.3, lngStep: 0.25, cols: 10 };
 const SEA_POINTS = [
@@ -443,7 +470,8 @@ async function omBudget(n) {
   }
 }
 
-async function omJson(url, locations = 1) {
+const omJson = (url, locations = 1) => feeds.track('openmeteo', () => omJsonRetry(url, locations));   // one logical request, counted once
+async function omJsonRetry(url, locations) {
   let lastErr;
   for (let attempt = 0; attempt < 4; attempt++) {
     await omBudget(locations);
@@ -530,7 +558,7 @@ async function terrainJob() {
     while (T.next < T.lats.length) {
       const i = T.next;
       const j = await omJson(
-        `https://api.open-meteo.com/v1/elevation?latitude=${T.lats.slice(i, i + 100).join(',')}&longitude=${T.lngs.slice(i, i + 100).join(',')}`,
+        `${OM_BASE}/v1/elevation?latitude=${T.lats.slice(i, i + 100).join(',')}&longitude=${T.lngs.slice(i, i + 100).join(',')}`,
         Math.min(100, T.lats.length - i)
       );
       (j.elevation || []).forEach((v, k) => {
@@ -585,14 +613,14 @@ function mockWeather(p, i) {
 }
 
 function weather() {
-  return cached('weather', 600000, async () => {
+  return viaFeed('openmeteo', cached, 'weather', 600000, async () => {
     const pts = weatherGridPoints();
     let points;
     if (MOCK) {
       points = pts.map((p, i) => ({ ...p, ...mockWeather(p, i) }));
     } else {
       const j = await omJson(
-        'https://api.open-meteo.com/v1/forecast?latitude=' + pts.map((p) => p.lat).join(',') +
+        OM_BASE + '/v1/forecast?latitude=' + pts.map((p) => p.lat).join(',') +
         '&longitude=' + pts.map((p) => p.lng).join(',') +
         '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation,cloud_cover,pressure_msl' +
         '&wind_speed_unit=ms&timezone=UTC',
@@ -608,14 +636,14 @@ function weather() {
 }
 
 function air() {
-  return cached('air', 1800000, async () => {
+  return viaFeed('openmeteo', cached, 'air', 1800000, async () => {
     const pts = weatherGridPoints();
     let points;
     if (MOCK) {
       points = pts.map((p, i) => ({ ...p, pm25: 6 + (i % 9) * 2, pm10: 15 + (i % 7) * 4, dust: 10 + (i % 13) * 8, ozone: 70 }));
     } else {
       const j = await omJson(
-        'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=' + pts.map((p) => p.lat).join(',') +
+        OM_AIR_BASE + '/v1/air-quality?latitude=' + pts.map((p) => p.lat).join(',') +
         '&longitude=' + pts.map((p) => p.lng).join(',') + '&current=pm2_5,pm10,dust,ozone&timezone=UTC',
         pts.length
       );
@@ -628,13 +656,13 @@ function air() {
 }
 
 function sea() {
-  return cached('sea', 1800000, async () => {
+  return viaFeed('openmeteo', cached, 'sea', 1800000, async () => {
     let points;
     if (MOCK) {
       points = SEA_POINTS.map(([lat, lng], i) => ({ lat, lng, wave: 0.4 + (i % 4) * 0.5, sst: 24 + (i % 5) * 0.4 }));
     } else {
       const j = await omJson(
-        'https://marine-api.open-meteo.com/v1/marine?latitude=' + SEA_POINTS.map((p) => p[0]).join(',') +
+        OM_MARINE_BASE + '/v1/marine?latitude=' + SEA_POINTS.map((p) => p[0]).join(',') +
         '&longitude=' + SEA_POINTS.map((p) => p[1]).join(',') + '&current=wave_height,sea_surface_temperature&timezone=UTC',
         SEA_POINTS.length
       );
@@ -651,16 +679,20 @@ function sea() {
 const OPEN_BOUNDS = { lat0: 34.4, lat1: 35.9, lng0: 31.9, lng1: 34.9 };
 
 function openSensors() {
-  return cached('opensensors', 300000, async () => {
+  return viaFeed('sensorcommunity', cached, 'opensensors', 300000, async () => {
     if (MOCK) {
       return { points: [
         { id: 'm1', lat: 34.92, lng: 33.62, pm25: 9.1, pm10: 18.4, temp: 28.1, hum: 52, time: new Date().toISOString() },
         { id: 'm2', lat: 34.68, lng: 33.04, pm25: 12.5, pm10: 24, temp: 27.2, hum: 58, time: new Date().toISOString() },
       ], updated: new Date().toISOString() };
     }
-    const r = await fetch('https://data.sensor.community/airrohr/v1/filter/area=35.0,33.25,150', { signal: AbortSignal.timeout(25000) });
-    if (!r.ok) throw new Error(`Sensor.Community returned HTTP ${r.status}`);
-    const rows = await r.json();
+    const rows = await feeds.track('sensorcommunity', async () => {
+      const r = await fetch(SC_BASE + '/airrohr/v1/filter/area=35.0,33.25,150', { signal: AbortSignal.timeout(25000) });
+      if (!r.ok) throw new Error(`Sensor.Community returned HTTP ${r.status}`);
+      const j = await r.json();
+      if (!Array.isArray(j)) throw new Error('Sensor.Community did not send a list of sensors');
+      return j;
+    });
     const byLoc = new Map();
     for (const e of rows) {
       const loc = e.location || {};
@@ -685,13 +717,15 @@ function openSensors() {
 
 const AIRPORTS = { LCLK: 'Larnaca airport', LCPH: 'Paphos airport', LCEN: 'Ercan airport', LCRA: 'Akrotiri air base' };
 function metar() {
-  return cached('metar', 600000, async () => {
+  return viaFeed('metar', cached, 'metar', 600000, async () => {
     if (MOCK) {
       return { points: [{ id: 'LCLK', name: 'Larnaca airport', lat: 34.88, lng: 33.62, temp: 29, ws: 4.1, wd: 250, time: new Date().toISOString() }], updated: new Date().toISOString() };
     }
-    const r = await fetch(`https://aviationweather.gov/api/data/metar?ids=${Object.keys(AIRPORTS).join(',')}&format=json`, { signal: AbortSignal.timeout(25000) });
-    if (!r.ok) throw new Error(`Airport weather returned HTTP ${r.status}`);
-    const rows = await r.json();
+    const rows = await feeds.track('metar', async () => {
+      const r = await fetch(`${METAR_BASE}/api/data/metar?ids=${Object.keys(AIRPORTS).join(',')}&format=json`, { signal: AbortSignal.timeout(25000) });
+      if (!r.ok) throw new Error(`Airport weather returned HTTP ${r.status}`);
+      return r.json();
+    });
     const points = (Array.isArray(rows) ? rows : []).filter((m) => isFinite(Number(m.lat)) && isFinite(Number(m.lon))).map((m) => ({
       id: m.icaoId, name: AIRPORTS[m.icaoId] || m.icaoId, lat: Number(m.lat), lng: Number(m.lon),
       temp: m.temp == null ? null : Number(m.temp),
@@ -790,15 +824,17 @@ function parseCydom(xml) {
   return { points, stationCount: stations.size, feedTime: times.length ? times[times.length - 1] : null, copyright: xmlTag(xml, 'copyright') || 'Weather Data Copyright The Cyprus Department of Meteorology' };
 }
 
-async function fetchCydomFeed() {
-  const r = await fetch(CYDOM_URL, { signal: AbortSignal.timeout(25000) });
-  if (!r.ok) throw new Error(`Met Office feed returned HTTP ${r.status}`);
-  const out = parseCydom(await r.text());
-  if (!out.points.length) throw new Error('Met Office feed had no readable stations');
-  return out;
+function fetchCydomFeed() {
+  return feeds.track('dom', async () => {
+    const r = await fetch(CYDOM_URL, { signal: AbortSignal.timeout(25000) });
+    if (!r.ok) throw new Error(`Met Office feed returned HTTP ${r.status}`);
+    const out = parseCydom(await r.text());
+    if (!out.points.length) throw new Error('Met Office feed had no readable stations');
+    return out;
+  });
 }
 function cydom() {
-  return cached('cydom', 600000, async () => {
+  return viaFeed('dom', cached, 'cydom', 600000, async () => {
     if (MOCK) {
       const t = new Date().toISOString();
       return { points: [
@@ -822,8 +858,21 @@ const PERSISTENT = Boolean(process.env.DATA_DIR || process.env.RAILWAY_VOLUME_MO
 const HISTORY_DAYS = Number(process.env.HISTORY_DAYS) || 400;
 let history = null, pageStore = null;
 
+/* The five outside sources, what they did lately and the teachers' on/off switch (feeds.js). SenseCAP counts as simulated in demo
+ * mode and the weather services in test mode (OPEN_METEO_MOCK), because nothing is fetched from them then. */
+const feeds = createFeeds({
+  dataDir: DATA_DIR, log: (m) => console.error(m),
+  simulated: { sensecap: DEMO, openmeteo: MOCK, sensorcommunity: MOCK, metar: MOCK },
+  secrets: [ID, KEY, PASS, process.env.ANTHROPIC_API_KEY, process.env.ADMIN_SETUP_CODE, process.env.CLASS_LOGIN_PASSWORD, process.env.STUDIO_CLASS_SECRET],
+});
+// What the two savers did, for the helper list (see helpersView).
+const CYDOM_EVERY = 300000, PAGES_EVERY = 900000;
+const savers = { cydom: { lastRun: null, nextRun: null, ok: null, error: null }, pages: { lastRun: null, nextRun: null, ok: null, error: null, failed: [] }, collecting: false };
+const lastPages = new Map();   // page name -> the page as last read (at most one per Met Office page), for the search
+
 function ingestCydom(out) {
   if (!history) return 0;
+  Object.assign(savers.cydom, { lastRun: Date.now(), ok: true, error: null });
   const n = history.append(out.points);
   if (n) console.log(`Met Office history: stored ${n} new readings (feed time ${out.feedTime})`);
   return n;
@@ -844,12 +893,15 @@ const DOM_NET = DOM + '/AWS/AWS_NET.txt';
 const loggedPages = new Set();
 
 function domPage(name) {
-  return cached('dompage:' + name, 600000, async () => {
+  return viaFeed('dom', cached, 'dompage:' + name, 600000, async () => {
     const url = DOM_PAGES[name];
-    const r = await fetch(url, { signal: AbortSignal.timeout(25000) });
-    if (!r.ok) throw new Error(`Met Office page ${name} returned HTTP ${r.status}`);
-    const html = mo.decodeBody(new Uint8Array(await r.arrayBuffer()), r.headers.get('content-type'));
-    const page = { name, url, fetched: new Date().toISOString(), ...mo.extractPage(html, url) };
+    const { html, page } = await feeds.track('dom', async () => {
+      const r = await fetch(url, { signal: AbortSignal.timeout(25000) });
+      if (!r.ok) throw new Error(`Met Office page ${name} returned HTTP ${r.status}`);
+      const html = mo.decodeBody(new Uint8Array(await r.arrayBuffer()), r.headers.get('content-type'));
+      return { html, page: { name, url, fetched: new Date().toISOString(), ...mo.extractPage(html, url) } };
+    });
+    lastPages.set(name, page);
     if (!loggedPages.has(name)) {   // once per run, so the structure of each page can be checked in the logs
       loggedPages.add(name);
       console.log(`Met Office page ${name}: ${html.length} chars of HTML, title "${page.title}", ${page.text.length} chars of text, ${page.images.length} images ${JSON.stringify(page.images.slice(0, 4))}, ${page.frames.length} frames ${JSON.stringify(page.frames.slice(0, 3))}, ${page.links.length} links; text starts: ${JSON.stringify(page.text.slice(0, 200))}`);
@@ -860,25 +912,28 @@ function domPage(name) {
 }
 
 function domNet() {
-  return cached('domnet', 600000, async () => {
-    const r = await fetch(DOM_NET, { signal: AbortSignal.timeout(25000) });
-    if (!r.ok) throw new Error(`Met Office discomfort index returned HTTP ${r.status}`);
-    const text = mo.decodeBody(new Uint8Array(await r.arrayBuffer()), r.headers.get('content-type'));
-    const out = mo.parseNet(text);
-    if (!out.rows.length) throw new Error('Met Office discomfort index had no rows');
+  return viaFeed('dom', cached, 'domnet', 600000, async () => {
+    const { text, out } = await feeds.track('dom', async () => {
+      const r = await fetch(DOM_NET, { signal: AbortSignal.timeout(25000) });
+      if (!r.ok) throw new Error(`Met Office discomfort index returned HTTP ${r.status}`);
+      const text = mo.decodeBody(new Uint8Array(await r.arrayBuffer()), r.headers.get('content-type'));
+      const out = mo.parseNet(text);
+      if (!out.rows.length) throw new Error('Met Office discomfort index had no rows');
+      return { text, out };
+    });
     if (pageStore) pageStore.save('net', { title: 'Discomfort index', text }, Date.now(), 1800000);
     return { ...out, updated: new Date().toISOString() };
   });
 }
 
 function domImage(url) {
-  return imageCache.get(url, 300000, async () => {
+  return viaFeed('dom', imageCache.get, url, 300000, () => feeds.track('dom', async () => {
     const r = await fetch(url, { signal: AbortSignal.timeout(25000) });
     if (!r.ok) throw new Error(`Met Office image returned HTTP ${r.status}`);
     const buf = Buffer.from(await r.arrayBuffer());
     if (buf.length > 4000000) throw new Error('Met Office image is too large');
     return { type: r.headers.get('content-type') || 'image/png', buf };
-  });
+  }));
 }
 // Only pictures from the Met Office site, either by a known name or by address (for pictures found inside its pages).
 function domImageUrl(name, u) {
@@ -896,14 +951,32 @@ function collectError(what, e) {
   if (lastCollectError[what] !== e.message) { lastCollectError[what] = e.message; console.error(`Met Office collector (${what}): ${e.message}`); }
 }
 async function collectCydom() {
-  try { ingestCydom(await fetchCydomFeed()); delete lastCollectError.cydom; } catch (e) { collectError('stations', e); }
+  savers.cydom.nextRun = Date.now() + CYDOM_EVERY;
+  if (!feeds.enabled('dom')) return;   // switched off by a teacher: the saver rests and makes no call
+  try { ingestCydom(await fetchCydomFeed()); delete lastCollectError.stations; } catch (e) {
+    Object.assign(savers.cydom, { lastRun: Date.now(), ok: false, error: feeds.clean(e.message) });
+    collectError('stations', e);
+  }
 }
 async function collectPages() {
+  savers.pages.nextRun = Date.now() + PAGES_EVERY;
+  if (!feeds.enabled('dom')) return;
+  const failed = [];
+  let firstError = null;
+  const one = async (name, fn) => {
+    try { await fn(); delete lastCollectError[name]; } catch (e) {
+      if (feeds.isOff(e)) return;
+      failed.push(name);
+      firstError = firstError || feeds.clean(e.message);
+      collectError(name, e);
+    }
+  };
   for (const name of Object.keys(DOM_PAGES)) {
-    try { await domPage(name); delete lastCollectError[name]; } catch (e) { collectError(name, e); }
+    await one(name, () => domPage(name));
     await new Promise((ok) => setTimeout(ok, 1500));
   }
-  try { await domNet(); delete lastCollectError.net; } catch (e) { collectError('net', e); }
+  await one('net', domNet);
+  Object.assign(savers.pages, { lastRun: Date.now(), ok: failed.length === 0, error: firstError, failed: failed.slice(0, 10) });
 }
 function startMetOffice() {
   history = new mo.HistoryStore(DATA_DIR, { log: (m) => console.error(m) });
@@ -911,10 +984,13 @@ function startMetOffice() {
   console.log(`Met Office history in ${PERSISTENT ? DATA_DIR : DATA_DIR + ' (no volume attached: it is lost at the next deploy)'}; ${history.info().files} day files`);
   if (MOCK) return;   // test mode serves fake data
   history.prune(HISTORY_DAYS);
+  savers.collecting = true;
+  savers.cydom.nextRun = Date.now() + 3000;
+  savers.pages.nextRun = Date.now() + 20000;
   setTimeout(collectCydom, 3000);
-  setInterval(collectCydom, 300000);
+  setInterval(collectCydom, CYDOM_EVERY);
   setTimeout(collectPages, 20000);
-  setInterval(collectPages, 900000);
+  setInterval(collectPages, PAGES_EVERY);
   setInterval(() => history.prune(HISTORY_DAYS), 6 * 3600000);
 }
 
@@ -928,6 +1004,7 @@ const { createClassLogin } = require('./classlogin');
 const classLogin = createClassLogin();
 let appCore = null;
 let studio = null;
+let assistant = null;   // the Ask assistant (bot.js), for the helper list
 
 /* ---------- who sees what (vehicle positions) ----------
    'exact': teachers, admins and the holder of DASHBOARD_PASSWORD get today's exact data.
@@ -937,14 +1014,16 @@ let studio = null;
    leaves the server goes through devicesFor / latestFor / trailsFor with a level, and the answers that are cached
    (publicViews) are keyed by that level, so exact data cannot reach a visitor from a cache. */
 
-const rawDevices = async () => (DEMO ? DEMO_DEVICES : await liveDevices());
-const rawLatest = async () => (DEMO ? demoLatest() : await liveLatest());
+// In demo mode there is nothing to fetch, but the teachers' switch for SenseCAP still applies, so the pages behave the same way.
+const demoGuard = () => feeds.guard('sensecap');
+const rawDevices = async () => (DEMO ? (demoGuard(), DEMO_DEVICES) : await liveDevices());
+const rawLatest = async () => (DEMO ? (demoGuard(), demoLatest()) : await liveLatest());
 // Trails are fetched from SenseCAP for a few fixed windows only (then cut to the hours asked for), so a visitor cannot make the
 // server ask SenseCAP for something new with every request by changing the number of hours.
 const HOUR_STEPS = [1, 3, 6, 12, 24, 48, 72, 120, 168];
 async function rawTrails(hours, mid) {
   const win = HOUR_STEPS.find((h) => h >= hours) || 168;
-  const raw = DEMO ? demoTrails(win, mid) : await liveTrails(win, mid);
+  const raw = DEMO ? (demoGuard(), demoTrails(win, mid)) : await liveTrails(win, mid);
   if (win === hours) return raw;
   const from = Date.now() - hours * 3600000;
   const trails = {};
@@ -1008,7 +1087,7 @@ const botData = {
     if (priv.isGpsMid(m)) throw new Error('GPS history is not available to the assistant.');
     days = whole(days, 1, 1, 30);
     let pts;
-    if (DEMO) pts = demoSeries(eui, m, days);
+    if (DEMO) { demoGuard(); pts = demoSeries(eui, m, days); }
     else {
       const dev = (await liveDevices()).find((d) => d.eui === eui);
       if (!dev) throw new Error('Unknown device');
@@ -1030,11 +1109,261 @@ function startApp() {
     apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL,
     data: botData, log: (m) => console.error(m),
   });
+  assistant = bot;
   appCore = createApp({ dataDir: DATA_DIR, bot, openJoin: (req) => classLogin.enabled && classLogin.valid(req), log: (m) => console.log(m) });
   if (!appCore.enabled) return console.error('Student app is off: ' + appCore.reason);
+  feeds.attach(appCore);   // from now on the on/off switches of the feeds are kept in the student database
   studio = createStudio({ appCore, classValid: (req) => classLogin.enabled && classLogin.valid(req), bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });
   const st = bot.status();
   console.log(`Student app ready (${appCore.info().users} accounts). Assistant ${st.configured ? 'on, model ' + st.model : 'off: set ANTHROPIC_API_KEY'}. Admin sign-up ${process.env.ADMIN_SETUP_CODE ? 'enabled' : 'disabled: set ADMIN_SETUP_CODE'}.`);
+}
+
+/* ---------- sources, helpers, archive, operations map ----------
+   Public views for the Data sources and Operations pages. They show state and counts only: no key, no password, no address of
+   a vehicle and no person. Every text that can come from an outside error goes through feeds.clean first. Only the on/off switch
+   of a feed (POST /api/feeds/<id>) needs a teacher or admin session. Texts come in two languages: `detail` and `detailEl`. */
+
+const archive = createArchive({
+  getHistory: () => history, getPageStore: () => pageStore, getLive: () => lastPages,
+  pageNames: [...Object.keys(DOM_PAGES), 'net'], retentionDays: HISTORY_DAYS, log: (m) => console.error(m),
+});
+
+const P = (en, el) => ({ en, el });
+const mb = (bytes) => Math.round((bytes / 1e6) * 10) / 10;
+function duration(sec) {
+  const m = Math.round(sec / 60), h = Math.round(sec / 3600), d = Math.round(sec / 86400);
+  if (sec < 5400) return P(`${Math.max(1, m)} min`, `${Math.max(1, m)} λεπτά`);
+  if (sec < 129600) return P(`${h} h`, `${h} ώρες`);
+  return P(`${d} days`, `${d} ημέρες`);
+}
+// The start of today in Cyprus time (the Ask assistant's questions are counted from then).
+const dayStartNicosia = (t = Date.now()) => Date.parse(nicosiaIso(mo.localText(t).slice(0, 10) + ' 00:00'));
+
+let askStats = { at: 0, v: null };
+function askToday() {
+  if (Date.now() - askStats.at < 15000) return askStats.v;
+  let v = null;
+  if (appCore && appCore.enabled && appCore.db) {
+    try {
+      const r = appCore.db.get('SELECT COUNT(*) AS n FROM bot_logs WHERE created_at >= ?', dayStartNicosia());
+      const l = appCore.db.get('SELECT created_at AS at, error FROM bot_logs ORDER BY id DESC LIMIT 1');
+      v = { n: Number(r && r.n) || 0, last: l ? Number(l.at) || null : null, lastFailed: Boolean(l && l.error) };
+    } catch (e) { v = null; }
+  }
+  askStats = { at: Date.now(), v };
+  return v;
+}
+function studioCounts() {
+  if (!appCore || !appCore.enabled || !appCore.db) return null;
+  try {
+    const by = {};
+    for (const r of appCore.db.all('SELECT status, COUNT(*) AS n FROM studio_projects GROUP BY status')) by[r.status] = Number(r.n) || 0;
+    const l = appCore.db.get('SELECT MAX(updated_at) AS at FROM studio_projects');
+    return { pending: by.pending || 0, approved: by.approved || 0, last: l && l.at ? Number(l.at) : null };
+  } catch (e) { return null; }
+}
+
+function helpersView() {
+  const t = Date.now();
+  const young = process.uptime() * 1000 < 3 * CYDOM_EVERY;       // a collector that has not run yet is normal in the first minutes
+  const domOff = !feeds.enabled('dom');
+  const rest = P('Resting: the Met Office feed is switched off by a teacher.', 'Σε παύση: η πηγή της Μετεωρολογικής έχει απενεργοποιηθεί από εκπαιδευτικό.');
+  const helpers = [];
+  const add = (h) => helpers.push({ id: h.id, name: h.name[0], nameEl: h.name[1], what: h.what[0], whatEl: h.what[1], kind: h.kind, status: h.status, lastRun: h.lastRun || null, nextRun: h.nextRun || null, detail: h.detail.en, detailEl: h.detail.el });
+
+  { // the Met Office readings saver
+    const sv = savers.cydom, info = history ? history.info() : null;
+    let status = 'ok', detail;
+    if (!history) { status = 'off'; detail = P('Not started yet.', 'Δεν έχει ξεκινήσει ακόμη.'); }
+    else if (MOCK) { status = 'off'; detail = P('Test mode: nothing is collected.', 'Δοκιμαστική λειτουργία: δεν συλλέγεται τίποτα.'); }
+    else if (domOff) { status = 'off'; detail = rest; }
+    else if (info.error) { status = 'error'; detail = P('Cannot save: ' + feeds.clean(info.error), 'Δεν μπορεί να αποθηκεύσει: ' + feeds.clean(info.error)); }
+    else if (sv.ok === false) { status = 'error'; detail = P('The last try failed: ' + sv.error, 'Η τελευταία προσπάθεια απέτυχε: ' + sv.error); }
+    else if ((sv.lastRun && t - sv.lastRun > 3 * CYDOM_EVERY) || (!sv.lastRun && !young)) { status = 'late'; detail = P('No new readings for a while.', 'Δεν υπάρχουν νέες μετρήσεις εδώ και ώρα.'); }
+    else detail = P(`${info.stations} stations, ${info.writtenSinceStart} readings saved since the server started, ${info.files} day files.`, `${info.stations} σταθμοί, ${info.writtenSinceStart} μετρήσεις αποθηκεύτηκαν από την εκκίνηση του διακομιστή, ${info.files} αρχεία ημέρας.`);
+    add({ id: 'history-saver', kind: 'saver', status, detail, lastRun: sv.lastRun, nextRun: savers.collecting && !domOff ? sv.nextRun : null,
+      name: ['Met Office history saver', 'Αποθήκευση ιστορικού Μετεωρολογικής'], what: ['Saves every new reading of the official stations (every 10 minutes) in daily files, so the history can be charted and downloaded.', 'Αποθηκεύει κάθε νέα μέτρηση των επίσημων σταθμών (κάθε 10 λεπτά) σε ημερήσια αρχεία, ώστε το ιστορικό να εμφανίζεται σε γραφήματα και να κατεβαίνει.'] });
+  }
+  { // the saver of the Met Office pages (warnings, sea, aviation)
+    const sv = savers.pages;
+    let status = 'ok', detail;
+    if (!pageStore) { status = 'off'; detail = P('Not started yet.', 'Δεν έχει ξεκινήσει ακόμη.'); }
+    else if (MOCK) { status = 'off'; detail = P('Test mode: nothing is collected.', 'Δοκιμαστική λειτουργία: δεν συλλέγεται τίποτα.'); }
+    else if (domOff) { status = 'off'; detail = rest; }
+    else if (pageStore.error) { status = 'error'; detail = P('Cannot save: ' + feeds.clean(pageStore.error), 'Δεν μπορεί να αποθηκεύσει: ' + feeds.clean(pageStore.error)); }
+    else if (sv.ok === false) { status = 'error'; detail = P(`Could not read: ${sv.failed.join(', ')}. ${sv.error || ''}`.trim(), `Δεν διαβάστηκαν: ${sv.failed.join(', ')}. ${sv.error || ''}`.trim()); }
+    else if ((sv.lastRun && t - sv.lastRun > 3 * PAGES_EVERY) || (!sv.lastRun && process.uptime() * 1000 > 3 * PAGES_EVERY)) { status = 'late'; detail = P('The pages have not been read for a while.', 'Οι σελίδες δεν έχουν διαβαστεί εδώ και ώρα.'); }
+    else detail = P(`Keeps a new copy of each page when its text changes. ${pageStore.hash.size} of ${Object.keys(DOM_PAGES).length + 1} pages have a saved copy.`, `Κρατά νέο αντίγραφο κάθε σελίδας όταν αλλάζει το κείμενό της. ${pageStore.hash.size} από ${Object.keys(DOM_PAGES).length + 1} σελίδες έχουν αποθηκευμένο αντίγραφο.`);
+    add({ id: 'pages-saver', kind: 'saver', status, detail, lastRun: sv.lastRun, nextRun: savers.collecting && !domOff ? sv.nextRun : null,
+      name: ['Warnings and pages saver', 'Αποθήκευση προειδοποιήσεων και σελίδων'], what: ['Reads the Met Office warnings, sea, aviation and local forecast pages every 15 minutes and saves a copy whenever the text changes.', 'Διαβάζει κάθε 15 λεπτά τις σελίδες προειδοποιήσεων, θάλασσας, αεροπλοΐας και τοπικής πρόγνωσης και αποθηκεύει αντίγραφο όταν αλλάζει το κείμενο.'] });
+  }
+  { // caches and the SenseCAP call gate
+    const kept = cachedStore.size + seriesCache.size + trailCache.size + imageCache.size + publicViews.size;
+    const resting = Math.max(0, Math.ceil((upstream.coolUntil - t) / 1000));
+    let status = 'ok', detail = P(`${kept} answers kept in memory, pictures ${mb(imageCache.bytes)} MB.`, `${kept} απαντήσεις στη μνήμη, εικόνες ${mb(imageCache.bytes)} MB.`);
+    if (resting) { status = 'late'; detail = P(`SenseCAP answered "busy", so calls rest for ${resting} s and the last good readings are shown. ${kept} answers kept.`, `Το SenseCAP απάντησε "απασχολημένο", οπότε οι κλήσεις περιμένουν ${resting} δευτ. και εμφανίζονται οι τελευταίες καλές μετρήσεις. ${kept} απαντήσεις στη μνήμη.`); }
+    else if (upstream.queue.length) detail = P(`${kept} answers kept; ${upstream.queue.length} SenseCAP calls waiting their turn.`, `${kept} απαντήσεις στη μνήμη· ${upstream.queue.length} κλήσεις SenseCAP περιμένουν τη σειρά τους.`);
+    add({ id: 'caches', kind: 'cache', status, detail, lastRun: null, nextRun: null,
+      name: ['Caches', 'Προσωρινή μνήμη'], what: ['Keeps the last good answer of every source and spaces out the calls to SenseCAP, so the site stays up when a source is slow or busy.', 'Κρατά την τελευταία καλή απάντηση κάθε πηγής και αραιώνει τις κλήσεις προς το SenseCAP, ώστε ο ιστότοπος να λειτουργεί όταν μια πηγή είναι αργή ή απασχολημένη.'] });
+  }
+  { // the Ask assistant
+    const st = assistant ? assistant.status() : { configured: false };
+    const q = askToday();
+    let status = 'ok', detail;
+    if (!st.configured) { status = 'off'; detail = P('Not switched on: no assistant key is set on the server.', 'Δεν έχει ενεργοποιηθεί: δεν έχει οριστεί κλειδί βοηθού στον διακομιστή.'); }
+    else {
+      const n = q ? q.n : null;
+      detail = n == null ? P(`On, model ${st.model}. Questions today: not available.`, `Ενεργός, μοντέλο ${st.model}. Ερωτήσεις σήμερα: δεν είναι διαθέσιμες.`)
+        : P(`On, model ${st.model}. ${n} question${n === 1 ? '' : 's'} today.`, `Ενεργός, μοντέλο ${st.model}. ${n} ${n === 1 ? 'ερώτηση' : 'ερωτήσεις'} σήμερα.`);
+      if (q && q.lastFailed && q.last && t - q.last < 3600000) { status = 'error'; detail = P(detail.en + ' The last question could not be answered.', detail.el + ' Η τελευταία ερώτηση δεν απαντήθηκε.'); }
+    }
+    add({ id: 'assistant', kind: 'assistant', status, detail, lastRun: q ? q.last : null, nextRun: null,
+      name: ['Ask assistant', 'Βοηθός Ask'], what: ['Answers visitors\' questions from the public data of the project. It never sees exact vehicle positions.', 'Απαντά στις ερωτήσεις των επισκεπτών από τα δημόσια δεδομένα του έργου. Δεν βλέπει ποτέ ακριβείς θέσεις οχημάτων.'] });
+  }
+  { // the Build studio
+    const sc = studioCounts();
+    const on = Boolean(studio && studio.enabled && studio.status && studio.status().configured);
+    let status = on ? 'ok' : 'off', detail;
+    if (!studio || !studio.enabled) detail = P('Off: the student app is not running.', 'Ανενεργό: η εφαρμογή μαθητών δεν λειτουργεί.');
+    else if (!on) detail = P('Off for building: it needs the assistant to be switched on. The gallery still works.', 'Ανενεργό για δημιουργία: χρειάζεται να είναι ενεργοποιημένος ο βοηθός. Η γκαλερί λειτουργεί κανονικά.');
+    else detail = sc ? P(`On. ${sc.pending} page${sc.pending === 1 ? '' : 's'} waiting for a teacher, ${sc.approved} approved.`, `Ενεργό. ${sc.pending} ${sc.pending === 1 ? 'σελίδα περιμένει' : 'σελίδες περιμένουν'} εκπαιδευτικό, ${sc.approved} εγκεκριμένες.`) : P('On.', 'Ενεργό.');
+    add({ id: 'studio', kind: 'studio', status, detail, lastRun: sc ? sc.last : null, nextRun: null,
+      name: ['Build studio', 'Εργαστήρι δημιουργίας'], what: ['Students build small data tools with the assistant; a teacher approves each one before it is public.', 'Οι μαθητές φτιάχνουν μικρά εργαλεία δεδομένων με τον βοηθό· κάθε εργαλείο εγκρίνεται από εκπαιδευτικό πριν γίνει δημόσιο.'] });
+  }
+  return helpers;
+}
+
+const FEED_NODE_STATUS = { ok: 'ok', demo: 'ok', idle: 'ok', late: 'late', off: 'off', error: 'error' };
+function opsView() {
+  const t = Date.now();
+  const nodes = [];
+  const add = (id, label, kind, status, detail) => nodes.push({ id, label: label[0], labelEl: label[1], kind, status, detail: detail.en, detailEl: detail.el });
+  const feedList = feeds.list();
+
+  { // the sensors themselves: counts only
+    let total = null, online = null;
+    if (DEMO) { total = DEMO_DEVICES.length; online = DEMO_DEVICES.filter((d) => d.online).length; }
+    else if (lastDevices) { total = lastDevices.total; online = lastDevices.online; }
+    let status, detail;
+    if (total == null) { status = feeds.enabled('sensecap') ? 'late' : 'off'; detail = P('No reading yet.', 'Δεν υπάρχει ακόμη μέτρηση.'); }
+    else {
+      status = online > 0 ? 'ok' : 'late';
+      detail = DEMO ? P(`Demo data: ${online} of ${total} simulated vehicles online.`, `Δοκιμαστικά δεδομένα: ${online} από ${total} προσομοιωμένα οχήματα συνδεδεμένα.`)
+        : P(`${online} of ${total} vehicles online in the last reading.`, `${online} από ${total} οχήματα συνδεδεμένα στην τελευταία μέτρηση.`);
+    }
+    add('sensors', ['Sensors on buses, cars and in classrooms', 'Αισθητήρες σε λεωφορεία, αυτοκίνητα και τάξεις'], 'sensors', status, detail);
+  }
+  for (const f of feedList) {
+    let detail;
+    if (f.status === 'off') detail = P('Switched off by a teacher.', 'Απενεργοποιήθηκε από εκπαιδευτικό.');
+    else if (f.status === 'demo') detail = P('Simulated: demo data, nothing is fetched.', 'Προσομοίωση: δοκιμαστικά δεδομένα, δεν γίνεται λήψη.');
+    else if (f.status === 'error') detail = P('The last call failed: ' + (f.lastError ? f.lastError.message : ''), 'Η τελευταία κλήση απέτυχε: ' + (f.lastError ? f.lastError.message : ''));
+    else if (f.status === 'late') detail = P('No answer for a while.', 'Καμία απάντηση εδώ και ώρα.');
+    else if (f.status === 'idle') detail = P('Asked when someone opens a page that needs it.', 'Ρωτιέται όταν κάποιος ανοίγει σελίδα που τη χρειάζεται.');
+    else detail = P(`${f.ok24h} calls worked and ${f.fail24h} failed in the last 24 hours.`, `${f.ok24h} κλήσεις πέτυχαν και ${f.fail24h} απέτυχαν τις τελευταίες 24 ώρες.`);
+    add(f.id, [f.name, f.nameEl], 'feed', FEED_NODE_STATUS[f.status] || 'ok', detail);
+  }
+  add('server', ['Dashboard server', 'Διακομιστής του ιστότοπου'], 'server', 'ok', P(`Running for ${duration(process.uptime()).en}.`, `Λειτουργεί εδώ και ${duration(process.uptime()).el}.`));
+  { // the saved Met Office history and page copies
+    const info = history ? history.info() : null;
+    let status = 'ok', detail;
+    if (!info) { status = 'off'; detail = P('Not started yet.', 'Δεν έχει ξεκινήσει ακόμη.'); }
+    else if (info.error || (pageStore && pageStore.error)) { status = 'error'; detail = P('Cannot save: ' + feeds.clean(info.error || pageStore.error), 'Δεν μπορεί να αποθηκεύσει: ' + feeds.clean(info.error || pageStore.error)); }
+    else {
+      detail = P(`${info.files} days of station readings (${mb(info.bytes)} MB) and copies of ${pageStore ? pageStore.hash.size : 0} pages.`, `${info.files} ημέρες μετρήσεων σταθμών (${mb(info.bytes)} MB) και αντίγραφα ${pageStore ? pageStore.hash.size : 0} σελίδων.`);
+      if (!PERSISTENT) { status = 'late'; detail = P(detail.en + ' No permanent volume is attached, so it is lost at the next deploy.', detail.el + ' Δεν υπάρχει μόνιμος δίσκος, οπότε χάνονται στην επόμενη ανάπτυξη.'); }
+    }
+    add('archive', ['Saved history', 'Αποθηκευμένο ιστορικό'], 'store', status, detail);
+  }
+  { // the student app database
+    let status = 'off', detail = P('Off: the student app is not running.', 'Ανενεργή: η εφαρμογή μαθητών δεν λειτουργεί.');
+    if (appCore && appCore.enabled) {
+      status = 'ok';
+      try { const i = appCore.info(); detail = P(`Teacher and student accounts, announcements, studio pages and assistant log: ${i.schools} schools, ${i.users} accounts.`, `Λογαριασμοί, ανακοινώσεις, σελίδες εργαστηρίου και αρχείο βοηθού: ${i.schools} σχολεία, ${i.users} λογαριασμοί.`); }
+      catch (e) { status = 'error'; detail = P('The database did not answer.', 'Η βάση δεδομένων δεν απάντησε.'); }
+    } else if (appCore && appCore.reason) detail = P('Off: ' + feeds.clean(appCore.reason), 'Ανενεργή: ' + feeds.clean(appCore.reason));
+    add('database', ['Student app database', 'Βάση δεδομένων εφαρμογής μαθητών'], 'store', status, detail);
+  }
+  const helpers = helpersView();
+  const asst = helpers.find((h) => h.id === 'assistant'), stud = helpers.find((h) => h.id === 'studio');
+  nodes.push({ id: 'assistant', label: 'Ask assistant', labelEl: 'Βοηθός Ask', kind: 'assistant', status: asst.status, detail: asst.detail, detailEl: asst.detailEl });
+  nodes.push({ id: 'studio', label: 'Build studio', labelEl: 'Εργαστήρι δημιουργίας', kind: 'site', status: stud.status, detail: stud.detail, detailEl: stud.detailEl });
+  add('site', ['The Smart Cities site', 'Ο ιστότοπος Smart Cities'], 'site', 'ok', P('The pages, map and 3D view that visitors open.', 'Οι σελίδες, ο χάρτης και η τρισδιάστατη προβολή που ανοίγουν οι επισκέπτες.'));
+  const edges = [
+    ['sensors', 'sensecap'], ['sensecap', 'server'], ['openmeteo', 'server'], ['sensorcommunity', 'server'], ['metar', 'server'], ['dom', 'server'],
+    ['server', 'archive'], ['server', 'database'], ['server', 'assistant'], ['database', 'assistant'], ['server', 'studio'], ['database', 'studio'],
+    ['assistant', 'site'], ['studio', 'site'], ['server', 'site'],
+  ].map(([from, to]) => ({ from, to }));
+  return { at: t, nodes, edges };
+}
+
+// A small limit per address for the views that read files (search, archive, watch).
+const viewHits = new Map();
+function tooMany(req, max) {
+  const fwd = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  const ip = (fwd || req.socket.remoteAddress || '?').slice(0, 64);
+  const t = Date.now();
+  let h = viewHits.get(ip);
+  if (!h || t - h[1] > 60000) {
+    h = [0, t];
+    viewHits.set(ip, h);
+    if (viewHits.size > 2000) { for (const [k, v] of viewHits) if (t - v[1] > 60000) viewHits.delete(k); if (viewHits.size > 4000) viewHits.clear(); }
+  }
+  return ++h[0] > max;
+}
+
+function readJsonBody(req, limit = 2048) {
+  return new Promise((ok, bad) => {
+    const chunks = [];
+    let n = 0, big = false;
+    req.on('data', (c) => { n += c.length; if (n > limit) big = true; else chunks.push(c); });
+    req.on('end', () => {
+      if (big) return bad(Object.assign(new Error('That request is too large.'), { status: 413 }));
+      try { ok(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch (e) { bad(Object.assign(new Error('Send JSON, for example {"enabled":false}.'), { status: 400 })); }
+    });
+    req.on('error', bad);
+  });
+}
+
+const reply = (res, status, obj) => { sendJson(res, status, obj); return true; };
+async function sourceRoutes(req, res, url) {
+  const p = url.pathname;
+  const get = req.method === 'GET' || req.method === 'HEAD';
+  const feedMatch = /^\/api\/feeds(?:\/([a-z]{1,20}))?$/.exec(p);
+  if (feedMatch) {
+    const id = feedMatch[1];
+    if (get) {
+      if (!id) return reply(res, 200, { at: Date.now(), demo: DEMO, feeds: feeds.list() });
+      return feeds.has(id) ? reply(res, 200, { feed: feeds.get(id) }) : reply(res, 404, { error: 'Unknown feed', feeds: feeds.ids });
+    }
+    if (req.method !== 'POST' || !id) return reply(res, 405, { error: 'Use GET to read the feeds and POST /api/feeds/<id> to switch one.' });
+    const origin = req.headers.origin;
+    if (origin) {
+      let same = false;
+      try { same = new URL(origin).host === req.headers.host; } catch (e) { /* bad origin */ }
+      if (!same) return reply(res, 403, { error: 'Blocked: the request came from another site.' });
+    }
+    const user = appCore && appCore.authorise(req);
+    if (!user || user.status !== 'active' || (user.role !== 'teacher' && user.role !== 'admin')) return reply(res, 403, { error: 'Only teachers can switch a feed on or off.' });
+    if (!feeds.has(id)) return reply(res, 404, { error: 'Unknown feed', feeds: feeds.ids });
+    let body;
+    try { body = await readJsonBody(req); } catch (e) { return reply(res, e.status || 400, { error: e.message }); }
+    if (!body || typeof body.enabled !== 'boolean') return reply(res, 400, { error: 'enabled must be true or false.' });
+    const feed = feeds.setEnabled(id, body.enabled);
+    try { appCore.db.run('INSERT INTO audit(at, actor_id, action, target, detail) VALUES (?,?,?,?,?)', Date.now(), user.id, 'feed_switch', id, body.enabled ? 'on' : 'off'); } catch (e) { /* the audit is best effort */ }
+    console.log(`Feed ${id} switched ${body.enabled ? 'on' : 'off'} by a teacher`);
+    return reply(res, 200, { ok: true, feed });
+  }
+  if (!get) return false;
+  if (p === '/api/helpers') return reply(res, 200, { at: Date.now(), demo: DEMO, helpers: helpersView() });
+  if (p === '/api/ops') return reply(res, 200, opsView());
+  if (p === '/api/archive' || p === '/api/search' || p === '/api/dom/watch') {
+    if (tooMany(req, 60) || tooMany({ headers: {}, socket: { remoteAddress: '*' } }, 600)) return reply(res, 429, { error: 'Too many requests, try again in a minute.' });
+    if (p === '/api/archive') return reply(res, 200, await archive.summary());
+    if (p === '/api/search') return reply(res, 200, await archive.search(url.searchParams.get('q'), url.searchParams.get('limit')));
+    return reply(res, 200, await archive.watch(url.searchParams.get('days'), url.searchParams.get('limit')));
+  }
+  return false;
 }
 
 /* ---------- http ---------- */
@@ -1123,6 +1452,7 @@ const server = http.createServer(async (req, res) => {
     }
     const to = redirectFor(url);
     if (to) { res.writeHead(302, { Location: to, 'Cache-Control': 'no-store' }); return res.end(); }
+    if (await sourceRoutes(req, res, url)) return;   // /api/feeds, helpers, archive, ops, search, dom/watch
     if (url.pathname === '/cities/api/overview') {
       return sendJson(res, 200, await citiesApi.overview({
         devices: rawDevices,
@@ -1147,7 +1477,7 @@ const server = http.createServer(async (req, res) => {
       const mid = priv.normMid(midParam);
       if (mid == null) return sendJson(res, 400, { error: 'mid must be a measurement id such as 4097' });
       if (priv.isGpsMid(mid) && levelOf(req) !== 'exact') return sendJson(res, 403, { error: 'The history of GPS positions is for teachers.' });
-      if (DEMO) return sendJson(res, 200, demoSeries(eui, mid, days));
+      if (DEMO) { demoGuard(); return sendJson(res, 200, demoSeries(eui, mid, days)); }
       const devices = await liveDevices();
       const dev = devices.find((d) => d.eui === eui);
       if (!dev) return sendJson(res, 404, { error: 'Unknown device' });
@@ -1162,6 +1492,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, out.mid === mid ? out : { ...out, mid });
     }
     if (url.pathname === '/api/terrain') {
+      if (!feeds.enabled('openmeteo') && !MOCK && !T.done) throw feeds.off('openmeteo');   // nothing to show yet and the feed is off
       const st = terrainStatus();
       return st.ready ? sendJson(res, 200, st.data) : sendJson(res, 202, { loading: true, progress: st.progress, error: st.error });
     }
@@ -1219,10 +1550,14 @@ const server = http.createServer(async (req, res) => {
       res.end(buf);
     });
   } catch (e) {
+    if (feeds.isOff(e)) return sendJson(res, 503, { error: 'switched off by a teacher', feed: e.feed });   // a teacher switched this source off and nothing is cached
     console.error(e.message);
     sendJson(res, 502, { error: e.message });
   }
 });
+
+// A deploy sends SIGTERM: save the feed counters first, so they are not blank after every deploy.
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { try { feeds.flush(); } catch (e) { /* best effort */ } process.exit(0); });
 
 loadMeasurementNames().finally(() => {
   server.listen(PORT, () => {

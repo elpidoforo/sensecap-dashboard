@@ -7,6 +7,9 @@
  * - Pages are shown only inside a sandbox with no network (see PROJECT_CSP). Nothing is public until a teacher approves it; approved
  *   pages and the gallery are public to everybody.
  * - Signed-in student-app members (old accounts, teachers, admins) keep the server-side drafts flow they had before.
+ * - Team plans (studio_plans) are the other thing a team can share: a question, the sensors and data it will use, and notes. Text only,
+ *   so a plan is kept on the server from the start. Same rules as tools: sanitised, size-limited, a cap on plans waiting per team and per
+ *   school, and nothing is public until a teacher approves it. A plan is labelled "Team <name>, <school>", never with a student name.
  * - /mcp is a Model Context Protocol endpoint (Streamable HTTP, JSON responses) for adults and teachers who use their own Claude.
  *   It takes a bearer token that a teacher creates; the token acts as that teacher and can only save projects, never publish them.
  * - Everything the assistant can read is the same read-only, public-view data the dashboard already uses (bot tools). This file never
@@ -22,6 +25,9 @@ const MAX_STEPS = 8;
 const CLASS_HOURS = 8;
 const CLASS_TEAM_PENDING = 3;       // pages one team may have waiting for review
 const CLASS_SCHOOL_SUBMITS_PER_DAY = 40;
+const PLAN_LIMITS = { title: 80, question: 400, notes: 1000, sensors: 8, data: 12, schoolMax: 150, staffMax: 60, perHour: 12, writesPerHour: 240 };
+const PLAN_SET_BY_TEAM = ['draft', 'running', 'done', 'submitted'];   // what a team (or a teacher) may set; approval only comes from a review
+const PLAN_SOURCES = ['sensecap', 'dom', 'metoffice', 'openmeteo', 'sensorcommunity', 'metar'];
 const GPS_IDS = ['4197', '4198'];
 const PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 const BRIDGE = '<script>window.cities=(function(){var n=0,p={};addEventListener("message",function(e){var d=e.data;if(d&&d.type==="cities-result"&&p[d.id]){var f=p[d.id];delete p[d.id];f(d)}});function ask(w){return new Promise(function(ok,no){var id=++n;p[id]=function(d){d.error?no(new Error(d.error)):ok(d.data)};parent.postMessage({type:"cities-get",id:id,what:w},"*");setTimeout(function(){if(p[id]){delete p[id];no(new Error("No live data here. Open the page inside the AI Sustainable Cities site."))}},8000)})}return{overview:function(){return ask("overview")}}})();</script>';
@@ -57,7 +63,8 @@ const caps = () => ({
   school: envInt('STUDIO_SCHOOL_DAILY', 25),     // builds per school per day for class viewers
   ip: envInt('STUDIO_IP_DAILY', 40),              // builds per network address per day for class viewers
   global: envInt('STUDIO_GLOBAL_DAILY', 300),    // builds for everybody together per day
-  pending: envInt('STUDIO_SCHOOL_PENDING', 10),  // class submissions per school waiting for a teacher
+  pending: envInt('STUDIO_SCHOOL_PENDING', 10),  // class submissions per school waiting for a teacher (plans have their own count of the same size)
+  teamPlans: envInt('STUDIO_TEAM_PLANS', 12),    // plans one team may keep (drafts, running, done, submitted and approved together)
 });
 
 const cookiesOf = (h) => {
@@ -152,6 +159,15 @@ function createStudio(opts) {
   addCol('studio_use', 'school_id', 'INTEGER');
   addCol('studio_use', 'ip', 'TEXT');
   db.run('CREATE INDEX IF NOT EXISTS studio_projects_class ON studio_projects(author_kind, school_id, status)');
+  // Team plans. A class author has user_id 0, author_kind 'class' and the team name in team_label. Statuses: draft, running, done, submitted
+  // (teams set these), approved and sent_back (only a teacher's review sets these).
+  db.run(`CREATE TABLE IF NOT EXISTS studio_plans (
+    id INTEGER PRIMARY KEY, school_id INTEGER NOT NULL, team_id INTEGER, user_id INTEGER NOT NULL DEFAULT 0, author_kind TEXT NOT NULL, team_label TEXT,
+    title TEXT NOT NULL, question TEXT NOT NULL DEFAULT '', sensors_json TEXT, data_json TEXT, notes TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'draft', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, submitted_at INTEGER,
+    reviewed_by INTEGER, reviewed_at INTEGER, review_note TEXT)`);
+  db.run('CREATE INDEX IF NOT EXISTS studio_plans_status ON studio_plans(status, school_id)');
+  db.run('CREATE INDEX IF NOT EXISTS studio_plans_author ON studio_plans(author_kind, school_id)');
 
   const isStaff = (u) => u && (u.role === 'teacher' || u.role === 'admin');
   const audit = (user, action, target, detail) => db.run('INSERT INTO audit(at, actor_id, action, target, detail) VALUES (?,?,?,?,?)', Date.now(), user ? user.id : null, action, target == null ? null : String(target), detail == null ? null : String(detail).slice(0, 300));
@@ -373,6 +389,252 @@ function createStudio(opts) {
     return rows.map((p) => publicProject(p, v, false));
   }
 
+  /* ---------- team plans ---------- */
+
+  // Tags, control characters and invisible direction marks are removed; what is left must also pass the same privacy check as tool titles.
+  const CTRL_RE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F​-‏‪-‮⁠-⁤⁦-⁩﻿]/g;
+  function planText(v, max, what, multiline, privacy = true) {
+    if (v == null) return '';
+    if (typeof v !== 'string') fail(400, `The ${what} must be text.`, what);
+    let t = v.normalize('NFC').replace(CTRL_RE, '').replace(/<[^>]*>/g, ' ').replace(/[<>]/g, '');
+    t = multiline ? t.replace(/\r\n?/g, '\n').replace(/[ \t]+/g, ' ').replace(/ ?\n ?/g, '\n').replace(/\n{3,}/g, '\n\n').trim() : t.replace(/\s+/g, ' ').trim();
+    const n = [...t].length;
+    if (n > max) fail(400, `The ${what} is too long (${n} characters; the limit is ${max}).`, what);
+    const bad = privacy && t && unsafeText(t);
+    if (bad) fail(400, `The ${what} has something that should stay private. ${bad.replace('in chat', 'here')}`, what);
+    return t;
+  }
+  async function planSensors(v) {
+    if (v == null) return [];
+    if (!Array.isArray(v)) fail(400, 'The sensors must be a list.', 'sensors');
+    if (v.length > PLAN_LIMITS.sensors) fail(400, `Pick at most ${PLAN_LIMITS.sensors} sensors.`, 'sensors');
+    const out = [];
+    for (const x of v) {
+      const e = typeof x === 'string' ? x.trim() : '';
+      if (!/^[A-Za-z0-9_-]{4,40}$/.test(e)) fail(400, 'A sensor id is not valid.', 'sensors');
+      if (!out.some((o) => o.toLowerCase() === e.toLowerCase())) out.push(e);
+    }
+    let known = null;
+    try { known = typeof data.devices === 'function' ? (await data.devices()).map((d) => String(d.eui)) : null; } catch (e) { known = null; }   // sensor list down: the id pattern is all we can check
+    if (!known || !known.length) return out;
+    return out.map((e) => {
+      const k = known.find((x) => x.toLowerCase() === e.toLowerCase());
+      if (!k) fail(400, 'One of the sensors is not a project sensor.', 'sensors');
+      return k;
+    });
+  }
+  function planData(v) {
+    if (v == null) return [];
+    if (!Array.isArray(v)) fail(400, 'The data must be a list.', 'data');
+    if (v.length > PLAN_LIMITS.data) fail(400, `Pick at most ${PLAN_LIMITS.data} data items.`, 'data');
+    const out = [];
+    for (const x of v) {
+      const t = typeof x === 'string' || typeof x === 'number' ? String(x).trim().toLowerCase() : '';
+      let item;
+      if (/^\d{1,6}$/.test(t)) {
+        item = String(parseInt(t, 10));
+        if (GPS_IDS.includes(item)) fail(400, 'Position data cannot be used in a plan.', 'data');
+      } else if (PLAN_SOURCES.includes(t)) item = t;
+      else fail(400, `Each data item is a measurement number or one of: ${PLAN_SOURCES.join(', ')}.`, 'data');
+      if (!out.includes(item)) out.push(item);
+    }
+    return out;
+  }
+  const parseList = (j) => { try { const a = JSON.parse(j || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } };
+
+  const planKey = (p) => (p.team_label ? 'c:' + nameKey(p.team_label) : p.team_id ? 't:' + p.team_id : 'u:' + p.user_id);   // which team a plan belongs to, for the caps
+  function planOwns(v, p) {
+    if (v.kind === 'class') return p.author_kind === 'class' && p.school_id === v.school.id && nameKey(p.team_label || '') === v.teamKey;
+    if (v.kind !== 'user') return false;
+    const u = v.user;
+    return p.user_id === u.id || Boolean(u.team_id && p.team_id === u.team_id) || u.role === 'admin' || (u.role === 'teacher' && Boolean(u.school_id) && u.school_id === p.school_id);
+  }
+  const planReviewer = (u, p) => isStaff(u) && (u.role === 'admin' || (Boolean(u.school_id) && u.school_id === p.school_id));
+  const canViewPlan = (v, p) => p.status === 'approved' || planOwns(v, p);
+
+  // "Team <name>, <school>": a team name that students typed or a teacher chose, never a person's name.
+  function planLabel(p) {
+    const s = schoolOf(p.school_id), short = s ? s.short : '';
+    let who;
+    if (p.team_label) who = `Team ${p.team_label}`;
+    else {
+      const a = p.user_id ? db.get('SELECT role FROM users WHERE id = ?', p.user_id) : null;
+      const t = teamOf(p.team_id);
+      who = a && a.role === 'student' ? (t ? `Team ${t.name}` : 'Student') : 'Teacher';
+    }
+    return short ? `${who}, ${short}` : who;
+  }
+  function planOut(p, v) {
+    const s = schoolOf(p.school_id), t = teamOf(p.team_id);
+    const mine = Boolean(v) && planOwns(v, p);
+    const staff = Boolean(v) && v.kind === 'user' && isStaff(v.user);
+    const out = {
+      id: p.id, title: p.title, question: p.question, sensors: parseList(p.sensors_json), data: parseList(p.data_json), team: p.team_label || (t ? t.name : null), notes: p.notes,
+      status: p.status, school: s ? s.short : null, author_label: planLabel(p), authorKind: p.author_kind === 'class' ? 'class' : 'user',
+      createdAt: p.created_at, updatedAt: p.updated_at, submittedAt: p.submitted_at || null, reviewedAt: p.reviewed_at || null,
+      reviewNote: (mine || staff) && (p.status === 'approved' || p.status === 'sent_back') ? p.review_note : null,
+    };
+    if (staff) out.flags = looksLikeCoordinates([p.title, p.question, p.notes].join('\n')) ? ['coordinates'] : [];
+    return out;
+  }
+  const planRow = (id) => db.get('SELECT * FROM studio_plans WHERE id = ?', id);
+
+  function listPlans(v, scope) {
+    let rows;
+    if (scope === 'public') rows = db.all("SELECT * FROM studio_plans WHERE status = 'approved' ORDER BY updated_at DESC, id DESC LIMIT 100");
+    else if (scope === 'review') {
+      if (v.kind !== 'user') fail(v.kind === 'class' ? 403 : 401, 'Teachers only.', v.kind === 'class' ? 'class_viewer' : 'signin');
+      const u = v.user;
+      if (!isStaff(u)) fail(403, 'Teachers only.');
+      rows = u.role === 'admin' ? db.all("SELECT * FROM studio_plans WHERE status = 'submitted' ORDER BY submitted_at, id") : db.all("SELECT * FROM studio_plans WHERE status = 'submitted' AND school_id = ? ORDER BY submitted_at, id", u.school_id);
+    } else if (v.kind === 'user') rows = db.all('SELECT * FROM studio_plans WHERE user_id = ?1 OR (?2 IS NOT NULL AND team_id = ?2) ORDER BY updated_at DESC, id DESC LIMIT 100', v.user.id, v.user.team_id || null);
+    else if (v.kind === 'class') rows = db.all("SELECT * FROM studio_plans WHERE author_kind = 'class' AND school_id = ? ORDER BY updated_at DESC, id DESC LIMIT 300", v.school.id).filter((p) => planOwns(v, p)).slice(0, 100);
+    else fail(401, 'Enter your class code and team name first.', 'class');
+    return rows.map((p) => planOut(p, v));
+  }
+
+  // A class team and the old student accounts are limited; teachers and admins have a higher ceiling.
+  function planCaps(v, schoolId) {
+    const c = caps();
+    const staff = v.kind === 'user' && isStaff(v.user);
+    if (db.get('SELECT COUNT(*) AS n FROM studio_plans WHERE school_id = ?', schoolId).n >= PLAN_LIMITS.schoolMax) fail(429, 'Your school has many plans already. Ask your teacher to delete old ones.', 'plans_full');
+    const mine = v.kind === 'class'
+      ? db.all("SELECT team_label FROM studio_plans WHERE author_kind = 'class' AND school_id = ?", schoolId).filter((p) => nameKey(p.team_label || '') === v.teamKey).length
+      : db.get('SELECT COUNT(*) AS n FROM studio_plans WHERE user_id = ?1 OR (?2 IS NOT NULL AND team_id = ?2)', v.user.id, staff ? null : v.user.team_id || null).n;
+    const max = staff ? PLAN_LIMITS.staffMax : c.teamPlans;
+    if (mine >= max) fail(429, `Your team already has ${max} plans. Delete one you no longer need.`, 'team_plans');
+  }
+  const planWrites = (v) => {   // a class team cannot hammer the plan endpoints
+    if (v.kind !== 'class') return;
+    const key = `plan-write:${v.school.id}:${v.teamKey}`;
+    const wait = hits.wait(key, PLAN_LIMITS.writesPerHour, 3600000);
+    if (wait) fail(429, 'Your team changed plans many times in the last hour. Wait a little.', 'rate', { retryAfter: wait });
+    hits.add(key, 3600000);
+  };
+
+  async function createPlan(v, body) {
+    needViewer(v);
+    const f = {
+      title: planText(body.title, PLAN_LIMITS.title, 'title'), question: planText(body.question, PLAN_LIMITS.question, 'question'),
+      notes: planText(body.notes, PLAN_LIMITS.notes, 'notes', true), sensors: await planSensors(body.sensors), data: planData(body.data),
+    };
+    if (!f.title) fail(400, 'Give the plan a title.', 'title');
+    planWrites(v);
+    const now = Date.now();
+    let schoolId, teamId = null, userId = 0, kind, label = null;
+    if (v.kind === 'class') {
+      if (body.team != null && body.team !== '' && nameKey(cleanTeam(body.team)) !== v.teamKey) fail(400, 'A class team can only make plans for its own team.', 'team');
+      schoolId = v.school.id; kind = 'class'; label = v.team;
+      const wait = hits.wait(`plan-new:${schoolId}:${v.teamKey}`, PLAN_LIMITS.perHour, 3600000);
+      if (wait) fail(429, 'Your team made many plans in the last hour. Wait a little.', 'rate', { retryAfter: wait });
+    } else {
+      const u = v.user;
+      userId = u.id; kind = 'user'; teamId = u.team_id || null;
+      schoolId = u.school_id;
+      if (isStaff(u)) {
+        if (!schoolId) {   // an admin has no school: the body says which one
+          const sch = typeof body.school === 'string' ? db.get('SELECT * FROM schools WHERE slug = ?', body.school) : null;
+          if (!sch) fail(400, 'Choose the school this plan is for.', 'school');
+          schoolId = sch.id;
+        }
+        if (body.team != null && body.team !== '') label = cleanTeam(body.team);
+      }
+      if (!schoolId) fail(403, 'This account has no school.', 'school');
+    }
+    planCaps(v, schoolId);
+    const id = db.run('INSERT INTO studio_plans(school_id, team_id, user_id, author_kind, team_label, title, question, sensors_json, data_json, notes, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      schoolId, teamId, userId, kind, label, f.title, f.question, JSON.stringify(f.sensors), JSON.stringify(f.data), f.notes, 'draft', now, now).id;
+    if (v.kind === 'class') hits.add(`plan-new:${schoolId}:${v.teamKey}`, 3600000);
+    audit(v.kind === 'user' ? v.user : null, 'studio.plan.create', id, v.kind === 'class' ? `${v.school.slug}/${v.team}` : '');
+    return planRow(id);
+  }
+
+  async function patchPlan(v, p, body) {
+    const has = (k) => Object.prototype.hasOwnProperty.call(body, k);
+    const sets = {};
+    if (has('title')) { const t = planText(body.title, PLAN_LIMITS.title, 'title'); if (!t) fail(400, 'Give the plan a title.', 'title'); sets.title = t; }
+    if (has('question')) sets.question = planText(body.question, PLAN_LIMITS.question, 'question');
+    if (has('notes')) sets.notes = planText(body.notes, PLAN_LIMITS.notes, 'notes', true);
+    if (has('sensors')) sets.sensors_json = JSON.stringify(await planSensors(body.sensors));
+    if (has('data')) sets.data_json = JSON.stringify(planData(body.data));
+    if (has('team') && body.team != null && body.team !== '') {
+      const label = cleanTeam(body.team);
+      if (v.kind === 'class') { if (nameKey(label) !== v.teamKey) fail(400, 'A class team can only make plans for its own team.', 'team'); }
+      else if (v.kind === 'user' && isStaff(v.user)) sets.team_label = label;
+    } else if (has('team') && v.kind === 'user' && isStaff(v.user)) sets.team_label = null;
+    const changed = Object.keys(sets).some((k) => sets[k] !== p[k]);
+    const hasStatus = has('status');
+    if (!Object.keys(sets).length && !hasStatus) fail(400, 'Send the fields to change, or a status.', 'empty');
+    if (!changed && !hasStatus) return p;
+    planWrites(v);
+    let status = p.status;
+    if (changed && (status === 'approved' || status === 'submitted')) status = 'draft';   // approved or waiting work cannot be swapped without a new look
+    if (hasStatus) {
+      const want = body.status;
+      if (typeof want !== 'string' || !PLAN_SET_BY_TEAM.includes(want)) fail(400, 'status must be draft, running, done or submitted.', 'status');
+      if (status === 'approved' && want !== 'draft') fail(409, 'This plan is public. Change it back to a draft first.', 'approved');
+      if (want === 'submitted' && status !== 'submitted') {
+        const merged = { title: 'title' in sets ? sets.title : p.title, question: 'question' in sets ? sets.question : p.question };
+        if (!merged.title || !merged.question) fail(400, 'Write the question your team is asking before you send the plan to a teacher.', 'question');
+        if (!(v.kind === 'user' && isStaff(v.user))) {
+          const waiting = db.all("SELECT * FROM studio_plans WHERE status = 'submitted' AND school_id = ? AND id != ?", p.school_id, p.id);
+          if (waiting.filter((x) => planKey(x) === planKey({ ...p, team_label: 'team_label' in sets ? sets.team_label : p.team_label })).length >= CLASS_TEAM_PENDING) fail(429, `Your team already has ${CLASS_TEAM_PENDING} plans waiting for the teacher. Wait for a review, or take one back.`, 'team_pending');
+          if (waiting.length >= caps().pending) fail(429, `Your school already has ${caps().pending} plans waiting for a teacher. Ask your teacher to review them first.`, 'pending_full');
+        }
+      }
+      status = want;
+    }
+    const now = Date.now();
+    const cols = { ...sets, status, updated_at: now };
+    if (status === 'submitted' && p.status !== 'submitted') cols.submitted_at = now;
+    if (status !== 'submitted' && status !== 'approved') cols.submitted_at = null;
+    if (p.status === 'approved' || (status === 'submitted' && p.status !== 'submitted')) { cols.reviewed_by = null; cols.reviewed_at = null; cols.review_note = null; }
+    const keys = Object.keys(cols);
+    db.run(`UPDATE studio_plans SET ${keys.map((k) => k + ' = ?').join(', ')} WHERE id = ?`, ...keys.map((k) => cols[k]), p.id);
+    audit(v.kind === 'user' ? v.user : null, 'studio.plan.update', p.id, `${p.status}->${status}`);
+    return planRow(p.id);
+  }
+
+  function reviewPlan(v, p, body) {
+    const user = needUser(v);
+    if (!isStaff(user)) fail(403, 'Teachers only.');
+    if (!planReviewer(user, p)) fail(404, 'No such plan.');
+    if (!['approve', 'send_back'].includes(body.decision)) fail(400, 'Choose approve or send_back.', 'decision');
+    if (body.decision === 'approve' && p.status !== 'submitted') fail(409, 'This plan is not waiting for review.', 'not_submitted');
+    if (body.decision === 'send_back' && p.status !== 'submitted' && p.status !== 'approved') fail(409, 'Only a plan that was sent in can be sent back.', 'not_submitted');
+    const note = planText(body.note, 300, 'note', true, false);
+    const status = body.decision === 'approve' ? 'approved' : 'sent_back';
+    const now = Date.now();
+    db.run('UPDATE studio_plans SET status = ?, reviewed_by = ?, reviewed_at = ?, review_note = ?, updated_at = ? WHERE id = ?', status, user.id, now, note || null, now, p.id);
+    audit(user, 'studio.plan.' + body.decision, p.id);
+    return planRow(p.id);
+  }
+
+  /* ---------- the combined queue of things waiting for a teacher (and, for everybody else, what is approved) ---------- */
+
+  // Other modules (council sessions, weekly reports) add their items: fn({ staff, pending, user }) returns [{ kind, id, title, author_label, school, at, status }].
+  const queueSources = [];
+  async function submittedItems(v, scope) {
+    const staff = v.kind === 'user' && isStaff(v.user);
+    const pending = staff && scope !== 'approved';
+    const u = staff ? v.user : null;
+    const wide = Boolean(u && u.role === 'admin');
+    const items = [];
+    const toolRows = pending
+      ? (wide ? db.all("SELECT * FROM studio_projects WHERE status = 'pending' ORDER BY updated_at LIMIT 100") : db.all("SELECT * FROM studio_projects WHERE status = 'pending' AND school_id = ? ORDER BY updated_at LIMIT 100", u.school_id))
+      : db.all("SELECT * FROM studio_projects WHERE status = 'approved' ORDER BY updated_at DESC LIMIT 100");
+    for (const p of toolRows) items.push({ kind: 'tool', id: p.id, title: p.title, author_label: authorLabel(p, null), school: (schoolOf(p.school_id) || {}).short || null, at: p.updated_at, status: pending ? 'pending' : 'approved', url: '/studio/p/' + p.id });
+    const planRows = pending
+      ? (wide ? db.all("SELECT * FROM studio_plans WHERE status = 'submitted' ORDER BY submitted_at LIMIT 100") : db.all("SELECT * FROM studio_plans WHERE status = 'submitted' AND school_id = ? ORDER BY submitted_at LIMIT 100", u.school_id))
+      : db.all("SELECT * FROM studio_plans WHERE status = 'approved' ORDER BY updated_at DESC LIMIT 100");
+    for (const p of planRows) items.push({ kind: 'plan', id: p.id, title: p.title, author_label: planLabel(p), school: (schoolOf(p.school_id) || {}).short || null, at: (pending ? p.submitted_at : p.updated_at) || p.updated_at, status: pending ? 'pending' : 'approved' });
+    for (const src of queueSources) {
+      try { for (const it of (await src({ staff, pending, user: u })) || []) items.push(it); } catch (e) { log('Queue source failed: ' + e.message); }
+    }
+    items.sort((a, b) => (pending ? a.at - b.at : b.at - a.at));   // waiting the longest first; approved newest first
+    return items.slice(0, 200);
+  }
+
   /* ---------- tools (shared by the Build studio chat and the MCP endpoint) ---------- */
 
   const SERIES_TOOL = {
@@ -415,9 +677,10 @@ function createStudio(opts) {
   const CLASS_TOOLS = [...READ_TOOLS, SERIES_TOOL, CLASS_SAVE_TOOL];
   const CLASS_TOOL_NAMES = new Set(CLASS_TOOLS.map((t) => t.name));
 
-  function handbookSearch(query) {
+  const PRIVATE_TITLE = /^\s*(staff|private|internal)\b/i;   // the same pages the assistant keeps from visitors
+  function handbookSearch(query, pub) {
     const words = String(query || '').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 2);
-    const docs = db.all('SELECT title, body FROM handbook');
+    const docs = db.all('SELECT title, body FROM handbook').filter((d) => !(pub && PRIVATE_TITLE.test(d.title)));
     return docs.map((d) => {
       const t = d.title.toLowerCase(), b = d.body.toLowerCase();
       let s = 0;
@@ -430,7 +693,7 @@ function createStudio(opts) {
     return { user: { id: user.id, name: user.name, role: user.role }, school: schoolOf(user.school_id || (team && team.school_id)), team, schools: db.all('SELECT * FROM schools ORDER BY id'), handbook: handbookSearch };
   }
   function ctxForClass(v) {
-    return { user: { id: 0, name: 'Team ' + v.team, role: 'student' }, school: v.school, team: null, classTeam: v.team, schools: db.all('SELECT * FROM schools ORDER BY id'), handbook: handbookSearch };
+    return { user: { id: 0, name: 'Team ' + v.team, role: 'student' }, school: v.school, team: null, classTeam: v.team, schools: db.all('SELECT * FROM schools ORDER BY id'), handbook: (q) => handbookSearch(q, true) };
   }
   const ctxOf = (v) => (v.kind === 'class' ? ctxForClass(v) : ctxFor(v.user));
 
@@ -529,7 +792,24 @@ function createStudio(opts) {
         teamPendingMax: CLASS_TEAM_PENDING, teamPendingLeft: Math.max(0, CLASS_TEAM_PENDING - mine.filter((p) => nameKey(p.team_label || '') === v.teamKey).length),
       };
     } else out.buildsLeft = 0;
+    if (v.kind !== 'visitor') out.plans = planLimits(v);
     return out;
+  }
+  // Plans: how many the viewer may still make, and how many plans may still wait for a teacher (for the team and for the school).
+  function planLimits(v) {
+    const c = caps();
+    const staff = v.kind === 'user' && isStaff(v.user);
+    const schoolId = v.kind === 'class' ? v.school.id : v.user.school_id;
+    const mine = v.kind === 'class'
+      ? db.all("SELECT * FROM studio_plans WHERE author_kind = 'class' AND school_id = ?", schoolId).filter((p) => planOwns(v, p))
+      : db.all('SELECT * FROM studio_plans WHERE user_id = ?1 OR (?2 IS NOT NULL AND team_id = ?2)', v.user.id, staff ? null : v.user.team_id || null);
+    const max = staff ? PLAN_LIMITS.staffMax : c.teamPlans;
+    const waiting = schoolId ? db.get("SELECT COUNT(*) AS n FROM studio_plans WHERE status = 'submitted' AND school_id = ?", schoolId).n : 0;
+    return {
+      max, used: mine.length, left: Math.max(0, max - mine.length),
+      pendingMax: c.pending, pendingLeft: Math.max(0, c.pending - waiting),
+      teamPendingMax: CLASS_TEAM_PENDING, teamPendingLeft: Math.max(0, CLASS_TEAM_PENDING - mine.filter((p) => p.status === 'submitted').length),
+    };
   }
   const sweeper = setInterval(() => db.run('DELETE FROM studio_use WHERE at < ?', Date.now() - 3 * DAY), 6 * 3600000);
   sweeper.unref();
@@ -638,6 +918,7 @@ function createStudio(opts) {
     res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...NOSNIFF, ...(extra || {}) });
     res.end(JSON.stringify(obj));
   }
+  const objectBody = (b) => (b && typeof b === 'object' && !Array.isArray(b) ? b : {});
   function sameOrigin(req) {
     if (!req.headers.origin) return true;
     try { return new URL(req.headers.origin).host === req.headers.host; } catch (e) { return false; }
@@ -760,6 +1041,46 @@ function createStudio(opts) {
         send({ type: 'error', message: e instanceof HttpError ? e.message : 'The Build studio could not answer just now. Try again in a moment.' });
       }
       return res.end();
+    }
+    // ---- team plans ----
+    if (req.method === 'GET' && url.pathname === '/studio/api/plans') {
+      const scope = url.searchParams.get('scope') || 'mine';
+      return sendJson(res, 200, { plans: listPlans(v, ['public', 'review'].includes(scope) ? scope : 'mine') });
+    }
+    if (req.method === 'POST' && url.pathname === '/studio/api/plans') {
+      needViewer(v);
+      const body = objectBody(await readJson(req, 16384));
+      return sendJson(res, 200, { plan: planOut(await createPlan(v, body), v) });
+    }
+    if ((req.method === 'GET' || req.method === 'PATCH') && (r = m(/^\/studio\/api\/plans\/(\d+)$/))) {
+      const p = planRow(Number(r[1]));
+      if (req.method === 'GET') {
+        if (!p || !canViewPlan(v, p)) fail(404, 'No such plan.');
+        return sendJson(res, 200, { plan: planOut(p, v), canEdit: planOwns(v, p) });
+      }
+      needViewer(v);
+      if (!p || !planOwns(v, p)) fail(404, 'No such plan.');
+      const body = objectBody(await readJson(req, 16384));
+      return sendJson(res, 200, { plan: planOut(await patchPlan(v, p, body), v) });
+    }
+    if (req.method === 'POST' && (r = m(/^\/studio\/api\/plans\/(\d+)\/review$/))) {
+      needUser(v);
+      const p = planRow(Number(r[1]));
+      if (!p) fail(404, 'No such plan.');
+      const body = objectBody(await readJson(req, 4096));
+      return sendJson(res, 200, { plan: planOut(reviewPlan(v, p, body), v) });
+    }
+    if (req.method === 'POST' && (r = m(/^\/studio\/api\/plans\/(\d+)\/delete$/))) {
+      needViewer(v);
+      const p = planRow(Number(r[1]));
+      const may = p && ((user && isStaff(user) && planReviewer(user, p)) || (planOwns(v, p) && p.status !== 'approved'));   // a team can take back its plan until it is approved
+      if (!may) fail(404, 'No such plan.');
+      db.run('DELETE FROM studio_plans WHERE id = ?', p.id);
+      audit(user, user ? 'studio.plan.delete' : 'studio.plan.withdraw', p.id);
+      return sendJson(res, 200, { deleted: true });
+    }
+    if (req.method === 'GET' && url.pathname === '/studio/api/submitted') {
+      return sendJson(res, 200, { items: await submittedItems(v, url.searchParams.get('scope')) });
     }
     if (url.pathname === '/studio/api/tokens') {
       needUser(v);
@@ -905,8 +1226,31 @@ function createStudio(opts) {
     return true;
   }
 
+  /* ---------- the figures for the optional League (the app builds the table; it never sees a name) ---------- */
+
+  if (typeof appCore.provide === 'function') {
+    appCore.provide('league', async () => {
+      const schools = db.all('SELECT id, match FROM schools');
+      const out = {};
+      const row = (id) => out[id] || (out[id] = { online: 0, tools: 0, plans: 0 });
+      let partial = false;
+      let devices = [];
+      try { devices = typeof data.devices === 'function' ? await data.devices() : []; } catch (e) { partial = true; }
+      for (const d of devices) {
+        if (!d.online) continue;
+        const text = `${d.group || ''} ${d.name || ''}`.toLowerCase();
+        const sch = schools.find((x) => String(x.match || '').split(',').some((m) => m.trim() && text.includes(m.trim())));
+        if (sch) row(sch.id).online++;
+      }
+      for (const r of db.all("SELECT school_id, COUNT(*) AS n FROM studio_projects WHERE status = 'approved' AND school_id IS NOT NULL GROUP BY school_id")) row(r.school_id).tools = r.n;
+      for (const r of db.all("SELECT school_id, COUNT(*) AS n FROM studio_plans WHERE status IN ('done', 'submitted', 'approved') GROUP BY school_id")) row(r.school_id).plans = r.n;
+      return { schools: out, partial };
+    });
+  }
+
   return {
     enabled: true, handle, tools: MCP_TOOLS, status: () => ({ configured: !!apiKey }),
+    addQueueSource: (fn) => { if (typeof fn === 'function') queueSources.push(fn); },   // for the council and the weekly reports: fn({ staff, pending, user }) -> items
     viewer: (req) => viewerJson(viewerOf(req)),   // { kind:'visitor'|'class'|'user', school?, team?, role? } for other modules
     close() { clearInterval(sweeper); clearInterval(hitsSweeper); clearInterval(previewSweeper); },
   };

@@ -1,0 +1,80 @@
+/* Sensor guides (guides.js). Tokens and recipes come from site.css. */
+
+.gd { display: flex; flex-direction: column; gap: var(--nm-gap-s); min-width: 0; }
+.gd-note { margin: 0; }
+.gd-errbox { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.fresh-pill.gd-old { border-color: var(--nm-warn-line); background: var(--nm-warn-bg); color: var(--nm-warn); }
+.fresh-pill.gd-old i { background: #F2CF86; }
+
+/* cards */
+.gd-grid { align-items: stretch; }
+.gd-card { display: flex; flex-direction: column; gap: 12px; padding: 20px 20px 16px; cursor: pointer; min-width: 0; }
+.gd-top { display: flex; align-items: center; gap: 14px; }
+.gd-top .card-eye { margin: 0 0 3px; }
+.gd-top .card-h { margin: 0; font-size: 20px; }
+.gd-blurb { margin: 0; color: var(--nm-text); font-size: 14.5px; line-height: 1.5; }
+.gd-open { margin-top: auto; align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; padding: 8px 4px 4px; min-height: 36px; border: 0; background: none; color: var(--nm-copper-2); font: 600 14px/1.2 var(--nm-font); cursor: pointer; }
+.gd-open:hover { color: #fff; }
+.gd-open:focus-visible { outline: 3px solid var(--nm-copper-2); outline-offset: 2px; border-radius: 8px; }
+.gd-open svg { width: 16px; height: 16px; }
+
+/* mini live reading */
+.gd-live { padding: 12px 14px 12px; border-radius: 16px; background: var(--nm-well); border: 1px solid var(--nm-edge); }
+.gd-live.off, .gd-live.stale { border-style: dashed; border-color: var(--nm-edge-2); }
+.gd-live.stale { background: var(--nm-warn-bg); border-color: var(--nm-warn-line); }
+.gd-live-k { font: 700 10.5px/1.3 var(--nm-font); letter-spacing: .12em; text-transform: uppercase; color: var(--nm-muted); }
+.gd-live-v { margin: 4px 0 2px; font: 600 26px/1.1 var(--nm-font-display); letter-spacing: -.02em; color: var(--nm-ink); }
+.gd-live-t { font: 600 14.5px/1.3 var(--nm-font); color: var(--nm-ink-soft); }
+.gd-live small { display: block; margin-top: 4px; color: var(--nm-muted); font-size: 12.5px; line-height: 1.4; }
+.gd-strip { position: relative; height: 22px; margin: 4px 2px 2px; }
+.gd-axis { position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; border-radius: 2px; background: linear-gradient(90deg, rgba(76, 203, 234, .5), rgba(242, 165, 107, .6)); }
+.gd-dot { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--nm-copper-2); border: 2px solid #0C1626; box-shadow: 0 0 0 1px rgba(242, 165, 107, .6); }
+
+/* the sheet */
+body.gd-lock { overflow: hidden; }
+.gd-scrim { position: fixed; inset: 0; z-index: 30; display: flex; justify-content: flex-end; background: var(--nm-scrim); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); }
+.gd-sheet { width: min(580px, 100%); height: 100%; overflow-y: auto; display: flex; flex-direction: column; background: var(--nm-modal-bg); border-left: 1px solid var(--nm-edge-2); box-shadow: -40px 0 80px -30px rgba(0, 0, 0, .9); color: var(--nm-text); animation: gd-in .28s var(--nm-ease) both; }
+.gd-sheet:focus { outline: none; }
+@keyframes gd-in { from { transform: translateX(32px); opacity: 0; } }
+.gd-sh-top { display: flex; align-items: center; gap: 14px; padding: 22px 22px 14px; position: sticky; top: 0; z-index: 1; background: linear-gradient(180deg, rgba(40, 68, 108, .98), rgba(34, 58, 92, .96)); border-bottom: 1px solid var(--nm-edge); }
+.gd-sh-t { flex: 1; min-width: 0; }
+.gd-sh-t .card-eye { margin: 0 0 3px; }
+.gd-sh-t h2 { margin: 0; font: 600 26px/1.15 var(--nm-font-display); color: var(--nm-ink); overflow-wrap: anywhere; }
+.gd-x { width: 42px; height: 42px; display: grid; place-items: center; flex: none; border-radius: 12px; border: 1px solid var(--nm-edge-2); background: rgba(255, 255, 255, .07); color: var(--nm-ink-soft); cursor: pointer; }
+.gd-x:hover { background: rgba(255, 255, 255, .14); }
+.gd-x svg { width: 20px; height: 20px; }
+.gd-sh-body { padding: 18px 22px 28px; display: flex; flex-direction: column; gap: 18px; }
+.gd-sh-live .card-eye { margin-bottom: 8px; }
+.gd-rows { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; }
+.gd-rows li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 4px 12px; align-items: baseline; padding: 8px 2px; border-bottom: 1px solid rgba(255, 255, 255, .07); font-size: 14px; }
+.gd-rows li:last-child { border-bottom: 0; }
+.gd-rows li.old { color: var(--nm-muted); }
+.gd-rows b { color: var(--nm-ink); font-weight: 600; }
+.gd-rows small { min-width: 78px; text-align: right; color: var(--nm-muted); font-size: 12.5px; }
+.gd-dev { display: flex; align-items: center; gap: 9px; min-width: 0; overflow-wrap: anywhere; }
+.gd-st { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--nm-dot-ok); }
+.gd-st.warn { background: #F2CF86; }
+.gd-sh-note { margin: 10px 0 0; font-size: 13px; line-height: 1.5; }
+.gd-sec h3 { margin: 0 0 6px; font: 700 11.5px/1.3 var(--nm-font); letter-spacing: .12em; text-transform: uppercase; color: var(--nm-info); }
+.gd-sec p { margin: 0 0 10px; font-size: 15.5px; line-height: 1.6; }
+.gd-sec ul, .gd-sec ol { margin: 0 0 10px; padding-left: 22px; font-size: 15.5px; line-height: 1.55; }
+.gd-sec li { margin-bottom: 6px; }
+.gd-sec-mistakes h3 { color: var(--nm-warn); }
+.gd-sec-mistakes li::marker { color: var(--nm-warn); }
+.gd-sh-foot { display: flex; flex-direction: column; gap: 12px; padding-top: 16px; border-top: 1px solid var(--nm-edge); font-size: 13.5px; }
+.gd-sh-foot p { margin: 0; }
+.gd-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.gd-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.gd-pn { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.gd-pn .nm-btn { min-height: 40px; padding: 6px 14px; font-size: 14px; max-width: 100%; white-space: normal; text-align: left; }
+.gd-pn .nm-btn svg { width: 16px; height: 16px; flex: none; }
+
+@media (max-width: 700px) {
+  .gd-scrim { align-items: flex-end; }
+  .gd-sheet { height: 92%; width: 100%; border-left: 0; border-top: 1px solid var(--nm-edge-2); border-radius: 24px 24px 0 0; animation-name: gd-up; }
+  @keyframes gd-up { from { transform: translateY(40px); opacity: 0; } }
+  .gd-sh-top { padding: 18px 16px 12px; border-radius: 24px 24px 0 0; }
+  .gd-sh-t h2 { font-size: 22px; }
+  .gd-sh-body { padding: 16px 16px 28px; }
+}
+@media (prefers-reduced-motion: reduce) { .gd-sheet { animation: none; } }

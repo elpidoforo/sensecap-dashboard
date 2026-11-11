@@ -1,0 +1,77 @@
+/* Feed list page (public/site/pages/feeds.js). Classes are prefixed fd-. */
+.fd { display: flex; flex-direction: column; gap: var(--nm-gap-s); min-width: 0; }
+.fd :is(h1, h2, h3) { color: #fff; }
+.fd-sum { display: flex; flex-wrap: wrap; gap: 8px; }
+.fd-list { display: flex; flex-direction: column; gap: var(--nm-gap-s); }
+
+.fd-row { display: grid; grid-template-columns: minmax(0, 2.3fr) minmax(0, 1.05fr) minmax(0, 1.2fr) minmax(150px, auto); gap: 14px 26px; align-items: start; padding: 22px 24px; position: relative; }
+.fd-row.fd-off { background: linear-gradient(160deg, rgba(34, 52, 80, .7), rgba(16, 28, 46, .85)); }
+.fd-row.fd-off .fd-name, .fd-row.fd-off .fd-what { color: var(--nm-muted); }
+.fd-row.fd-failing { border-color: var(--nm-bad-line); }
+.fd-row.fd-late, .fd-row.fd-none { border-color: var(--nm-warn-line); }
+.fd-top { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+.fd-name { margin: 0; font: 600 21px/1.2 var(--nm-font-display); }
+.fd-dot { flex: none; width: 12px; height: 12px; border-radius: 50%; background: #6b7d94; }
+.fd-dot.ok { background: var(--nm-dot-ok); box-shadow: 0 0 10px var(--nm-dot-ok); }
+.fd-dot.late { background: #F2B24C; box-shadow: 0 0 10px rgba(242, 178, 76, .6); }
+.fd-dot.bad { background: var(--nm-dot-bad); box-shadow: 0 0 10px rgba(255, 92, 108, .6); }
+.fd-dot.off { background: #5d6b7d; }
+.fd-eye { margin: 14px 0 3px; font: 700 10.5px/1.3 var(--nm-font); letter-spacing: .12em; text-transform: uppercase; color: var(--nm-muted); }
+.fd-col .fd-eye { margin-top: 2px; }
+.fd-what { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--nm-text); max-width: 60ch; overflow-wrap: anywhere; }
+.fd-uses { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 12px; }
+.fd-uses .fd-eye { margin: 0 4px 0 0; }
+.fd-use { display: inline-flex; align-items: center; min-height: 28px; padding: 3px 11px; border-radius: 999px; border: 1px solid var(--nm-edge-2); background: rgba(255, 255, 255, .05); color: var(--nm-ink-soft); font: 500 12.5px/1.2 var(--nm-font); text-decoration: none; }
+.fd-use:hover { background: rgba(255, 255, 255, .1); border-color: var(--nm-copper-line); color: #fff; }
+
+.fd-big { font: 600 26px/1.15 var(--nm-font-display); letter-spacing: -.015em; color: #fff; }
+.fd-big.none { color: var(--nm-muted); }
+.fd-sub { margin: 4px 0 0; font-size: 13px; color: var(--nm-muted); }
+.fd-err { margin: 10px 0 0; padding: 8px 10px; border-radius: 10px; border-left: 3px solid #FF7A6A; background: var(--nm-bad-bg); color: var(--nm-bad); font-size: 12.5px; line-height: 1.4; overflow-wrap: anywhere; }
+.fd-err b { font-weight: 600; }
+.fd-err.old { border-left-color: #F0B94A; background: var(--nm-warn-bg); color: var(--nm-warn); }
+
+.fd-24 p { margin: 7px 0 0; font-size: 13.5px; color: var(--nm-muted); }
+.fd-24 b { color: #fff; font-weight: 600; }
+.fd-24 b.ok { color: var(--nm-ok); }
+.fd-24 b.bad { color: var(--nm-bad); }
+.fd-bar { display: flex; gap: 2px; height: 12px; border-radius: 8px; overflow: hidden; background: rgba(255, 255, 255, .08); margin-top: 6px; }
+.fd-bar i { display: block; height: 100%; }
+.fd-bar i.ok { background: linear-gradient(90deg, #6FBF63, #9BD88F); border-radius: 8px 0 0 8px; }
+.fd-bar i.bad { background: #FF7A6A; border-radius: 0 8px 8px 0; }
+.fd-bar i.ok:only-child { border-radius: 8px; }
+.fd-bar.none { background: repeating-linear-gradient(135deg, rgba(255, 255, 255, .06) 0 6px, rgba(255, 255, 255, .02) 6px 12px); }
+
+.fd-act { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.fd-src { display: inline-flex; align-items: center; gap: 6px; color: var(--nm-copper-2); font: 600 13.5px/1.3 var(--nm-font); text-decoration: none; overflow-wrap: anywhere; }
+.fd-src:hover { text-decoration: underline; text-underline-offset: 3px; }
+.fd-src svg { flex: none; width: 14px; height: 14px; }
+.fd-state { display: inline-flex; align-items: center; padding: 3px 12px; border-radius: 999px; border: 1px solid var(--nm-edge-2); background: var(--nm-neutral-bg); color: var(--nm-muted); font: 600 13px/1.4 var(--nm-font); }
+.fd-state.on { color: var(--nm-ok); border-color: var(--nm-ok-line); background: var(--nm-ok-bg); }
+.fd-switch { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 6px 4px 4px; border: 0; background: none; color: var(--nm-ink-soft); font: 600 14px/1.2 var(--nm-font); cursor: pointer; }
+.fd-switch[disabled] { opacity: .6; cursor: progress; }
+.fd-track { position: relative; width: 50px; height: 28px; border-radius: 999px; background: #2a3a52; border: 1px solid var(--nm-edge-2); transition: background .2s; flex: none; }
+.fd-track i { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #aab6c7; transition: transform .22s var(--nm-ease-pop), background .2s; }
+.fd-switch.on .fd-track { background: var(--nm-copper); border-color: var(--nm-copper-2); }
+.fd-switch.on .fd-track i { transform: translateX(22px); background: #1c0f06; }
+.fd-switch:focus-visible { outline: 3px solid var(--nm-copper-2); outline-offset: 2px; border-radius: 12px; }
+
+.fd-notice, .fd-offnote { grid-column: 1 / -1; margin: 0; }
+.fd-offnote { padding: 10px 14px; border-radius: 12px; background: var(--nm-well); border-left: 3px solid #6b7d94; font-size: 13.5px; line-height: 1.5; color: var(--nm-lede); }
+.fd-offnote b { color: #fff; }
+.fd-foot { margin: 0; }
+.fd-foot b { color: #fff; }
+.fd-retry { margin-left: 8px; min-height: 36px; padding: 4px 14px; font-size: 14px; }
+.fd a:focus-visible, .fd button:focus-visible { outline: 3px solid var(--nm-copper-2); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) { .fd-track, .fd-track i { transition: none; } }
+@media (max-width: 1180px) {
+  .fd-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .fd-main { grid-column: 1 / -1; }
+  .fd-act { flex-direction: row; align-items: center; flex-wrap: wrap; grid-column: 1 / -1; justify-content: space-between; }
+}
+@media (max-width: 700px) {
+  .fd-row { grid-template-columns: 1fr; padding: 18px 16px; gap: 14px; }
+  .fd-act { flex-direction: row; }
+  .fd-name { font-size: 19px; }
+}
