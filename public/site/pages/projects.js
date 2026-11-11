@@ -81,6 +81,16 @@
     return svg;
   }
 
+  /* ---------- no steps listed: a three-stage track (planned, running, done) from the status ---------- */
+  const hasProgress = (p) => p.steps.length > 0 || p.progress != null;
+  function stageTrack(ph) {
+    const cur = ph === 'done' ? 2 : ph === 'draft' ? 0 : 1;
+    const names = [t('Planned', 'Σχεδιασμός'), t('Running', 'Σε εξέλιξη'), t('Done', 'Ολοκληρώθηκε')];
+    const wrap = el('div', { class: 'pr-stage ' + ph, role: 'img', 'aria-label': t('Stage: ', 'Στάδιο: ') + names[cur] });
+    names.forEach((n, i) => wrap.append(el('span', { class: i < cur ? 'past' : i === cur ? 'now' : '', 'aria-hidden': 'true' }, el('i'), n)));
+    return wrap;
+  }
+
   /* ================= the page ================= */
   function projects(root, ctx) {
     const S = {
@@ -229,6 +239,7 @@
     function teamLabel(p) { return p.team ? t('Team ' + p.team, 'Ομάδα ' + p.team) : t('A student team', 'Μια ομάδα μαθητών'); }
     function gaugeRow(p) {
       const pr = progress(p), ph = phase(p);
+      if (!hasProgress(p)) return stageTrack(ph);
       return el('div', { class: 'pr-gauge' }, ring(pr, ph),
         el('div', { class: 'pr-gt' },
           pr.of ? el('b', null, t(pr.done + ' of ' + pr.of + ' steps', pr.done + ' από ' + pr.of + ' βήματα')) : el('b', null, pr.pct == null ? t('Steps not counted yet', 'Τα βήματα δεν έχουν μετρηθεί ακόμη') : t('Progress ' + pr.pct + '%', 'Πρόοδος ' + pr.pct + '%')),
@@ -300,7 +311,7 @@
         isClass() ? el('button', { class: 'nm-btn nm-btn--sm', type: 'button', onclick: leaveClass }, t('Leave', 'Αποχώρηση')) : null);
       let body;
       if (S.mineErr && S.mineErr.status !== 401) body = el('div', null, el('div', { class: 'err', role: 'alert' }, t('Your plans could not be loaded. ', 'Τα σχέδιά σας δεν φορτώθηκαν. ') + errMsg(S.mineErr)), el('div', { style: { marginTop: '12px' } }, el('button', { class: 'nm-btn', type: 'button', onclick: async () => { await loadMine(); drawMine(); } }, t('Try again', 'Δοκιμάστε ξανά'))));
-      else if (!S.mine.length) body = el('div', { class: 'empty' }, el('b', { style: { display: 'block', color: 'var(--nm-ink-soft)' } }, t('Your team has no project yet.', 'Η ομάδα σας δεν έχει ακόμη έργο.')), t('Start one in four steps: a question, sensors, data and a team note.', 'Ξεκινήστε ένα σε τέσσερα βήματα: ένα ερώτημα, αισθητήρες, δεδομένα και ένα σημείωμα ομάδας.'), el('div', { style: { marginTop: '14px' } }, el('a', { class: 'nm-btn nm-btn--primary', href: '#/start' }, ic('plus'), t('Start a project', 'Ξεκινήστε ένα έργο'))));
+      else if (!S.mine.length) body = el('div', { class: 'empty' }, el('b', { style: { display: 'block', color: 'var(--nm-ink-soft)' } }, (isClass() ? t('Your team has no project yet.', 'Η ομάδα σας δεν έχει ακόμη έργο.') : t('You have no project yet.', 'Δεν έχετε ακόμη έργο.'))), t('Start one in four steps: a question, sensors, data and a team note.', 'Ξεκινήστε ένα σε τέσσερα βήματα: ένα ερώτημα, αισθητήρες, δεδομένα και ένα σημείωμα ομάδας.'), el('div', { style: { marginTop: '14px' } }, el('a', { class: 'nm-btn nm-btn--primary', href: '#/start' }, ic('plus'), t('Start a project', 'Ξεκινήστε ένα έργο'))));
       else body = el('div', { class: 'pr-grid' }, S.mine.map((p) => card(p, true)));
       const hint = isTeacher() ? el('div', { class: 'nm-callout pr-tnote' }, t('Teachers decide on submitted projects on ', 'Οι εκπαιδευτικοί αποφασίζουν για τα έργα που υποβάλλονται στις '), el('a', { class: 'link', href: '#/submitted' }, t('Submitted work', 'Υποβολές')), '.') : null;
       mineHost.replaceChildren(el('section', { class: 'pr-mine', 'aria-labelledby': 'pr-mine-h' },
@@ -362,9 +373,9 @@
         el('div', { class: 'pr-sheet-top' }, el('span', { class: 'pr-sch' }, el('i', { style: { background: schoolColor(p.school) } }), p.school || t('A school', 'Ένα σχολείο')), statusBadge(p, mine)),
         el('h2', { id: 'pr-sheet-h' }, p.question),
         el('p', { class: 'pr-team' }, ic('user'), teamLabel(p), p.title && p.title !== p.question ? el('span', { class: 'muted' }, ' · ' + p.title) : null),
-        el('div', { class: 'pr-bigg' }, ring(pr, ph), el('div', null, el('b', null, pr.of ? t(pr.done + ' of ' + pr.of + ' steps done', pr.done + ' από ' + pr.of + ' βήματα έγιναν') : pr.pct == null ? t('Progress is not counted yet', 'Η πρόοδος δεν έχει μετρηθεί ακόμη') : t(pr.pct + '% done', pr.pct + '% ολοκληρώθηκε')),
-          el('small', null, p.at ? t('Updated ' + SC.dateTime(p.at) + ' (' + SC.ago(p.at) + ')', 'Ενημερώθηκε ' + SC.dateTime(p.at) + ' (' + SC.ago(p.at) + ')') : ''))),
-        el('div', { class: 'pr-eb' }, t('Steps', 'Βήματα')), steps,
+        hasProgress(p) ? el('div', { class: 'pr-bigg' }, ring(pr, ph), el('div', null, el('b', null, pr.of ? t(pr.done + ' of ' + pr.of + ' steps done', pr.done + ' από ' + pr.of + ' βήματα έγιναν') : pr.pct == null ? t('Progress is not counted yet', 'Η πρόοδος δεν έχει μετρηθεί ακόμη') : t(pr.pct + '% done', pr.pct + '% ολοκληρώθηκε')),
+          el('small', null, p.at ? t('Updated ' + SC.dateTime(p.at) + ' (' + SC.ago(p.at) + ')', 'Ενημερώθηκε ' + SC.dateTime(p.at) + ' (' + SC.ago(p.at) + ')') : ''))) : el('div', { class: 'pr-stagebox' }, stageTrack(ph), el('small', null, p.at ? t('Updated ' + SC.dateTime(p.at) + ' (' + SC.ago(p.at) + ')', 'Ενημερώθηκε ' + SC.dateTime(p.at) + ' (' + SC.ago(p.at) + ')') : '')),
+        ...(p.steps.length ? [el('div', { class: 'pr-eb' }, t('Steps', 'Βήματα')), steps] : []),
         el('div', { class: 'pr-eb' }, t('Sensors it uses', 'Αισθητήρες που χρησιμοποιεί')),
         sensors.length ? el('ul', { class: 'pr-list' }, sensors.map((s) => el('li', null, ic('sensor'), el('span', null, s.name, s.group ? el('small', null, s.group) : null), s.on == null ? null : el('span', { class: 'nm-badge ' + (s.on ? 'nm-badge--ok' : 'nm-badge--warn') }, s.on ? t('Online', 'Σε λειτουργία') : t('Quiet', 'Σιωπηλός'))))) : el('p', { class: 'muted' }, t('No sensor chosen.', 'Δεν έχει επιλεγεί αισθητήρας.')),
         el('div', { class: 'pr-eb' }, t('Data it reads', 'Δεδομένα που διαβάζει')),

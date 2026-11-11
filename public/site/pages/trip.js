@@ -189,6 +189,8 @@
         if (S.cfg && S.cfg.demo && !has) pageHead.insertBefore(el('span', { class: 't demo' }, T('Demo data', 'Δεδομένα επίδειξης')), lede);
         if (!(S.cfg && S.cfg.demo) && has) has.remove();
         const h = delayH(), g = gridKm();
+        lede.textContent = S.exact ? T('Replay one day of one vehicle on the island, with a reading along the way. You are signed in as a teacher, so the route is exact.', 'Επαναλάβετε μία ημέρα ενός οχήματος στο νησί, με μια μέτρηση κατά μήκος της διαδρομής. Έχετε συνδεθεί ως εκπαιδευτικός, άρα η διαδρομή είναι ακριβής.')
+          : T('Replay one day of one vehicle on the island, with a reading along the way. Positions are rounded to about ' + g + ' km and are at least ' + h + ' hours late.', 'Επαναλάβετε μία ημέρα ενός οχήματος στο νησί, με μια μέτρηση κατά μήκος της διαδρομής. Οι θέσεις είναι στρογγυλοποιημένες στο ' + g + ' χλμ. περίπου και έχουν καθυστέρηση τουλάχιστον ' + h + ' ωρών.');
         fill(noteBox, el('div', { class: 'tr-note' }, ico('shield'), el('div', null,
           S.exact
             ? [el('b', null, T('You are signed in as a teacher, so this route is exact.', 'Έχετε συνδεθεί ως εκπαιδευτικός, άρα η διαδρομή είναι ακριβής.')), ' ', T('It is drawn as the server gives it to you. This page still never prints a coordinate, and visitors see the route about ' + g + ' km out and at least ' + h + ' hours late.', 'Σχεδιάζεται όπως την δίνει ο διακομιστής. Η σελίδα εξακολουθεί να μην γράφει ποτέ συντεταγμένες και οι επισκέπτες βλέπουν τη διαδρομή με απόκλιση περίπου ' + g + ' χλμ. και καθυστέρηση τουλάχιστον ' + h + ' ωρών.')]
@@ -255,7 +257,7 @@
         const ASP = 0.62, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
         let vw = Math.max((x1 - x0) * 1.6 + 24, 80), vh = vw * ASP;
         if ((y1 - y0) * 1.35 + 14 > vh) { vh = (y1 - y0) * 1.35 + 14; vw = vh / ASP; }
-        const vx = cx - vw / 2, vy = cy - vh / 2, fs = vw / 40, rr = vw / 75;
+        const px = Math.max(260, (mapCard.clientWidth || 560) - 44), vx = cx - vw / 2, vy = cy - vh / 2, fs = Math.max(vw / 46, (11.5 * vw) / px), rr = Math.max(vw / 75, (5 * vw) / px);   // text and dot keep a readable size on a phone
         const svg = sv('svg', { viewBox: [vx, vy, vw, vh].map((x) => x.toFixed(2)).join(' '), class: 'tr-svg', role: 'img', preserveAspectRatio: 'xMidYMid meet',
           'aria-label': T('Map of the island with the route of the trip', 'Χάρτης του νησιού με τη διαδρομή της διαδρομής') });
         svg.append(sv('g', null, Object.keys(ISLAND.districts).map((k) => sv('path', { d: ISLAND.districts[k], class: 'tr-land' }))));
@@ -430,6 +432,7 @@
         if (!M || !M.legend) return;
         const r = R(), id = 'trg-' + r.k, s = S.series[r.mid];
         if (!s) { fill(M.legend, el('span', { class: 'tr-leg-n' }, T('Loading the ' + rlow(r) + ' readings…', 'Φόρτωση των μετρήσεων ' + rlow(r) + '…'))); return; }
+        if (s.err) { fill(M.legend, el('span', { class: 'tr-leg-n' }, T('The readings could not be loaded, so the route is not coloured.', 'Οι μετρήσεις δεν φορτώθηκαν, άρα η διαδρομή δεν χρωματίζεται.'))); return; }
         if (!S.range) { fill(M.legend, el('span', { class: 'tr-leg-n' }, T('No ' + rlow(r) + ' readings during this trip, so the route is not coloured.', 'Δεν υπάρχουν μετρήσεις ' + rlow(r) + ' κατά τη διαδρομή, άρα η διαδρομή δεν χρωματίζεται.'))); return; }
         const bar = sv('svg', { viewBox: '0 0 120 10', class: 'tr-leg-bar', 'aria-hidden': 'true', preserveAspectRatio: 'none' },
           sv('defs', null, sv('linearGradient', { id, x1: 0, y1: 0, x2: 1, y2: 0 }, r.stops.map((c, i) => sv('stop', { offset: i / (r.stops.length - 1), 'stop-color': c })))),

@@ -225,6 +225,27 @@
   .pp-f { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 10px; }
   .pp-f .btn { min-height: 34px; flex: 1; }
   .pp-credit { margin-top: 8px; color: #7F93AC; font-size: 11px; }
+  .pp-big .dl { margin-left: auto; align-self: center; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--ok-line); background: var(--ok-bg); color: var(--ok); font: 600 11.5px/1 var(--font); white-space: nowrap; }
+  .pp-big .dl[hidden] { display: none; }
+  .pp-big .dl.dn { border-color: rgba(76,203,234,.4); background: rgba(76,203,234,.13); color: var(--info); }
+  .pp-big .dl ~ .old { margin-left: 6px; }
+  /* the station card docks in the right column, bottom aligned (as in the picture) */
+  #detail.station { align-self: flex-end; width: 276px; max-width: 100%; padding: 16px 16px 12px; box-shadow: 0 26px 50px -20px rgba(0,0,0,.85), 0 0 0 1px rgba(76,203,234,.22), inset 0 1px 0 rgba(255,255,255,.1); }
+  #detail .pp-h { padding-right: 0; align-items: flex-start; }
+  #detail .pp-h > div { flex: 1; min-width: 0; }
+  #detail .pp-h .dia { margin-top: 5px; }
+  #detail .pp-f .btn { width: 100%; }
+  #detail .mo-hist { margin-top: 8px; padding-top: 0; border-top: 0; }
+  #detail .mo-hist select { min-height: 28px; padding: 3px 26px 3px 9px; font-size: 12px; width: auto; max-width: 100%; margin-bottom: 4px; }
+  #detail .mo-box { min-height: 40px; font-size: 12px; }
+  #detail .mo-readout { font-size: 11.5px; color: var(--muted); }
+  #detail .pp-gap { margin-top: 2px; }
+  .pp-more { margin-top: 8px; }
+  .pp-more > summary { cursor: pointer; color: var(--muted); font-size: 12px; list-style: none; }
+  .pp-more > summary::-webkit-details-marker { display: none; }
+  .pp-more > summary::before { content: "+ "; color: var(--copper-2); }
+  .pp-more[open] > summary::before { content: "– "; }
+  .pp-more .pp-obs { max-height: 120px; }
 
   /* maplibre controls */
   .maplibregl-ctrl-group { background: var(--glass); border: 1px solid var(--glass-edge); border-radius: 12px; box-shadow: 0 10px 24px -12px rgba(0,0,0,.7); }
@@ -1116,8 +1137,10 @@ async function showDetail(eui, fresh = true) {
   html += `<p class="dt-link"><a href="/#/vehicles/${encodeURIComponent(eui)}" target="_top">${T('Open full history and CSV', 'Πλήρες ιστορικό και CSV')}</a></p>`;
   const box = $('detail');
   box.innerHTML = html;
+  box.classList.remove('station');
   box.style.display = 'block';
-  if (ROOT && ROOT.classList) ROOT.classList.add('detailopen');
+  state.station = null;
+  if (ROOT && ROOT.classList) { ROOT.classList.add('detailopen'); ROOT.classList.remove('stationopen'); }
   if (!box.dataset.held) { box.dataset.held = '1'; box.addEventListener('pointerdown', () => { state.hold = performance.now() + 1500; }); }
   $('dx').onclick = () => { box.style.display = 'none'; if (ROOT && ROOT.classList) ROOT.classList.remove('detailopen'); state.selected = null; if (state.follow === eui) state.follow = null; updateTrails(); };
   $('bFollow').onclick = () => { state.hold = 0; state.follow = state.follow === eui ? null : eui; if (state.tour) stopTour(); showDetail(eui, false); };
@@ -1577,21 +1600,39 @@ const compass = (deg) => COMPASS[Math.round((((deg % 360) + 360) % 360) / 45) % 
 const MO_GREEK = { temp: 'Θερμοκρασία', hum: 'Υγρασία', ws10: 'Ταχύτητα ανέμου (10 m)', ws2: 'Ταχύτητα ανέμου (2 m)', pmsl: 'Πίεση (στάθμη θάλασσας)', rain10: 'Βροχή (10 λεπτά)', dsr: 'Άμεση ηλιακή ακτινοβολία', tmax: 'Μέγιστη ημέρας', tmin: 'Ελάχιστη ημέρας' };
 const moName = (k, s) => (LANG === 'el' && MO_GREEK[k]) || MOChart.NAMES[k] || (s.units[k] && s.units[k].name) || k;
 
-// Fills the 24 hour chart in a Met Office station popup from the history the server saves.
+// Fills the 24 hour chart in the Met Office station card from the history the server saves.
 async function cydomHistory(el, p) {
   const box = el && el.querySelector && el.querySelector('.mo-box');
   const sel = el && el.querySelector('.mo-key');
   const gap = el && el.querySelector('.pp-gap');
+  const dl = el && el.querySelector('.pp-big .dl');
   if (!box || !sel || typeof MOChart === 'undefined') return;
   try {
     const s = await MOChart.series(p.id, 24);
+    if (state.station !== p.id) return;      // another card was opened while this one loaded
     const keys = MOChart.KEYS.filter((k) => MOChart.points(s, k).length > 1);
+    // "+0.4 in 1 h": the newest saved temperature against the one about an hour before it (only when both exist)
+    const tp = MOChart.points(s, 'temp');
+    if (dl && tp.length > 1) {
+      const last = tp[tp.length - 1];
+      let best = null;
+      tp.forEach((q) => { const d = Math.abs(last.t - 3600000 - q.t); if (d < 25 * 60000 && (!best || d < best.d)) best = { q, d }; });
+      if (best && Date.now() - last.t < 3 * 3600000) {
+        const dv = Math.round((last.v - best.q.v) * 10) / 10;
+        dl.textContent = (dv > 0 ? '+' : dv < 0 ? '−' : '') + Math.abs(dv) + ' ' + T('in 1 h', 'σε 1 ώ');
+        dl.classList.toggle('dn', dv < 0);
+        dl.hidden = false;
+      }
+    }
     if (!keys.length) { box.textContent = T('No readings saved for the last 24 hours yet. The server saves a reading every 10 minutes.', 'Δεν έχουν αποθηκευτεί ακόμα μετρήσεις για τις τελευταίες 24 ώρες. Ο διακομιστής αποθηκεύει μία μέτρηση κάθε 10 λεπτά.'); sel.style.display = 'none'; return; }
     sel.innerHTML = keys.map((k) => `<option value="${k}">${esc(moName(k, s))}</option>`).join('');
+    if (keys.includes('temp')) sel.value = 'temp';
+    if (keys.length < 2) sel.style.display = 'none';      // one reading only: nothing to choose
     const draw = () => {
       const k = sel.value, u = s.units[k] || {};
       const pts = MOChart.points(s, k);
-      MOChart.render(box, pts, { w: 300, h: 140, unit: u.unit || '', label: moName(k, s), hours: 24, ink: '#8CA0B8', grid: 'rgba(255,255,255,.09)', color: '#4CCBEA',
+      MOChart.render(box, pts, { w: 240, h: 132, unit: u.unit || '', label: moName(k, s), hours: 24, ink: '#8CA0B8', grid: 'rgba(255,255,255,.1)', color: '#4CCBEA',
+        area: true, gaps: true, endDot: true, ticks: true, compact: true, lines: 3,
         latest: T('Latest ', 'Τελευταία '), empty: T('Not enough readings saved for this period yet.', 'Δεν υπάρχουν ακόμα αρκετές αποθηκευμένες μετρήσεις.') });
       let g = null;
       for (let i = 1; i < pts.length; i++) if (pts[i].t - pts[i - 1].t > 3600000 && (!g || pts[i].t - pts[i - 1].t > g.b - g.a)) g = { a: pts[i - 1].t, b: pts[i].t };
@@ -1601,6 +1642,7 @@ async function cydomHistory(el, p) {
     draw();
   } catch (e) { box.textContent = T('Could not load the history. ', 'Δεν φορτώθηκε το ιστορικό. ') + e.message; }
 }
+// The Met Office station card: it docks in the right column like the vehicle card (the map keeps its own popups for schools and the other points).
 function cydomHtml(p) {
   let obs = [];
   try { obs = JSON.parse(p.obs || '[]'); } catch (e) { obs = []; }
@@ -1609,23 +1651,48 @@ function cydomHtml(p) {
   if (isNum(p.hum)) sub.push(`${T('Humidity', 'Υγρασία')} ${r1(Number(p.hum))} %`);
   if (isNum(p.ws)) sub.push(`${T('Wind', 'Άνεμος')} ${r1(Number(p.ws))} m/s${isNum(p.wd) ? ' ' + compass(Number(p.wd)) : ''}`);
   const rows = obs.map((o) => `<tr><td>${esc(o.name)}</td><td>${esc(o.value)} ${esc(o.unit === 'Celcius' ? '°C' : o.unit)}</td></tr>`).join('');
-  return `<div class="pp"><div class="pp-h"><i class="dia"></i><div><b>${esc(p.name)}</b><small>${T('Met Office station', 'Σταθμός Μετεωρολογικής Υπηρεσίας')} · ${timeOk ? esc(hm(Date.parse(p.time))) + ' · ' + esc(ago(p.time)) : T('unknown time', 'άγνωστη ώρα')}</small></div></div>` +
-    (isNum(p.temp) ? `<div class="pp-big"><span class="num">${r1(Number(p.temp))}</span><span class="u">°C</span>${timeOk && isOld(p.time) ? `<span class="old">${T('old reading', 'παλιά μέτρηση')}</span>` : ''}</div>` : '') +
+  return `<div class="pp"><div class="pp-h"><i class="dia"></i><div><b>${esc(p.name)}</b><small>${T('Met Office station', 'Σταθμός Μετεωρολογικής Υπηρεσίας')} · ${timeOk ? esc(hm(Date.parse(p.time))) + ' · ' + esc(ago(p.time)) : T('unknown time', 'άγνωστη ώρα')}</small></div><button class="x" id="dx" type="button" aria-label="${esc(T('Close', 'Κλείσιμο'))}">&times;</button></div>` +
+    (isNum(p.temp) ? `<div class="pp-big"><span class="num">${r1(Number(p.temp))}</span><span class="u">°C</span><span class="dl" hidden></span>${timeOk && isOld(p.time) ? `<span class="old">${T('old reading', 'παλιά μέτρηση')}</span>` : ''}</div>` : '') +
     (sub.length ? `<div class="pp-sub">${sub.join(' · ')}</div>` : '') +
     `<div class="mo-hist" data-station="${esc(p.id)}"><select class="mo-key" aria-label="${esc(T('Reading to chart', 'Μέτρηση για το γράφημα'))}"></select><div class="mo-box">${T('Loading the last 24 hours…', 'Φόρτωση των τελευταίων 24 ωρών…')}</div><div class="pp-gap"></div></div>` +
-    (rows ? `<div class="pp-obs"><table>${rows}</table></div>` : '') +
-    `<div class="pp-f"><a class="btn mo-csv" href="/api/cydom/history.csv?station=${encodeURIComponent(p.id)}&days=1" download>${icon('dl')}${T('Download CSV · 24 hours', 'Λήψη CSV · 24 ώρες')}</a>` +
-    `<a class="btn" href="/#/weather/${encodeURIComponent(p.id)}" target="_top">${T('All data for this station', 'Όλα τα δεδομένα του σταθμού')}</a></div>` +
+    `<div class="pp-f"><a class="btn mo-csv" href="/api/cydom/history.csv?station=${encodeURIComponent(p.id)}&days=1" download>${icon('dl')}${T('Download CSV · 24 hours', 'Λήψη CSV · 24 ώρες')}</a></div>` +
+    (rows ? `<details class="pp-more"><summary>${T('All readings', 'Όλες οι μετρήσεις')}</summary><div class="pp-obs"><table>${rows}</table></div></details>` : '') +
+    `<p class="dt-link"><a href="/#/weather/${encodeURIComponent(p.id)}" target="_top">${T('All data for this station', 'Όλα τα δεδομένα του σταθμού')}</a></p>` +
     `<div class="pp-credit">${T('© Cyprus Department of Meteorology', '© Τμήμα Μετεωρολογίας Κύπρου')}</div></div>`;
 }
-const CYDOM_POPUP = { popup: { maxWidth: '320px' }, after: cydomHistory };
-popupOn('cydom-dots', cydomHtml, CYDOM_POPUP);
+function closeCard() {
+  const box = $('detail');
+  box.style.display = 'none'; box.classList.remove('station');
+  if (ROOT && ROOT.classList) ROOT.classList.remove('detailopen', 'stationopen');
+  const was = state.selected;
+  state.selected = null; state.station = null;
+  if (was && state.follow === was) state.follow = null;
+  updateTrails();
+}
+function openStationCard(props) {
+  if (state.popup && state.popup.remove) state.popup.remove();
+  if (state.follow) state.follow = null;
+  if (state.tour) stopTour();
+  const hadVehicle = state.selected;
+  state.selected = null;
+  state.station = props.id;
+  const box = $('detail');
+  box.innerHTML = cydomHtml(props);
+  box.classList.add('station');
+  box.style.display = 'block';
+  if (ROOT && ROOT.classList) { ROOT.classList.remove('detailopen'); ROOT.classList.add('stationopen'); }
+  $('dx').onclick = closeCard;
+  if (hadVehicle) updateTrails();
+  cydomHistory(box, props);
+}
+map.on('click', 'cydom-dots', (e) => openStationCard(e.features[0].properties));
+map.on('mouseenter', 'cydom-dots', () => (map.getCanvas().style.cursor = 'pointer'));
+map.on('mouseleave', 'cydom-dots', () => (map.getCanvas().style.cursor = ''));
 // ?station=<id>: open that station (the shell passes it from its route)
 function openStation(id) {
   const p = state.cydom && state.cydom.points.find((x) => String(x.id).toLowerCase() === String(id).toLowerCase());
   if (!p) return false;
-  const props = { ...p, obs: JSON.stringify(p.obs || []) };
-  openPopup([p.lng, p.lat], cydomHtml(props), CYDOM_POPUP, cydomHistory, props);
+  openStationCard({ ...p, obs: JSON.stringify(p.obs || []) });
   map.easeTo({ center: [p.lng, p.lat], zoom: Math.max(map.getZoom(), 10), duration: 800 });
   return true;
 }

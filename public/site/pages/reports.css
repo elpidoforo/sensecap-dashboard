@@ -60,7 +60,7 @@
 .rp-sh-sub { margin: 0 0 8px; font: 600 16px/1.4 var(--nm-font); color: var(--acc); }
 .rp-sec { margin-top: 22px; }
 .rp-sec h3 { margin: 0 0 8px; padding-bottom: 5px; border-bottom: 1px solid var(--line); font: 700 12px/1.3 var(--nm-font); letter-spacing: .12em; text-transform: uppercase; color: var(--acc); }
-.rp-summary { margin: 0 0 6px; font: 400 16.5px/1.6 var(--nm-font-serif); color: var(--ink); }
+.rp-summary { margin: 0 0 6px; font: 400 15.5px/1.6 var(--nm-font); color: var(--ink); }
 .rp-ai { margin: 6px 0 0; padding: 6px 10px; border-left: 3px solid var(--cop); background: #FBF1E8; font-size: 12.5px; line-height: 1.45; color: #6B3A15; }
 .rp-none { margin: 0; color: var(--mute); font-style: italic; }
 .rp-small { margin: 8px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--mute); }
@@ -122,12 +122,22 @@
   body.rp-on .rp-sheet { max-width: none; width: 100%; margin: 0; padding: 0; border-radius: 0; box-shadow: none; font-size: 10.5pt; }
   body.rp-on .rp-sh-title { font-size: 24pt; margin-top: 14pt; }
   body.rp-on .rp-sh-sub { font-size: 12pt; }
-  body.rp-on .rp-sec { margin-top: 14pt; }
-  body.rp-on .rp-summary { font-size: 12pt; }
+  body.rp-on .rp-sec { margin-top: 11pt; }
+  body.rp-on .rp-sh-foot { margin-top: 12pt; }
+  body.rp-on .rp-summary { font-size: 11pt; }
   body.rp-on .rp-keep, body.rp-on .rp-fig, body.rp-on .rp-warn li { break-inside: avoid; page-break-inside: avoid; }
-  body.rp-on .rp-isl { max-width: 100%; max-height: 92mm; width: auto; }
+  body.rp-on .rp-isl { max-width: 100%; max-height: 60mm; width: auto; }
   body.rp-on .rp-tw { overflow: visible; }
+  body.rp-on .rp-tiles { margin-bottom: 6pt; }
+  body.rp-on .rp-tile { padding: 4pt 8pt; flex-direction: row; align-items: baseline; gap: 8pt; }
+  body.rp-on .rp-tile b { font-size: 14pt; }
+  body.rp-on .rp-sh-head { padding-bottom: 8pt; }
+  body.rp-on .rp-sh-title { margin-top: 10pt; }
   body.rp-on .rp-table { font-size: 9.5pt; }
-  body.rp-on .rp-table td, body.rp-on .rp-table th { white-space: normal; }
+  body.rp-on .rp-table td, body.rp-on .rp-table th { padding: 3.5pt 5pt; }
+  body.rp-on .rp-table td { white-space: nowrap; }
+  body.rp-on .rp-table tbody th { white-space: normal; }
+  body.rp-on .rp-cap { font-size: 8.5pt; }
+  body.rp-on .rp-daily { margin-top: 8pt; }
   body.rp-on a { color: inherit; text-decoration: none; }
 }

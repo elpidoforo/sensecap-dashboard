@@ -95,7 +95,7 @@
     const S = {
       step: 1, maxStep: 1, q: '', sensors: [], data: [], team: '', title: '', titleTouched: false, note: '',
       status: null, devices: null, devErr: null, names: {}, demo: false, group: 'all', loaded: false,
-      created: null, creating: false, err: '', joinErr: '', joinBusy: false, restoredAt: 0,
+      created: null, creating: false, err: '', joinErr: '', joinBusy: false, restoredAt: 0, schools: null, schoolsAsked: false, schoolSlug: '',
     };
     let alive = true;
     const live = el('div', { class: 'sr-only', role: 'status', 'aria-live': 'polite' });
@@ -120,7 +120,10 @@
     const isClass = () => V().kind === 'class';
     const isUser = () => V().kind === 'user';
     const canCreate = () => isClass() || isUser();
-    const schoolName = () => (V().school ? V().school.short || V().school.name : '');
+    // A signed-in admin has no school of their own: they pick the school the plan is for.
+    const needsSchool = () => isUser() && !V().school;
+    const pickedSchool = () => ((S.schools || []).find((x) => x.slug === S.schoolSlug) || null);
+    const schoolName = () => (V().school ? V().school.short || V().school.name : needsSchool() && pickedSchool() ? pickedSchool().short : '');
     const teamName = () => (isClass() ? V().team : S.team.trim());
     const asTeam = () => t('Team ' + V().team + (schoolName() ? ', ' + schoolName() : ''), 'Ομάδα ' + V().team + (schoolName() ? ', ' + schoolName() : ''));
 
@@ -148,7 +151,7 @@
     const qOk = () => S.q.trim().length >= MIN_Q;
     const sensorsOk = () => S.sensors.length >= 1;
     const dataOk = () => S.data.length >= 1;
-    const teamOk = () => canCreate() && teamName().length > 0 && S.title.trim().length > 0;
+    const teamOk = () => canCreate() && teamName().length > 0 && S.title.trim().length > 0 && (!needsSchool() || Boolean(S.schoolSlug));
     const okOf = (n) => (n === 1 ? qOk() : n === 2 ? sensorsOk() : n === 3 ? dataOk() : n === 4 ? teamOk() : false);
     function go(n, focus) {
       S.step = Math.max(1, Math.min(5, n)); S.maxStep = Math.max(S.maxStep, S.step);
@@ -378,6 +381,11 @@
       f.addEventListener('submit', (ev) => { ev.preventDefault(); joinClass(); });
       return f;
     }
+    async function loadSchools() {
+      S.schoolsAsked = true;   // ask only once
+      try { const r = await SC.cached('/app/api/schools/public', 300000); S.schools = ((r && r.schools) || []).filter((x) => x && x.slug).map((x) => ({ slug: x.slug, short: x.short || x.name })); } catch (e) { S.schools = []; }
+      if (alive && S.step === 4) drawPanel();
+    }
     function panel4() {
       const kids = [...head2(t('Step 4 of 4', 'Βήμα 4 από 4'), t('Name your team.', 'Δώστε όνομα στην ομάδα σας.'), t('Your team name and a short note go with the project. No real names, photos or exact places.', 'Το όνομα της ομάδας και ένα σύντομο σημείωμα συνοδεύουν το έργο. Χωρίς πραγματικά ονόματα, φωτογραφίες ή ακριβή σημεία.'))];
       if (!S.loaded) kids.push(el('div', { class: 'loading' }, t('Loading', 'Φόρτωση')));
@@ -386,6 +394,13 @@
       else {
         if (isClass()) kids.push(el('div', { class: 'st-as' }, el('span', { class: 'st-tic' }, ic('user')), el('div', { class: 'st-as-t' }, el('b', null, t('Working as ', 'Δουλεύετε ως ') + asTeam()), el('small', null, t('The team name comes from your class session.', 'Το όνομα της ομάδας προέρχεται από τη συνεδρία της τάξης σας.'))), el('button', { class: 'nm-btn nm-btn--sm', type: 'button', onclick: leaveClass }, t('Leave', 'Αποχώρηση'))));
         else kids.push(el('div', { class: 'st-field' }, el('label', { for: 'st-team' }, t('Team name', 'Όνομα ομάδας')), teamIn, el('p', { class: 'st-hint' }, t('The team this plan is shown under, for example “Hermes”.', 'Η ομάδα με την οποία εμφανίζεται το σχέδιο, π.χ. «Hermes».'))));
+        if (needsSchool()) {
+          if (!S.schoolsAsked) loadSchools();
+          const sel = el('select', { class: 'nm-input st-sel', id: 'st-school', onchange: (e) => { S.schoolSlug = e.target.value; drawAside(); syncNext(); } },
+            el('option', { value: '' }, S.schools === null ? t('Loading', 'Φόρτωση') : t('Choose a school', 'Επιλέξτε σχολείο')),
+            ...(S.schools || []).map((x) => el('option', { value: x.slug, selected: x.slug === S.schoolSlug }, x.short)));
+          kids.push(el('div', { class: 'st-field' }, el('label', { for: 'st-school' }, t('School', 'Σχολείο')), sel, el('p', { class: 'st-hint' }, t('Your account is not tied to one school, so say which school this plan is for.', 'Ο λογαριασμός σας δεν είναι δεμένος με ένα σχολείο, γι’ αυτό πείτε για ποιο σχολείο είναι το σχέδιο.'))));
+        }
         if (!S.titleTouched) { S.title = autoTitle(S.q); titleIn.value = S.title; }
         kids.push(el('div', { class: 'st-field' }, el('label', { for: 'st-title' }, t('Project name', 'Όνομα έργου')), titleIn, el('p', { class: 'st-hint' }, t('A short title for the card. You can keep the one we made from your question.', 'Ένας σύντομος τίτλος για την κάρτα. Μπορείτε να κρατήσετε αυτόν που φτιάξαμε από το ερώτημά σας.'))));
         noteCount.textContent = t(S.note.length + ' of ' + MAX_NOTE, S.note.length + ' από ' + MAX_NOTE);
@@ -401,7 +416,7 @@
       if (S.creating || !teamOk()) return;
       S.creating = true; S.err = ''; drawPanel();
       try {
-        const r = await SC.api('/studio/api/plans', { method: 'POST', body: { title: S.title.trim().slice(0, 80), question: S.q.trim(), sensors: S.sensors.slice(), data: S.data.slice(), team: teamName(), notes: S.note.trim() } });
+        const r = await SC.api('/studio/api/plans', { method: 'POST', body: { title: S.title.trim().slice(0, 80), question: S.q.trim(), sensors: S.sensors.slice(), data: S.data.slice(), team: teamName(), notes: S.note.trim(), ...(needsSchool() ? { school: S.schoolSlug } : {}) } });
         S.created = { plan: r && r.plan ? r.plan : null, q: S.q.trim(), title: S.title.trim(), sensors: S.sensors.slice(), data: S.data.slice(), team: teamName(), school: schoolName(), note: S.note.trim() };
         SC.store.set(KEY, '');
         live.textContent = t('Your project plan was created.', 'Το σχέδιο του έργου σας δημιουργήθηκε.');

@@ -167,7 +167,9 @@
   .cn-qtext { font-size: 23px; }
   .cn-row { flex-direction: column; }
   .cn-row .nm-btn { min-width: 0; }
-  .cn-steps { margin-left: 0; }
+  .cn-steps { margin-left: 0; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+  .cn-steps li + li::before { content: none; }
+  .cn-steps li { white-space: normal; }
   .cn-seats { grid-template-columns: minmax(0, 1fr); }
   .cn-verdict { padding: 18px 16px; }
   .cn-lean { font-size: 25px; }
@@ -177,3 +179,12 @@
 
 .cn-use { margin-left: auto; display: inline-flex; }
 .cn-use:empty { display: none; }
+
+/* real-server additions: what a seat is missing, the Chair's lean chip and next step, gaps in the data */
+.cn-miss { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: var(--nm-text-2, #AFC0D6); }
+.cn-miss b { color: var(--nm-text, #E8EEF7); font-weight: 600; }
+.cn-leanchip { align-self: flex-start; margin: 2px 0 8px; }
+.cn-next { margin: 10px 0 0; font-size: 14px; line-height: 1.5; color: var(--nm-text, #E8EEF7); }
+.cn-next b { color: var(--nm-copper-2, #F2B24C); font-weight: 600; }
+.cn-gaps { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, .08); }
+.cn-sess .top .nm-badge { white-space: nowrap; }

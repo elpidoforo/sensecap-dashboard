@@ -490,11 +490,11 @@
       function drawOverview(pane, x) {
         const { t, s, d } = x;
         const pl = planOf(t, s);
-        pane.append(el('div', { class: 'nm-callout sx-q' }, el('span', { class: 'sx-eb2' }, T('Our question', 'Η ερώτησή μας')),
-          pl ? el('b', { class: 'sx-q-t' }, pl.question)
-            : el('span', { class: 'sx-q-t none' }, T('This team has not shared a question yet. Teams share one as a plan in the Build studio; a teacher approves it first.',
+        pane.append(el('div', { class: 'nm-callout sx-quest' }, el('span', { class: 'sx-eb2' }, T('Our question', 'Η ερώτησή μας')),
+          pl ? el('b', { class: 'sx-quest-t' }, pl.question)
+            : el('span', { class: 'sx-quest-t none' }, T('This team has not shared a question yet. Teams share one as a plan in the Build studio; a teacher approves it first.',
               'Αυτή η ομάδα δεν έχει μοιραστεί ακόμα ερώτηση. Οι ομάδες τη μοιράζονται ως σχέδιο στο Στούντιο και πρώτα την εγκρίνει ένας εκπαιδευτικός.')),
-          pl ? null : el('a', { class: 'pill-link sx-q-l', href: '#/projects' }, T('See running projects', 'Δείτε τα ενεργά έργα'))));
+          pl ? null : el('a', { class: 'pill-link sx-quest-l', href: '#/projects' }, T('See running projects', 'Δείτε τα ενεργά έργα'))));
         if (!d || D.devErr) return noSensor(pane, x);
         const st = status(d);
         const rs = reads(d, 4);

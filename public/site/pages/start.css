@@ -158,3 +158,8 @@
   .st-navhint { order: -1; flex: 1 1 100%; }
   .st-actions .nm-btn { flex: 1 1 100%; }
 }
+
+/* school picker for an account that has no school of its own */
+.st-sel { min-height: 48px; padding: 8px 40px 8px 16px; border-radius: 14px; appearance: none; background-image: linear-gradient(45deg, transparent 50%, #9fb2ca 50%), linear-gradient(135deg, #9fb2ca 50%, transparent 50%); background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%; background-size: 6px 6px, 6px 6px; background-repeat: no-repeat; cursor: pointer; max-width: 360px; width: 100%; }
+.st-panel .nm-pillbar { flex-wrap: wrap; max-width: 100%; }
+@media (max-width: 700px) { .st-panel .nm-pillbar { border-radius: 22px; } .st-panel .nm-pillbar > button { padding: 7px 12px; font-size: 13.5px; } }

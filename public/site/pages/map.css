@@ -10,3 +10,8 @@
 @keyframes mp-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .mp-spin { animation-duration: 3s; } }
 @media (max-width: 640px) { .mp-frame iframe { height: calc(100vh - 170px); min-height: 600px; } }
+/* freshness pill states (the pill is built by SC.head; the page sets the state from the newest sensor reading) */
+.fresh-pill.stale { border-color: var(--nm-warn-line); background: var(--nm-warn-bg); color: var(--nm-warn); }
+.fresh-pill.stale i { background: #F2B24C; }
+.fresh-pill.none { border-color: var(--nm-bad-line); background: var(--nm-bad-bg); color: var(--nm-bad); }
+.fresh-pill.none i { background: #FF7A6A; }

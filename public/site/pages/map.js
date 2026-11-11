@@ -20,20 +20,31 @@
       if (cfg && cfg.demo) tags.push({ cls: 'demo', text: T('Demo data', 'Δοκιμαστικά δεδομένα') });
       const delayed = cfg && cfg.exactPositions === false;
       const hrs = cfg && cfg.posDelayMin ? Math.max(1, Math.round(cfg.posDelayMin / 60)) : 2;
-      const lede = T('Schools, vehicles and Met Office stations on one island. Switch layers on the left, press Time-lapse to replay the day.',
-        'Σχολεία, οχήματα και σταθμοί της Μετεωρολογικής Υπηρεσίας σε ένα νησί. Αλλάξτε στρώματα αριστερά, πατήστε Χρονική επανάληψη για να δείτε ξανά την ημέρα.');
-      root.append(SC.head({
+      const lede = T('Schools, vehicles and Met Office stations on one island. Switch layers on the left, press play to replay the day.',
+        'Σχολεία, οχήματα και σταθμοί της Μετεωρολογικής Υπηρεσίας σε ένα νησί. Αλλάξτε στρώματα αριστερά, πατήστε αναπαραγωγή για να δείτε ξανά την ημέρα.');
+      const head = SC.head({
         title: T('Live map', 'Ζωντανός χάρτης'),
         lede,
-        fresh: T('Live · updates every 30 s', 'Ζωντανά · ανανέωση κάθε 30 δ.'),
+        fresh: T('Checking…', 'Έλεγχος…'),
         tags,
         help: [
-          'The map shows our schools, the buses and cars that carry a sensor, and the Cyprus Met Office stations. Layers on the left switch things on and off: wind, temperature, rain, air quality and NASA satellite images. Press a vehicle or a station to see its readings and a 24 hour chart. Time-lapse replays the last hours. '
+          'The map shows our schools, the buses and cars that carry a sensor, and the Cyprus Met Office stations. Layers on the left switch things on and off: wind, temperature, rain, air quality and NASA satellite images. Press a vehicle or a station to see its readings and a 24 hour chart. The Replay bar at the bottom shows the last hours again: press play. '
             + (delayed ? 'Vehicle positions are shown about ' + hrs + ' hours late and rounded to 1 km, so nobody can follow a vehicle live. Teachers see exact positions after signing in.' : ''),
-          'Ο χάρτης δείχνει τα σχολεία μας, τα λεωφορεία και τα αυτοκίνητα που φέρουν αισθητήρα και τους σταθμούς της Μετεωρολογικής Υπηρεσίας Κύπρου. Τα στρώματα αριστερά ανάβουν και σβήνουν στοιχεία: άνεμο, θερμοκρασία, βροχή, ποιότητα αέρα και δορυφορικές εικόνες της NASA. Πατήστε ένα όχημα ή έναν σταθμό για τις μετρήσεις του και ένα γράφημα 24 ωρών. Η χρονική επανάληψη δείχνει ξανά τις τελευταίες ώρες. '
+          'Ο χάρτης δείχνει τα σχολεία μας, τα λεωφορεία και τα αυτοκίνητα που φέρουν αισθητήρα και τους σταθμούς της Μετεωρολογικής Υπηρεσίας Κύπρου. Τα στρώματα αριστερά ανάβουν και σβήνουν στοιχεία: άνεμο, θερμοκρασία, βροχή, ποιότητα αέρα και δορυφορικές εικόνες της NASA. Πατήστε ένα όχημα ή έναν σταθμό για τις μετρήσεις του και ένα γράφημα 24 ωρών. Η γραμμή επανάληψης κάτω δείχνει ξανά τις τελευταίες ώρες: πατήστε αναπαραγωγή. '
             + (delayed ? 'Οι θέσεις των οχημάτων εμφανίζονται με καθυστέρηση περίπου ' + hrs + ' ωρών και στρογγυλοποιημένες στο 1 χλμ., ώστε κανείς να μην μπορεί να ακολουθήσει ένα όχημα ζωντανά. Οι εκπαιδευτικοί βλέπουν τις ακριβείς θέσεις μετά τη σύνδεση.' : ''),
         ],
-      }));
+      });
+      root.append(head);
+      // the freshness pill says how old the newest sensor reading is (the map itself refreshes every 30 s)
+      const pill = head.querySelector('.fresh-pill');
+      const setPill = (cls, text) => { if (!pill) return; pill.className = 'fresh-pill' + (cls ? ' ' + cls : ''); pill.lastChild.textContent = text; };
+      SC.api('/api/devices').then((devs) => {
+        const seen = (Array.isArray(devs) ? devs : []).map((d) => Date.parse(d.lastSeen)).filter((t) => isFinite(t));
+        const last = seen.length ? Math.max(...seen) : 0;
+        if (!last) setPill('none', T('No readings yet', 'Καμία μέτρηση ακόμα'));
+        else if (Date.now() - last > 3600000) setPill('stale', T('Last reading ' + SC.ago(last), 'Τελευταία μέτρηση ' + SC.ago(last)));
+        else setPill('', T('Live · ' + SC.ago(last), 'Ζωντανά · ' + SC.ago(last)));
+      }).catch(() => setPill('none', T('Sensors unavailable', 'Οι αισθητήρες δεν είναι διαθέσιμοι')));
 
       // the iframe address: embed mode, language, and the route query (eui, station, ...)
       const params = new URLSearchParams();

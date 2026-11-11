@@ -93,11 +93,11 @@
       svg.append(sv('path', { d: ISLAND.districts[id], fill, stroke: d ? '#5E7C9B' : '#B7C6D6', 'stroke-width': d ? 0.5 : 0.3, 'stroke-linejoin': 'round' }));
     });
     const cells = o.cells || [], maxN = cells.reduce((m, c) => Math.max(m, c.n), 1);
-    const g = 0.01, w = g * ISLAND.k * ISLAND.sx * 2.2, h = g * ISLAND.sx * 2.2;
-    cells.forEach((c) => { const p = ISLAND.project(c.ln, c.la); svg.append(sv('rect', { x: (p[0] - w / 2).toFixed(1), y: (p[1] - h / 2).toFixed(1), width: w.toFixed(1), height: h.toFixed(1), fill: c.d ? c.d.col : '#1B4A78', opacity: (0.3 + 0.7 * c.n / maxN).toFixed(2) })); });
+    const g = 0.01, w = g * ISLAND.k * ISLAND.sx * 3, h = g * ISLAND.sx * 3;
+    cells.forEach((c) => { const p = ISLAND.project(c.ln, c.la); svg.append(sv('rect', { x: (p[0] - w / 2).toFixed(1), y: (p[1] - h / 2).toFixed(1), width: w.toFixed(1), height: h.toFixed(1), fill: c.d ? c.d.col : '#1B4A78', opacity: (0.45 + 0.55 * c.n / maxN).toFixed(2) })); });
     (o.dots || []).forEach((s) => {
       const p = ISLAND.project(s.lng, s.lat);
-      svg.append(sv('circle', { cx: p[0].toFixed(1), cy: p[1].toFixed(1), r: 11, fill: s.d ? s.d.col : '#1B4A78', stroke: '#fff', 'stroke-width': 4 }), sv('text', { x: (p[0] + 17).toFixed(1), y: (p[1] + 6).toFixed(1), class: 'rp-isl-t' }, s.d ? T(s.d.d[0], s.d.d[1]) : ''));
+      svg.append(sv('circle', { cx: p[0].toFixed(1), cy: p[1].toFixed(1), r: 7, fill: s.d ? s.d.col : '#1B4A78', stroke: '#fff', 'stroke-width': 3 }), sv('text', { x: (p[0] + 14).toFixed(1), y: (p[1] + 6).toFixed(1), class: 'rp-isl-t' }, s.d ? T(s.d.d[0], s.d.d[1]) : ''));
     });
     return svg;
   }
@@ -386,7 +386,7 @@
             el('p', { class: 'rp-summary' }, T('Sensors on school buses and cars help students in Larnaka, Lefkosia, Lemesos and Pafos understand heat and air in their own cities. The table shows the newest readings; the picture shows where the vehicles drove in the last 24 hours.', 'Αισθητήρες σε σχολικά λεωφορεία και αυτοκίνητα βοηθούν τους μαθητές σε Λάρνακα, Λευκωσία, Λεμεσό και Πάφο να καταλάβουν τη θερμότητα και τον αέρα της πόλης τους. Ο πίνακας δείχνει τις νεότερες μετρήσεις· η εικόνα δείχνει πού κινήθηκαν τα οχήματα τις τελευταίες 24 ώρες.'))),
           el('section', { class: 'rp-sec rp-keep' }, el('h3', null, T('The island', 'Το νησί')),
             el('figure', { class: 'rp-fig' }, islandPicture({ cells, dots: rows.filter((r) => fin(r.lat) && fin(r.lng)), label: T('Map of Cyprus with the four school districts and ' + cells.length + ' route squares', 'Χάρτης της Κύπρου με τις τέσσερις σχολικές επαρχίες και ' + cells.length + ' τετράγωνα διαδρομής') }),
-              el('figcaption', null, cells.length ? T('Dots are schools. Squares are grouped, delayed routes (about ' + (ov.cellKm || 1) + ' km wide, at least ' + hours + ' hours old), drawn about twice their true width so that they can be seen.', 'Οι κουκκίδες είναι σχολεία. Τα τετράγωνα είναι ομαδοποιημένες διαδρομές με καθυστέρηση (πλάτους περίπου ' + (ov.cellKm || 1) + ' χλμ, παλαιότερες των ' + hours + ' ωρών), σχεδιασμένα περίπου διπλάσια σε πλάτος ώστε να φαίνονται.') : T('Dots are schools. No route square yet: squares appear for trips that are more than ' + hours + ' hours old.', 'Οι κουκκίδες είναι σχολεία. Δεν υπάρχει ακόμα τετράγωνο διαδρομής: τα τετράγωνα εμφανίζονται για διαδρομές παλαιότερες των ' + hours + ' ωρών.')))),
+              el('figcaption', null, cells.length ? T('Dots are schools. Squares are grouped, delayed routes (about ' + (ov.cellKm || 1) + ' km wide, at least ' + hours + ' hours old), drawn about three times their true width so that they can be seen.', 'Οι κουκκίδες είναι σχολεία. Τα τετράγωνα είναι ομαδοποιημένες διαδρομές με καθυστέρηση (πλάτους περίπου ' + (ov.cellKm || 1) + ' χλμ, παλαιότερες των ' + hours + ' ωρών), σχεδιασμένα περίπου τριπλάσια σε πλάτος ώστε να φαίνονται.') : T('Dots are schools. No route square yet: squares appear for trips that are more than ' + hours + ' hours old.', 'Οι κουκκίδες είναι σχολεία. Δεν υπάρχει ακόμα τετράγωνο διαδρομής: τα τετράγωνα εμφανίζονται για διαδρομές παλαιότερες των ' + hours + ' ωρών.')))),
           el('section', { class: 'rp-sec' }, el('h3', null, T('Latest averages per school', 'Τελευταίοι μέσοι όροι ανά σχολείο')), noReadings ? el('p', { class: 'rp-none' }, T('No school sensor has a reading right now.', 'Κανένας αισθητήρας σχολείου δεν έχει μέτρηση αυτή τη στιγμή.')) : table,
             el('p', { class: 'rp-small' }, T('Differences between schools are the start of a question, not an answer: vehicle sensors read the air around the vehicle.', 'Οι διαφορές μεταξύ σχολείων είναι η αρχή μιας ερώτησης, όχι απάντηση: οι αισθητήρες των οχημάτων μετρούν τον αέρα γύρω από το όχημα.'))),
         ];

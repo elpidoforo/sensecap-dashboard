@@ -161,11 +161,12 @@
       const L = { pub: { st: 'loading', items: [] }, review: { st: 'idle', items: [] }, mine: { st: 'idle', items: [] } };
       let M = null;   // the session on screen: { id, question, at, status, seats:{id:seat}, chair, done, live, fresh:Set }
       let alive = true;
-      const teacher = () => Boolean(SC.me && (SC.me.role === 'teacher' || SC.me.role === 'admin'));
+      const teacher = () => Boolean((S.status && S.status.staff === true) || (SC.me && (SC.me.role === 'teacher' || SC.me.role === 'admin')));
       const seatsMeta = () => (S.status && Array.isArray(S.status.seats) && S.status.seats.length ? S.status.seats : FALLBACK_SEATS);
       const off = () => S.status && S.status.enabled === false;
       const left = () => (S.status && S.status.remaining != null ? Number(S.status.remaining) : null);
-      const blocked = () => off() || left() === 0;
+      const paused = () => Boolean(S.status && S.status.enabled !== false && S.status.available === false);
+      const blocked = () => off() || left() === 0 || paused();
 
       const headHolder = el('div');
       const note = el('p', { class: 'nm-callout nm-callout--info cn-bar' }, el('b', null, T('The seats are AI role-plays written from our data.', 'Τα μέλη του συμβουλίου είναι παιχνίδια ρόλων ΤΝ γραμμένα από τα δεδομένα μας.')), ' ',
@@ -185,7 +186,7 @@
           lede: T('Six seats argue one school question from our data. A Chair writes a verdict. A teacher decides.', 'Έξι μέλη συζητούν μια ερώτηση του σχολείου με βάση τα δεδομένα μας. Ένας πρόεδρος γράφει την κρίση. Ένας εκπαιδευτικός αποφασίζει.'),
           help: ['Type a decision a school or a city could face, or pick an example. Six AI seats (environment, health, transport, economy, planning and youth) each read our public data and argue it from their own point of view. You see them arrive one by one, with the readings each one used. Then the Chair scores the options, names the risks and says what data is missing. All of it is AI role-play, not advice. A teacher reads each session and publishes or rejects it; only published sessions are shown to everyone below. The number of questions you can ask each day is limited.',
             'Γράψτε μια απόφαση που θα μπορούσε να αντιμετωπίσει ένα σχολείο ή μια πόλη ή διαλέξτε ένα παράδειγμα. Έξι μέλη ΤΝ (περιβάλλον, υγεία, μεταφορές, οικονομία, πολεοδομία και νέοι) διαβάζουν τα δημόσια δεδομένα μας και επιχειρηματολογούν το καθένα από τη δική του σκοπιά. Τα βλέπετε να εμφανίζονται ένα ένα, με τις μετρήσεις που χρησιμοποίησε το καθένα. Μετά ο πρόεδρος βαθμολογεί τις επιλογές, αναφέρει τους κινδύνους και λέει ποια δεδομένα λείπουν. Όλα είναι παιχνίδι ρόλων ΤΝ, όχι συμβουλή. Ένας εκπαιδευτικός διαβάζει κάθε συνεδρία και τη δημοσιεύει ή την απορρίπτει· μόνο οι δημοσιευμένες φαίνονται σε όλους παρακάτω. Ο αριθμός των ερωτήσεων που μπορείτε να κάνετε κάθε μέρα είναι περιορισμένος.'],
-          tags: [{ text: T('AI role-play', 'Παιχνίδι ρόλων ΤΝ'), cls: 'ai' }].concat(S.cfg && S.cfg.demo ? [{ text: T('Demo data', 'Δεδομένα επίδειξης'), cls: 'demo' }] : []),
+          tags: [{ text: T('AI role-play', 'Παιχνίδι ρόλων ΤΝ'), cls: 'ai' }].concat((S.cfg && S.cfg.demo) || (S.status && S.status.demo) ? [{ text: T('Demo data', 'Δεδομένα επίδειξης'), cls: 'demo' }] : []),
         }));
       }
       head();
@@ -222,9 +223,10 @@
           kids.push(el('div', { class: 'err', role: 'alert' }, T('The council room could not be reached. ', 'Η αίθουσα συμβουλίου δεν είναι προσβάσιμη. ') + (S.statusErr.message || '')),
             el('div', null, el('button', { type: 'button', class: 'nm-btn', onclick: () => start() }, T('Try again', 'Δοκιμάστε ξανά'))));
         }
-        if (S.status && off()) kids.push(el('div', { class: 'nm-callout nm-callout--info cn-callout' }, el('b', null, T('The council is switched off for now.', 'Το συμβούλιο είναι προσωρινά απενεργοποιημένο.')), ' ', T('You can still read the sessions a teacher has published below. Please try again later, or ask a teacher.', 'Μπορείτε ακόμα να διαβάσετε παρακάτω τις συνεδρίες που έχει δημοσιεύσει ένας εκπαιδευτικός. Δοκιμάστε ξανά αργότερα ή ρωτήστε έναν εκπαιδευτικό.')));
-        else if (S.status && left() === 0) kids.push(el('div', { class: 'nm-callout nm-callout--info cn-callout', role: 'status' }, S.note && S.note.kind === 'limit' ? S.note.text : limitText('daily', { limit: S.status.limit, retry_at: S.status.retry_at })));
-        else if (S.note) kids.push(el('div', { class: 'nm-callout ' + (S.note.kind === 'stopped' || S.note.kind === 'limit' ? 'nm-callout--info' : 'nm-callout--warn') + ' cn-callout', role: 'status' }, S.note.text));
+        if (S.status && off()) kids.push(el('div', { class: 'nm-callout nm-callout--info cn-callout' }, el('b', null, T('The council is resting for now.', 'Το συμβούλιο ξεκουράζεται προς το παρόν.')), ' ',
+          S.status.message && S.status.message_el ? T(S.status.message, S.status.message_el) : T('The AI assistant is not switched on yet. You can still read the sessions a teacher has published below. Please try again later, or ask a teacher.', 'Ο βοηθός ΤΝ δεν έχει ενεργοποιηθεί ακόμη. Μπορείτε ακόμα να διαβάσετε παρακάτω τις συνεδρίες που έχει δημοσιεύσει ένας εκπαιδευτικός. Δοκιμάστε ξανά αργότερα ή ρωτήστε έναν εκπαιδευτικό.')));
+        else if (S.status && (left() === 0 || paused())) kids.push(el('div', { class: 'nm-callout nm-callout--info cn-callout', role: 'status' }, S.note && S.note.kind === 'limit' ? S.note.text : limitText(left() === 0 ? 'daily' : 'pause', { limit: S.status.limit, retry_at: S.status.retry_at })));
+        else if (S.note) kids.push(el('div', { class: 'nm-callout ' + (S.note.kind === 'stopped' || S.note.kind === 'limit' || S.note.kind === 'busy' ? 'nm-callout--info' : 'nm-callout--warn') + ' cn-callout', role: 'status' }, S.note.text));
         if (showForm) {
           ta = el('textarea', { class: 'nm-input', rows: 2, maxlength: 400, id: 'cn-qh', placeholder: off() ? T('The council is switched off for now', 'Το συμβούλιο είναι προσωρινά απενεργοποιημένο') : T('Ask the council a decision, for example: Should the school buses switch to electric?', 'Ρωτήστε το συμβούλιο για μια απόφαση, για παράδειγμα: Να γίνουν ηλεκτρικά τα σχολικά λεωφορεία;'), 'aria-label': T('Your question for the council', 'Η ερώτησή σας προς το συμβούλιο') });
           ta.value = S.text || '';
@@ -250,13 +252,13 @@
       }
       function dataTiles() {
         const seen = new Map();
-        if (M) Object.keys(M.seats).forEach((k) => M.seats[k].dataUsed.forEach((d) => { const key = dataText(d); if (key && !seen.has(key)) seen.set(key, d); }));
+        if (M) Object.keys(M.seats).forEach((k) => seatData(M.seats[k], M.readings).forEach((d) => { const key = dataText(d); if (key && !seen.has(key)) seen.set(key, d); }));
         if (!seen.size) return null;
         return el('div', { class: 'cn-given' }, el('div', { class: 'cn-lab' }, T('Data the seats read', 'Δεδομένα που διάβασαν τα μέλη')),
           el('div', { class: 'cn-tiles' }, [...seen.values()].slice(0, 12).map((d) => el('div', { class: 'cn-tile' },
             d.value != null ? el('span', { class: 'l' }, d.label || '') : null,
             d.value != null ? el('span', { class: 'v' }, String(d.value), d.unit ? el('small', null, d.unit) : null) : el('span', { class: 'l txt' }, d.label),
-            d.source || d.value != null ? el('span', { class: 's' }, el('i'), d.source || T('From our public data', 'Από τα δημόσια δεδομένα μας')) : null))));
+            d.source || d.value != null ? el('span', { class: 's' }, el('i'), (d.source || T('From our public data', 'Από τα δημόσια δεδομένα μας')) + (d.at ? ', ' + d.at : '')) : null))));
       }
 
       /* ---------- the seats and the Chair ---------- */
@@ -272,6 +274,7 @@
             : el('p', { class: 'cn-idle' }, M && M.done ? T('This seat gave no answer.', 'Αυτό το μέλος δεν έδωσε απάντηση.') : T('Waiting for a question. This seat looks at: ', 'Περιμένει μια ερώτηση. Αυτό το μέλος εξετάζει: ') + T(meta.focus[0], meta.focus[1]).toLowerCase() + '.'));
           return card;
         }
+        if (s.failed) { card.classList.add('wait'); card.append(head2(null), el('p', { class: 'cn-idle' }, T('This seat could not answer this time. The other seats and the Chair carry on without it.', 'Αυτό το μέλος δεν μπόρεσε να απαντήσει αυτή τη φορά. Τα υπόλοιπα μέλη και ο πρόεδρος συνεχίζουν χωρίς αυτό.'))); return card; }
         const st = STANCE[s.stance];
         card.append(head2(el('span', { class: 'nm-badge nm-badge--' + st.cls }, ic(st.ic, 13), T(st.en, st.el))));
         if (s.score != null) {
@@ -279,7 +282,9 @@
           card.append(el('div', { class: 'cn-sc' }, el('b', null, String(s.score)), el('em', null, '/10'), el('span', { class: 'pips', 'aria-hidden': 'true' }, Array.from({ length: 10 }, (_, i) => el('i', { class: i < n ? 'on' : '' })))));
         }
         card.append(renderText(s.text));
-        card.append(el('footer', null, ic('sensor'), s.dataUsed.length ? el('span', null, el('b', null, T('Used: ', 'Χρησιμοποίησε: ')), s.dataUsed.map(dataText).join(' · ')) : el('span', null, T('Used no readings. It argued from general knowledge, so weigh it less.', 'Δεν χρησιμοποίησε μετρήσεις. Επιχειρηματολόγησε από γενικές γνώσεις, γι’ αυτό δώστε του λιγότερο βάρος.'))));
+        if (s.missing) card.append(el('p', { class: 'cn-miss' }, el('b', null, T('Would like to know: ', 'Θα ήθελε να ξέρει: ')), scrub(s.missing)));
+        const used = seatData(s, M && M.readings);
+        card.append(el('footer', null, ic('sensor'), used.length ? el('span', null, el('b', null, T('Used: ', 'Χρησιμοποίησε: ')), used.map(dataText).join(' · ')) : el('span', null, T('Used no readings. It argued from general knowledge, so weigh it less.', 'Δεν χρησιμοποίησε μετρήσεις. Επιχειρηματολόγησε από γενικές γνώσεις, γι’ αυτό δώστε του λιγότερο βάρος.'))));
         return card;
       }
       function decide(kind) {
@@ -304,16 +309,18 @@
         const card = el('section', { class: 'nm-card nm-card--glow cn-verdict' + (c ? '' : ' wait'), 'aria-label': T('Chair verdict', 'Κρίση του προέδρου') }, hd);
         if (!c) {
           card.append(M && !M.done && S.busy ? el('div', { class: 'cn-typing', role: 'status' }, el('i'), el('i'), el('i'), el('span', null, T('The Chair is waiting for the seats…', 'Ο πρόεδρος περιμένει τα μέλη…')))
-            : el('p', { class: 'cn-idle' }, M && M.done ? T('The Chair did not give a verdict for this question. Try asking again.', 'Ο πρόεδρος δεν έδωσε κρίση για αυτή την ερώτηση. Δοκιμάστε να ρωτήσετε ξανά.') : T('After the six seats have spoken, the Chair scores the options, names the risks and says what data is missing.', 'Αφού μιλήσουν τα έξι μέλη, ο πρόεδρος βαθμολογεί τις επιλογές, αναφέρει τους κινδύνους και λέει ποια δεδομένα λείπουν.')),
+            : el('p', { class: 'cn-idle' }, M && M.done ? T('The Chair could not give a verdict this time. The seats above still show how each one sees it. Try asking again later.', 'Ο πρόεδρος δεν μπόρεσε να δώσει κρίση αυτή τη φορά. Τα μέλη παραπάνω δείχνουν πώς το βλέπει το καθένα. Δοκιμάστε ξανά αργότερα.') : T('After the six seats have spoken, the Chair scores the options, names the risks and says what data is missing.', 'Αφού μιλήσουν τα έξι μέλη, ο πρόεδρος βαθμολογεί τις επιλογές, αναφέρει τους κινδύνους και λέει ποια δεδομένα λείπουν.')),
             el('span', { class: 'nm-badge cn-ai' }, ic('alert', 14), T('AI role-play, not advice', 'Παιχνίδι ρόλων ΤΝ, όχι συμβουλή')));
           return card;
         }
         const stt = M.status === 'published' ? ['ok', 'check', T('Published by a teacher', 'Δημοσιεύτηκε από εκπαιδευτικό')] : M.status === 'rejected' ? ['bad', 'x', T('Not published', 'Δεν δημοσιεύτηκε')] : ['warn', 'clock', T('Waiting for teacher approval', 'Αναμονή έγκρισης εκπαιδευτικού')];
         card.append(el('span', { class: 'nm-badge nm-badge--' + stt[0] + ' cn-state' }, ic(stt[1], 14), stt[2]));
+        if (c.lean) { const ln = LEAN[c.lean]; card.append(el('span', { class: 'nm-badge nm-badge--' + ln[0] + ' cn-leanchip' }, T('The Chair ' + (c.lean === 'unclear' ? 'finds it ' : 'says: ') + ln[1].toLowerCase(), 'Ο πρόεδρος: ' + ln[2].toLowerCase()))); }
         if (c.verdict) {
           const m = /^(.+?[.!?…])(\s+[\s\S]*)?$/.exec(c.verdict.trim());
           card.append(el('p', { class: 'cn-lean' }, m ? m[1] : c.verdict), m && m[2] && m[2].trim() ? renderText(m[2].trim(), 'cn-act') : null);
         }
+        if (c.action) card.append(el('p', { class: 'cn-next' }, el('b', null, T('Next step: ', 'Επόμενο βήμα: ')), scrub(c.action)));
         if (c.scores.length) {
           const mx = Math.max(...c.scores.map((o) => o.score)), scale = mx <= 10 ? 10 : 100, top = c.scores.reduce((a, b) => (b.score > a.score ? b : a));
           card.append(el('div', { class: 'cn-opts' }, el('div', { class: 'cn-lab' }, T('Options, scored by the Chair', 'Επιλογές, βαθμολογημένες από τον πρόεδρο')),
@@ -331,9 +338,9 @@
               tot < seatsMeta().length ? el('span', { class: 'm' }, T('of ' + tot + ' seats heard', 'από ' + tot + ' μέλη που ακούστηκαν')) : null)));
         }
         const decideRow = el('div', { class: 'cn-decide' });
-        const canDecide = teacher() && M.id && M.status === 'pending';
-        if (teacher() && M.id) decideRow.append(el('button', { type: 'button', class: 'nm-btn nm-btn--primary', disabled: canDecide ? null : true, onclick: () => decide('publish') }, ic('check', 18), T('Publish', 'Δημοσίευση')),
-          el('button', { type: 'button', class: 'nm-btn', disabled: canDecide ? null : true, onclick: () => decide('reject') }, T('Reject', 'Απόρριψη')));
+        const mayDecide = teacher() && M.id && M.canReview !== false;
+        if (mayDecide) decideRow.append(el('button', { type: 'button', class: 'nm-btn nm-btn--primary', disabled: M.status === 'published' ? true : null, onclick: () => decide('publish') }, ic('check', 18), T('Publish', 'Δημοσίευση')),
+          el('button', { type: 'button', class: 'nm-btn', disabled: M.status === 'rejected' ? true : null, onclick: () => decide('reject') }, M.status === 'published' ? T('Withdraw', 'Απόσυρση') : T('Reject', 'Απόρριψη')));
         else decideRow.append(el('button', { type: 'button', class: 'nm-btn nm-btn--primary', disabled: true }, ic('check', 18), T('Publish', 'Δημοσίευση')), el('button', { type: 'button', class: 'nm-btn', disabled: true }, T('Reject', 'Απόρριψη')),
           el('span', { class: 'note' }, ic('lock', 14), T('Teachers only', 'Μόνο εκπαιδευτικοί')));
         card.append(decideRow, el('p', { class: 'cn-fine' }, M.status === 'pending' ? T('A teacher reads each session. Only published sessions are shown to everyone.', 'Ένας εκπαιδευτικός διαβάζει κάθε συνεδρία. Μόνο οι δημοσιευμένες εμφανίζονται σε όλους.') : M.note ? T('Teacher note: ', 'Σημείωση εκπαιδευτικού: ') + M.note : ''),
@@ -354,10 +361,11 @@
         fill(resBox, el('div', { class: 'cn-cgrid' }, el('section', { 'aria-label': T('The six seats', 'Τα έξι μέλη') },
           el('div', { class: 'cn-sec-h' }, el('span', { class: 'cn-lab info' }, T('Six seats', 'Έξι μέλη')), el('span', { class: 'm' }, M && Object.values(M.seats).some((s) => s.score != null) ? T('Score 1 to 10. A 10 means strongly for the change.', 'Βαθμολογία 1 έως 10. Το 10 σημαίνει έντονα υπέρ της αλλαγής.') : T('Each seat argues from its own point of view and shows the readings it used.', 'Κάθε μέλος επιχειρηματολογεί από τη δική του σκοπιά και δείχνει τις μετρήσεις που χρησιμοποίησε.'))), grid),
           el('aside', { class: 'cn-chair', 'aria-label': T('Chair verdict', 'Κρίση του προέδρου') }, chair, risksCard())));
-        const c = M && M.chair;
-        fill(needBox, c && c.needs.length ? el('section', { class: 'nm-card cn-lcard cn-mcard', 'aria-label': T('What data is missing', 'Ποια δεδομένα λείπουν') },
+        const c = M && M.chair, gaps = M && M.gaps ? M.gaps : [], needs = c ? c.needs : [];
+        fill(needBox, needs.length || gaps.length ? el('section', { class: 'nm-card cn-lcard cn-mcard', 'aria-label': T('What data is missing', 'Ποια δεδομένα λείπουν') },
           el('div', { class: 'hd' }, el('span', { class: 'cn-ic info' }, ic('sensor')), el('h3', null, T('What data is missing', 'Ποια δεδομένα λείπουν')), el('span', { class: 'm' }, T('What we would need to measure to be surer', 'Τι θα χρειαζόταν να μετρήσουμε για να είμαστε πιο σίγουροι'))),
-          el('ol', { class: 'cn-mgrid' }, c.needs.map((n, i) => el('li', null, el('i', null, String(i + 1)), el('span', null, scrub(n)))))) : null);
+          needs.length ? el('ol', { class: 'cn-mgrid' }, needs.map((n, i) => el('li', null, el('i', null, String(i + 1)), el('span', null, scrub(n))))) : null,
+          gaps.length ? el('div', { class: 'cn-gaps' }, el('div', { class: 'cn-lab' }, T('Not available in our data when this ran', 'Δεν ήταν διαθέσιμα στα δεδομένα μας όταν έτρεξε')), el('ul', { class: 'cn-lst' }, gaps.map((g) => el('li', null, scrub(g))))) : null) : null);
       }
 
       /* ---------- lists: published, review queue, mine ---------- */
@@ -365,7 +373,7 @@
         const m = normSession(raw), cn = counts(m), tot = cn.support + cn.mixed + cn.oppose;
         const top = m.chair && m.chair.scores.length ? m.chair.scores.reduce((a, b) => (b.score > a.score ? b : a)) : null;
         const snippet = m.chair && m.chair.verdict ? m.chair.verdict.split(/(?<=[.!?…])\s/)[0] : '';
-        const canOpen = Object.keys(m.seats).length > 0 || m.chair;
+        const canOpen = Object.keys(m.seats).length > 0 || m.chair || m.id;
         const acts = [canOpen ? el('button', { type: 'button', class: 'nm-btn', onclick: () => openSession(m) }, T('Read the session', 'Διαβάστε τη συνεδρία')) : null];
         if (kind === 'review' && m.id) {
           acts.push(el('button', { type: 'button', class: 'nm-btn nm-btn--primary', onclick: () => quick(m, 'publish') }, ic('check', 16), T('Publish', 'Δημοσίευση')), el('button', { type: 'button', class: 'nm-btn', onclick: () => quick(m, 'reject') }, T('Reject', 'Απόρριψη')));
@@ -374,6 +382,8 @@
           el('div', { class: 'top' }, tot ? el('span', { class: 'cn-mini', role: 'img', 'aria-label': T(cn.support + ' for, ' + cn.mixed + ' mixed, ' + cn.oppose + ' against', cn.support + ' υπέρ, ' + cn.mixed + ' μικτή στάση, ' + cn.oppose + ' κατά') },
             el('i', { class: 'f' }), cn.support, el('i', { class: 'u' }), cn.mixed, el('i', { class: 'a' }), cn.oppose) : null,
             kind === 'mine' ? el('span', { class: 'nm-badge nm-badge--' + (m.status === 'published' ? 'ok' : m.status === 'rejected' ? 'bad' : 'warn') }, m.status === 'published' ? T('Published', 'Δημοσιεύτηκε') : m.status === 'rejected' ? T('Not published', 'Δεν δημοσιεύτηκε') : T('Waiting for a teacher', 'Αναμονή εκπαιδευτικού')) : null,
+            m.lean ? el('span', { class: 'nm-badge nm-badge--' + LEAN[m.lean][0] }, T(LEAN[m.lean][1], LEAN[m.lean][2])) : null,
+            m.demo ? el('span', { class: 't demo' }, T('Demo data', 'Δεδομένα επίδειξης')) : null,
             el('span', { class: 'when' }, (m.by ? m.by + ', ' : '') + (m.at ? SC.dateTime(m.at) : ''))),
           el('h3', null, m.question || T('(no question text)', '(χωρίς κείμενο ερώτησης)')),
           snippet ? el('p', { class: 'v' }, scrub(snippet)) : null,
@@ -389,9 +399,16 @@
         const noteIn = el('textarea', { class: 'nm-input', maxlength: 300, rows: 3, placeholder: T('Why? (optional)', 'Γιατί; (προαιρετικό)'), 'aria-label': T('Note', 'Σημείωση') });
         SC.modal({ title: T('Reject this session?', 'Απόρριψη αυτής της συνεδρίας;'), body: el('div', null, el('p', null, m.question), noteIn), actions: [{ label: T('Cancel', 'Ακύρωση') }, { label: T('Reject', 'Απόρριψη'), primary: true, run: () => go(noteIn.value) }] });
       }
-      function openSession(m) {
+      async function openSession(m) {
         if (S.busy && S.ctrl) S.ctrl.abort();
-        M = Object.assign({}, m, { fresh: new Set() });
+        let full = m;
+        if (m.id && !m.full) {   // the lists carry a short form: the full session has every seat's words and the readings
+          fill(qBox, el('div', { class: 'loading' }, T('Opening the session', 'Άνοιγμα της συνεδρίας')));
+          try { const r = await SC.api('/council/api/sessions/' + encodeURIComponent(m.id)); if (r && r.session) full = normSession(r.session); }
+          catch (e) { if (alive) { SC.toast(e.status === 404 ? T('This session is no longer available.', 'Αυτή η συνεδρία δεν είναι πια διαθέσιμη.') : T('The session could not be opened. Try again.', 'Η συνεδρία δεν άνοιξε. Δοκιμάστε ξανά.')); paintQuestion(); } return; }
+        }
+        if (!alive) return;
+        M = Object.assign({}, full, { fresh: new Set() });
         S.again = false; S.note = null;
         paintAll();
         qBox.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'start' });
@@ -425,7 +442,7 @@
         if (text.length < 8 || S.busy || blocked()) return;
         S.busy = true; S.note = null; S.again = false; S.text = '';
         S.ctrl = new AbortController();
-        const mine = { id: null, question: text, at: Date.now(), status: 'pending', seats: {}, chair: null, done: false, live: true, by: null, fresh: new Set() };
+        const mine = { id: null, question: text, at: Date.now(), status: 'pending', seats: {}, chair: null, chairFailed: false, readings: null, gaps: [], done: false, live: true, by: null, fresh: new Set() };
         M = mine;
         paintAll();
         resBox.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'nearest' });
@@ -434,8 +451,14 @@
           const r = await fetch('/council/api/ask', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ question: text }), signal: S.ctrl.signal });
           if (!r.ok) {
             let b = null; try { b = await r.json(); } catch (e) { /* not JSON */ }
-            if (r.status === 429) { S.status = Object.assign({}, S.status, { remaining: b && b.remaining != null ? b.remaining : 0, limit: b && b.limit != null ? b.limit : S.status && S.status.limit }); failed = { kind: 'limit', text: limitText(b && b.code, b) }; }
+            const code = b && b.code;
+            if (r.status === 429) {
+              const hard = code !== 'busy';   // a busy council is a short wait, not a closed door
+              S.status = Object.assign({}, S.status, { remaining: b && b.remaining != null ? b.remaining : S.status && S.status.remaining, limit: b && b.limit != null ? b.limit : S.status && S.status.limit }, hard && code !== 'daily' ? { available: false, retry_at: b && b.retry_at } : {});
+              failed = { kind: hard ? 'limit' : 'busy', text: limitText(code, b) };
+            }
             else if (r.status === 503) { S.status = Object.assign({}, S.status, { enabled: false }); failed = { kind: 'off', text: T('The council is not switched on right now. Please try again later.', 'Το συμβούλιο δεν είναι ενεργό αυτή τη στιγμή. Δοκιμάστε ξανά αργότερα.') }; }
+            else if (code === 'question') failed = { kind: 'error', text: T('Please type a question about a school or city decision, at least a few words, without phone numbers, e-mail addresses or links.', 'Γράψτε μια ερώτηση για μια απόφαση σχολείου ή πόλης, με λίγες λέξεις τουλάχιστον, χωρίς τηλέφωνα, διευθύνσεις e-mail ή συνδέσμους.') };
             else failed = { kind: 'error', text: (b && b.error) || T('The council could not meet just now. Try again in a moment.', 'Το συμβούλιο δεν μπόρεσε να συνεδριάσει τώρα. Δοκιμάστε ξανά σε λίγο.') };
           } else {
             const reader = r.body.getReader(), dec = new TextDecoder();
@@ -443,10 +466,11 @@
             const handle = (line) => {
               let ev; try { ev = JSON.parse(line); } catch (e) { return; }
               if (!alive || M !== mine) return;
-              if (ev.type === 'seat') { const n = normSeat(ev); if (!n.id) return; mine.seats[n.id] = n; mine.fresh.add(n.id); live.textContent = T('A seat has answered: ', 'Ένα μέλος απάντησε: ') + n.id; paintQuestion(); paintResult(); }
-              else if (ev.type === 'chair') { mine.chair = normChair(ev); mine.fresh.add('chair'); live.textContent = T('The Chair has given a verdict.', 'Ο πρόεδρος έδωσε κρίση.'); paintQuestion(); paintResult(); }
-              else if (ev.type === 'done') { mine.done = true; mine.id = ev.sessionId != null ? String(ev.sessionId) : ev.id != null ? String(ev.id) : null; if (ev.status) mine.status = normStatus(ev.status); if (ev.remaining != null) S.status = Object.assign({}, S.status, { remaining: ev.remaining }); paintQuestion(); paintResult(); }
-              else if (ev.type === 'error') { failed = { kind: 'error', text: ev.message || T('The council could not finish. Try again in a moment.', 'Το συμβούλιο δεν μπόρεσε να ολοκληρώσει. Δοκιμάστε ξανά σε λίγο.') }; if (ev.remaining != null) S.status = Object.assign({}, S.status, { remaining: ev.remaining }); }
+              if (ev.type === 'data') { mine.readings = normReadings(ev.readings); mine.gaps = asList(ev.gaps).map(String).filter(Boolean); mine.demo = ev.demo === true; paintResult(); }
+              else if (ev.type === 'seat') { const n = normSeat(ev); if (!n.id) return; mine.seats[n.id] = n; mine.fresh.add(n.id); live.textContent = T('A seat has answered: ', 'Ένα μέλος απάντησε: ') + n.id; paintQuestion(); paintResult(); }
+              else if (ev.type === 'chair') { const ch = normChair(ev); if (ch.failed) mine.chairFailed = true; else mine.chair = ch; mine.fresh.add('chair'); live.textContent = T('The Chair has given a verdict.', 'Ο πρόεδρος έδωσε κρίση.'); paintQuestion(); paintResult(); }
+              else if (ev.type === 'done') { mine.done = true; mine.id = ev.sessionId != null ? String(ev.sessionId) : ev.id != null ? String(ev.id) : null; if (ev.status) mine.status = normStatus(ev.status); if (ev.remaining != null) S.status = Object.assign({}, S.status, { remaining: ev.remaining, limit: ev.limit != null ? ev.limit : S.status && S.status.limit }); paintQuestion(); paintResult(); }
+              else if (ev.type === 'error') { failed = { kind: 'error', text: ev.code === 'unavailable' ? T('The council could not reach the AI just now. This did not use up one of your questions. Try again in a moment.', 'Το συμβούλιο δεν μπόρεσε να φτάσει στην ΤΝ τώρα. Αυτό δεν μέτρησε ως ερώτησή σας. Δοκιμάστε ξανά σε λίγο.') : T('The council could not finish just now. Try again in a moment.', 'Το συμβούλιο δεν μπόρεσε να ολοκληρώσει τώρα. Δοκιμάστε ξανά σε λίγο.') }; if (ev.remaining != null) S.status = Object.assign({}, S.status, { remaining: ev.remaining }); }
             };
             while (!finished) {
               const { value, done } = await reader.read();
@@ -456,7 +480,7 @@
               while ((i = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1); if (line) handle(line); }
             }
             if (buf.trim()) handle(buf.trim());
-            if (!failed && !mine.chair) failed = { kind: 'error', text: T('The council did not finish. What arrived is shown above. Try asking again.', 'Το συμβούλιο δεν ολοκλήρωσε. Αυτά που έφτασαν φαίνονται παραπάνω. Δοκιμάστε να ρωτήσετε ξανά.') };
+            if (!failed && !mine.chair && !mine.chairFailed) failed = { kind: 'error', text: T('The council did not finish. What arrived is shown above. Try asking again.', 'Το συμβούλιο δεν ολοκλήρωσε. Αυτά που έφτασαν φαίνονται παραπάνω. Δοκιμάστε να ρωτήσετε ξανά.') };
           }
         } catch (e) {
           if (e && e.name === 'AbortError') failed = { kind: 'stopped', text: T('Stopped. Ask again when you are ready.', 'Διακόπηκε. Ρωτήστε ξανά όποτε θέλετε.') };
@@ -466,7 +490,7 @@
         if (!alive) return;
         mine.done = true;
         if (failed) S.note = failed;
-        if (failed && !Object.keys(mine.seats).length && M === mine) { M = null; S.text = text; }
+        if (failed && !Object.values(mine.seats).some((x) => !x.failed) && M === mine) { M = null; S.text = text; }   // nothing usable arrived: give the typed question back
         paintAll();
         loadStatus().then(() => { if (alive) { paintQuestion(); } });
         if (!failed) loadLists();

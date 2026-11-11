@@ -2,9 +2,11 @@
   Small line chart for Met Office station history, shared by the map popup and the Met Office page.
   No libraries. Draws SVG, shows a readout when you point at it, and leaves a gap where readings are missing.
 
-    MOChart.render(box, points, { unit, label, color, ink, grid, w, h, hours, latest, empty })
+    MOChart.render(box, points, { unit, label, color, ink, grid, w, h, hours, latest, empty, area, gaps, endDot, ticks, compact, lines })
       box     element to draw into (its contents are replaced)
       points  [{ t: milliseconds, v: number }] oldest first
+      area    soft fill under the line;  gaps  amber band where more than an hour of readings is missing;  endDot  mark the newest reading
+      ticks   small marks under the time labels;  compact  narrower margins;  lines  about how many grid lines (default 4)
     MOChart.series(station, hours)   -> promise of the /api/cydom/history answer
     MOChart.points(series, key)      -> [{ t, v }] for one reading
     MOChart.KEYS                     the readings worth charting, in order
@@ -18,6 +20,7 @@
   const hm = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
   const dm = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, day: 'numeric', month: 'short' });
   const full = (t) => `${dm.format(t)} ${hm.format(t)}`;
+  let uid = 0;
   const num = (v) => (Math.abs(v) >= 100 ? String(Math.round(v)) : String(Math.round(v * 10) / 10));
 
   function svg(name, attrs, text) {
@@ -49,14 +52,14 @@
       return;
     }
     const W = o.w || 640, H = o.h || 240;
-    const m = { l: 40, r: 10, t: 10, b: 22 };
+    const m = o.compact ? { l: 30, r: 8, t: 8, b: 22 } : { l: 40, r: 10, t: 10, b: 22 };
     const ink = o.ink || 'var(--ink2, #5c5b57)';
     const grid = o.grid || 'var(--line, rgba(0,0,0,.14))';
     const color = o.color || 'var(--acc, #2a78d6)';
     let lo = Infinity, hi = -Infinity;
     pts.forEach((p) => { if (p.v < lo) lo = p.v; if (p.v > hi) hi = p.v; });
     if (hi - lo < 1e-9) { lo -= 1; hi += 1; }
-    const step = niceStep((hi - lo) / 4);
+    const step = niceStep((hi - lo) / (o.lines || 4));
     const y0 = Math.floor(lo / step) * step, y1 = Math.ceil(hi / step) * step;
     const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
     const X = (t) => m.l + ((t - t0) / Math.max(1, t1 - t0)) * (W - m.l - m.r);
@@ -89,7 +92,29 @@
       const x = X(c.t);
       if (x < m.l + 14 || x > W - m.r - 14) return;
       s.append(svg('text', { x, y: H - 6, 'text-anchor': 'middle', 'font-size': 11, fill: ink }, long ? dm.format(c.t) : hm.format(c.t)));
+      if (o.ticks) s.append(svg('line', { x1: x, x2: x, y1: H - m.b, y2: H - m.b + 3.5, stroke: ink, 'stroke-opacity': 0.6 }));
     });
+    // pieces of the line: a new piece starts where more than an hour of readings is missing
+    const segs = [[]];
+    pts.forEach((p, i) => { if (i && p.t - pts[i - 1].t > 3600000) segs.push([]); segs[segs.length - 1].push(p); });
+    if (o.gaps) {
+      for (let i = 1; i < segs.length; i++) {
+        const xa = X(segs[i - 1][segs[i - 1].length - 1].t), xb = X(segs[i][0].t);
+        s.append(svg('rect', { x: xa, y: m.t, width: Math.max(1, xb - xa), height: H - m.t - m.b, fill: 'rgba(240,185,74,.10)' }));
+        [xa, xb].forEach((gx) => s.append(svg('line', { x1: gx, x2: gx, y1: m.t, y2: H - m.b, stroke: 'rgba(240,185,74,.5)', 'stroke-dasharray': '2 3' })));
+      }
+    }
+    if (o.area) {
+      const gid = 'mo-area-' + (++uid);
+      const defs = svg('defs', {});
+      const lg = svg('linearGradient', { id: gid, x1: 0, y1: 0, x2: 0, y2: 1 });
+      lg.append(svg('stop', { offset: 0, 'stop-color': color, 'stop-opacity': 0.3 }), svg('stop', { offset: 1, 'stop-color': color, 'stop-opacity': 0 }));
+      defs.append(lg); s.append(defs);
+      segs.forEach((sg) => {
+        if (sg.length < 2) return;
+        s.append(svg('path', { d: 'M' + sg.map((p) => X(p.t).toFixed(1) + ' ' + Y(p.v).toFixed(1)).join('L') + 'L' + X(sg[sg.length - 1].t).toFixed(1) + ' ' + (H - m.b) + 'L' + X(sg[0].t).toFixed(1) + ' ' + (H - m.b) + 'Z', fill: 'url(#' + gid + ')', stroke: 'none' }));
+      });
+    }
     // the line, broken where more than an hour of readings is missing
     let d = '', prev = null;
     pts.forEach((p) => {
@@ -97,6 +122,10 @@
       prev = p;
     });
     s.append(svg('path', { d, fill: 'none', stroke: color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'vector-effect': 'non-scaling-stroke' }));
+    if (o.endDot) {
+      s.append(svg('circle', { cx: X(last.t), cy: Y(last.v), r: 6, fill: color, 'fill-opacity': 0.22 }));
+      s.append(svg('circle', { cx: X(last.t), cy: Y(last.v), r: 3.3, fill: '#8FE3F7', stroke: '#0b1b30', 'stroke-width': 1.2 }));
+    }
     const dot = svg('circle', { r: 4, fill: color, stroke: '#fff', 'stroke-width': 1.5, visibility: 'hidden' });
     const guide = svg('line', { y1: m.t, y2: H - m.b, stroke: ink, 'stroke-width': 1, 'stroke-dasharray': '3 3', visibility: 'hidden' });
     s.append(guide, dot);
