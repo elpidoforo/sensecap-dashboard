@@ -275,14 +275,15 @@ function createStudio(opts) {
     const ctx = ctxFor(user);
     const tools = [...READ_TOOLS, ...BUILD_TOOLS].map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema }));
     const messages = history;
+    const system = systemText(ctx);   // built once so thinking blocks stay bound to the same prompt
     const used = [];
     let savedId = null;
     for (let step = 0; step < MAX_STEPS; step++) {
-      const resp = await callClaude({ model, max_tokens: 12000, system: systemText(ctx), tools, messages }, signal);
+      const resp = await callClaude({ model, max_tokens: 12000, system, tools, messages }, signal);
       const blocks = resp.content || [];
       const uses = blocks.filter((b) => b.type === 'tool_use');
       if (resp.stop_reason === 'tool_use' && uses.length) {
-        messages.push({ role: 'assistant', content: blocks });
+        messages.push({ role: 'assistant', content: blocks.filter((b) => b.type !== 'thinking' && b.type !== 'redacted_thinking') });
         const results = [];
         for (const u of uses) {
           used.push(u.name);

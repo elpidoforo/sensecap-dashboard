@@ -344,7 +344,7 @@ function createBot(cfg) {
       const blocks = resp.content || [];
       const uses = blocks.filter((b) => b.type === 'tool_use');
       if (resp.stop_reason === 'tool_use' && uses.length) {
-        messages.push({ role: 'assistant', content: blocks });
+        messages.push({ role: 'assistant', content: blocks.filter((b) => b.type !== 'thinking' && b.type !== 'redacted_thinking') });
         const results = [];
         for (const u of uses) {
           if (ctx.onTool) ctx.onTool(TOOL_LABEL[u.name] || u.name);
