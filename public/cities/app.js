@@ -4,7 +4,7 @@
     en: {
       sub: 'Cyprus · four schools', out: 'Sign out', menu: 'Menu', demo: 'Demo data until live sensors are connected.',
       n_island: 'Island', g_work: 'Our work', n_sensors: '1 Sensors', n_data: '2 Data', n_space: '3 Space view', n_ai: '4 AI insight', n_present: '5 Present',
-      g_more: 'More', n_people: 'People', n_portfolio: 'Portfolio', n_build: 'Build studio',
+      g_more: 'More', n_people: 'People', n_portfolio: 'Student tools', n_build: 'Build studio',
       ok: 'works', key: 'needs file', svc: 'needs service', soon: 'planned',
       h_island: 'Four schools. One living data classroom.', p_island: 'Sensors on school buses and cars, satellite views and AI help students in Larnaca, Lefkosia, Limassol and Paphos understand heat and air in their own cities.',
       k_sensors: 'Sensors online', k_temp: 'Air temperature', k_hum: 'Air humidity', k_co2: 'CO2', k_noise: 'Noise', k_sat: 'Satellite heat',
@@ -17,7 +17,7 @@
       sat_note: 'Satellite heat and green-cover layers need a prepared satellite file and are not switched on yet.',
       h_ai: '4 AI insight', p_ai: 'Ask the assistant about the data, and build your own idea with Claude.', ai1: 'Ask assistant (needs your own student account)', ai2: 'Build studio: describe an idea, Claude writes a small page, a teacher approves it before others see it.',
       h_present: '5 Present', p_present: 'A one page summary for mayors, media and parents. Use Print or save as PDF.', print: 'Print',
-      h_people: 'People', p_people: 'Four schools working together.', h_portfolio: 'Portfolio', p_portfolio: 'Approved student projects appear here.', open_app: 'Open student app',
+      h_people: 'People', p_people: 'Four schools working together.', h_portfolio: 'Student tools', p_portfolio: 'Tools made by students and approved by a teacher. Open one to use it.', open_app: 'Open student app',
       h_build: 'Build studio', p_build: 'Program your ideas with Claude.', b1: 'Sign in to the student app with your own account.', b2: 'Open Build studio and describe your idea.', b3: 'Claude writes a small sandboxed page with no internet access.', b4: 'Submit it. A teacher reviews it before it is shown.',
       mcp: 'Teachers can also connect Claude Code to the /mcp address with a personal token made in the Build studio.',
       loading: 'Loading…', fail: 'Could not load data. Try again in a minute.', nodata: 'no data'
@@ -25,7 +25,7 @@
     el: {
       sub: 'Κύπρος · τέσσερα σχολεία', out: 'Αποσύνδεση', menu: 'Μενού', demo: 'Δοκιμαστικά δεδομένα μέχρι να συνδεθούν οι πραγματικοί αισθητήρες.',
       n_island: 'Νησί', g_work: 'Η δουλειά μας', n_sensors: '1 Αισθητήρες', n_data: '2 Δεδομένα', n_space: '3 Διάστημα', n_ai: '4 Τεχνητή νοημοσύνη', n_present: '5 Παρουσίαση',
-      g_more: 'Περισσότερα', n_people: 'Άνθρωποι', n_portfolio: 'Χαρτοφυλάκιο', n_build: 'Build studio',
+      g_more: 'Περισσότερα', n_people: 'Άνθρωποι', n_portfolio: 'Εργαλεία μαθητών', n_build: 'Build studio',
       ok: 'λειτουργεί', key: 'θέλει αρχείο', svc: 'θέλει υπηρεσία', soon: 'προγραμματισμένο',
       h_island: 'Τέσσερα σχολεία. Μία ζωντανή τάξη δεδομένων.', p_island: 'Αισθητήρες σε σχολικά λεωφορεία και αυτοκίνητα, δορυφορικές εικόνες και τεχνητή νοημοσύνη βοηθούν τους μαθητές σε Λάρνακα, Λευκωσία, Λεμεσό και Πάφο να καταλάβουν τη θερμότητα και τον αέρα της πόλης τους.',
       k_sensors: 'Αισθητήρες σε λειτουργία', k_temp: 'Θερμοκρασία αέρα', k_hum: 'Υγρασία αέρα', k_co2: 'CO2', k_noise: 'Θόρυβος', k_sat: 'Δορυφορική θερμότητα',
@@ -38,7 +38,7 @@
       sat_note: 'Τα επίπεδα δορυφορικής θερμότητας και πρασίνου θέλουν έτοιμο δορυφορικό αρχείο και δεν είναι ακόμη ενεργά.',
       h_ai: '4 Τεχνητή νοημοσύνη', p_ai: 'Ρώτα τον βοηθό για τα δεδομένα και φτιάξε τη δική σου ιδέα με το Claude.', ai1: 'Βοηθός Ask (θέλει δικό σου λογαριασμό μαθητή)', ai2: 'Build studio: περιέγραψε μια ιδέα, το Claude γράφει μια μικρή σελίδα και ένας εκπαιδευτικός την εγκρίνει πριν τη δουν άλλοι.',
       h_present: '5 Παρουσίαση', p_present: 'Σύνοψη μίας σελίδας για δημάρχους, μέσα ενημέρωσης και γονείς. Χρησιμοποίησε Εκτύπωση ή αποθήκευση PDF.', print: 'Εκτύπωση',
-      h_people: 'Άνθρωποι', p_people: 'Τέσσερα σχολεία συνεργάζονται.', h_portfolio: 'Χαρτοφυλάκιο', p_portfolio: 'Εδώ εμφανίζονται εγκεκριμένα έργα μαθητών.', open_app: 'Άνοιγμα εφαρμογής μαθητών',
+      h_people: 'Άνθρωποι', p_people: 'Τέσσερα σχολεία συνεργάζονται.', h_portfolio: 'Εργαλεία μαθητών', p_portfolio: 'Εργαλεία φτιαγμένα από μαθητές και εγκεκριμένα από εκπαιδευτικό. Άνοιξε ένα για να το χρησιμοποιήσεις.', open_app: 'Άνοιγμα εφαρμογής μαθητών',
       h_build: 'Build studio', p_build: 'Προγραμμάτισε τις ιδέες σου με το Claude.', b1: 'Συνδέσου στην εφαρμογή μαθητών με τον δικό σου λογαριασμό.', b2: 'Άνοιξε το Build studio και περιέγραψε την ιδέα σου.', b3: 'Το Claude γράφει μια μικρή απομονωμένη σελίδα χωρίς πρόσβαση στο διαδίκτυο.', b4: 'Υπέβαλέ την. Ένας εκπαιδευτικός την ελέγχει πριν εμφανιστεί.',
       mcp: 'Οι εκπαιδευτικοί μπορούν επίσης να συνδέσουν το Claude Code στη διεύθυνση /mcp με προσωπικό διακριτικό από το Build studio.',
       loading: 'Φόρτωση…', fail: 'Δεν φορτώθηκαν τα δεδομένα. Δοκίμασε ξανά σε λίγο.', nodata: 'χωρίς δεδομένα'
@@ -130,12 +130,18 @@
     }
   };
 
+  var AFTER = {};
   function nav() {
     var cur = current(), h = '', last = null;
     ROUTES.forEach(function (r) {
       if (r.g && r.g !== last) { h += '<div class="grp">' + esc(t(r.g)) + '</div>'; last = r.g; }
       h += '<a href="#/' + r.id + '"' + (r.id === cur ? ' aria-current="page"' : '') + '>' + esc(t(r.n)) + '</a>';
     });
+    var tl = (window.AISC && window.AISC.tools) || [];
+    if (tl.length) {
+      h += '<div class="grp">' + esc(t('n_portfolio')) + '</div>';
+      tl.slice(0, 8).forEach(function (p) { h += '<a href="#/tool/' + p.id + '"' + (location.hash === '#/tool/' + p.id ? ' aria-current="page"' : '') + '>' + esc(p.title) + '</a>'; });
+    }
     $('nav').innerHTML = h;
   }
   function render() {
@@ -148,6 +154,7 @@
     if (failed) { m.innerHTML = '<p>' + esc(t('fail')) + '</p>'; return; }
     if (!data) { m.innerHTML = '<p>' + esc(t('loading')) + '</p>'; return; }
     m.innerHTML = page();
+    var af = AFTER[current()]; if (af) af(m);
     var pr = $('pr'); if (pr) pr.onclick = function () { window.print(); };
     m.querySelectorAll('[data-go]').forEach(function (g) {
       var go = function () { location.hash = '#/' + g.dataset.go; };
@@ -158,6 +165,8 @@
   $('mb').onclick = function () { var o = $('side').classList.toggle('open'); $('mb').setAttribute('aria-expanded', o ? 'true' : 'false'); };
   window.addEventListener('hashchange', function () { $('side').classList.remove('open'); render(); $('main').focus(); window.scrollTo(0, 0); });
   $('out').onclick = function () { fetch('/cities/api/logout', { method: 'POST' }).finally(function () { location.href = '/cities/login.html'; }); };
+  window.AISC = { PAGES: PAGES, AFTER: AFTER, T: T, t: t, esc: esc, badge: badge, head: head, render: render, nav: nav, lang: function () { return lang; }, tools: [] };
+  window.dispatchEvent(new Event('aisc-ready'));
   render();
   fetch('/cities/api/overview').then(function (r) { if (r.status === 401) { location.href = '/cities/login.html'; throw 0; } if (!r.ok) throw 1; return r.json(); })
     .then(function (d) { data = d; render(); }).catch(function (e) { if (e !== 0) { failed = true; render(); } });

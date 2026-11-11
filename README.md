@@ -154,3 +154,7 @@ Students pick a display name and a password; there are no email addresses. A tea
 ### Joining without a school code
 
 When the shared class sign-in is on, a student who has signed in to `/cities/` can join the student app by choosing a school, a display name and a password. No school code, no approval wait. Teachers still see the chat, can mute or remove people, and approve every Build studio project before others see it. Without the class sign-in, joining still needs the school code and teacher approval.
+
+### Build studio workspace and student tools
+
+`/cities/#/build` is a Claude-style workspace: chat on the left, the live page on the right. Claude builds a sandboxed page (no network). Inside the site a page can call `await cities.overview()` for school averages and delayed, grouped routes; it never gets vehicle positions. A student sends the page to a teacher; once approved it appears under Student tools and in the menu for everyone with the class sign-in. Teachers review pending tools under Student tools. Needs `ANTHROPIC_API_KEY` on the server.

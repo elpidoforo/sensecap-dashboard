@@ -914,7 +914,7 @@ function startApp() {
   });
   appCore = createApp({ dataDir: DATA_DIR, bot, openJoin: (req) => classLogin.enabled && classLogin.valid(req), log: (m) => console.log(m) });
   if (!appCore.enabled) return console.error('Student app is off: ' + appCore.reason);
-  studio = createStudio({ appCore, bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });
+  studio = createStudio({ appCore, classValid: (req) => classLogin.enabled && classLogin.valid(req), bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });
   const st = bot.status();
   console.log(`Student app ready (${appCore.info().users} accounts). Assistant ${st.configured ? 'on, model ' + st.model : 'off: set ANTHROPIC_API_KEY'}. Admin sign-up ${process.env.ADMIN_SETUP_CODE ? 'enabled' : 'disabled: set ADMIN_SETUP_CODE'}.`);
 }

@@ -14,6 +14,13 @@ const DAY = 86400000;
 const MAX_HTML = 120000;
 const MAX_STEPS = 8;
 const PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05'];
+const BRIDGE = '<script>window.cities=(function(){var n=0,p={};addEventListener("message",function(e){var d=e.data;if(d&&d.type==="cities-result"&&p[d.id]){var f=p[d.id];delete p[d.id];f(d)}});function ask(w){return new Promise(function(ok,no){var id=++n;p[id]=function(d){d.error?no(new Error(d.error)):ok(d.data)};parent.postMessage({type:"cities-get",id:id,what:w},"*");setTimeout(function(){if(p[id]){delete p[id];no(new Error("No live data here. Open the page inside the AI Sustainable Cities site."))}},8000)})}return{overview:function(){return ask("overview")}}})();</script>';
+function withBridge(html) {
+  const h = String(html);
+  if (/<head[^>]*>/i.test(h)) return h.replace(/<head[^>]*>/i, (m) => m + BRIDGE);
+  if (/<html[^>]*>/i.test(h)) return h.replace(/<html[^>]*>/i, (m) => m + BRIDGE);
+  return /^\s*<!doctype[^>]*>/i.test(h) ? h.replace(/^(\s*<!doctype[^>]*>)/i, (m) => m + BRIDGE) : BRIDGE + h;
+}
 const PROJECT_CSP = "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'";
 
 class HttpError extends Error {
@@ -234,6 +241,7 @@ function createStudio(opts) {
       '- First make sure the idea is a clear question the data can answer. If it is vague, ask ONE short question, or propose a simple version and build it.',
       '- Look at the real data with the tools before you build. Never invent a reading. If the data is demo data, or a sensor is offline or old, say so in the page and in your answer.',
       '- Build ONE self-contained HTML page (inline CSS and JavaScript, no libraries, no network, no external fonts or images). Embed the numbers you fetched directly in the page. Use a clear title, labelled axes with units, the source and time of the data, and a short "what this shows and what it cannot show" note. Make it readable on a phone, with good contrast, and write labels in the language the student used.',
+      '- Live data: inside the site a page can call `await cities.overview()`, which returns {delayMinutes, schools:[{id, name, lat, lng, sensors, online, temp, humidity, co2, cells:[[lat, lng, visits]]}]} with current school averages and delayed, grouped route squares (about 1 km). Prefer it over embedded numbers, show a loading and an error state, and keep the numbers you fetched as a fallback. Vehicle positions are never available.',
       '- Draw charts with plain SVG or canvas in JavaScript. Keep the code short and readable, with comments, so the student can read and change it.',
       '- Save the page with save_project (pass the id to update it). Do not call submit_project unless the student asks. Tell them to press Preview, check it, and send it to their teacher when it is ready.',
       '- This is a learning project. Explain in 3 to 6 short lines what the code does and one thing the student could change or test next, so they can explain it themselves. Do not write their assessed work (reports, essays, Extended Essay text) for them.',
@@ -311,6 +319,9 @@ function createStudio(opts) {
     const user = appCore.authorise(req);
     if (url.pathname === '/studio/api/status') {
       return sendJson(res, 200, { enabled: true, configured: !!apiKey, model: apiKey ? model : null, demo: !!data.demo, user: user ? { id: user.id, name: user.name, role: user.role, team: user.team_id || null } : null, maxHtml: MAX_HTML });
+    }
+    if (!user && req.method === 'GET' && url.pathname === '/studio/api/projects' && url.searchParams.get('scope') === 'gallery' && opts.classValid && opts.classValid(req)) {
+      return sendJson(res, 200, { projects: listProjects(null, 'gallery') });   // approved student tools are open to everyone with the class sign-in
     }
     if (!user) fail(401, 'Please sign in to the student app first.', 'signin');
     let r;
@@ -398,12 +409,13 @@ function createStudio(opts) {
 
   function handleProjectPage(req, res, url) {
     const user = appCore.authorise(req);
-    if (!user) { res.writeHead(401, { 'Content-Type': 'text/plain; charset=utf-8', ...NOSNIFF }); return res.end('Sign in to the student app first.'); }
+    const classOnly = !user && opts.classValid && opts.classValid(req);
+    if (!user && !classOnly) { res.writeHead(401, { 'Content-Type': 'text/plain; charset=utf-8', ...NOSNIFF }); return res.end('Sign in first.'); }
     const id = Number(/^\/studio\/p\/(\d+)$/.exec(url.pathname)[1]);
     const p = db.get('SELECT * FROM studio_projects WHERE id = ?', id);
-    if (!p || !canView(user, p)) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...NOSNIFF }); return res.end('Not found'); }
+    if (!p || (classOnly ? p.status !== 'approved' : !canView(user, p))) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...NOSNIFF }); return res.end('Not found'); }
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Security-Policy': PROJECT_CSP, ...NOSNIFF });
-    res.end(p.html);
+    res.end(withBridge(p.html));
   }
 
   /* ---------- /mcp: Model Context Protocol, Streamable HTTP with JSON responses ---------- */
