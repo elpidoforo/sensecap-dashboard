@@ -65,7 +65,7 @@
 <div class="panel" id="layers">
   <div class="head"><h1>Sensor map</h1><span class="live stale" id="live">Waiting</span><button id="fold" style="border:0;background:none;color:inherit;cursor:pointer;font-size:16px" aria-label="Show or hide layers">&#9776;</button></div>
   <div class="body">
-    <div class="nav"><a href="/">Dashboard</a><a href="/3d.html">3D island</a></div>
+    <div class="nav"><a href="/">Dashboard</a><a href="/3d.html">3D island</a><a href="/metoffice.html">Met Office</a></div>
 
     <h2>Vehicles</h2>
     <label><input type="checkbox" id="lDots" checked><span>Vehicle icons<small>Bus or car from the sensor name. The ring shows the value.</small></span></label>
@@ -113,6 +113,7 @@
 
     <h2>Met Office pages</h2>
     <div class="st">
+      <a href="/metoffice.html" style="color:var(--acc)">All Met Office data</a> ·
       <a href="https://www.dom.org.cy/RADAR_IMG/index.html" target="_blank" rel="noopener" style="color:var(--acc)">Radar</a> ·
       <a href="https://www.dom.org.cy/WARNING/" target="_blank" rel="noopener" style="color:var(--acc)">Warnings</a> ·
       <a href="https://www.dom.org.cy/FORECAST/index.html" target="_blank" rel="noopener" style="color:var(--acc)">Forecast</a> ·
@@ -140,6 +141,7 @@
 </div>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="/mo-chart.js"></script>
 <script>
 const EMBED = /[?&]embed=1/.test(location.search);   // inside the student app: no links that leave it
 if (EMBED) document.documentElement.classList.add('embed');
@@ -1079,10 +1081,33 @@ map.on('load', () => {
   map.on('mouseenter', id, () => (map.getCanvas().style.cursor = 'pointer'));
   map.on('mouseleave', id, () => (map.getCanvas().style.cursor = ''));
 });
-function popupOn(id, fn) {
-  map.on('click', id, (e) => new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setHTML(fn(e.features[0].properties)).addTo(map));
+function popupOn(id, fn, opts) {
+  map.on('click', id, (e) => {
+    const props = e.features[0].properties;
+    const pop = new maplibregl.Popup({ closeButton: false, ...((opts && opts.popup) || {}) }).setLngLat(e.lngLat).setHTML(fn(props)).addTo(map);
+    if (opts && opts.after && pop.getElement) opts.after(pop.getElement(), props);
+  });
   map.on('mouseenter', id, () => (map.getCanvas().style.cursor = 'pointer'));
   map.on('mouseleave', id, () => (map.getCanvas().style.cursor = ''));
+}
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// Fills the 24 hour chart in a Met Office station popup from the history the server saves.
+async function cydomHistory(el, p) {
+  const box = el && el.querySelector && el.querySelector('.mo-box');
+  const sel = el && el.querySelector('.mo-key');
+  if (!box || !sel || typeof MOChart === 'undefined') return;
+  try {
+    const s = await MOChart.series(p.id, 24);
+    const keys = MOChart.KEYS.filter((k) => MOChart.points(s, k).length > 1);
+    if (!keys.length) { box.textContent = 'No readings saved for the last 24 hours yet. The server saves a reading every 10 minutes.'; sel.style.display = 'none'; return; }
+    sel.innerHTML = keys.map((k) => `<option value="${k}">${esc(MOChart.NAMES[k] || (s.units[k] && s.units[k].name) || k)}</option>`).join('');
+    const draw = () => {
+      const k = sel.value, u = s.units[k] || {};
+      MOChart.render(box, MOChart.points(s, k), { w: 300, h: 140, unit: u.unit || '', label: MOChart.NAMES[k] || u.name || k, hours: 24, ink: '#5c5b57', grid: 'rgba(0,0,0,.14)', color: '#2a78d6' });
+    };
+    sel.addEventListener('change', draw);
+    draw();
+  } catch (e) { box.textContent = 'Could not load the history. ' + e.message; }
 }
 popupOn('open-dots', (p) => `<b>Open sensor ${p.id}</b><br>${p.pm25 != null && p.pm25 !== 'null' ? 'PM2.5 ' + p.pm25 + ' µg/m³<br>' : ''}${p.pm10 != null && p.pm10 !== 'null' ? 'PM10 ' + p.pm10 + ' µg/m³<br>' : ''}${p.temp != null && p.temp !== 'null' ? 'Temperature ' + p.temp + ' °C<br>' : ''}${p.hum != null && p.hum !== 'null' ? 'Humidity ' + p.hum + ' %' : ''}`);
 popupOn('cydom-dots', (p) => {
@@ -1091,9 +1116,13 @@ popupOn('cydom-dots', (p) => {
   const when = p.time && p.time !== 'null' ? `${ago(p.time)}${isOld(p.time) ? ' (old reading)' : ''}` : 'unknown time';
   const rows = obs.map((o) => `<tr><td>${o.name}</td><td style="text-align:right;padding-left:8px">${o.value} ${o.unit === 'Celcius' ? '°C' : o.unit}</td></tr>`).join('');
   return `<b>${p.name}</b> <span style="color:#5c5b57">Met Office station</span><br><span style="color:#5c5b57">Reading ${when}</span>` +
-    `<div style="max-height:170px;overflow:auto;margin-top:4px"><table style="border-collapse:collapse">${rows}</table></div>` +
+    `<div style="max-height:96px;overflow:auto;margin-top:4px"><table style="border-collapse:collapse">${rows}</table></div>` +
+    `<div class="mo-hist" data-station="${esc(p.id)}" style="margin-top:8px;border-top:0.5px solid rgba(0,0,0,.14);padding-top:6px">` +
+      `<select class="mo-key" aria-label="Reading to chart" style="width:100%;margin-bottom:4px;color:#1c1c1a"></select><div class="mo-box" style="min-height:60px;color:#5c5b57">Loading the last 24 hours…</div>` +
+      `<div style="margin-top:4px"><a class="mo-csv" href="/api/cydom/history.csv?station=${encodeURIComponent(p.id)}&days=1" download style="color:#2a78d6">Download CSV (24 hours)</a> · ` +
+      (EMBED ? `<a href="/app/#/met/${encodeURIComponent(p.id)}" target="_top" style="color:#2a78d6">More</a>` : `<a href="/metoffice.html#${encodeURIComponent(p.id)}" style="color:#2a78d6">All data for this station</a>`) + `</div></div>` +
     `<div style="color:#5c5b57;margin-top:4px">© Cyprus Department of Meteorology</div>`;
-});
+}, { popup: { maxWidth: '320px' }, after: cydomHistory });
 popupOn('sea-dots', (p) => `<b>Sea point</b><br>Sea temperature ${p.sst} °C<br>Waves ${p.wave} m`);
 popupOn('wind-arrows', (p) => `<b>Weather model</b><br>Temperature ${p.t} °C<br>Wind ${r1(Number(p.ws))} m/s`);
 

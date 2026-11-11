@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Met Office data</title>
+<style>
+  :root {
+    --bg: #f5f4f0; --card: #ffffff; --ink: #1c1c1a; --ink2: #5c5b57; --line: rgba(0,0,0,.12); --acc: #2a78d6; --accbg: #e6f1fb;
+    --ok: #0f7b3f; --bad: #b3261e; --warn-bg: #fff4d6; --warn-ink: #6b4e00; --head: #eeede8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151514; --card: #1f1f1d; --ink: #f0efec; --ink2: #b4b2a9; --line: rgba(255,255,255,.14); --acc: #5aa2f0; --accbg: #12304f;
+      --ok: #4cc27f; --bad: #f2877f; --warn-bg: #3a2f10; --warn-ink: #f3d68a; --head: #2a2a27; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color: var(--acc); }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 16px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 4px; }
+  h1 { font-size: 20px; font-weight: 500; margin: 0 auto 0 0; }
+  .nav a { margin-left: 12px; text-decoration: none; }
+  .sub { color: var(--ink2); margin: 0 0 12px; }
+  .jump { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .jump a { text-decoration: none; background: var(--card); border: 0.5px solid var(--line); border-radius: 999px; padding: 4px 12px; color: var(--ink); }
+  .jump a:hover { background: var(--accbg); }
+  section.card { background: var(--card); border: 0.5px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; scroll-margin-top: 12px; min-width: 0; }
+  h2 { font-size: 15px; font-weight: 500; margin: 0 0 8px; }
+  h3 { font-size: 13px; font-weight: 500; margin: 12px 0 4px; }
+  .muted { color: var(--ink2); } .small { font-size: 12px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 12px; }
+  @media (max-width: 520px) { .grid2 { grid-template-columns: 1fr; } }
+  .tabs, .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+  button, select, input[type=search] { background: var(--card); color: var(--ink); border: 0.5px solid var(--line); border-radius: 8px; padding: 5px 10px; font: inherit; cursor: pointer; }
+  input[type=search] { cursor: text; min-width: 200px; }
+  button[aria-selected=true], button.on { background: var(--accbg); color: var(--acc); border-color: var(--acc); }
+  button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible, tr:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+  .btnlink { display: inline-block; text-decoration: none; background: var(--card); color: var(--ink); border: 0.5px solid var(--line); border-radius: 8px; padding: 5px 10px; }
+  pre.txt { white-space: pre-wrap; word-break: break-word; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--head); border-radius: 8px; padding: 10px 12px; margin: 0 0 8px; max-height: 420px; overflow: auto; }
+  img.pic { display: block; max-width: 100%; height: auto; border-radius: 8px; border: 0.5px solid var(--line); background: #fff; margin: 0 0 8px; }
+  .err { color: var(--bad); }
+  .banner { background: var(--warn-bg); color: var(--warn-ink); border-radius: 8px; padding: 8px 12px; margin: 0 0 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: right; padding: 6px 8px; border-bottom: 0.5px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { position: sticky; top: 0; background: var(--head); z-index: 1; font-weight: 500; font-size: 12px; padding: 0; }
+  thead th button { all: unset; display: block; width: 100%; padding: 7px 8px; cursor: pointer; box-sizing: border-box; color: var(--ink2); }
+  thead th button:hover { color: var(--ink); }
+  thead th button:focus-visible { outline: 2px solid var(--acc); outline-offset: -2px; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover td { background: rgba(127,127,127,.08); }
+  tbody tr.sel td { background: var(--accbg); }
+  td button.link { all: unset; cursor: pointer; color: var(--acc); }
+  td.old { color: var(--warn-ink); }
+  .tscroll { max-height: 70vh; overflow: auto; border: 0.5px solid var(--line); border-radius: 8px; scroll-padding-top: 34px; }
+  .split { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(340px, 1fr); gap: 12px; align-items: start; }
+  .detail { position: sticky; top: 12px; border: 0.5px solid var(--line); border-radius: 10px; padding: 12px; min-width: 0; }
+  @media (max-width: 900px) { .split { grid-template-columns: 1fr; } .detail { position: static; order: -1; } }
+  .kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; margin: 8px 0; }
+  .kv div { background: var(--head); border-radius: 8px; padding: 6px 8px; }
+  .kv .k { font-size: 11px; color: var(--ink2); } .kv .v { font-size: 16px; font-weight: 500; }
+  .mo-empty { color: var(--ink2); padding: 24px 8px; text-align: center; }
+  .mo-readout { font-size: 12px; color: var(--ink2); margin-top: 2px; min-height: 18px; }
+  .bar { display: inline-block; height: 8px; border-radius: 4px; vertical-align: middle; margin-left: 6px; }
+  details { margin: 6px 0; } summary { cursor: pointer; color: var(--acc); }
+  footer { color: var(--ink2); font-size: 12px; margin: 16px 0 24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Met Office data</h1>
+    <span class="nav"><a href="/">Dashboard</a><a href="/map.html">Map</a><a href="/3d.html">3D view</a></span>
+  </header>
+  <p class="sub" id="sub">Cyprus Department of Meteorology. Loading…</p>
+  <nav class="jump" aria-label="Sections">
+    <a href="#warnings">Warnings</a><a href="#forecast">Forecast</a><a href="#radar">Radar</a><a href="#sea">Sea and aviation</a><a href="#net">Discomfort index</a><a href="#stations">Stations</a>
+  </nav>
+  <noscript><p class="banner">This page needs JavaScript.</p></noscript>
+
+  <section class="card" id="warnings" aria-labelledby="hWarn">
+    <h2 id="hWarn">Weather warnings</h2>
+    <div id="warnBody" class="muted">Loading…</div>
+    <details id="warnOld"><summary>Earlier versions of this page (last 30 days)</summary><div id="warnOldBody" class="muted small">Loading…</div></details>
+  </section>
+
+  <div class="grid2">
+    <section class="card" id="forecast" aria-labelledby="hFc">
+      <h2 id="hFc">Forecast</h2>
+      <div class="tabs" role="tablist" id="fcTabs" aria-label="Forecast tables"></div>
+      <div id="fcBody"></div>
+      <p class="muted small">Pictures published by the Met Office, shown through this server.</p>
+    </section>
+    <section class="card" id="radar" aria-labelledby="hRad">
+      <h2 id="hRad">Radar</h2>
+      <div class="tabs" role="tablist" id="radTabs" aria-label="Radar pictures"></div>
+      <div id="radBody"></div>
+      <p class="muted small">Pictures update about every 10 minutes. <button id="radReload" type="button">Reload picture</button></p>
+    </section>
+  </div>
+
+  <section class="card" id="sea" aria-labelledby="hSea">
+    <h2 id="hSea">Sea and aviation</h2>
+    <div class="tabs" role="tablist" id="seaTabs" aria-label="Sea and aviation texts"></div>
+    <div id="seaBody" class="muted">Loading…</div>
+  </section>
+
+  <section class="card" id="net" aria-labelledby="hNet">
+    <h2 id="hNet">Discomfort index (NET)</h2>
+    <p class="muted small" id="netNote">Loading…</p>
+    <div class="tscroll" style="max-height:420px"><table id="netTable"><thead></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="card" id="stations" aria-labelledby="hSt">
+    <h2 id="hSt">Stations</h2>
+    <p class="muted small" id="histNote"></p>
+    <div class="chips" style="align-items:center">
+      <input type="search" id="q" placeholder="Search stations" aria-label="Search stations">
+      <span class="muted small" id="count"></span>
+      <span style="flex:1"></span>
+      <a class="btnlink" href="/api/cydom/history.csv?days=1" download>All stations, 24 h (CSV)</a>
+      <a class="btnlink" href="/api/cydom/history.csv?days=7" download>7 days (CSV)</a>
+    </div>
+    <div class="split">
+      <div class="tscroll"><table id="stTable"><thead></thead><tbody></tbody></table></div>
+      <div class="detail" id="detail"><p class="muted">Choose a station to see its history.</p></div>
+    </div>
+  </section>
+
+  <footer id="foot">Weather Data Copyright The Cyprus Department of Meteorology. Check their terms before using the data outside a classroom.</footer>
+</div>
+
+<script src="/mo-chart.js"></script>
+<script>
+'use strict';
+const TZ = 'Asia/Nicosia';
+const fmtFull = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const fmtHm = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
+const fmtDay = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, day: 'numeric', month: 'short', year: 'numeric' });
+const $ = (id) => document.getElementById(id);
+// replaceChildren() would print an array or null as text, so flatten and skip empty values first.
+const nativeReplace = Element.prototype.replaceChildren;
+Element.prototype.replaceChildren = function (...kids) { return nativeReplace.apply(this, kids.flat(Infinity).filter((c) => c != null && c !== false)); };
+
+// Builds elements without innerHTML, so nothing from the Met Office can run as code.
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const k in attrs || {}) {
+    const v = attrs[k];
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  kids.flat(Infinity).forEach((c) => { if (c != null && c !== false) el.append(c instanceof Node ? c : document.createTextNode(String(c))); });
+  return el;
+}
+async function api(u) {
+  const r = await fetch(u);
+  if (!r.ok) {
+    let m = '';
+    try { m = (await r.json()).error; } catch (e) { /* not JSON */ }
+    throw new Error(m || 'HTTP ' + r.status);
+  }
+  return r.json();
+}
+const num = (v, d = 1) => (v == null || !isFinite(v) ? '–' : Number(v).toFixed(d).replace(/\.0+$/, ''));
+const when = (ms) => (ms && isFinite(ms) ? fmtFull.format(ms) : 'unknown time');
+function ago(ms) {
+  const m = Math.round((Date.now() - ms) / 60000);
+  if (!isFinite(m)) return '';
+  if (m < 2) return 'just now';
+  if (m < 90) return m + ' min ago';
+  if (m < 2880) return Math.round(m / 60) + ' h ago';
+  return Math.round(m / 1440) + ' days ago';
+}
+const isOld = (ms) => !ms || Date.now() - ms > 3 * 3600000;
+const compass = (d) => (d == null ? '' : ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((d % 360) + 360) % 360 / 45) % 8]);
+const failure = (what, e) => h('p', { class: 'err' }, `Could not load ${what}. ${e.message}`);
+const pic = (src, alt) => h('img', { class: 'pic', src, alt, loading: 'lazy', onerror: (e) => e.target.replaceWith(h('p', { class: 'err' }, 'This picture is not available from the Met Office right now.')) });
+const imgUrl = (name) => '/api/dom/img?name=' + encodeURIComponent(name);
+
+// Tab buttons. select(id) draws that tab; the first one opens at start.
+function tabs(box, items, onSelect, first) {
+  const btns = new Map();
+  const select = (id) => {
+    btns.forEach((b, k) => b.setAttribute('aria-selected', String(k === id)));
+    onSelect(id);
+  };
+  items.forEach(([id, label]) => {
+    const b = h('button', { type: 'button', role: 'tab', 'aria-selected': 'false', onclick: () => select(id) }, label);
+    btns.set(id, b);
+    box.append(b);
+  });
+  select(first || items[0][0]);
+  return select;
+}
+
+/* ---------- warnings ---------- */
+
+async function loadWarnings() {
+  const box = $('warnBody');
+  try {
+    const p = await api('/api/dom/page?name=warnings');
+    const text = (p.text || '').trim();
+    box.className = '';
+    box.replaceChildren(
+      text ? h('pre', { class: 'txt' }, text) : h('p', { class: 'muted' }, 'The Met Office warnings page has no text right now.'),
+      (p.images || []).slice(0, 4).map((u) => pic('/api/dom/img?u=' + encodeURIComponent(u), 'Picture from the Met Office warnings page')),
+      h('p', { class: 'muted small' }, 'Read from the Met Office ', h('a', { href: p.url, target: '_blank', rel: 'noopener' }, 'warnings page'), ' ' + ago(Date.parse(p.fetched)) + '. This server keeps a copy whenever the text changes.'));
+  } catch (e) { box.replaceChildren(failure('the warnings', e)); }
+}
+let oldLoaded = false;
+$('warnOld').addEventListener('toggle', async (ev) => {
+  if (!ev.target.open || oldLoaded) return;
+  const box = $('warnOldBody');
+  try {
+    const v = (await api('/api/dom/pages/history?name=warnings&days=30')).slice().reverse().slice(0, 20);
+    oldLoaded = true;
+    box.replaceChildren(v.length ? v.map((x) => h('details', null, h('summary', null, when(x.t) + ' · ' + ((x.text || '').replace(/\s+/g, ' ').slice(0, 90) || 'empty')), h('pre', { class: 'txt' }, x.text || ''))) : 'No earlier versions are saved yet. The server saves one each time the warnings text changes.');
+  } catch (e) { box.replaceChildren(failure('the earlier versions', e)); }
+});
+
+/* ---------- forecast and radar pictures ---------- */
+
+tabs($('fcTabs'), [['table_a', 'Table A'], ['table_b', 'Table B'], ['table_c', 'Table C']], (id) => $('fcBody').replaceChildren(pic(imgUrl(id), 'Met Office forecast, table ' + id.slice(-1).toUpperCase())));
+let radId = 'radar';
+const radSelect = tabs($('radTabs'), [['radar', 'Cyprus'], ['radar_anim', 'Animation'], ['radar_pfo', 'Paphos'], ['radar_lca', 'Larnaca']], (id) => { radId = id; $('radBody').replaceChildren(pic(imgUrl(id), 'Met Office radar, ' + id)); });
+$('radReload').addEventListener('click', () => $('radBody').replaceChildren(pic(imgUrl(radId) + '&r=' + Date.now(), 'Met Office radar, ' + radId)));
+
+/* ---------- sea and aviation texts ---------- */
+
+const SEA = [['sea_a', 'Sea A'], ['sea_b', 'Sea B'], ['sea_c', 'Sea C'], ['sea_d', 'Sea D'], ['navtex', 'NAVTEX'], ['fir', 'Flight information region'], ['laf', 'Aviation (LAF)']];
+tabs($('seaTabs'), SEA, async (id) => {
+  const box = $('seaBody');
+  box.className = 'muted'; box.replaceChildren('Loading…');
+  try {
+    const p = await api('/api/dom/page?name=' + id);
+    if ($('seaTabs').querySelector('[aria-selected=true]').textContent !== SEA.find((s) => s[0] === id)[1]) return;   // another tab was chosen meanwhile
+    const text = (p.text || '').trim();
+    box.className = '';
+    box.replaceChildren(
+      p.title ? h('h3', { style: 'margin-top:0' }, p.title) : null,
+      text ? h('pre', { class: 'txt' }, text) : h('p', { class: 'muted' }, 'This Met Office page has no text right now.'),
+      (p.images || []).slice(0, 3).map((u) => pic('/api/dom/img?u=' + encodeURIComponent(u), 'Picture from the Met Office page')),
+      h('p', { class: 'muted small' }, 'Read from ', h('a', { href: p.url, target: '_blank', rel: 'noopener' }, 'the Met Office page'), ' ' + ago(Date.parse(p.fetched)) + '.'));
+  } catch (e) { box.className = ''; box.replaceChildren(failure('this page', e)); }
+});
+
+/* ---------- sortable tables ---------- */
+
+// cols: [{ k, label, get(row), fmt(row), cls(row) }]; state: { key, dir }
+function sortable(table, cols, state, rows, onRow, selected) {
+  const head = h('tr', null, cols.map((c) => h('th', { 'aria-sort': state.key === c.k ? (state.dir > 0 ? 'ascending' : 'descending') : 'none' },
+    h('button', { type: 'button', onclick: () => { state.dir = state.key === c.k ? -state.dir : (c.k === 'name' || c.k === 'station' ? 1 : -1); state.key = c.k; state.redraw(); } }, c.label + (state.key === c.k ? (state.dir > 0 ? ' ▲' : ' ▼') : '')))));
+  table.tHead.replaceChildren(head);
+  const col = cols.find((c) => c.k === state.key) || cols[0];
+  const sorted = rows.slice().sort((a, b) => {
+    const x = col.get(a), y = col.get(b);
+    if (x == null && y == null) return 0;
+    if (x == null) return 1;
+    if (y == null) return -1;
+    return (typeof x === 'string' ? x.localeCompare(y) : x - y) * state.dir;
+  });
+  table.tBodies[0].replaceChildren(sorted.map((r) => {
+    const tr = h('tr', { tabindex: onRow ? '0' : null, class: selected && selected(r) ? 'sel' : '' }, cols.map((c, i) => {
+      const cell = c.fmt(r);
+      return h('td', { class: c.cls ? c.cls(r) : '' }, i === 0 && onRow ? h('button', { type: 'button', class: 'link', onclick: (e) => { e.stopPropagation(); onRow(r); } }, cell) : cell);
+    }));
+    if (onRow) {
+      tr.addEventListener('click', () => onRow(r));
+      tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target === tr) onRow(r); });
+    }
+    return tr;
+  }));
+  return sorted.length;
+}
+
+/* ---------- discomfort index ---------- */
+
+const netState = { key: 'net', dir: -1, rows: [], redraw() { drawNet(); } };
+function drawNet() {
+  const vals = netState.rows.map((r) => r.net).filter((v) => v != null);
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  const bar = (r) => {
+    if (r.net == null) return '–';
+    const t = hi > lo ? (r.net - lo) / (hi - lo) : 0.5;
+    return h('span', null, num(r.net), h('span', { class: 'bar', style: `width:${Math.round(20 + 70 * t)}px;background:hsl(${Math.round(210 - 190 * t)},70%,50%)`, 'aria-hidden': 'true' }));
+  };
+  sortable($('netTable'), [
+    { k: 'station', label: 'Station', get: (r) => r.station, fmt: (r) => r.station },
+    { k: 'temp', label: 'Temperature °C', get: (r) => r.temp, fmt: (r) => num(r.temp) },
+    { k: 'hum', label: 'Humidity %', get: (r) => r.hum, fmt: (r) => num(r.hum, 0) },
+    { k: 'wind', label: 'Wind kn', get: (r) => r.wind, fmt: (r) => num(r.wind) },
+    { k: 'net', label: 'NET', get: (r) => r.net, fmt: bar },
+  ], netState, netState.rows);
+}
+async function loadNet() {
+  try {
+    const n = await api('/api/dom/net');
+    netState.rows = n.rows;
+    $('netNote').textContent = `Net effective temperature combines temperature, humidity and wind into one number: the higher it is, the warmer it feels. Reference time ${n.time ? when(Date.parse(n.time)) : 'unknown'} (${n.rows.length} stations). The Met Office explains the official comfort bands on its site.`;
+    drawNet();
+  } catch (e) { $('netNote').replaceChildren(failure('the discomfort index', e)); }
+}
+
+/* ---------- stations ---------- */
+
+const S = { points: [], feedTime: null, copyright: '', q: '', sel: null, key: 'temp', hours: 24, series: null, token: 0 };
+const stState = { key: 'name', dir: 1, redraw() { drawStations(); } };
+const stCols = [
+  { k: 'name', label: 'Station', get: (p) => p.name, fmt: (p) => p.name },
+  { k: 'temp', label: '°C', get: (p) => p.temp, fmt: (p) => num(p.temp) },
+  { k: 'hum', label: 'Humidity %', get: (p) => p.hum, fmt: (p) => num(p.hum, 0) },
+  { k: 'ws', label: 'Wind m/s', get: (p) => p.ws, fmt: (p) => (p.ws == null ? '–' : num(p.ws) + (p.wd != null ? ' ' + compass(p.wd) : '')) },
+  { k: 'rain24', label: 'Rain 24 h mm', get: (p) => p.rain24, fmt: (p) => num(p.rain24) },
+  { k: 'pmsl', label: 'Pressure hPa', get: (p) => p.pmsl, fmt: (p) => num(p.pmsl, 0) },
+  { k: 'time', label: 'Reading', get: (p) => (p.time ? Date.parse(p.time) : null), fmt: (p) => (p.time ? fmtHm.format(Date.parse(p.time)) : '–'), cls: (p) => (isOld(p.time ? Date.parse(p.time) : 0) ? 'old' : '') },
+];
+function drawStations() {
+  const q = S.q.trim().toLowerCase();
+  const rows = q ? S.points.filter((p) => p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)) : S.points;
+  $('count').textContent = rows.length === S.points.length ? `${rows.length} stations` : `${rows.length} of ${S.points.length} stations`;
+  sortable($('stTable'), stCols, stState, rows, (p) => selectStation(p.id, true), (p) => p.id === S.sel);
+  if (!rows.length) $('stTable').tBodies[0].append(h('tr', null, h('td', { colspan: String(stCols.length), class: 'muted' }, 'No station with that name.')));
+}
+async function loadStations() {
+  try {
+    const d = await api('/api/cydom');
+    S.points = d.points || []; S.feedTime = d.feedTime ? Date.parse(d.feedTime) : null; S.copyright = d.copyright || '';
+    const old = isOld(S.feedTime);
+    $('sub').replaceChildren(`Cyprus Department of Meteorology. Newest station reading ${S.feedTime ? when(S.feedTime) + ' (' + ago(S.feedTime) + ')' : 'unknown'}${old ? ', which is old' : ''}.`);
+    if (S.copyright) $('foot').textContent = S.copyright + '. Check their terms before using the data outside a classroom.';
+    drawStations();
+    if (S.sel) { S.series = null; drawDetail(); } else if (stationInHash()) selectStation(stationInHash(), false);
+  } catch (e) { $('sub').replaceChildren(failure('the stations', e)); }
+}
+async function loadHistInfo() {
+  try {
+    const i = await api('/api/cydom/history/info');
+    const first = i.firstT ? fmtDay.format(i.firstT) : null;
+    $('histNote').replaceChildren(first ? `This server saves every new reading (about every 10 minutes). History starts ${first}: ${i.files} days saved, ${i.stations} stations.` : 'This server saves every new reading, about every 10 minutes. No history has been saved yet.',
+      i.persistent === false ? h('span', { class: 'banner', style: 'display:block;margin-top:6px' }, 'This server has no storage volume, so the saved history is lost whenever it restarts.') : null);
+  } catch (e) { $('histNote').textContent = ''; }
+}
+
+function selectStation(id, scroll) {
+  if (!S.points.some((p) => p.id === id)) { S.sel = null; $('detail').replaceChildren(h('p', { class: 'muted' }, 'This station was not found.')); return; }
+  S.sel = id; S.series = null;
+  if (location.hash.slice(1) !== encodeURIComponent(id)) history.replaceState(null, '', '#' + encodeURIComponent(id));
+  drawStations(); drawDetail();
+  if (scroll && matchMedia('(max-width: 900px)').matches) $('detail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+// Only station names count here; the section links above use the same # part for their own anchors.
+const stationInHash = () => { const id = decodeURIComponent(location.hash.slice(1)); return S.points.some((p) => p.id === id) ? id : null; };
+addEventListener('hashchange', () => { const id = stationInHash(); if (id && id !== S.sel) selectStation(id, true); });
+
+async function drawDetail() {
+  const p = S.points.find((x) => x.id === S.sel);
+  const box = $('detail');
+  if (!p) return;
+  const t = p.time ? Date.parse(p.time) : null;
+  const cells = [['Temperature', num(p.temp), '°C'], ['Humidity', num(p.hum, 0), '%'], ['Wind', p.ws == null ? '–' : num(p.ws) + (p.wd != null ? ' ' + compass(p.wd) : ''), 'm/s'], ['Rain, 24 h', num(p.rain24), 'mm'], ['Pressure', num(p.pmsl, 0), 'hPa'], ['Today max / min', p.tmax != null ? num(p.tmax) + ' / ' + num(p.tmin) : '–', '°C']];
+  const chips = h('div', { class: 'chips' }), ranges = h('div', { class: 'chips', role: 'group', 'aria-label': 'Period' });
+  const chart = h('div', { style: 'min-height:200px' }, h('p', { class: 'muted' }, 'Loading…'));
+  const csv = h('a', { class: 'btnlink', download: '', href: '#' }, 'Download CSV');
+  box.replaceChildren(
+    h('h3', { style: 'margin-top:0;font-size:16px' }, p.name),
+    h('p', { class: 'muted small', style: 'margin:0' }, t ? `Reading from ${when(t)} (${ago(t)})${isOld(t) ? ', old' : ''}` : 'No reading time'),
+    h('div', { class: 'kv' }, cells.map(([k, v, u]) => h('div', null, h('div', { class: 'k' }, k), h('div', { class: 'v' }, v, h('small', { class: 'muted' }, ' ' + u))))),
+    chips, ranges, chart, h('div', { style: 'margin-top:6px' }, csv),
+    (p.obs && p.obs.length) ? h('details', null, h('summary', null, `All ${p.obs.length} readings`), h('table', null, h('tbody', null, p.obs.map((o) => h('tr', null, h('td', null, o.name), h('td', null, num(o.value, 2), ' ' + (o.unit === 'Celcius' ? '°C' : o.unit || ''))))))) : null);
+  const token = ++S.token;
+  const draw = async () => {
+    ranges.replaceChildren([[24, '24 hours'], [168, '7 days'], [720, '30 days']].map(([n, label]) => h('button', { type: 'button', class: n === S.hours ? 'on' : '', 'aria-pressed': String(n === S.hours), onclick: () => { S.hours = n; S.series = null; drawDetail(); } }, label)));
+    csv.href = `/api/cydom/history.csv?station=${encodeURIComponent(p.id)}&days=${Math.ceil(S.hours / 24)}`;
+    csv.textContent = `Download CSV (${S.hours === 24 ? '24 hours' : S.hours / 24 + ' days'})`;
+    try {
+      const s = S.series || (S.series = await MOChart.series(p.id, S.hours));
+      if (token !== S.token) return;
+      const keys = MOChart.KEYS.filter((k) => MOChart.points(s, k).length > 1);
+      if (!keys.length) { chips.replaceChildren(); MOChart.render(chart, [], {}); return; }
+      if (!keys.includes(S.key)) S.key = keys[0];
+      chips.replaceChildren(keys.map((k) => h('button', { type: 'button', class: k === S.key ? 'on' : '', 'aria-pressed': String(k === S.key), onclick: () => { S.key = k; draw(); } }, MOChart.NAMES[k] || (s.units[k] && s.units[k].name) || k)));
+      const u = s.units[S.key] || {};
+      MOChart.render(chart, MOChart.points(s, S.key), { w: 640, h: 240, unit: u.unit || '', label: MOChart.NAMES[S.key] || u.name || S.key, hours: S.hours });
+    } catch (e) { if (token === S.token) chart.replaceChildren(failure('the history', e)); }
+  };
+  draw();
+}
+$('q').addEventListener('input', (e) => { S.q = e.target.value; drawStations(); });
+
+/* ---------- start and refresh ---------- */
+
+loadWarnings(); loadNet(); loadStations(); loadHistInfo();
+setInterval(() => { loadStations(); loadWarnings(); }, 300000);
+setInterval(loadNet, 600000);
+</script>
+</body>
+</html>

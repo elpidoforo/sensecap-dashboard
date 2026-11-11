@@ -95,6 +95,14 @@ Notes:
 - A failing source shows an error line in Data status and the other layers keep working.
 - The map loads MapLibre from unpkg and tiles from the providers above, so the browser needs internet access to those hosts.
 
+## Met Office page and station popup
+
+`/metoffice.html` shows everything the server reads from the Cyprus Department of Meteorology on one page: the warnings text (with the earlier versions this server saved), the forecast pictures, the radar, the sea and aviation texts, the discomfort index (NET) table, and a sortable, searchable table of all stations. Choosing a station draws its saved history (temperature, humidity, wind, pressure, rain, sun) for 24 hours, 7 days or 30 days, with a CSV download for that period. The address `/metoffice.html#ACHNA` opens a station directly.
+
+On the map, clicking a Met Office station square opens a popup with the same 24 hour chart, a CSV link and a link to that station on the page. Inside the student app the popup links to the app's own station screen.
+
+The chart is `public/mo-chart.js` (plain SVG, no libraries). A gap of more than an hour in the saved readings is drawn as a gap, not as a line. History only exists from the day the server started saving it, so a new volume starts with empty charts.
+
 ## Met Office history and pages
 
 The Met Office feed only holds the newest reading of each of its 54 stations, so the server saves every new reading (the feed updates every 10 minutes; the server checks every 5) in one file per day under `DATA_DIR/cydom/`. All readings are kept (temperature at 1.2 m and 5 cm, day extremes, wind at 2 m and 10 m and at the airport runways, humidity, rain, solar radiation, three pressures). History starts when the server first runs; it cannot be filled in backwards.
