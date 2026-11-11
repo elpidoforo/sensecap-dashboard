@@ -1,0 +1,2 @@
+/* Cyprus 3D: the frame styles are shared with the map page (map.css, prefix mp-). Only 3D-specific overrides live here. */
+.mp-frame iframe { background: #0C1626; }

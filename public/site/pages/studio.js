@@ -46,7 +46,7 @@
   const working = (name) => (WORK[name] ? t(WORK[name][0], WORK[name][1]) : t('Working on it', 'Δουλεύω πάνω σε αυτό'));
 
   const TRIES = [
-    ['Show how CO2 changes in our classroom through the school day, and tell us when it is time to open a window.', 'Δείξε πώς αλλάζει το CO2 στην τάξη μας μέσα στη σχολική μέρα και πες μας πότε πρέπει να ανοίξουμε παράθυρο.'],
+    ['Show how CO2 changes in our classroom through the school day', 'Δείξε πώς αλλάζει το CO2 στην τάξη μας μέσα στη σχολική μέρα'],
     ['Compare my school with the nearest Met Office station', 'Σύγκρινε το σχολείο μου με τον πλησιέστερο σταθμό της Μετεωρολογικής Υπηρεσίας'],
     ['Which school is warmest right now?', 'Ποιο σχολείο είναι το πιο ζεστό αυτή τη στιγμή;'],
   ];
@@ -129,7 +129,16 @@
   function openViewer(p, label, badge) {
     const prev = document.activeElement;
     const close = () => { scrim.remove(); document.removeEventListener('keydown', onKey); if (prev && prev.focus) prev.focus(); };
-    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') close();
+      else if (e.key === 'Tab') {   // keep the focus inside the window
+        const f = Array.from(box.querySelectorAll('a[href], button, iframe')).filter((n) => !n.disabled);
+        if (!f.length) return;
+        const i = f.indexOf(document.activeElement);
+        if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+        else if (!e.shiftKey && (i === f.length - 1 || i < 0)) { e.preventDefault(); f[0].focus(); }
+      }
+    };
     const x = el('button', { class: 'nm-btn nm-btn--sm', type: 'button', onclick: close }, ic('x'), t('Close', 'Κλείσιμο'));
     const box = el('div', { class: 'sd-view nm-enter', role: 'dialog', 'aria-modal': 'true', 'aria-label': p.title },
       el('div', { class: 'sd-view-h' },
@@ -215,7 +224,6 @@
         title: t('From an idea to a public tool.', 'Από μια ιδέα σε δημόσιο εργαλείο.'),
         lede: t('Describe a small tool in plain words. A draft is built from our live data. A teacher checks it, then anyone can open it.', 'Περιγράψτε ένα μικρό εργαλείο με απλά λόγια. Φτιάχνεται ένα προσχέδιο από τα ζωντανά μας δεδομένα. Ένας εκπαιδευτικός το ελέγχει και μετά μπορεί να το ανοίξει οποιοσδήποτε.'),
         tags: S.status && S.status.demo ? [{ text: t('Demo data', 'Δεδομένα επίδειξης'), cls: 'demo' }] : [],
-        actions: [el('button', { class: 'nm-btn', type: 'button', onclick: () => { const b = document.getElementById('sd-board'); if (b) { b.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); } } }, ic('ext'), t('Open the public gallery', 'Άνοιγμα της δημόσιας συλλογής'))],
         help: [
           'Students build with the class code from their teacher and a team name: no account and no password. Describe a tool, the studio builds a draft, you preview it and change it, then send it to your teacher. Drafts stay in this browser until you send them. A teacher checks every tool before anyone else can open it. Approved tools are in the public gallery below.',
           'Οι μαθητές φτιάχνουν με τον κωδικό τάξης από τον εκπαιδευτικό τους και ένα όνομα ομάδας: χωρίς λογαριασμό και χωρίς κωδικό πρόσβασης. Περιγράφετε ένα εργαλείο, το στούντιο φτιάχνει ένα προσχέδιο, το βλέπετε και το αλλάζετε και μετά το στέλνετε στον εκπαιδευτικό σας. Τα προσχέδια μένουν σε αυτό το πρόγραμμα περιήγησης μέχρι να τα στείλετε. Ένας εκπαιδευτικός ελέγχει κάθε εργαλείο πριν το ανοίξει οποιοσδήποτε άλλος. Τα εγκεκριμένα εργαλεία είναι στη δημόσια συλλογή παρακάτω.',
@@ -224,10 +232,11 @@
     }
     function drawStats() {
       const items = [];
-      if (canBuild()) items.push([draftCount(), t('drafts', 'προσχέδια')], [pendingMine().length, t('waiting for a teacher', 'περιμένουν εκπαιδευτικό')]);
+      if (canBuild()) { const n = draftCount(); items.push([n, n === 1 ? t('draft', 'προσχέδιο') : t('drafts', 'προσχέδια')], [pendingMine().length, t('waiting for a teacher', 'περιμένουν εκπαιδευτικό')]); }
       items.push([S.galErr ? '–' : S.gallery.length, t('public', 'δημόσια')]);
+      const gal = el('button', { class: 'nm-btn nm-btn--sm sd-galbtn', type: 'button', onclick: () => { const bd = document.getElementById('sd-board'); if (bd) bd.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); } }, ic('ext'), t('Open the public gallery', 'Άνοιγμα της δημόσιας συλλογής'));
       statsHost.replaceChildren(el('div', { class: 'sd-stats', role: 'group', 'aria-label': t('Tools in numbers', 'Τα εργαλεία σε αριθμούς') },
-        ...items.flatMap(([n, label], i) => [i ? el('span', { class: 'sep', 'aria-hidden': 'true' }) : null, el('span', null, el('b', null, String(n)), ' ' + label)]).filter(Boolean)),
+        ...items.flatMap(([n, label], i) => [i ? el('span', { class: 'sep', 'aria-hidden': 'true' }) : null, el('span', null, el('b', null, String(n)), ' ' + label)]).filter(Boolean), el('span', { class: 'sd-sp' }), gal),
       el('div', { class: 'nm-callout nm-callout--info sd-open' }, ic('eye'), el('span', null, el('b', null, t('Anyone can open a published tool, no sign-in needed.', 'Οποιοσδήποτε μπορεί να ανοίξει ένα δημοσιευμένο εργαλείο, χωρίς σύνδεση.')), ' ' + t('Students build with their class code. Teachers sign in to approve.', 'Οι μαθητές φτιάχνουν με τον κωδικό τάξης. Οι εκπαιδευτικοί συνδέονται για να εγκρίνουν.'))));
     }
 
@@ -281,7 +290,7 @@
 
     function buildForm() {
       const D = S.cur, lim = limitInfo();
-      const out = lim && lim.left <= 0, fresh = !D || S.mode === 'rebuild';
+      const out = lim && lim.left <= 0;
       const label = !D ? t('Describe a tool', 'Περιγράψτε ένα εργαλείο') : S.mode === 'rebuild' ? t('Your description. The draft is built again from it.', 'Η περιγραφή σας. Το προσχέδιο φτιάχνεται ξανά από αυτήν.') : t('What should change?', 'Τι να αλλάξει;');
       ta.setAttribute('aria-label', label);
       ta.placeholder = !D ? t('Say what you want to show and who it is for.', 'Πείτε τι θέλετε να δείξετε και για ποιον είναι.') : S.mode === 'rebuild' ? '' : t('For example: make the bars blue, or add the school name.', 'Για παράδειγμα: κάντε τις μπάρες μπλε ή προσθέστε το όνομα του σχολείου.');
@@ -297,7 +306,6 @@
         else if (D.prompt) row.append(el('button', { class: 'nm-btn nm-btn--ghost', type: 'button', onclick: () => { S.mode = 'rebuild'; ta.value = D.prompt.slice(0, MAX_TEXT); drawMaker(); ta.focus(); } }, ic('pencil'), t('Edit my description and rebuild', 'Αλλάξτε την περιγραφή και ξαναφτιάξτε')));
       }
       const tries = !D && !S.building ? el('div', { class: 'sd-tries' }, el('b', null, t('Try one', 'Δοκιμάστε ένα')), ...TRIES.map(([en, el2]) => el('button', { class: 'sd-try', type: 'button', onclick: () => { ta.value = t(en, el2); upd(); drawMaker(); ta.focus(); } }, t(en, el2).replace(/\.$/, '')))) : null;
-      void fresh;
       return el('div', null,
         el('label', { class: 'sd-lab', for: 'sd-ta' }, label), ta,
         el('div', { class: 'sd-below' }, el('span', null, t('Write it like you would tell a classmate. No names or personal details.', 'Γράψτε το όπως θα το λέγατε σε έναν συμμαθητή. Χωρίς ονόματα ή προσωπικά στοιχεία.')), counter),
@@ -308,8 +316,11 @@
       const box = el('div', { class: 'sd-state', 'aria-live': 'polite' });
       if (S.building) box.append(el('div', { class: 'sd-working' }, el('span', { class: 'sd-dots', 'aria-hidden': 'true' }, el('i'), el('i'), el('i')), el('span', null, S.work ? working(S.work) : t('Thinking about your tool', 'Σκέφτομαι το εργαλείο σας'))));
       else if (S.buildErr) box.append(el('div', { class: 'err', role: 'alert' }, S.buildErr));
-      else if (S.reply) box.append(el('div', { class: 'sd-reply' }, el('div', { class: 'sd-eb' }, ic('sparkle'), t('The studio says', 'Το στούντιο λέει')), ...paras(S.reply.text),
-        S.reply.tools && S.reply.tools.length ? el('div', { class: 'sd-eb sd-tools' }, t('It looked at: ', 'Κοίταξε: ') + Array.from(new Set(S.reply.tools.filter((x) => x !== 'save_project').map((x) => (WORK[x] ? t(WORK[x][0], WORK[x][1]) : x)))).join(', ')) : null));
+      else if (S.reply) {
+        const looked = Array.from(new Set((S.reply.tools || []).filter((x) => x !== 'save_project').map((x) => (WORK[x] ? t(WORK[x][0], WORK[x][1]) : x))));
+        box.append(el('div', { class: 'sd-reply' }, el('div', { class: 'sd-eb' }, ic('sparkle'), t('The studio says', 'Το στούντιο λέει')), ...paras(S.reply.text),
+        looked.length ? el('div', { class: 'sd-eb sd-tools' }, t('It looked at: ', 'Κοίταξε: ') + looked.join(', ')) : null));
+      }
       return box;
     }
     function usageBlock(lim, out) {
@@ -398,7 +409,7 @@
       }
       S.building = false; S.ctrl = null; S.work = '';
       const finalDraft = (ans && ans.draft) || draftEv;
-      let note = '';
+      let note = '', produced = false;
       if (finalDraft && finalDraft.html) {
         if (isClass()) {
           const d = (D || { id: 'd' + Date.now().toString(36) + rid(), school: V().school.slug, team: V().team, fromId: null, prompt: '', msgs: [] });
@@ -406,7 +417,7 @@
           if (fresh || !d.prompt) d.prompt = text;
           d.title = finalDraft.title || d.title || t('My tool', 'Το εργαλείο μου'); d.html = finalDraft.html; d.at = Date.now();
           d.msgs = msgs.concat(ans ? [{ role: 'assistant', text: ans.text }] : []).slice(-10);
-          S.cur = d; S.convo = [];
+          S.cur = d; S.convo = []; produced = true;
           persist();
         }
       } else if (isUser() && ans && ans.projectId) {
@@ -414,7 +425,8 @@
           const r = await SC.api('/studio/api/projects/' + ans.projectId);
           const p = r.project;
           S.cur = { id: 's' + p.id, serverId: p.id, title: p.title, prompt: (D && !fresh ? D.prompt : text) || text, html: p.html || '', msgs: msgs.concat([{ role: 'assistant', text: ans.text }]).slice(-10), at: Date.now() };
-          S.convo = [];
+          S.convo = []; produced = true;
+          await loadMine();
         } catch (e) { note = t('The draft was saved, but it could not be opened here. Find it in Draft below.', 'Το προσχέδιο αποθηκεύτηκε, αλλά δεν άνοιξε εδώ. Βρείτε το στα Προσχέδια παρακάτω.'); }
       } else if (ans && ans.text) {
         // The studio asked a question or explained something: keep the conversation going.
@@ -431,7 +443,7 @@
       if (!alive) return;
       loadStatus().then(() => { if (alive) { drawMaker(); drawStats(); } });
       drawAll();
-      if (finalDraft && S.cur) { makePreview(); const h = workHost.querySelector('h2'); if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); } }
+      if (produced && S.cur) { makePreview(); const h = workHost.querySelector('h2'); if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); } }
     }
 
     /* ----- the open draft: preview, title, send ----- */
@@ -603,10 +615,10 @@
       const pub = S.gallery.map(galCard);
       const errNote = S.mineErr && canBuild() && S.mineErr.status !== 401 ? el('div', { class: 'err', role: 'alert' }, t('Your own pages could not be loaded. ', 'Οι δικές σας σελίδες δεν φορτώθηκαν. ') + errMsg(S.mineErr) + ' ', el('button', { class: 'link', type: 'button', onclick: async () => { await loadMine(); drawStats(); drawBoard(); } }, t('Try again', 'Δοκιμάστε ξανά'))) : null;
       if (own.draft.length || own.review.length) {
-        boardHost.replaceChildren(el('div', { class: 'sd-kan' },
+        boardHost.replaceChildren(...[el('div', { class: 'sd-kan' },
           col('file', t('Draft', 'Προσχέδιο'), own.draft.length, isClass() ? t('Only in this browser. Send one to a teacher when it is ready.', 'Μόνο σε αυτό το πρόγραμμα περιήγησης. Στείλτε ένα στον εκπαιδευτικό όταν είναι έτοιμο.') : t('Saved to your account. Only you and the teachers can see these.', 'Αποθηκευμένα στον λογαριασμό σας. Μόνο εσείς και οι εκπαιδευτικοί τα βλέπετε.'), own.draft, [t('No drafts yet.', 'Δεν υπάρχουν προσχέδια ακόμη.'), t('Describe a tool above.', 'Περιγράψτε ένα εργαλείο παραπάνω.')]),
           col('clock', t('In review', 'Σε έλεγχο'), own.review.length, t('Waiting for a teacher to check them.', 'Περιμένουν έναν εκπαιδευτικό να τα ελέγξει.'), own.review, [t('Finished a draft?', 'Τελειώσατε ένα προσχέδιο;'), t('Press Send to teacher. It moves here.', 'Πατήστε «Αποστολή στον εκπαιδευτικό». Μετακινείται εδώ.')]),
-          pubErr ? el('section', { class: 'nm-card sd-col' }, el('h2', { class: 'sd-gh' }, t('Published', 'Δημοσιευμένα')), pubErr) : col('checkc', t('Published', 'Δημοσιευμένα'), pub.length, t('In the public gallery. No sign-in needed.', 'Στη δημόσια συλλογή. Χωρίς σύνδεση.'), pub, [t('Nothing public yet.', 'Τίποτα δημόσιο ακόμη.'), t('The first approved tool appears here.', 'Το πρώτο εγκεκριμένο εργαλείο εμφανίζεται εδώ.')])), errNote);
+          pubErr ? el('section', { class: 'nm-card sd-col' }, el('h2', { class: 'sd-gh' }, t('Published', 'Δημοσιευμένα')), pubErr) : col('checkc', t('Published', 'Δημοσιευμένα'), pub.length, t('In the public gallery. No sign-in needed.', 'Στη δημόσια συλλογή. Χωρίς σύνδεση.'), pub, [t('Nothing public yet.', 'Τίποτα δημόσιο ακόμη.'), t('The first approved tool appears here.', 'Το πρώτο εγκεκριμένο εργαλείο εμφανίζεται εδώ.')])), errNote].filter(Boolean));
       } else {
         boardHost.replaceChildren(el('section', { class: 'sd-gal', 'aria-labelledby': 'sd-gal-h' },
           el('div', { class: 'sd-gal-h' }, el('h2', { id: 'sd-gal-h' }, t('Public gallery', 'Δημόσια συλλογή'), el('span', null, '·'), String(pubErr ? 0 : pub.length)), el('p', { class: 'card-sub' }, t('Tools that teachers approved. Anyone can open them, no sign-in needed.', 'Εργαλεία που ενέκριναν εκπαιδευτικοί. Οποιοσδήποτε μπορεί να τα ανοίξει, χωρίς σύνδεση.'))),

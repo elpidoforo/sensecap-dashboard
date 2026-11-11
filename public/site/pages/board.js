@@ -14,6 +14,8 @@
   const T = SC.t, el = SC.el;
   const sv = (tag, attrs, ...kids) => SC.svgEl(tag, attrs, ...kids.flat(Infinity));
   SC.css('/site/pages/board.css');
+  // replaceChildren that skips null and false (the native one would print them as text)
+  const fill = (box, ...kids) => box.replaceChildren(...kids.flat(Infinity).filter((k) => k != null && k !== false));
 
   const HOUR = 3600000, DAY = 86400000, FRESH = 3 * HOUR;
 
@@ -155,7 +157,7 @@
             : sv('text', { x: w / 2, y: 31, 'text-anchor': 'middle', 'font-family': 'Inter,sans-serif', 'font-size': 11.5, 'font-weight': 500, fill: '#9fb2ca' }, T('no reading', 'χωρίς μέτρηση')))));
     });
     kids.push(...labels);
-    svgNode.replaceChildren(...kids);
+    fill(svgNode, ...kids);
   }
 
   /* ---------- small charts ---------- */
@@ -368,17 +370,17 @@
       /* ---------- paint: map ---------- */
       function paintMap() {
         if (!R.devices) return;
-        if (!R.devices.ok) { mapMsg.replaceChildren(errBox(T('The sensors could not be loaded, so the island has no readings. ', 'Δεν φορτώθηκαν οι αισθητήρες, οπότε το νησί δεν έχει μετρήσεις. ') + (R.devices.e && R.devices.e.message ? R.devices.e.message : ''))); mapBox.hidden = true; return; }
-        mapBox.hidden = false; mapMsg.replaceChildren();
+        if (!R.devices.ok) { fill(mapMsg, errBox(T('The sensors could not be loaded, so the island has no readings. ', 'Δεν φορτώθηκαν οι αισθητήρες, οπότε το νησί δεν έχει μετρήσεις. ') + (R.devices.e && R.devices.e.message ? R.devices.e.message : ''))); mapBox.hidden = true; return; }
+        mapBox.hidden = false; fill(mapMsg, );
         const avail = CATS.filter((c) => midsOf(c.id).length);
         if (!avail.length) {
-          chipsBox.replaceChildren(); mapDesc.textContent = '';
-          mapBox.hidden = true; valsList.replaceChildren();
-          mapMsg.replaceChildren(el('div', { class: 'empty' }, devices().length ? T('The sensors report no temperature, humidity, CO2, PM2.5 or noise yet. When they do, a column per school appears here.', 'Οι αισθητήρες δεν στέλνουν ακόμα θερμοκρασία, υγρασία, CO2, PM2.5 ή θόρυβο. Όταν στείλουν, θα εμφανιστεί εδώ μία στήλη ανά σχολείο.') : T('No sensors are listed yet. When the sensor feed is connected, a column per school appears here.', 'Δεν έχουν καταχωριστεί ακόμα αισθητήρες. Όταν συνδεθεί η τροφοδοσία αισθητήρων, θα εμφανιστεί εδώ μία στήλη ανά σχολείο.')));
+          fill(chipsBox, ); mapDesc.textContent = '';
+          mapBox.hidden = true; fill(valsList, );
+          fill(mapMsg, el('div', { class: 'empty' }, devices().length ? T('The sensors report no temperature, humidity, CO2, PM2.5 or noise yet. When they do, a column per school appears here.', 'Οι αισθητήρες δεν στέλνουν ακόμα θερμοκρασία, υγρασία, CO2, PM2.5 ή θόρυβο. Όταν στείλουν, θα εμφανιστεί εδώ μία στήλη ανά σχολείο.') : T('No sensors are listed yet. When the sensor feed is connected, a column per school appears here.', 'Δεν έχουν καταχωριστεί ακόμα αισθητήρες. Όταν συνδεθεί η τροφοδοσία αισθητήρων, θα εμφανιστεί εδώ μία στήλη ανά σχολείο.')));
           return;
         }
         if (!st.cat || !avail.find((c) => c.id === st.cat)) st.cat = avail[0].id;
-        chipsBox.replaceChildren(...avail.map((c) => el('button', { class: 'bd-chip' + (c.id === st.cat ? ' on' : ''), type: 'button', 'aria-pressed': c.id === st.cat ? 'true' : 'false', onclick: () => { st.cat = c.id; paintMap(); const on = chipsBox.querySelector('.on'); if (on) on.focus(); } }, T(c.en, c.el))));
+        fill(chipsBox, ...avail.map((c) => el('button', { class: 'bd-chip' + (c.id === st.cat ? ' on' : ''), type: 'button', 'aria-pressed': c.id === st.cat ? 'true' : 'false', onclick: () => { st.cat = c.id; paintMap(); const on = chipsBox.querySelector('.on'); if (on) on.focus(); } }, T(c.en, c.el))));
         const C = cat(st.cat), now = Date.now(), dv = devices();
         const cols = SCH.map((s) => {
           const vals = []; let unit = null;
@@ -391,7 +393,7 @@
           'Το ύψος και το χρώμα δείχνουν την επιλεγμένη μέτρηση, με μέσο όρο των αισθητήρων κάθε σχολείου που έστειλαν μέτρηση τις τελευταίες 3 ώρες. Σταθερή κλίμακα: ' + C.lo + ' έως ' + C.hi + ' ' + unit + '. Μπλε χαμηλότερο, χάλκινο υψηλότερο.');
         scaleNote.textContent = C.lo + ' – ' + C.hi + ' ' + unit;
         mapSvg.setAttribute('aria-label', T('Pseudo-3D map of Cyprus with a column at each school: ', 'Ψευδο-τρισδιάστατος χάρτης της Κύπρου με μία στήλη σε κάθε σχολείο: ') + cols.map((c) => c.s.short + ' ' + (c.val == null ? T('no reading', 'χωρίς μέτρηση') : c.txt + ' ' + c.unit)).join(', '));
-        valsList.replaceChildren(...cols.map((c) => el('li', null, c.s.n, el('b', null, c.val == null ? T('no reading', 'χωρίς μέτρηση') : c.txt + ' ' + c.unit), c.val == null ? null : T(c.n + (c.n === 1 ? ' sensor' : ' sensors'), c.n + (c.n === 1 ? ' αισθητήρας' : ' αισθητήρες')))));
+        fill(valsList, ...cols.map((c) => el('li', null, c.s.n, el('b', null, c.val == null ? T('no reading', 'χωρίς μέτρηση') : c.txt + ' ' + c.unit), c.val == null ? null : T(c.n + (c.n === 1 ? ' sensor' : ' sensors'), c.n + (c.n === 1 ? ' αισθητήρας' : ' αισθητήρες')))));
         const cy = val('cydom'), pts = cy && Array.isArray(cy.points) ? cy.points.filter((p) => fin(p.lat) && fin(p.lng)) : [];
         const hot = pts.filter((p) => fin(p.temp)).sort((a, b) => b.temp - a.temp)[0];
         drawIsland(mapSvg, cols, pts.map((p) => ({ lat: p.lat, lng: p.lng, hot: hot && p.id === hot.id })));
@@ -400,9 +402,9 @@
       /* ---------- paint: ring ---------- */
       function paintRing() {
         if (!R.devices) return;
-        if (!R.devices.ok) { ringBody.replaceChildren(errBox(T('The sensors could not be loaded. ', 'Δεν φορτώθηκαν οι αισθητήρες. ') + (R.devices.e && R.devices.e.message ? R.devices.e.message : ''))); return; }
+        if (!R.devices.ok) { fill(ringBody, errBox(T('The sensors could not be loaded. ', 'Δεν φορτώθηκαν οι αισθητήρες. ') + (R.devices.e && R.devices.e.message ? R.devices.e.message : ''))); return; }
         const dv = devices(), now = Date.now();
-        if (!dv.length) { ringBody.replaceChildren(el('div', { class: 'bd-eb' }, T('Sensors online', 'Αισθητήρες σε λειτουργία')), el('div', { class: 'empty' }, T('No sensors are listed yet. When the sensor feed is connected, the ring counts them here.', 'Δεν έχουν καταχωριστεί ακόμα αισθητήρες. Όταν συνδεθεί η τροφοδοσία αισθητήρων, ο δακτύλιος θα τους μετρά εδώ.'))); return; }
+        if (!dv.length) { fill(ringBody, el('div', { class: 'bd-eb' }, T('Sensors online', 'Αισθητήρες σε λειτουργία')), el('div', { class: 'empty' }, T('No sensors are listed yet. When the sensor feed is connected, the ring counts them here.', 'Δεν έχουν καταχωριστεί ακόμα αισθητήρες. Όταν συνδεθεί η τροφοδοσία αισθητήρων, ο δακτύλιος θα τους μετρά εδώ.'))); return; }
         const sts = dv.map((d) => stateOf(d, now));
         const n = (k) => sts.filter((x) => x === k).length;
         const on = n('on'), quiet = n('quiet'), off = n('off');
@@ -411,7 +413,7 @@
         const pct = Math.round(on / dv.length * 100);
         const li = (color, text, n_) => el('li', null, el('i', { style: 'background:' + color }), text, el('b', null, n_));
         const bad = dv.map((d, i) => ({ d, s: sts[i], m: seenMs(d) })).filter((x) => x.s !== 'on').sort((a, b) => a.m - b.m).slice(0, 4);
-        ringBody.replaceChildren(
+        fill(ringBody, 
           el('div', { class: 'bd-eb' }, T('Sensors online · all ' + dv.length + ' sensors', 'Αισθητήρες σε λειτουργία · και οι ' + dv.length)),
           el('div', { class: 'bd-ringtop' }, ringSvg(on, quiet, off, veh, fixed, other),
             el('ul', { class: 'bd-leg' }, li('#59d98e', T('Online', 'Σε λειτουργία'), on), li('#F2B24C', T('Quiet for over an hour', 'Σιωπηλοί πάνω από μία ώρα'), quiet), li('#FF7A6A', T('Offline', 'Εκτός λειτουργίας'), off), el('hr'),
@@ -428,7 +430,7 @@
 
       function paintWarn() {
         if (!R.warn) return;
-        if (!R.warn.ok) { kWarn.replaceChildren(head4(T('Met Office warnings', 'Προειδοποιήσεις Μετεωρολογικής')), errBox(T('The warnings page could not be read. ', 'Δεν διαβάστηκε η σελίδα προειδοποιήσεων. ') + (R.warn.e && R.warn.e.message ? R.warn.e.message : ''))); return; }
+        if (!R.warn.ok) { fill(kWarn, head4(T('Met Office warnings', 'Προειδοποιήσεις Μετεωρολογικής')), errBox(T('The warnings page could not be read. ', 'Δεν διαβάστηκε η σελίδα προειδοποιήσεων. ') + (R.warn.e && R.warn.e.message ? R.warn.e.message : ''))); return; }
         const p = R.warn.v || {}, txt = String(p.text || '').replace(/\s+/g, ' ').trim();
         const none = txt.length < 40;                   // with nothing in force the page shows only its heading (see metoffice.html)
         const low = txt.toLowerCase();
@@ -436,7 +438,7 @@
         const names = [T('None', 'Καμία'), T('Yellow', 'Κίτρινη'), T('Orange', 'Πορτοκαλί'), T('Red', 'Κόκκινη')];
         const checked = p.fetched ? Date.parse(p.fetched) : 0;
         const excerpt = txt.replace(/^issued weather warnings\s*/i, '').slice(0, 150);
-        kWarn.replaceChildren(head4(T('Met Office warnings', 'Προειδοποιήσεις Μετεωρολογικής')),
+        fill(kWarn, head4(T('Met Office warnings', 'Προειδοποιήσεις Μετεωρολογικής')),
           el('div', { class: 'val' }, el('span', { class: 'num ' + (none ? 'bd-ok' : level >= 2 ? 'bd-bd' : 'bd-wn') }, none ? T('None', 'Καμία') : T('In force', 'Σε ισχύ')),
             el('span', { class: 'chipu' }, none ? T('in force', 'σε ισχύ') : level < 0 ? T('level not stated', 'επίπεδο μη δηλωμένο') : names[level])),
           el('p', { class: 'sub' }, none ? T('The Met Office warnings page lists none right now.', 'Η σελίδα προειδοποιήσεων της Μετεωρολογικής δεν αναφέρει καμία αυτή τη στιγμή.') : excerpt + (txt.length > 150 ? '…' : ''), ' ',
@@ -447,18 +449,18 @@
       function paintTemp() {
         const lab = head4(T('Island temperature', 'Θερμοκρασία νησιού'));
         if (!R.cydom) return;
-        if (!R.cydom.ok) { kTemp.replaceChildren(lab, errBox(T('The Met Office stations could not be read. ', 'Δεν διαβάστηκαν οι σταθμοί της Μετεωρολογικής. ') + (R.cydom.e && R.cydom.e.message ? R.cydom.e.message : ''))); return; }
+        if (!R.cydom.ok) { fill(kTemp, lab, errBox(T('The Met Office stations could not be read. ', 'Δεν διαβάστηκαν οι σταθμοί της Μετεωρολογικής. ') + (R.cydom.e && R.cydom.e.message ? R.cydom.e.message : ''))); return; }
         const all = (R.cydom.v.points || []).filter((p) => fin(p.temp)), now = Date.now();
         const recent = all.filter((p) => p.time && now - Date.parse(p.time) < FRESH);
         const use = recent.length ? recent : all;
-        if (!use.length) { kTemp.replaceChildren(lab, el('div', { class: 'empty', style: 'margin-top:10px' }, T('The Met Office feed has no temperature readings right now.', 'Η τροφοδοσία της Μετεωρολογικής δεν έχει μετρήσεις θερμοκρασίας αυτή τη στιγμή.'))); return; }
+        if (!use.length) { fill(kTemp, lab, el('div', { class: 'empty', style: 'margin-top:10px' }, T('The Met Office feed has no temperature readings right now.', 'Η τροφοδοσία της Μετεωρολογικής δεν έχει μετρήσεις θερμοκρασίας αυτή τη στιγμή.'))); return; }
         const avg = mean(use.map((p) => p.temp)), hot = use.slice().sort((a, b) => b.temp - a.temp)[0], cold = use.slice().sort((a, b) => a.temp - b.temp)[0];
         const newest = Math.max(...use.map((p) => (p.time ? Date.parse(p.time) : 0)));
         const g = el('div', { class: 'gfx' });
         const m = st.met && st.met.pts && st.met.pts.length > 1 ? st.met.pts : null;
         if (m) { g.append(SCChart.spark(m.map((p) => p.v), { w: 240, h: 48, color: '#F2A56B' }), el('div', { class: 'muted', style: 'display:flex;justify-content:space-between;font-size:10.5px;margin-top:2px' }, el('span', null, T('24 h ago', 'πριν 24 ώρες')), el('span', null, T('now · stations nearest the schools', 'τώρα · σταθμοί κοντά στα σχολεία')))); }
         else g.append(el('div', { class: 'empty' }, st.met === 'loading' ? T('Loading 24 h history…', 'Φόρτωση ιστορικού 24 ω…') : T('The 24-hour history is still being collected on this server.', 'Το ιστορικό 24 ωρών συλλέγεται ακόμα σε αυτόν τον διακομιστή.')));
-        kTemp.replaceChildren(lab,
+        fill(kTemp, lab,
           el('div', { class: 'val' }, el('span', { class: 'num' }, fmt(avg, 1), el('small', null, '°C')), el('span', { class: 'chipu' }, T(use.length + ' stations', use.length + ' σταθμοί'))),
           el('p', { class: 'sub' }, T('Average of ' + use.length + ' Met Office stations. Hottest: ' + hot.name + ' ' + fmt(hot.temp, 1) + ' °C. Coldest: ' + cold.name + ' ' + fmt(cold.temp, 1) + ' °C. ', 'Μέσος όρος ' + use.length + ' σταθμών της Μετεωρολογικής. Θερμότερος: ' + hot.name + ' ' + fmt(hot.temp, 1) + ' °C. Ψυχρότερος: ' + cold.name + ' ' + fmt(cold.temp, 1) + ' °C. '),
             !recent.length && newest ? T('Newest reading ' + SC.ago(newest) + '. ', 'Νεότερη μέτρηση ' + SC.ago(newest) + '. ') : '', ready('weather') ? inl('weather', T('Stations', 'Σταθμοί')) : null), g);
@@ -480,13 +482,13 @@
         const a = airValue();
         if (!a) {
           const pending = st.airApi === 'loading' || st.open === 'loading';
-          kAir.replaceChildren(lab, el('div', { class: 'val' }, el('span', { class: 'num' }, '–')), el('div', { class: 'empty', style: 'margin-top:10px' }, pending ? T('Loading…', 'Φόρτωση…') : T('No PM2.5 reading yet: our sensors do not report it and the open air-quality feeds returned nothing.', 'Δεν υπάρχει ακόμα μέτρηση PM2.5: οι αισθητήρες μας δεν τη στέλνουν και οι ανοιχτές πηγές δεν επέστρεψαν τίποτα.')));
+          fill(kAir, lab, el('div', { class: 'val' }, el('span', { class: 'num' }, '–')), el('div', { class: 'empty', style: 'margin-top:10px' }, pending ? T('Loading…', 'Φόρτωση…') : T('No PM2.5 reading yet: our sensors do not report it and the open air-quality feeds returned nothing.', 'Δεν υπάρχει ακόμα μέτρηση PM2.5: οι αισθητήρες μας δεν τη στέλνουν και οι ανοιχτές πηγές δεν επέστρεψαν τίποτα.')));
           return;
         }
         const lvl = a.v <= 15 ? 0 : a.v <= 35 ? 1 : 2;
         const badge = [['ok', T('Good', 'Καλή')], ['warn', T('Fair', 'Μέτρια')], ['bad', T('Poor', 'Κακή')]][lvl];
         const srcText = a.src === 'dev' ? T('Mean of ' + a.n + ' school sensors. ', 'Μέσος όρος ' + a.n + ' αισθητήρων σχολείων. ') : a.src === 'model' ? T('Open-Meteo model, mean of ' + a.n + ' points over Cyprus (no school sensor reports PM2.5). ', 'Μοντέλο Open-Meteo, μέσος όρος ' + a.n + ' σημείων στην Κύπρο (κανένας αισθητήρας σχολείου δεν στέλνει PM2.5). ') : T('Mean of ' + a.n + ' public Sensor.Community sensors (no school sensor reports PM2.5). ', 'Μέσος όρος ' + a.n + ' δημόσιων αισθητήρων Sensor.Community (κανένας αισθητήρας σχολείου δεν στέλνει PM2.5). ');
-        kAir.replaceChildren(lab,
+        fill(kAir, lab,
           el('div', { class: 'val' }, el('span', { class: 'num ' + ['bd-ok', 'bd-wn', 'bd-bd'][lvl] }, fmt(a.v, a.v < 10 ? 1 : 0), el('small', null, 'µg/m³')), el('span', { class: 'nm-badge nm-badge--' + badge[0] }, badge[1])),
           el('p', { class: 'sub' }, srcText, lvl === 0 ? T('At or under the WHO 24-hour guide of 15. ', 'Μέχρι το όριο των 15 του ΠΟΥ για 24 ώρες. ') : T('Above the WHO 24-hour guide of 15. ', 'Πάνω από το όριο των 15 του ΠΟΥ για 24 ώρες. '), ready('explore') ? inl('explore', T('Explore data', 'Εξερεύνηση')) : null),
           el('div', { class: 'gfx' }, gauge(a.v)));
@@ -495,9 +497,9 @@
       function paintVeh() {
         const lab = head4(T('Vehicles reporting', 'Οχήματα που στέλνουν'));
         if (!R.devices) return;
-        if (!R.devices.ok) { kVeh.replaceChildren(lab, errBox(T('The sensors could not be loaded.', 'Δεν φορτώθηκαν οι αισθητήρες.'))); return; }
+        if (!R.devices.ok) { fill(kVeh, lab, errBox(T('The sensors could not be loaded.', 'Δεν φορτώθηκαν οι αισθητήρες.'))); return; }
         const dv = devices().filter((d) => kindOf(d) !== 'fixed'), now = Date.now();
-        if (!dv.length) { kVeh.replaceChildren(lab, el('div', { class: 'empty', style: 'margin-top:10px' }, T('No vehicle sensors are listed yet.', 'Δεν έχουν καταχωριστεί ακόμα αισθητήρες οχημάτων.'))); return; }
+        if (!dv.length) { fill(kVeh, lab, el('div', { class: 'empty', style: 'margin-top:10px' }, T('No vehicle sensors are listed yet.', 'Δεν έχουν καταχωριστεί ακόμα αισθητήρες οχημάτων.'))); return; }
         const on = dv.filter((d) => stateOf(d, now) === 'on');
         let moving = null;
         const tr = val('trails');
@@ -516,7 +518,7 @@
           g.append(hourBars(counts, t0, Math.max(1, dv.length)));
         } else g.append(el('div', { class: 'empty' }, st.series === 'loading' ? T('Loading…', 'Φόρτωση…') : T('No hourly history yet.', 'Δεν υπάρχει ακόμα ωριαίο ιστορικό.')));
         const delayNote = exactNow ? T('You are signed in as a teacher, so positions are exact. ', 'Είστε συνδεδεμένος ως εκπαιδευτικός, οπότε οι θέσεις είναι ακριβείς. ') : T('Positions are public only after ' + delayH + ' h, rounded to about 1 km. ', 'Οι θέσεις δημοσιεύονται μετά από ' + delayH + ' ώρες, στρογγυλοποιημένες περίπου στο 1 χλμ. ');
-        kVeh.replaceChildren(lab,
+        fill(kVeh, lab,
           el('div', { class: 'val' }, el('span', { class: 'num bd-cy' }, String(on.length)), el('span', { class: 'chipu' }, T('of ' + dv.length, 'από ' + dv.length)), moving != null && on.length ? el('span', { class: 'chipu' }, exactNow ? T(moving + ' moving now', moving + ' σε κίνηση τώρα') : T(moving + ' moving about ' + delayH + ' h ago', moving + ' σε κίνηση πριν από περίπου ' + delayH + ' ώρες')) : null),
           el('p', { class: 'sub' }, T('Vehicle sensors that sent a reading in the last hour. ', 'Αισθητήρες οχημάτων που έστειλαν μέτρηση την τελευταία ώρα. '), delayNote, ready('vehicles') ? inl('vehicles', T('Vehicles', 'Οχήματα')) : null), g);
       }
@@ -531,13 +533,13 @@
         return [...slots.entries()].sort((a, b) => a[0] - b[0]).map(([k, s]) => ({ t: k * 1800000 + 900000, v: mean([...s.values()].map((e) => e[0] / e[1])) }));
       }
       function paintChart() {
-        chartHead.replaceChildren(el('div', { class: 'bd-eb' }, T('Last 24 hours · temperature', 'Τελευταίες 24 ώρες · θερμοκρασία')),
+        fill(chartHead, el('div', { class: 'bd-eb' }, T('Last 24 hours · temperature', 'Τελευταίες 24 ώρες · θερμοκρασία')),
           el('h3', null, T('Our sensors next to the Met Office', 'Οι αισθητήρες μας δίπλα στη Μετεωρολογική')));
         if (!R.devices) return;
-        if (!R.devices.ok) { chartBox.replaceChildren(errBox(T('The sensors could not be loaded, so there is no chart. ', 'Δεν φορτώθηκαν οι αισθητήρες, οπότε δεν υπάρχει γράφημα. '))); return; }
-        if (!midsOf('temp').length) { chartBox.replaceChildren(el('div', { class: 'empty' }, T('The sensors report no temperature yet, so there is nothing to compare with the Met Office.', 'Οι αισθητήρες δεν στέλνουν ακόμα θερμοκρασία, οπότε δεν υπάρχει τίποτα για σύγκριση με τη Μετεωρολογική.'))); return; }
-        if (st.series === 'loading' || !st.series) { chartBox.replaceChildren(loadingBox()); return; }
-        if (st.series === 'error') { chartBox.replaceChildren(errBox(T('The 24-hour history could not be loaded.', 'Δεν φορτώθηκε το ιστορικό 24 ωρών.'))); return; }
+        if (!R.devices.ok) { fill(chartBox, errBox(T('The sensors could not be loaded, so there is no chart. ', 'Δεν φορτώθηκαν οι αισθητήρες, οπότε δεν υπάρχει γράφημα. '))); return; }
+        if (!midsOf('temp').length) { fill(chartBox, el('div', { class: 'empty' }, T('The sensors report no temperature yet, so there is nothing to compare with the Met Office.', 'Οι αισθητήρες δεν στέλνουν ακόμα θερμοκρασία, οπότε δεν υπάρχει τίποτα για σύγκριση με τη Μετεωρολογική.'))); return; }
+        if (st.series === 'loading' || !st.series) { fill(chartBox, loadingBox()); return; }
+        if (st.series === 'error') { fill(chartBox, errBox(T('The 24-hour history could not be loaded.', 'Δεν φορτώθηκε το ιστορικό 24 ωρών.'))); return; }
         const eu = Object.keys(st.series), ours = bucketMean(eu.map((e) => st.series[e]));
         const series = [], notes = [];
         const nOurs = eu.filter((e) => st.series[e] && st.series[e].length).length;
@@ -545,9 +547,9 @@
         const met = st.met && st.met.pts && st.met.pts.length > 1 ? st.met : null;
         if (met) { series.push({ name: T('Met Office (mean of ' + met.names.length + ' stations)', 'Μετεωρολογική (μέσος όρος ' + met.names.length + ' σταθμών)'), color: SCChart.COLORS[0], pts: met.pts, dash: true }); notes.push(T('Met Office stations nearest the schools: ' + met.names.join(', ') + '.', 'Σταθμοί της Μετεωρολογικής πιο κοντά στα σχολεία: ' + met.names.join(', ') + '.')); }
         else notes.push(st.met === 'loading' ? T('Loading the Met Office history…', 'Φόρτωση ιστορικού Μετεωρολογικής…') : T('The Met Office history is still being collected on this server, so only our sensors are drawn.', 'Το ιστορικό της Μετεωρολογικής συλλέγεται ακόμα σε αυτόν τον διακομιστή, οπότε σχεδιάζονται μόνο οι αισθητήρες μας.'));
-        if (!series.length) { chartBox.replaceChildren(el('div', { class: 'empty' }, T('Not enough readings in the last 24 hours to draw a chart yet.', 'Δεν υπάρχουν αρκετές μετρήσεις στις τελευταίες 24 ώρες για γράφημα ακόμα.'))); return; }
+        if (!series.length) { fill(chartBox, el('div', { class: 'empty' }, T('Not enough readings in the last 24 hours to draw a chart yet.', 'Δεν υπάρχουν αρκετές μετρήσεις στις τελευταίες 24 ώρες για γράφημα ακόμα.'))); return; }
         const box = el('div');
-        chartBox.replaceChildren(box, el('p', { class: 'bd-note' }, T('Each point is the mean of the readings in a 30-minute slot. The sensors are not all in one place (buses move), so the lines are not expected to match. ', 'Κάθε σημείο είναι ο μέσος όρος των μετρήσεων σε διάστημα 30 λεπτών. Οι αισθητήρες δεν βρίσκονται όλοι στο ίδιο σημείο (τα λεωφορεία κινούνται), οπότε οι γραμμές δεν αναμένεται να ταυτίζονται. ') + notes.join(' '), ' ', ready('weather') ? inl('weather', T('Met Office record', 'Μετεωρολογικό αρχείο')) : null));
+        fill(chartBox, box, el('p', { class: 'bd-note' }, T('Each point is the mean of the readings in a 30-minute slot. The sensors are not all in one place (buses move), so the lines are not expected to match. ', 'Κάθε σημείο είναι ο μέσος όρος των μετρήσεων σε διάστημα 30 λεπτών. Οι αισθητήρες δεν βρίσκονται όλοι στο ίδιο σημείο (τα λεωφορεία κινούνται), οπότε οι γραμμές δεν αναμένεται να ταυτίζονται. ') + notes.join(' '), ' ', ready('weather') ? inl('weather', T('Met Office record', 'Μετεωρολογικό αρχείο')) : null));
         const narrow = (chartBox.clientWidth || 720) < 640;
         chartNarrow = narrow;
         SCChart.line(box, series, { unit: '°C', dec: 1, w: narrow ? Math.max(300, Math.round(chartBox.clientWidth)) : 720, h: narrow ? 250 : 260, gap: 5400000, label: T('Temperature, last 24 hours', 'Θερμοκρασία, τελευταίες 24 ώρες'), latest: T('Latest ', 'Τελευταία '), empty: T('Not enough readings for this period yet.', 'Δεν υπάρχουν ακόμα αρκετές μετρήσεις.') });
@@ -575,8 +577,8 @@
         }
         ev.sort((a, b) => b.t - a.t);
         const lead = el('span', { class: 'tk lead' }, T('Latest on the board', 'Τελευταία στον πίνακα'));
-        if (!ev.length) { ticker.replaceChildren(lead, el('span', { class: 'tk' }, T('No events yet. A line appears here when a warning changes or a sensor goes quiet.', 'Κανένα γεγονός ακόμα. Μια γραμμή εμφανίζεται εδώ όταν αλλάζει μια προειδοποίηση ή ένας αισθητήρας σιωπά.'))); return; }
-        ticker.replaceChildren(lead, ...ev.slice(0, 6).map((e) => el('span', { class: 'tk' }, el('span', { class: 'tm' }, when(e.t)), el('span', { class: 'nm' }, e.who), e.what)));
+        if (!ev.length) { fill(ticker, lead, el('span', { class: 'tk' }, T('No events yet. A line appears here when a warning changes or a sensor goes quiet.', 'Κανένα γεγονός ακόμα. Μια γραμμή εμφανίζεται εδώ όταν αλλάζει μια προειδοποίηση ή ένας αισθητήρας σιωπά.'))); return; }
+        fill(ticker, lead, ...ev.slice(0, 6).map((e) => el('span', { class: 'tk' }, el('span', { class: 'tm' }, when(e.t)), el('span', { class: 'nm' }, e.who), e.what)));
       }
 
       function paintAll() {
@@ -642,7 +644,7 @@
         if (busy || !alive) return;
         busy = true;
         try {
-          if (manual) { ringBody.replaceChildren(loadingBox()); }
+          if (manual) { fill(ringBody, loadingBox()); }
           const [cfgR, devR, latR, cyR, warnR, whR, trR] = await Promise.all([
             settle(SC.cached('/api/config', 300000)), settle(SC.cached('/api/devices', 20000)), settle(SC.cached('/api/latest', 20000)),
             settle(SC.cached('/api/cydom', 120000)), settle(SC.cached('/api/dom/page?name=warnings', 120000)),

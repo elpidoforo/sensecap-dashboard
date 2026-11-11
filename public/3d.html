@@ -5,87 +5,216 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cyprus 3D</title>
 <style>
+  /* Nemesis Classic look. Values copied from /site/site.css (this is a separate document, so it carries its own copy). */
+  @font-face { font-family: Inter; font-weight: 400; font-display: swap; src: url(/site/fonts/Inter-Regular.woff) format("woff"); }
+  @font-face { font-family: Inter; font-weight: 500; font-display: swap; src: url(/site/fonts/Inter-Medium.woff) format("woff"); }
+  @font-face { font-family: Inter; font-weight: 600; font-display: swap; src: url(/site/fonts/Inter-SemiBold.woff) format("woff"); }
+  @font-face { font-family: Inter; font-weight: 700; font-display: swap; src: url(/site/fonts/Inter-Bold.woff) format("woff"); }
+  :root {
+    color-scheme: dark;
+    --bg: #0C1626; --ink: #FFFFFF; --ink-soft: #EAF0F7; --text: #D9E3EF; --muted: #9fb2ca;
+    --copper: #E07F3F; --copper-2: #F2A56B; --copper-line: rgba(242,165,107,.5); --cyan: #4CCBEA; --violet: #8f7bff;
+    --gold: linear-gradient(180deg, #F7C46B, #E8963F); --gold-ink: #0C1626;
+    --ok: #9BD88F; --ok-bg: rgba(134,194,122,.17); --ok-line: rgba(134,194,122,.4);
+    --warn: #F2CF86; --warn-bg: rgba(240,185,74,.17); --warn-line: rgba(240,185,74,.4);
+    --bad: #FFA69B; --dot-ok: #59d98e;
+    --glass: rgba(21,38,61,.78); --glass-edge: rgba(255,255,255,.13); --edge: rgba(255,255,255,.12); --edge-2: rgba(255,255,255,.18);
+    --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: #0b1220; color: #e8eaed; font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
-  #view { position: fixed; inset: 0; }
-  .panel { position: fixed; z-index: 3; background: rgba(16,24,40,.88); border: 0.5px solid rgba(255,255,255,.16); border-radius: 10px; padding: 10px 12px; }
-  #controls { top: 12px; left: 12px; width: 250px; max-height: calc(100% - 100px); overflow: auto; }
-  h1 { font-size: 15px; font-weight: 500; margin: 0 0 6px; display: flex; align-items: center; gap: 8px; }
-  .live { font-size: 11px; font-weight: 400; padding: 1px 8px; border-radius: 10px; background: #12351f; color: #6fe3a0; }
-  .live.stale { background: #3a2f10; color: #f3d68a; }
-  h2 { font-size: 11px; font-weight: 500; color: #9aa4b2; text-transform: uppercase; letter-spacing: .04em; margin: 12px 0 4px; }
-  label { display: flex; align-items: center; gap: 8px; padding: 2px 0; cursor: pointer; }
-  select, input[type=range] { width: 100%; }
-  select { background: #1b2740; color: inherit; border: 0.5px solid rgba(255,255,255,.2); border-radius: 6px; padding: 5px 8px; font: inherit; }
-  a { color: #8ab4f8; text-decoration: none; }
-  #status { color: #9aa4b2; font-size: 12px; }
-  #legend { left: 12px; bottom: 12px; width: 250px; }
-  #bar { height: 8px; border-radius: 4px; margin: 4px 0; }
-  #lr { display: flex; justify-content: space-between; color: #9aa4b2; font-size: 12px; }
-  #tip { position: fixed; pointer-events: none; display: none; background: rgba(16,24,40,.95); border: 0.5px solid rgba(255,255,255,.25); border-radius: 8px; padding: 6px 10px; font-size: 12px; z-index: 5; max-width: 260px; }
-  #msg { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; background: #0b1220; z-index: 10; }
-  #err { color: #f2877f; margin-top: 6px; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 400 13px/1.45 var(--font); letter-spacing: -.005em; font-feature-settings: "tnum" 1, "cv11" 1; overflow: hidden; }
+  button, select, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--copper-2); outline-offset: 2px; }
+  a { color: var(--copper-2); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; }
+  .i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .glass { background: var(--glass); border: 1px solid var(--glass-edge); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: 0 16px 36px -16px rgba(0,0,0,.6); color: var(--ink-soft); }
+
+  /* ---------- layer rail ---------- */
+  #controls { position: fixed; z-index: 4; top: 16px; left: 16px; width: 272px; max-height: calc(100% - 150px); display: flex; flex-direction: column; border-radius: 20px; background: linear-gradient(170deg, rgba(20,36,60,.9), rgba(9,18,32,.93)); }
+  .delayed #controls { max-height: calc(100% - 200px); }
+  .rail-h { display: flex; align-items: center; gap: 8px; padding: 14px 12px 8px 16px; }
+  .rail-h .eyebrow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 700 11px/1 var(--font); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  .live { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--ok-line); background: var(--ok-bg); color: var(--ok); font: 600 11px/1 var(--font); white-space: nowrap; }
+  .live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--dot-ok); }
+  .live.stale { border-color: var(--warn-line); background: var(--warn-bg); color: var(--warn); }
+  .live.stale::before { background: #F0B94A; }
+  .iconbtn { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 9px; border: 1px solid var(--edge); background: rgba(255,255,255,.05); color: #cfdaea; cursor: pointer; padding: 0; }
+  .iconbtn:hover { background: rgba(255,255,255,.12); }
+  .iconbtn .i { width: 16px; height: 16px; transition: transform .2s; }
+  #controls.closed #fold .i { transform: rotate(-90deg); }
+  .rail-body { overflow: auto; padding: 0 10px 12px; scrollbar-width: thin; scrollbar-color: #2a4161 transparent; }
+  #controls.closed .rail-body { display: none; }
+  .nav { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0 6px 4px; font-size: 12.5px; }
+  .embed .nav { display: none; }
+  .rail-g { display: flex; align-items: center; gap: 8px; margin: 12px 6px 3px; font: 700 10px/1 var(--font); letter-spacing: .16em; text-transform: uppercase; color: #6f86a3; }
+  .rail-g::after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,.08); }
+  .lay { position: relative; display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 13px; cursor: pointer; transition: background .18s; }
+  .lay:hover { background: rgba(255,255,255,.055); }
+  .lay > input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+  .lay:has(> input:focus-visible) { outline: 2px solid var(--copper-2); outline-offset: -2px; }
+  .lay .tile { --c: #8CA0B8; width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; flex: none; color: #8CA0B8; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); transition: background .2s, color .2s, border-color .2s; }
+  .lay:has(> input:checked) .tile { color: color-mix(in srgb, var(--c) 55%, #fff); background: color-mix(in srgb, var(--c) 17%, transparent); border-color: color-mix(in srgb, var(--c) 50%, transparent); }
+  .lay .lt { min-width: 0; flex: 1; }
+  .lay .lt b { display: block; font: 600 13.5px/1.2 var(--font); color: #aebdd0; letter-spacing: -.005em; }
+  .lay:has(> input:checked) .lt b { color: var(--ink-soft); }
+  .lay .lt small { display: block; margin-top: 2px; font: 400 11.5px/1.25 var(--font); color: var(--muted); }
+  .lay .sw { margin-left: auto; width: 36px; height: 20px; border-radius: 999px; background: #26364d; border: 1px solid rgba(255,255,255,.08); position: relative; flex: none; transition: background .2s; }
+  .lay .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #9fb0c6; transition: left .2s, background .2s; }
+  .lay:has(> input:checked) .sw { background: var(--copper); border-color: var(--copper-2); box-shadow: 0 0 12px -2px rgba(224,127,63,.6); }
+  .lay:has(> input:checked) .sw::after { left: 18px; background: #fff; }
+  .lay .rd { margin-left: auto; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #3a4f6d; position: relative; flex: none; transition: border-color .2s; }
+  .lay:has(> input:checked) .rd { border-color: var(--copper-2); }
+  .lay:has(> input:checked) .rd::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--copper-2); box-shadow: 0 0 10px rgba(224,127,63,.7); }
+  .ctl { display: grid; gap: 5px; margin: 8px 6px 2px; }
+  .ctl > span { font: 600 11.5px/1.2 var(--font); color: var(--muted); }
+  select { width: 100%; min-height: 36px; padding: 6px 30px 6px 10px; border-radius: 11px; border: 1px solid var(--edge-2); background: rgba(8,16,30,.6) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239fb2ca' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center / 16px; -webkit-appearance: none; appearance: none; color: var(--text); font: 500 13px/1.2 var(--font); cursor: pointer; }
+  select option { background: #15263D; color: var(--text); }
+  input[type=range] { width: 100%; height: 22px; margin: 2px 0; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; }
+  input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: rgba(255,255,255,.16); }
+  input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: rgba(255,255,255,.16); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%; background: var(--copper-2); border: 2px solid #1c0f06; box-shadow: 0 0 10px rgba(224,127,63,.6); }
+  input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--copper-2); border: 2px solid #1c0f06; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 6px 13px; border-radius: 11px; border: 1px solid var(--edge-2); background: rgba(255,255,255,.07); color: var(--ink-soft); font: 600 12.5px/1.2 var(--font); cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .btn:hover { background: rgba(255,255,255,.12); color: #fff; text-decoration: none; }
+  .btn.primary { border-color: transparent; background: var(--gold); color: var(--gold-ink); }
+  .st { margin: 2px 6px 0; font: 400 12px/1.5 var(--font); color: var(--muted); }
+  #err { margin: 4px 6px 0; color: var(--bad); font-size: 12px; }
+  #err:empty { display: none; }
+
+  /* ---------- top chip, legend ---------- */
+  .tchip { position: fixed; z-index: 3; top: 16px; left: 304px; display: none; align-items: center; gap: 8px; padding: 8px 14px 8px 11px; border-radius: 999px; background: rgba(20,32,50,.82); border: 1px solid var(--warn-line); color: var(--warn); font: 600 12.5px/1 var(--font); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+  .tchip .i { width: 15px; height: 15px; }
+  .delayed .tchip { display: inline-flex; }
+  #legend { position: fixed; z-index: 3; left: 16px; bottom: 16px; width: 272px; padding: 11px 14px 12px; border-radius: 16px; background: rgba(14,26,44,.84); }
+  #lt { font: 600 12px/1.3 var(--font); color: var(--ink-soft); }
+  #bar { height: 8px; border-radius: 4px; margin: 5px 0 3px; }
+  #lr { display: flex; justify-content: space-between; color: var(--muted); font-size: 11.5px; }
+  #lgPriv { display: none; margin: 9px 0 0; padding-top: 9px; border-top: 1px solid rgba(255,255,255,.08); font: 600 12px/1.4 var(--font); color: #fff; }
+  .delayed #lgPriv { display: block; }
+
+  /* ---------- sensor list ---------- */
+  #list { position: fixed; z-index: 3; top: 16px; right: 16px; width: 300px; max-height: calc(100% - 32px); display: flex; flex-direction: column; padding: 12px 10px 10px; border-radius: 20px; background: linear-gradient(170deg, rgba(20,36,60,.9), rgba(9,18,32,.93)); }
+  #list h2 { margin: 0 6px 8px; font: 700 11px/1.3 var(--font); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  #list .tools { margin: 0 6px 6px; }
+  #list select { min-height: 32px; font-size: 12.5px; }
+  #rows { overflow: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: #2a4161 transparent; }
+  .row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 8px; border: 0; border-radius: 12px; background: transparent; text-align: left; cursor: pointer; color: var(--ink-soft); }
+  .row:hover { background: rgba(255,255,255,.07); }
+  .row.sel { background: rgba(224,127,63,.16); box-shadow: inset 0 0 0 1px var(--copper-line); }
+  .row.none { cursor: default; color: var(--muted); }
+  .row .dot { width: 11px; height: 11px; border-radius: 50%; flex: none; background: var(--c, #888); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c, #888) 28%, transparent); }
+  .row .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 13px/1.25 var(--font); }
+  .row .vl { font: 600 12.5px/1 var(--font); font-variant-numeric: tabular-nums; color: #cfd9e8; white-space: nowrap; }
+
+  /* ---------- labels on the columns and the pointer tip ---------- */
   #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
-  .lb { position: absolute; left: 0; top: 0; white-space: nowrap; padding: 1px 8px; border-radius: 11px; font-size: 12px; background: rgba(16,24,40,.84); border: 1.5px solid var(--c, #888); color: #fff; will-change: transform; }
-  .lb b { font-weight: 500; margin-right: 5px; }
-  .lb i { font-style: normal; color: #9aa4b2; margin-left: 5px; }
+  .lb { position: absolute; left: 0; top: 0; white-space: nowrap; padding: 4px 10px; border-radius: 999px; font: 600 12px/1.2 var(--font); background: rgba(12,22,38,.86); border: 1.5px solid var(--c, #888); color: #fff; will-change: transform; box-shadow: 0 8px 18px -8px rgba(0,0,0,.7); }
+  .lb b { font-weight: 600; margin-right: 6px; color: var(--ink-soft); }
+  .lb i { font-style: normal; color: var(--muted); margin-left: 6px; font-weight: 500; }
   .lb.off { color: #9aa4b2; }
-  .lb.hot { background: rgba(255,255,255,.95); color: #101828; font-size: 13px; z-index: 3; }
-  .lb.hot i { color: #475467; }
-  #list { top: 12px; right: 12px; width: 250px; max-height: calc(100% - 100px); overflow: auto; }
-  #list h2 { margin-top: 0; }
-  #list .tools { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-  #list select { padding: 3px 6px; font-size: 12px; }
-  .row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
-  .row:hover, .row.sel { background: rgba(255,255,255,.12); }
-  .row.none { cursor: default; color: #9aa4b2; }
-  .row .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--c, #888); }
-  .row .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .row .vl { font-variant-numeric: tabular-nums; color: #cfd6e0; }
-  .embed #navlinks { display: none; }
-  @media (max-width: 640px) {
-    #controls { width: calc(100% - 24px); max-height: 38%; } #legend { display: none; }
-    #list { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; max-height: 30%; }
+  .lb.hot { background: var(--gold); color: var(--gold-ink); border-color: transparent; z-index: 3; }
+  .lb.hot b, .lb.hot i { color: var(--gold-ink); }
+  #tip { position: fixed; pointer-events: none; display: none; z-index: 5; max-width: 270px; padding: 10px 12px; border-radius: 14px; background: linear-gradient(165deg, rgba(36,62,100,.95), rgba(13,25,43,.96)); border: 1px solid rgba(255,255,255,.12); box-shadow: 0 20px 40px -18px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.1); font: 400 12.5px/1.45 var(--font); color: var(--text); }
+  #tip b { color: #fff; font-weight: 600; }
+  #tip i { color: var(--copper-2); font-style: normal; }
+
+  /* ---------- loading and error card ---------- */
+  #msg { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px; background: var(--bg); text-align: center; }
+  #msg .card { max-width: 420px; padding: 24px 26px; border-radius: 20px; }
+  #msg p { margin: 0 0 10px; font: 500 14px/1.5 var(--font); color: var(--ink-soft); }
+  #msg .bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; margin: 12px 0 0; }
+  #msg .bar i { display: block; height: 100%; width: 30%; background: var(--gold); border-radius: 3px; transition: width .4s; }
+  #msg .e { color: var(--bad); font-size: 12.5px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  @media (max-width: 1100px) { #list { width: 260px; } .tchip { right: 290px; } }
+  @media (max-width: 760px) {
+    #controls { width: calc(100% - 24px); left: 12px; top: 12px; max-height: 58%; }
+    .delayed #controls { max-height: 58%; }
+    .tchip { left: 12px; right: 12px; top: 64px; justify-content: center; font-size: 11.5px; padding: 6px 10px; }
+    #legend { display: none; left: 12px; right: 12px; width: auto; bottom: 12px; }
+    .delayed #legend { display: block; bottom: calc(32% + 24px); }
+    .delayed #legend #lt, .delayed #legend #bar, .delayed #legend #lr { display: none; }
+    .delayed #lgPriv { margin: 0; padding: 0; border: 0; }
+    #list { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; max-height: 32%; }
   }
 </style>
 </head>
 <body>
-<div id="msg">Building the island…</div>
-<canvas id="view"></canvas>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-bus" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="15" rx="3"/><path d="M4 11h16M8 21v-3M16 21v-3"/><circle cx="8" cy="15" r=".8"/><circle cx="16" cy="15" r=".8"/></symbol>
+    <symbol id="i-sensor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.2"/><path d="M7.8 7.8a6 6 0 000 8.4M16.2 7.8a6 6 0 010 8.4M4.9 4.9a10 10 0 000 14.2M19.1 4.9a10 10 0 010 14.2"/></symbol>
+    <symbol id="i-wind" viewBox="0 0 24 24"><path d="M3 8h10.5a2.5 2.5 0 10-2.5-2.5M3 12h15a2.5 2.5 0 11-2.5 2.5M3 16h7"/></symbol>
+    <symbol id="i-thermo" viewBox="0 0 24 24"><path d="M10 14.8V5a2 2 0 014 0v9.8a4 4 0 11-4 0z"/><path d="M12 9.5v7"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4.5 4.5 0 01-.6-8.96A6 6 0 0118 10.5 3.75 3.75 0 0117.25 18z"/></symbol>
+    <symbol id="i-haze" viewBox="0 0 24 24"><path d="M4 8h16M4 12h10M8 16h12"/><circle cx="18" cy="12" r="1"/></symbol>
+    <symbol id="i-dust" viewBox="0 0 24 24"><circle cx="7" cy="8" r="1.2"/><circle cx="13" cy="6" r="1.2"/><circle cx="17" cy="11" r="1.2"/><circle cx="9" cy="13" r="1.2"/><circle cx="15" cy="17" r="1.2"/><circle cx="5" cy="17" r="1.2"/></symbol>
+    <symbol id="i-mount" viewBox="0 0 24 24"><path d="M3 19l6-10 4 6 2-3 6 7z"/></symbol>
+    <symbol id="i-wave" viewBox="0 0 24 24"><path d="M2 9c2.5-2 4.5-2 7 0s4.5 2 7 0 4-2 6 0M2 15c2.5-2 4.5-2 7 0s4.5 2 7 0 4-2 6 0"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 018 0v3"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5" opacity=".7"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.2"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-6 7-12a7 7 0 10-14 0c0 6 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+  </defs>
+</svg>
+<div id="msg" role="status"><div class="glass card"><p id="msgT" data-el="Δημιουργία του νησιού…">Building the island…</p><div class="bar"><i id="msgBar"></i></div><div id="msgE"></div></div></div>
+<canvas id="view" aria-label="3D model of Cyprus with sensor columns" data-ael="Τρισδιάστατο μοντέλο της Κύπρου με στήλες αισθητήρων"></canvas>
 <div id="labels"></div>
-<div class="panel" id="controls">
-  <h1>Cyprus 3D <span class="live" id="live">Live</span></h1>
-  <div id="navlinks"><a href="/">Back to dashboard</a> · <a href="/map.html">Map with roads and satellite</a> · <a href="/metoffice.html">Met Office data</a></div>
-  <h2>Surface</h2>
-  <label><input type="radio" name="surf" value="temp" checked> Temperature</label>
-  <label><input type="radio" name="surf" value="elev"> Elevation</label>
-  <label><input type="radio" name="surf" value="pm25"> Air quality (PM2.5)</label>
-  <label><input type="radio" name="surf" value="dust"> Dust</label>
-  <h2>Layers</h2>
-  <label><input type="checkbox" id="lWind" checked> Wind</label>
-  <label><input type="checkbox" id="lCloud" checked> Clouds and rain</label>
-  <label><input type="checkbox" id="lSensor" checked> Sensors</label>
-  <label><input type="checkbox" id="lList" checked> Sensor list</label>
-  <label><input type="checkbox" id="lSea" checked> Sea conditions</label>
-  <h2>Sensor columns show</h2>
-  <select id="measure"></select>
-  <h2>Numbers on the columns</h2>
-  <select id="labelMode">
-    <option value="name" selected>Name and value</option>
-    <option value="value">Value only</option>
-    <option value="diff">Value and difference from weather model</option>
-    <option value="off">Off</option>
-  </select>
-  <h2>Height of mountains</h2>
-  <input type="range" id="exag" min="1" max="20" value="8">
-  <h2>Data</h2>
-  <div id="status"></div>
-  <div id="err"></div>
-</div>
-<div class="panel" id="list"><h2 id="listT">Sensors</h2><div class="tools"><select id="listSort" aria-label="Sort"><option value="high" selected>Highest first</option><option value="low">Lowest first</option><option value="name">By name</option></select></div><div id="rows"></div></div>
-<div class="panel" id="legend"><div id="lt">Temperature</div><div id="bar"></div><div id="lr"><span id="lo"></span><span id="hi"></span></div></div>
+<aside class="glass" id="controls" aria-label="Layers" data-ael="Στρώματα">
+  <div class="rail-h">
+    <span class="eyebrow" data-el="Κύπρος 3D">Cyprus 3D</span><span class="live stale" id="live">Waiting</span>
+    <button class="iconbtn" id="fold" aria-label="Show or hide layers" aria-expanded="true" data-ael="Εμφάνιση ή απόκρυψη στρωμάτων"><svg class="i"><use href="#i-chev"/></svg></button>
+  </div>
+  <div class="rail-body" id="railBody">
+    <div class="nav" id="navlinks"><a href="/">Back to dashboard</a><a href="/map.html">Map with roads and satellite</a><a href="/metoffice.html">Met Office data</a></div>
+    <div class="rail-g" data-el="Επιφάνεια">Surface</div>
+    <label class="lay" style="--c:#E07F3F"><input type="radio" name="surf" value="temp" checked><span class="tile"><svg class="i"><use href="#i-thermo"/></svg></span><span class="lt"><b data-el="Θερμοκρασία">Temperature</b><small data-el="Μοντέλο καιρού">Weather model</small></span><i class="rd"></i></label>
+    <label class="lay" style="--c:#59d98e"><input type="radio" name="surf" value="elev"><span class="tile"><svg class="i"><use href="#i-mount"/></svg></span><span class="lt"><b data-el="Υψόμετρο">Elevation</b><small data-el="Βουνά και κοιλάδες">Mountains and valleys</small></span><i class="rd"></i></label>
+    <label class="lay" style="--c:#F0B94A"><input type="radio" name="surf" value="pm25"><span class="tile"><svg class="i"><use href="#i-haze"/></svg></span><span class="lt"><b data-el="Ποιότητα αέρα (PM2.5)">Air quality (PM2.5)</b><small>Open-Meteo</small></span><i class="rd"></i></label>
+    <label class="lay" style="--c:#C9803F"><input type="radio" name="surf" value="dust"><span class="tile"><svg class="i"><use href="#i-dust"/></svg></span><span class="lt"><b data-el="Σκόνη">Dust</b><small>Open-Meteo</small></span><i class="rd"></i></label>
+    <div class="rail-g" data-el="Στρώματα">Layers</div>
+    <label class="lay" style="--c:#8fb8ff"><input type="checkbox" id="lWind" checked><span class="tile"><svg class="i"><use href="#i-wind"/></svg></span><span class="lt"><b data-el="Άνεμος">Wind</b><small data-el="Ρέουσες γραμμές">Flowing lines</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#cfd9e8"><input type="checkbox" id="lCloud" checked><span class="tile"><svg class="i"><use href="#i-cloud"/></svg></span><span class="lt"><b data-el="Σύννεφα και βροχή">Clouds and rain</b><small data-el="Από το μοντέλο καιρού">From the weather model</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#8f7bff"><input type="checkbox" id="lSensor" checked><span class="tile"><svg class="i"><use href="#i-bus"/></svg></span><span class="lt"><b data-el="Αισθητήρες">Sensors</b><small id="subSen" data-el="Στήλες στα οχήματά μας">Columns on our vehicles</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#8CA0B8"><input type="checkbox" id="lList" checked><span class="tile"><svg class="i"><use href="#i-list"/></svg></span><span class="lt"><b data-el="Λίστα αισθητήρων">Sensor list</b><small data-el="Στα δεξιά">On the right</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#4C8BEA"><input type="checkbox" id="lSea" checked><span class="tile"><svg class="i"><use href="#i-wave"/></svg></span><span class="lt"><b data-el="Συνθήκες θάλασσας">Sea conditions</b><small>Open-Meteo</small></span><i class="sw"></i></label>
+    <div class="rail-g" data-el="Προβολή">View</div>
+    <label class="ctl"><span data-el="Οι στήλες δείχνουν">Sensor columns show</span><select id="measure"></select></label>
+    <label class="ctl"><span data-el="Αριθμοί στις στήλες">Numbers on the columns</span><select id="labelMode">
+      <option value="name" selected data-el="Όνομα και τιμή">Name and value</option>
+      <option value="value" data-el="Μόνο τιμή">Value only</option>
+      <option value="diff" data-el="Τιμή και διαφορά από το μοντέλο καιρού">Value and difference from weather model</option>
+      <option value="off" data-el="Κανένας">Off</option>
+    </select></label>
+    <label class="ctl"><span data-el="Ύψος βουνών">Height of mountains</span><input type="range" id="exag" min="1" max="20" value="8"></label>
+    <div class="rail-g" data-el="Δεδομένα">Data</div>
+    <div class="st" id="status"></div>
+    <div id="err" role="alert"></div>
+  </div>
+</aside>
+<span class="tchip" id="chipDelayed"><svg class="i"><use href="#i-lock"/></svg><span data-el="Οι εκπαιδευτικοί βλέπουν τις ακριβείς θέσεις μετά τη σύνδεση">Teachers see exact positions after sign-in</span></span>
+<aside class="glass" id="list" aria-label="Sensors" data-ael="Αισθητήρες"><h2 id="listT">Sensors</h2><div class="tools"><select id="listSort" aria-label="Sort" data-ael="Ταξινόμηση"><option value="high" selected data-el="Πρώτες οι υψηλότερες">Highest first</option><option value="low" data-el="Πρώτες οι χαμηλότερες">Lowest first</option><option value="name" data-el="Ανά όνομα">By name</option></select></div><div id="rows"></div></aside>
+<div class="glass" id="legend" aria-label="Legend" data-ael="Υπόμνημα"><div id="lt">Temperature</div><div id="bar"></div><div id="lr"><span id="lo"></span><span id="hi"></span></div><p id="lgPriv"></p></div>
 <div id="tip"></div>
-
+<script>
+// The 3D engine comes from a CDN. If the module below never starts, say so (and tell the shell frame around us).
+setTimeout(function () {
+  if (window.__embedReady) return;
+  var el = /[?&]lang=el/.test(location.search);
+  var why = el ? 'Η βιβλιοθήκη 3D δεν φορτώθηκε. Χρειάζεται σύνδεση στο διαδίκτυο.' : 'The 3D library could not be loaded. It needs an internet connection.';
+  window.__embedFailed = why;
+  var t = document.getElementById('msgT'), e = document.getElementById('msgE'), b = document.getElementById('msgBar');
+  if (b && b.parentNode) b.parentNode.style.display = 'none';
+  if (t) t.textContent = why;
+  if (e) { var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn primary'; btn.style.marginTop = '12px'; btn.textContent = el ? 'Δοκιμάστε ξανά' : 'Try again'; btn.addEventListener('click', function () { location.reload(); }); e.appendChild(btn); }
+}, 12000);
+</script>
 <script type="importmap">
 { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
 </script>
@@ -93,16 +222,32 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const EMBED = /[?&]embed=1/.test(location.search);   // inside the student app: no links that leave it
-if (EMBED) document.documentElement.classList.add('embed');
+window.__embedReady = true;   // the shell frame around this page waits for this
+
+const SEARCH = typeof location.search === 'string' ? location.search : '';
+const qp = (k) => { const m = new RegExp('[?&]' + k + '=([^&#]*)').exec(SEARCH); if (!m) return ''; try { return decodeURIComponent(m[1].replace(/\+/g, ' ')); } catch (e) { return ''; } };
+const EMBED = qp('embed') === '1';   // inside the site shell: its menu replaces our links
+const LANG = qp('lang') === 'el' ? 'el' : 'en';
+const T = (en, el) => (LANG === 'el' && el != null ? el : en);
+const ROOT = document.documentElement;
+if (ROOT && ROOT.classList) { if (EMBED) ROOT.classList.add('embed'); ROOT.lang = LANG; }
 const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// Static text carries its Greek in data-el (text) and data-ael (aria-label).
+if (LANG === 'el') {
+  document.querySelectorAll('[data-el]').forEach((e) => { e.textContent = e.getAttribute('data-el'); });
+  document.querySelectorAll('[data-ael]').forEach((e) => e.setAttribute('aria-label', e.getAttribute('data-ael')));
+  document.title = 'Κύπρος 3D';
+}
+const GREEK_NAMES = { 'Air temperature': 'Θερμοκρασία αέρα', 'Air humidity': 'Υγρασία αέρα', 'Light intensity': 'Ένταση φωτός', 'CO2': 'CO2', 'Barometric pressure': 'Ατμοσφαιρική πίεση' };
+const REDUCED = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const LAT_C = 35.0, LNG_C = 33.25, KM_LAT = 111.2, KM_LNG = 111.2 * Math.cos((LAT_C * Math.PI) / 180);
 const toX = (lng) => (lng - LNG_C) * KM_LNG;
 const toZ = (lat) => -(lat - LAT_C) * KM_LAT;
 const toLng = (x) => x / KM_LNG + LNG_C;
 const toLat = (z) => -z / KM_LAT + LAT_C;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const state = { terrain: null, weather: null, air: null, sea: null, devices: [], latest: {}, cfg: null, surf: 'temp', exag: 8, mid: '4097', lastOk: {} };
+const state = { terrain: null, weather: null, air: null, sea: null, devices: [], latest: {}, cfg: null, surf: 'temp', exag: 8, mid: '4097', lastOk: {}, errors: {}, delayed: false };
 
 /* ---------- colour scales ---------- */
 const SCALES = {
@@ -149,7 +294,7 @@ const renderer = new THREE.WebGLRenderer({ canvas: $('view'), antialias: true })
 renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0b1220);
+scene.background = new THREE.Color(0x0c1626);
 const camera = new THREE.PerspectiveCamera(45, 1, 1, 2000);
 camera.position.set(0, 170, 230);
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -258,7 +403,7 @@ function recolor() {
     }
   }
   col.needsUpdate = true;
-  const names = { temp: 'Temperature (Open-Meteo model)', elev: 'Elevation', pm25: 'PM2.5 (Open-Meteo)', dust: 'Dust (Open-Meteo)' };
+  const names = { temp: T('Temperature (Open-Meteo model)', 'Θερμοκρασία (μοντέλο Open-Meteo)'), elev: T('Elevation', 'Υψόμετρο'), pm25: T('PM2.5 (Open-Meteo)', 'PM2.5 (Open-Meteo)'), dust: T('Dust (Open-Meteo)', 'Σκόνη (Open-Meteo)') };
   $('lt').textContent = names[kind];
   $('bar').style.background = 'linear-gradient(90deg,' + [0, 0.25, 0.5, 0.75, 1].map((q) => { const c = rampAt(sc.stops, q).map((v) => Math.round(v * 255)); return `rgb(${c})`; }).join(',') + ')';
   $('lo').textContent = lo + ' ' + sc.unit;
@@ -338,13 +483,13 @@ function refreshHeights() {
 const labelsEl = $('labels');
 const fmt = (v) => Math.round(v * 10) / 10;
 const unitOf = (m) => (state.cfg && state.cfg.names[m] ? state.cfg.names[m][1] : '');
-const nameOf = (m) => (state.cfg && state.cfg.names[m] ? state.cfg.names[m][0] : 'Measurement ' + m);
+const nameOf = (m) => (state.cfg && state.cfg.names[m] ? (LANG === 'el' && GREEK_NAMES[state.cfg.names[m][0]]) || state.cfg.names[m][0] : T('Measurement ', 'Μέτρηση ') + m);
 const cssColor = (c) => `rgb(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)})`;
-const valueText = (s) => (!s.d.online ? 'offline' : s.v == null ? 'no reading' : `${fmt(s.v)} ${unitOf(state.mid)}`.trim());
+const valueText = (s) => (!s.d.online ? T('offline', 'εκτός λειτουργίας') : s.v == null ? T('no reading', 'καμία μέτρηση') : `${fmt(s.v)} ${unitOf(state.mid)}`.trim());
 function labelParts(s, mode) {
   const live = s.d.online && s.v != null;
   let extra = '';
-  if (mode === 'diff' && live && s.wv != null) extra = `${s.v - s.wv > 0 ? '+' : ''}${fmt(s.v - s.wv)} vs model`;
+  if (mode === 'diff' && live && s.wv != null) extra = `${s.v - s.wv > 0 ? '+' : ''}${fmt(s.v - s.wv)} ${T('vs model', 'έναντι μοντέλου')}`;
   return { name: mode === 'name' ? s.d.name : '', value: valueText(s), extra, live };
 }
 function syncLabels() {
@@ -392,7 +537,7 @@ function rowsFor(sort) {
   return sort === 'name' ? list : [...live, ...rest];
 }
 function syncList() {
-  $('listT').textContent = `Sensors: ${nameOf(state.mid)}`;
+  $('listT').textContent = T('Sensors: ', 'Αισθητήρες: ') + nameOf(state.mid);
   const rows = $('rows');
   const sig = [selEui, $('listSort').value, state.mid, ...rowsFor($('listSort').value).map((s) => `${s.d.eui}|${s.d.name}|${valueText(s)}|${s.d.online}|${cssColor(s.tcolor)}`),
     ...state.devices.filter((d) => !sensors.has(d.eui)).map((d) => d.eui)].join('~');
@@ -400,9 +545,11 @@ function syncList() {
   lastRows = sig;
   rows.textContent = '';
   rowsFor($('listSort').value).forEach((s) => {
-    const r = document.createElement('div');
+    const r = document.createElement('button');
+    r.type = 'button';
     r.className = 'row' + (s.d.eui === selEui ? ' sel' : '');
     r.dataset.eui = s.d.eui;
+    r.setAttribute('aria-label', s.d.name + ', ' + valueText(s) + ' (' + T('fly to this column', 'μετάβαση σε αυτή τη στήλη') + ')');
     r.style.setProperty('--c', s.d.online && s.v != null ? cssColor(s.tcolor) : '#777');
     const dot = document.createElement('span'); dot.className = 'dot';
     const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = s.d.name;
@@ -413,10 +560,10 @@ function syncList() {
   state.devices.filter((d) => !sensors.has(d.eui)).forEach((d) => {
     const r = document.createElement('div');
     r.className = 'row none';
-    r.title = 'No GPS position yet';
+    r.title = delayedNoPos();
     const dot = document.createElement('span'); dot.className = 'dot';
     const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = d.name;
-    const vl = document.createElement('span'); vl.className = 'vl'; vl.textContent = 'no position';
+    const vl = document.createElement('span'); vl.className = 'vl'; vl.textContent = T('no position', 'καμία θέση');
     r.append(dot, nm, vl);
     rows.appendChild(r);
   });
@@ -430,7 +577,7 @@ function flyTo(eui) {
   const dir = camera.position.clone().sub(controls.target).normalize();
   dir.y = clamp(dir.y, 0.4, 0.8);
   dir.normalize();
-  fly = { at: performance.now(), dur: 1300, p0: camera.position.clone(), p1: target.clone().addScaledVector(dir, 55), t0: controls.target.clone(), t1: target };
+  fly = { at: performance.now(), dur: REDUCED ? 1 : 1300, p0: camera.position.clone(), p1: target.clone().addScaledVector(dir, 55), t0: controls.target.clone(), t1: target };
   lastRows = '';
   syncList();
 }
@@ -582,18 +729,18 @@ renderer.domElement.addEventListener('pointermove', (e) => {
   const hit = ray.intersectObjects(targets, false)[0];
   if (!hit) { tip.style.display = 'none'; renderer.domElement.style.cursor = 'default'; return; }
   const ud = hit.object.userData;
-  const name = (m) => (state.cfg.names[m] ? state.cfg.names[m][0] : 'Measurement ' + m);
   const unit = (m) => (state.cfg.names[m] ? state.cfg.names[m][1] : '');
   let html = '';
   if (ud.kind === 'sensor') {
     const s = sensors.get(ud.eui);
-    html = `<b>${s.d.name}</b><br>${s.d.group} · ${s.d.online ? 'online' : 'offline'}<br>`;
-    html += s.v == null ? 'No reading' : `${name(state.mid)}: ${Math.round(s.v * 10) / 10} ${unit(state.mid)}`;
-    if (s.wv != null && s.v != null) html += `<br>Weather model: ${Math.round(s.wv * 10) / 10} ${unit(state.mid)}<br>Difference: ${s.v - s.wv > 0 ? '+' : ''}${Math.round((s.v - s.wv) * 10) / 10}`;
-    html += '<br><i>Click to open history</i>';
+    html = `<b>${esc(s.d.name)}</b><br>${esc(s.d.group)} · ${s.d.online ? T('online', 'σε λειτουργία') : T('offline', 'εκτός λειτουργίας')}<br>`;
+    html += s.v == null ? T('No reading', 'Καμία μέτρηση') : `${esc(nameOf(state.mid))}: ${Math.round(s.v * 10) / 10} ${esc(unit(state.mid))}`;
+    if (s.wv != null && s.v != null) html += `<br>${T('Weather model', 'Μοντέλο καιρού')}: ${Math.round(s.wv * 10) / 10} ${esc(unit(state.mid))}<br>${T('Difference', 'Διαφορά')}: ${s.v - s.wv > 0 ? '+' : ''}${Math.round((s.v - s.wv) * 10) / 10}`;
+    if (state.delayed) html += `<br>${esc(delayedLine())}`;
+    html += `<br><i>${T('Click to open history', 'Πατήστε για το ιστορικό')}</i>`;
     renderer.domElement.style.cursor = 'pointer';
   } else if (ud.kind === 'buoy') {
-    html = `<b>Sea point</b><br>Wave height ${ud.p.wave} m<br>Sea temperature ${ud.p.sst} °C`;
+    html = `<b>${T('Sea point', 'Σημείο θάλασσας')}</b><br>${T('Wave height', 'Ύψος κύματος')} ${ud.p.wave} m<br>${T('Sea temperature', 'Θερμοκρασία θάλασσας')} ${ud.p.sst} °C`;
   } else {
     const lat = toLat(hit.point.z), lng = toLng(hit.point.x);
     const t = state.terrain;
@@ -601,8 +748,8 @@ renderer.domElement.addEventListener('pointermove', (e) => {
     const el = t.elev[clamp(r, 0, t.rows - 1) * t.cols + clamp(c, 0, t.cols - 1)];
     if (el < 3) { tip.style.display = 'none'; return; }
     const tv = sampleGrid(state.weather, 't', lat, lng), pm = sampleGrid(state.air, 'pm25', lat, lng);
-    html = `Elevation ${el} m`;
-    if (tv != null) html += `<br>Temperature ${Math.round(tv * 10) / 10} °C (model)`;
+    html = `${T('Elevation', 'Υψόμετρο')} ${el} m`;
+    if (tv != null) html += `<br>${T('Temperature', 'Θερμοκρασία')} ${Math.round(tv * 10) / 10} °C (${T('model', 'μοντέλο')})`;
     if (pm != null) html += `<br>PM2.5 ${Math.round(pm * 10) / 10} µg/m³`;
     renderer.domElement.style.cursor = 'default';
   }
@@ -617,7 +764,7 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   mouse.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(mouse, camera);
   const hit = ray.intersectObjects([...sensors.values()].map((s) => s.mesh), false)[0];
-  if (hit) { if (EMBED) parent.location.hash = '#/vehicle/' + encodeURIComponent(hit.object.userData.eui); else location.href = '/#' + hit.object.userData.eui; }
+  if (hit) { const to = '#/vehicles/' + encodeURIComponent(hit.object.userData.eui); try { if (EMBED && parent !== window) parent.location.hash = to; else location.href = '/' + to; } catch (e) { location.href = '/' + to; } }
 });
 
 /* ---------- animation ---------- */
@@ -660,19 +807,35 @@ async function getJson(url) {
   return j;
 }
 function showStatus() {
-  const f = (k) => (state.lastOk[k] ? new Date(state.lastOk[k]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'waiting');
-  $('status').innerHTML = `Sensors: ${f('sensors')}<br>Weather: ${f('weather')}<br>Air quality: ${f('air')}<br>Sea: ${f('sea')}` +
-    (state.terrain && state.terrain.mock ? '<br><b>Test mode: synthetic weather</b>' : '') + (state.cfg && state.cfg.demo ? '<br>Demo sensors' : '');
+  const f = (k) => (state.errors[k] ? `<span style="color:var(--bad)">${esc(state.errors[k])}</span>` : state.lastOk[k] ? new Date(state.lastOk[k]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : T('waiting', 'αναμονή'));
+  $('status').innerHTML = `${T('Sensors', 'Αισθητήρες')}: ${f('sensors')}<br>${T('Weather', 'Καιρός')}: ${f('weather')}<br>${T('Air quality', 'Ποιότητα αέρα')}: ${f('air')}<br>${T('Sea', 'Θάλασσα')}: ${f('sea')}` +
+    (state.terrain && state.terrain.mock ? '<br><b>' + T('Test mode: synthetic weather', 'Δοκιμαστική λειτουργία: συνθετικός καιρός') + '</b>' : '') + (state.cfg && state.cfg.demo ? '<br>' + T('Demo sensors', 'Δοκιμαστικοί αισθητήρες') : '');
   const stale = !state.lastOk.sensors || Date.now() - state.lastOk.sensors > 120000;
-  $('live').textContent = stale ? 'Waiting' : 'Live';
+  $('live').textContent = stale ? T('Waiting', 'Αναμονή') : T('Live', 'Ζωντανά');
   $('live').classList.toggle('stale', stale);
+}
+// Public visitors get vehicle positions that are late and rounded (the API says posDelayed): say so.
+const delayHours = () => { const m = state.cfg && state.cfg.posDelayMin; return m ? Math.round(m / 60) || 1 : 2; };
+const gridKm = () => { const g = state.cfg && state.cfg.posGrid; return g ? Math.max(1, Math.round(g * 111)) : 1; };
+function delayedLine() {
+  const h = delayHours(), g = gridKm();
+  return T(`Positions are about ${h} ${h === 1 ? 'hour' : 'hours'} late and rounded to ${g} km`, `Οι θέσεις εμφανίζονται με καθυστέρηση περίπου ${h} ${h === 1 ? 'ώρας' : 'ωρών'} και στρογγυλοποιημένες στο ${g} χλμ`);
+}
+const delayedNoPos = () => (state.delayed ? T('No public position yet. A position appears about 2 hours after the vehicle reports it.', 'Δεν υπάρχει ακόμα δημόσια θέση. Η θέση εμφανίζεται περίπου 2 ώρες αφού την αναφέρει το όχημα.') : T('No GPS position yet', 'Δεν υπάρχει ακόμα θέση GPS'));
+function syncDelayed() {
+  state.delayed = state.devices.length ? state.devices.some((d) => d.posDelayed) : Boolean(state.cfg && state.cfg.exactPositions === false);
+  if (ROOT && ROOT.classList) ROOT.classList.toggle('delayed', state.delayed);
+  $('lgPriv').textContent = state.delayed ? delayedLine() + '.' : '';
 }
 async function refresh(kind) {
   try {
     if (kind === 'sensors') {
       [state.devices, state.latest] = await Promise.all([getJson('/api/devices'), getJson('/api/latest')]);
       fillMeasures();
+      syncDelayed();
       syncSensors();
+      const n = sensors.size;
+      $('subSen').textContent = n ? T(n + (n === 1 ? ' shown' : ' shown'), 'Εμφανίζονται ' + n) + (state.delayed ? T(' · delayed', ' · με καθυστέρηση') : '') : T('No position yet', 'Δεν υπάρχει ακόμα θέση');
     } else {
       state[kind] = await getJson('/api/' + kind);
       if (kind === 'weather') { syncClouds(); recolor(); syncSensors(); }
@@ -680,9 +843,18 @@ async function refresh(kind) {
       if (kind === 'sea') syncSea();
     }
     state.lastOk[kind] = Date.now();
-    $('err').textContent = '';
+    delete state.errors[kind];
   } catch (e) {
-    $('err').textContent = `Could not update ${kind}: ${e.message}`;
+    state.errors[kind] = e.message;
+  }
+  const errs = Object.keys(state.errors);
+  $('err').textContent = '';
+  if (errs.length) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn'; b.textContent = T('Try again', 'Δοκιμάστε ξανά');
+    b.addEventListener('click', () => errs.forEach((k) => refresh(k)));
+    $('err').textContent = T('Could not update: ', 'Δεν ενημερώθηκε: ') + errs.map((k) => ({ sensors: T('sensors', 'αισθητήρες'), weather: T('weather', 'καιρός'), air: T('air quality', 'ποιότητα αέρα'), sea: T('sea', 'θάλασσα') }[k] || k)).join(', ') + '. ';
+    $('err').appendChild(b);
   }
   showStatus();
 }
@@ -693,7 +865,7 @@ function fillMeasures() {
   const key = mids.join(',');
   if (sel.dataset.key === key) return;
   sel.dataset.key = key;
-  sel.innerHTML = mids.map((m) => `<option value="${m}">${state.cfg.names[m] ? state.cfg.names[m][0] + ' (' + state.cfg.names[m][1] + ')' : 'Measurement ' + m}</option>`).join('');
+  sel.innerHTML = mids.map((m) => `<option value="${esc(m)}">${esc(nameOf(m))}${state.cfg.names[m] && state.cfg.names[m][1] ? ' (' + esc(state.cfg.names[m][1]) + ')' : ''}</option>`).join('');
   if (!mids.includes(state.mid)) state.mid = mids[0] || '4097';
   sel.value = state.mid;
 }
@@ -707,22 +879,38 @@ async function loadTerrain() {
     const r = await fetch('/api/terrain');
     const j = await r.json();
     if (r.status === 200) return j;
-    if (r.status !== 202) throw new Error(j.error || 'Request failed');
+    if (r.status !== 202) throw new Error(j.error || T('Request failed', 'Το αίτημα απέτυχε'));
     const pct = Math.round((j.progress || 0) * 100);
-    $('msg').innerHTML = `Building the island from elevation data… ${pct}%` +
-      (j.error ? `<div id="err">Open-Meteo asked us to slow down (${j.error}). Retrying automatically.</div>` : '');
+    $('msgT').textContent = T('Building the island from elevation data… ', 'Δημιουργία του νησιού από δεδομένα υψομέτρου… ') + pct + '%';
+    $('msgBar').style.width = Math.max(6, pct) + '%';
+    $('msgE').textContent = j.error ? T(`Open-Meteo asked us to slow down (${j.error}). Retrying automatically.`, `Το Open-Meteo μάς ζήτησε να επιβραδύνουμε (${j.error}). Δοκιμάζουμε ξανά αυτόματα.`) : '';
     await new Promise((ok) => setTimeout(ok, 4000));
   }
 }
 
-(async function start() {
+$('fold').addEventListener('click', () => { const closed = $('controls').classList.toggle('closed'); $('fold').setAttribute('aria-expanded', closed ? 'false' : 'true'); });
+if (innerWidth < 760) $('controls').classList.add('closed');   // on a phone the layers start folded away
+if (REDUCED) $('lWind').checked = false;   // no flowing wind for people who asked for less motion
+
+let started = false;
+async function start() {
+  $('msg').style.display = '';
+  $('msgT').textContent = T('Building the island…', 'Δημιουργία του νησιού…');
+  $('msgE').textContent = '';
   try {
     state.cfg = await getJson('/api/config');
     state.terrain = await loadTerrain();
   } catch (e) {
-    $('msg').innerHTML = 'Could not load the island data.<div id="err">' + e.message + '</div><p><a href="/">Back to dashboard</a></p>';
+    $('msgT').textContent = T('The island data could not be loaded.', 'Δεν φορτώθηκαν τα δεδομένα του νησιού.');
+    $('msgE').textContent = '';
+    const er = document.createElement('div'); er.className = 'e'; er.textContent = e.message;
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn primary'; b.style.marginTop = '12px'; b.textContent = T('Try again', 'Δοκιμάστε ξανά');
+    b.addEventListener('click', start);
+    $('msgE').append(er, b);
     return;
   }
+  if (started) return;
+  started = true;
   buildTerrain();
   initWind();
   $('msg').style.display = 'none';
@@ -733,7 +921,8 @@ async function loadTerrain() {
   setInterval(() => refresh('air'), 900000);
   setInterval(() => refresh('sea'), 900000);
   setInterval(showStatus, 15000);
-})();
+}
+start();
 </script>
 </body>
 </html>

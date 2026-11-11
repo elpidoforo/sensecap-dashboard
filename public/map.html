@@ -390,6 +390,14 @@ function translateStatic() {
   document.title = 'Ζωντανός χάρτης';
 }
 translateStatic();
+// The map engine comes from a CDN. If it did not load, say so (and tell the shell frame around us) instead of leaving a blank page.
+if (typeof maplibregl === 'undefined') {
+  const why = T('The map library could not be loaded. It needs an internet connection.', 'Η βιβλιοθήκη του χάρτη δεν φορτώθηκε. Χρειάζεται σύνδεση στο διαδίκτυο.');
+  window.__embedFailed = why;
+  const b = document.getElementById('banner');
+  if (b) { document.getElementById('bannerTxt').textContent = why + ' '; document.getElementById('bannerBtn').onclick = () => location.reload(); b.hidden = false; }
+  throw new Error('maplibre-gl is not loaded');
+}
 const GREEK_NAMES = { 'Air temperature': 'Θερμοκρασία αέρα', 'Air humidity': 'Υγρασία αέρα', 'Light intensity': 'Ένταση φωτός', 'CO2': 'CO2', 'Barometric pressure': 'Ατμοσφαιρική πίεση' };
 const state = { cfg: null, devices: [], latest: {}, weather: null, air: null, sea: null, open: null, cydom: null, schools: [], mid: '4097', lastOk: {}, errors: {}, selected: null,
   trails: {}, segs: {}, trailNotes: {}, trailWin: 6, trailMid: null, trailLoading: false, anim: {}, replay: null, follow: null, tour: null, spark: {}, delayed: false, rpMult: 1 };
@@ -499,6 +507,7 @@ const map = new maplibregl.Map({
 });
 // The wind canvas lives inside the map element, under the popups (they are appended to the same element).
 if (map.getContainer && $('windCv')) { const box = map.getContainer(); if (box && box.appendChild) box.appendChild($('windCv')); }
+window.__embedReady = true;   // the shell frame around this page waits for this
 const mapErrors = new Set();
 map.on('error', (e) => {
   const m = (e && e.error && e.error.message) || 'Map layer problem';
