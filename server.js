@@ -876,6 +876,7 @@ function startMetOffice() {
 const { createApp } = require('./school');
 const { createBot } = require('./bot');
 const { createStudio } = require('./studio');
+const citiesApi = require('./cities');
 const { createClassLogin } = require('./classlogin');
 const classLogin = createClassLogin();
 let appCore = null;
@@ -940,6 +941,19 @@ function authorised(req) {
   return classLogin.valid(req) || Boolean(appCore && appCore.authorise(req));
 }
 
+// Raw vehicle positions and live trails are for teachers. With the shared class sign-in on, a student session only gets
+// delayed, grouped routes from /cities/api/overview (see cities.js).
+function privileged(req) {
+  if (!classLogin.enabled || !LOCKED) return true;
+  if (PASS) {
+    const h = req.headers.authorization || '';
+    if (h.startsWith('Basic ') && Buffer.from(h.slice(6), 'base64').toString().split(/:(.*)/s)[1] === PASS) return true;
+  }
+  const u = appCore && appCore.authorise(req);
+  return Boolean(u && (u.role === 'teacher' || u.role === 'admin'));
+}
+const RAW_PAGES = /^\/(index\.html|map\.html|3d\.html)?$/;
+
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml',
   '.png': 'image/png', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.ico': 'image/x-icon',
@@ -964,11 +978,23 @@ const server = http.createServer(async (req, res) => {
       if (/\.html$|\/$/.test(url.pathname)) { res.writeHead(302, { Location: classLogin.enabled ? '/cities/login.html' : '/app/' }); return res.end(); }
       return sendJson(res, 401, { error: 'Sign in to the student app first.' });
     }
+    if (classLogin.enabled && !privileged(req)) {
+      if (RAW_PAGES.test(url.pathname) && !inApp) { res.writeHead(302, { Location: '/cities/' }); return res.end(); }
+      if (url.pathname === '/api/trails') return sendJson(res, 403, { error: 'Live routes are for teachers. Open the Space view in /cities/.' });
+    }
+    if (url.pathname === '/cities/api/overview') {
+      return sendJson(res, 200, await citiesApi.overview({
+        devices: async () => (DEMO ? DEMO_DEVICES : await liveDevices()),
+        latest: async () => (DEMO ? demoLatest() : await liveLatest()),
+        trails: async (h) => (DEMO ? demoTrails(h, '4097') : await liveTrails(h, '4097')),
+      }));
+    }
     if (url.pathname === '/api/config') {
       return sendJson(res, 200, { demo: DEMO, names: measurementNames, gps: [GPS_LAT, GPS_LNG] });
     }
     if (url.pathname === '/api/devices') {
-      return sendJson(res, 200, DEMO ? DEMO_DEVICES : await liveDevices());
+      const dv = DEMO ? DEMO_DEVICES : await liveDevices();
+      return sendJson(res, 200, classLogin.enabled && !privileged(req) ? dv.map(({ lat, lng, ...rest }) => rest) : dv);
     }
     if (url.pathname === '/api/latest') {
       return sendJson(res, 200, DEMO ? demoLatest() : await liveLatest());
