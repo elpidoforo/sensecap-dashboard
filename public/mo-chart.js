@@ -100,7 +100,7 @@
     if (o.gaps) {
       for (let i = 1; i < segs.length; i++) {
         const xa = X(segs[i - 1][segs[i - 1].length - 1].t), xb = X(segs[i][0].t);
-        s.append(svg('rect', { x: xa, y: m.t, width: Math.max(1, xb - xa), height: H - m.t - m.b, fill: 'rgba(240,185,74,.10)' }));
+        s.append(svg('rect', { x: xa, y: m.t, width: Math.max(1, xb - xa), height: H - m.t - m.b, fill: 'rgba(240,185,74,.15)' }));
         [xa, xb].forEach((gx) => s.append(svg('line', { x1: gx, x2: gx, y1: m.t, y2: H - m.b, stroke: 'rgba(240,185,74,.5)', 'stroke-dasharray': '2 3' })));
       }
     }

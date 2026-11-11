@@ -142,6 +142,7 @@
   .delayed #lgPriv { display: block; }
   .detailopen #legend .scale { margin-top: 0; padding-top: 0; border-top: 0; }
   .detailopen #legend .lg-row, .detailopen #legend #lgPriv { display: none; }   /* the card repeats the delay line; room for the buttons */
+  @media (max-height: 700px) { .detailopen #legend { display: none; } }   /* a short window: the card needs the room */
   .delayed #rowPulse { display: none; }
   #detail { display: none; flex: 0 1 auto; margin-top: auto; min-height: 0; overflow: auto; padding: 14px 14px 12px; border-radius: 20px; background: linear-gradient(165deg, rgba(36,62,100,.92), rgba(13,25,43,.94)); box-shadow: 0 26px 50px -20px rgba(0,0,0,.85), 0 0 0 1px rgba(143,123,255,.2), inset 0 1px 0 rgba(255,255,255,.1); scrollbar-width: thin; }
   .dt-h { display: flex; align-items: flex-start; gap: 10px; }
@@ -224,7 +225,7 @@
   .pp-gap.show { display: flex; }
   .pp-f { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 10px; }
   .pp-f .btn { min-height: 34px; flex: 1; }
-  .pp-credit { margin-top: 8px; color: #7F93AC; font-size: 11px; }
+  .pp-credit { margin-top: 6px; color: #7F93AC; font-size: 11px; }
   .pp-big .dl { margin-left: auto; align-self: center; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--ok-line); background: var(--ok-bg); color: var(--ok); font: 600 11.5px/1 var(--font); white-space: nowrap; }
   .pp-big .dl[hidden] { display: none; }
   .pp-big .dl.dn { border-color: rgba(76,203,234,.4); background: rgba(76,203,234,.13); color: var(--info); }
@@ -236,11 +237,13 @@
   #detail .pp-h .dia { margin-top: 5px; }
   #detail .pp-f .btn { width: 100%; }
   #detail .mo-hist { margin-top: 8px; padding-top: 0; border-top: 0; }
-  #detail .mo-hist select { min-height: 28px; padding: 3px 26px 3px 9px; font-size: 12px; width: auto; max-width: 100%; margin-bottom: 4px; }
-  #detail .mo-box { min-height: 40px; font-size: 12px; }
-  #detail .mo-readout { font-size: 11.5px; color: var(--muted); }
+  #detail .pp-more .mo-key { min-height: 30px; padding: 3px 26px 3px 9px; font-size: 12px; margin: 8px 0 2px; }
+  #detail .mo-box { position: relative; min-height: 40px; font-size: 12px; }
+  #detail .mo-readout { position: absolute; left: 32px; top: 0; margin: 0; padding: 2px 8px; border-radius: 8px; background: rgba(9,18,32,.9); border: 1px solid var(--edge); font-size: 11px; color: var(--ink-soft); opacity: 0; pointer-events: none; transition: opacity .15s; min-height: 0; }
+  #detail .mo-box:hover .mo-readout { opacity: 1; }
+  .stationopen #legend .scale { display: none; }
   #detail .pp-gap { margin-top: 2px; }
-  .pp-more { margin-top: 8px; }
+  .pp-more { margin-top: 6px; }
   .pp-more > summary { cursor: pointer; color: var(--muted); font-size: 12px; list-style: none; }
   .pp-more > summary::-webkit-details-marker { display: none; }
   .pp-more > summary::before { content: "+ "; color: var(--copper-2); }
@@ -269,19 +272,22 @@
     #fold { display: grid; }
     .rail-h { padding: 12px 12px 10px 16px; }
     #layers.closed .rail-h { padding-bottom: 12px; }
-    #replay { left: 12px; right: 12px; bottom: 12px; height: auto; padding: 9px 12px 8px 10px; flex-wrap: wrap; gap: 6px 10px; border-radius: 24px; max-width: none; }
+    #replay { left: 12px; right: 12px; bottom: 12px; height: auto; padding: 9px 10px 8px 8px; flex-wrap: wrap; gap: 6px 6px; border-radius: 24px; max-width: none; }
     #replay .play { width: 40px; height: 40px; }
-    #replay .when { min-width: 0; flex: 1; }
+    #replay .when { flex: 1 0 78px; min-width: 78px; }
+    #replay .when b { font-size: 14px; }
+    #replay .when small { font-size: 9px; letter-spacing: .1em; }
     #replay .scrub { flex: 1 1 100%; order: 5; padding-top: 0; }
-    .speeds button { padding: 6px 9px; }
-    #rpLive { height: 34px; padding: 0 11px 0 10px; }
-    .toprow { left: 12px; right: 12px; top: auto; bottom: 134px; justify-content: center; align-items: center; gap: 8px; flex-wrap: nowrap; }
+    .speeds { padding: 3px; }
+    .speeds button { padding: 6px 7px; font-size: 12px; }
+    #rpLive { height: 34px; padding: 0 9px 0 8px; gap: 5px; font-size: 12px; }
+    .toprow { left: 12px; right: 12px; top: auto; bottom: calc(var(--rph, 110px) + 24px); justify-content: center; align-items: center; gap: 8px; flex-wrap: nowrap; }
     .tchip { font-size: 11px; padding: 6px 11px 6px 9px; border-radius: 18px; }
     #baseBtn { height: 36px; padding: 0 10px; }
     #baseLbl { display: none; }
     #baseMenu { top: auto; bottom: calc(100% + 8px); left: auto; right: 0; }
-    .rcol { top: auto; bottom: 134px; left: 12px; right: 12px; width: auto; max-height: 46%; flex-direction: column-reverse; }
-    .delayed .rcol { bottom: 184px; }
+    .rcol { top: auto; bottom: calc(var(--rph, 110px) + 24px); left: 12px; right: 12px; width: auto; max-height: 46%; flex-direction: column-reverse; }
+    .delayed .rcol { bottom: calc(var(--rph, 110px) + 74px); }
     #legend { display: none; }
     .delayed #legend { display: block; }
     .detailopen #legend, .detailopen.delayed #legend { display: none; }
@@ -349,7 +355,7 @@
     <input type="radio" name="nasa" value="off" class="sr" checked aria-hidden="true" tabindex="-1">
     <label class="lay" style="--c:#4C8BEA"><input type="radio" name="nasa" value="rgb"><span class="tile"><svg class="i"><use href="#i-sat"/></svg></span><span class="lt"><b data-el="Δορυφόρος">Satellite</b><small data-el="NASA, πραγματικά χρώματα">NASA true colour</small></span><i class="sw"></i></label>
 
-    <details class="grp" id="grpMore"><summary><span data-el="Περισσότερα στρώματα και επιλογές">More layers and options</span><svg class="i"><use href="#i-chev"/></svg></summary>
+    <details class="grp" id="grpMore"><summary><span data-el="Περισσότερα και επιλογές">More layers and options</span><svg class="i"><use href="#i-chev"/></svg></summary>
 
       <div class="rail-g" data-el="Χρώμα και ίχνη οχημάτων">Vehicle colours and trails</div>
       <div class="ctl"><span data-el="Χρωματισμός οχημάτων και ιχνών">Colour vehicles and trails by</span><select id="measure" aria-label="Measurement" data-ael="Μέτρηση"></select></div>
@@ -403,7 +409,7 @@
 <div class="glass banner" id="banner" role="alert" hidden><span id="bannerTxt"></span><button class="btn" id="bannerBtn" data-el="Δοκιμάστε ξανά">Try again</button></div>
 
 <div class="toprow">
-  <span class="tchip" id="chipDelayed"><svg class="i"><use href="#i-lock"/></svg><span data-el="Οι εκπαιδευτικοί βλέπουν τις ακριβείς θέσεις μετά τη σύνδεση">Teachers see exact positions after sign-in</span></span>
+  <span class="tchip" id="chipDelayed"><svg class="i"><use href="#i-lock"/></svg><span data-el="Ακριβείς θέσεις μόνο για εκπαιδευτικούς">Teachers see exact positions after sign-in</span></span>
   <div id="base">
     <button type="button" id="baseBtn" aria-haspopup="true" aria-expanded="false" aria-controls="baseMenu"><svg class="i"><use href="#i-layers"/></svg><span id="baseLbl" data-el="Σκοτεινός">Dark</span><svg class="i chev"><use href="#i-chev"/></svg></button>
     <div id="baseMenu" role="group" aria-label="Base map" data-ael="Υπόβαθρο χάρτη">
@@ -1641,7 +1647,7 @@ async function cydomHistory(el, p) {
     const draw = () => {
       const k = sel.value, u = s.units[k] || {};
       const pts = MOChart.points(s, k);
-      MOChart.render(box, pts, { w: 240, h: 132, unit: u.unit || '', label: moName(k, s), hours: 24, ink: '#8CA0B8', grid: 'rgba(255,255,255,.1)', color: '#4CCBEA',
+      MOChart.render(box, pts, { w: 240, h: 118, unit: u.unit || '', label: moName(k, s), hours: 24, ink: '#8CA0B8', grid: 'rgba(255,255,255,.1)', color: '#4CCBEA',
         area: true, gaps: true, endDot: true, ticks: true, compact: true, lines: 3,
         latest: T('Latest ', 'Τελευταία '), empty: T('Not enough readings saved for this period yet.', 'Δεν υπάρχουν ακόμα αρκετές αποθηκευμένες μετρήσεις.') });
       let g = null;
@@ -1661,14 +1667,18 @@ function cydomHtml(p) {
   if (isNum(p.hum)) sub.push(`${T('Humidity', 'Υγρασία')} ${r1(Number(p.hum))} %`);
   if (isNum(p.ws)) sub.push(`${T('Wind', 'Άνεμος')} ${r1(Number(p.ws))} m/s${isNum(p.wd) ? ' ' + compass(Number(p.wd)) : ''}`);
   const rows = obs.map((o) => `<tr><td>${esc(o.name)}</td><td>${esc(o.value)} ${esc(o.unit === 'Celcius' ? '°C' : o.unit)}</td></tr>`).join('');
-  return `<div class="pp"><div class="pp-h"><i class="dia"></i><div><b>${esc(p.name)}</b><small>${T('Met Office station', 'Σταθμός Μετεωρολογικής Υπηρεσίας')} · ${timeOk ? esc(hm(Date.parse(p.time))) + ' · ' + esc(ago(p.time)) : T('unknown time', 'άγνωστη ώρα')}</small></div><button class="x" id="dx" type="button" aria-label="${esc(T('Close', 'Κλείσιμο'))}">&times;</button></div>` +
+  // the time only when it is fresh; an old reading says how old it is
+  const when = timeOk ? esc(hm(Date.parse(p.time))) + (isOld(p.time) ? ' · ' + esc(ago(p.time)) : '') : T('unknown time', 'άγνωστη ώρα');
+  return `<div class="pp"><div class="pp-h"><i class="dia"></i><div><b>${esc(p.name)}</b><small>${T('Met Office station', 'Σταθμός Μετεωρολογικής Υπηρεσίας')} · ${when}</small></div><button class="x" id="dx" type="button" aria-label="${esc(T('Close', 'Κλείσιμο'))}">&times;</button></div>` +
     (isNum(p.temp) ? `<div class="pp-big"><span class="num">${r1(Number(p.temp))}</span><span class="u">°C</span><span class="dl" hidden></span>${timeOk && isOld(p.time) ? `<span class="old">${T('old reading', 'παλιά μέτρηση')}</span>` : ''}</div>` : '') +
     (sub.length ? `<div class="pp-sub">${sub.join(' · ')}</div>` : '') +
-    `<div class="mo-hist" data-station="${esc(p.id)}"><select class="mo-key" aria-label="${esc(T('Reading to chart', 'Μέτρηση για το γράφημα'))}"></select><div class="mo-box">${T('Loading the last 24 hours…', 'Φόρτωση των τελευταίων 24 ωρών…')}</div><div class="pp-gap"></div></div>` +
+    `<div class="mo-hist" data-station="${esc(p.id)}"><div class="mo-box">${T('Loading the last 24 hours…', 'Φόρτωση των τελευταίων 24 ωρών…')}</div><div class="pp-gap"></div></div>` +
     `<div class="pp-f"><a class="btn mo-csv" href="/api/cydom/history.csv?station=${encodeURIComponent(p.id)}&days=1" download>${icon('dl')}${T('Download CSV · 24 hours', 'Λήψη CSV · 24 ώρες')}</a></div>` +
-    (rows ? `<details class="pp-more"><summary>${T('All readings', 'Όλες οι μετρήσεις')}</summary><div class="pp-obs"><table>${rows}</table></div></details>` : '') +
-    `<p class="dt-link"><a href="/#/weather/${encodeURIComponent(p.id)}" target="_top">${T('All data for this station', 'Όλα τα δεδομένα του σταθμού')}</a></p>` +
-    `<div class="pp-credit">${T('© Cyprus Department of Meteorology', '© Τμήμα Μετεωρολογίας Κύπρου')}</div></div>`;
+    `<div class="pp-credit">${T('© Cyprus Department of Meteorology', '© Τμήμα Μετεωρολογίας Κύπρου')}</div>` +
+    `<details class="pp-more"><summary>${T('Other readings and all data', 'Άλλες μετρήσεις και όλα τα δεδομένα')}</summary>` +
+    `<select class="mo-key" aria-label="${esc(T('Reading to chart', 'Μέτρηση για το γράφημα'))}"></select>` +
+    (rows ? `<div class="pp-obs"><table>${rows}</table></div>` : '') +
+    `<p class="dt-link"><a href="/#/weather/${encodeURIComponent(p.id)}" target="_top">${T('All data for this station', 'Όλα τα δεδομένα του σταθμού')}</a></p></details></div>`;
 }
 function closeCard() {
   const box = $('detail');
@@ -1763,6 +1773,8 @@ document.querySelectorAll('#rpSpeeds button').forEach((b) => b.addEventListener(
 }));
 $('rpLive').addEventListener('click', () => stopReplay());
 window.addEventListener('resize', () => { const k = $('rpTicks'); if (k) k.dataset.k = ''; syncReplayUi(); });
+// on a narrow screen the Replay bar can take two or three rows: the boxes above it follow its real height
+if (typeof ResizeObserver === 'function') new ResizeObserver(() => ROOT.style.setProperty('--rph', $('replay').offsetHeight + 'px')).observe($('replay'));
 setInterval(syncReplayUi, 60000);   // the idle clock and the ticks move on
 ['mousedown', 'touchstart', 'wheel'].forEach((ev) => map.on(ev, stopAuto));
 $('fold').addEventListener('click', () => { const closed = $('layers').classList.toggle('closed'); $('fold').setAttribute('aria-expanded', closed ? 'false' : 'true'); });

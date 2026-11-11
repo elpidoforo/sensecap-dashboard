@@ -635,6 +635,35 @@ function weather() {
   });
 }
 
+/* Five-day forecast for central Cyprus from the Open-Meteo model. The Department itself publishes its forecast only as
+ * pictures, so the weather page shows these day cards and keeps the Department's tables one click away. */
+const FORECAST_POINT = { lat: 35.0, lng: 33.2, place: 'Central Cyprus' };
+function forecast() {
+  return viaFeed('openmeteo', cached, 'forecast', 1800000, async () => {
+    let days;
+    if (MOCK) {
+      const base = Date.now();
+      days = [0, 1, 2, 3, 4].map((i) => ({
+        date: new Date(base + i * 86400000).toISOString().slice(0, 10),
+        tmax: 27 - i + (i % 2), tmin: 17 - (i % 3), code: [0, 1, 2, 3, 61][i], wind: 3 + (i % 3), windDir: 250 + i * 12,
+      }));
+    } else {
+      const j = await omJson(
+        OM_BASE + '/v1/forecast?latitude=' + FORECAST_POINT.lat + '&longitude=' + FORECAST_POINT.lng +
+        '&daily=weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_direction_10m_dominant' +
+        '&wind_speed_unit=ms&timezone=Asia%2FNicosia&forecast_days=5'
+      );
+      const d = j && j.daily;
+      if (!d || !Array.isArray(d.time)) throw new Error('Open-Meteo sent no daily forecast');
+      days = d.time.map((date, i) => ({
+        date, tmax: d.temperature_2m_max[i], tmin: d.temperature_2m_min[i], code: d.weather_code[i],
+        wind: d.wind_speed_10m_max[i], windDir: d.wind_direction_10m_dominant[i],
+      })).filter((x) => isFinite(x.tmax) && isFinite(x.tmin));
+    }
+    return { source: 'Open-Meteo', place: FORECAST_POINT.place, days, updated: new Date().toISOString(), mock: MOCK };
+  });
+}
+
 function air() {
   return viaFeed('openmeteo', cached, 'air', 1800000, async () => {
     const pts = weatherGridPoints();
@@ -1542,7 +1571,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': img.type, 'Cache-Control': 'public, max-age=300' });
       return res.end(img.buf);
     }
-    const extra = { '/api/weather': weather, '/api/air': air, '/api/sea': sea, '/api/opensensors': openSensors, '/api/metar': metar, '/api/cydom': cydom }[url.pathname];
+    const extra = { '/api/weather': weather, '/api/forecast': forecast, '/api/air': air, '/api/sea': sea, '/api/opensensors': openSensors, '/api/metar': metar, '/api/cydom': cydom }[url.pathname];
     if (extra) return sendJson(res, 200, await extra());
     let file = url.pathname === '/' ? '/index.html' : url.pathname.endsWith('/') ? url.pathname + 'index.html' : url.pathname;
     const full = path.join(__dirname, 'public', path.normalize(file));

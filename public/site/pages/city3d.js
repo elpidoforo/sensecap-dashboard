@@ -20,20 +20,31 @@
       if (cfg && cfg.demo) tags.push({ cls: 'demo', text: T('Demo data', 'Δοκιμαστικά δεδομένα') });
       const delayed = cfg && cfg.exactPositions === false;
       const hrs = cfg && cfg.posDelayMin ? Math.max(1, Math.round(cfg.posDelayMin / 60)) : 2;
-      const lede = T('The island in 3D: mountains, wind, clouds and our sensors as columns whose height shows the reading. Drag to turn it, scroll to zoom.',
-        'Το νησί σε 3D: βουνά, άνεμος, σύννεφα και οι αισθητήρες μας ως στήλες με ύψος ανάλογο της μέτρησης. Σύρετε για να το γυρίσετε, κυλήστε για μεγέθυνση.');
-      root.append(SC.head({
+      const lede = T('The island in 3D: mountains, wind and our sensors as columns whose height shows the reading. Drag to turn it, scroll to zoom.',
+        'Το νησί σε 3D: βουνά, άνεμος και οι αισθητήρες μας ως στήλες με ύψος ανάλογο της μέτρησης. Σύρετε για να το γυρίσετε, κυλήστε για μεγέθυνση.');
+      const head = SC.head({
         title: T('Cyprus 3D', 'Κύπρος 3D'),
         lede,
-        fresh: T('Live · updates every 30 s', 'Ζωντανά · ανανέωση κάθε 30 δ.'),
+        fresh: T('Checking…', 'Έλεγχος…'),
         tags,
         help: [
-          'The island is built from elevation data. Pick what colours the ground (temperature, elevation, air quality, dust) and what the sensor columns show. The taller and warmer the column, the higher the reading. Press a sensor in the list on the right to fly to its column, or press a column to open its history. '
+          'The island is built from elevation data. Pick what colours the ground (blue relief, temperature, elevation, air quality, dust) and what the sensor columns show. The taller and warmer the column, the higher the reading. Press a sensor in the list on the right to fly to its column, or press a column to open its history. '
             + (delayed ? 'Vehicle columns stand at positions that are about ' + hrs + ' hours late and rounded to 1 km.' : ''),
-          'Το νησί δημιουργείται από δεδομένα υψομέτρου. Διαλέξτε τι χρωματίζει το έδαφος (θερμοκρασία, υψόμετρο, ποιότητα αέρα, σκόνη) και τι δείχνουν οι στήλες των αισθητήρων. Όσο πιο ψηλή και ζεστή η στήλη, τόσο υψηλότερη η μέτρηση. Πατήστε έναν αισθητήρα στη λίστα δεξιά για να πετάξετε στη στήλη του ή πατήστε μια στήλη για το ιστορικό της. '
+          'Το νησί δημιουργείται από δεδομένα υψομέτρου. Διαλέξτε τι χρωματίζει το έδαφος (μπλε ανάγλυφο, θερμοκρασία, υψόμετρο, ποιότητα αέρα, σκόνη) και τι δείχνουν οι στήλες των αισθητήρων. Όσο πιο ψηλή και ζεστή η στήλη, τόσο υψηλότερη η μέτρηση. Πατήστε έναν αισθητήρα στη λίστα δεξιά για να πετάξετε στη στήλη του ή πατήστε μια στήλη για το ιστορικό της. '
             + (delayed ? 'Οι στήλες των οχημάτων βρίσκονται σε θέσεις με καθυστέρηση περίπου ' + hrs + ' ωρών και στρογγυλοποιημένες στο 1 χλμ.' : ''),
         ],
-      }));
+      });
+      root.append(head);
+      // the freshness pill says how old the newest sensor reading is (the columns refresh every 30 s)
+      const pill = head.querySelector('.fresh-pill');
+      const setPill = (cls, text) => { if (!pill) return; pill.className = 'fresh-pill' + (cls ? ' ' + cls : ''); pill.lastChild.textContent = text; };
+      SC.api('/api/devices').then((devs) => {
+        const seen = (Array.isArray(devs) ? devs : []).map((d) => Date.parse(d.lastSeen)).filter((t) => isFinite(t));
+        const last = seen.length ? Math.max(...seen) : 0;
+        if (!last) setPill('none', T('No readings yet', 'Καμία μέτρηση ακόμα'));
+        else if (Date.now() - last > 3600000) setPill('stale', T('Last reading ' + SC.ago(last), 'Τελευταία μέτρηση ' + SC.ago(last)));
+        else setPill('', T('Live · ' + SC.ago(last), 'Ζωντανά · ' + SC.ago(last)));
+      }).catch(() => setPill('none', T('Sensors unavailable', 'Οι αισθητήρες δεν είναι διαθέσιμοι')));
 
       // the iframe address: embed mode, language, and the route query (eui, station, ...)
       const params = new URLSearchParams();

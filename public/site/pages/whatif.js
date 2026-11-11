@@ -172,10 +172,12 @@
 
       /* ---------- data ---------- */
       const settle = (p) => p.then((v) => ({ ok: true, v }), (e) => ({ ok: false, e }));
+      // The model grid and the volunteer sensors only improve the PM2.5 picture, so the page does not wait more than 6 s for them.
+      const optional = (p) => Promise.race([settle(p), new Promise((ok) => setTimeout(() => ok({ ok: false, e: new Error('slow') }), 6000))]);
       async function load(force) {
         const get = (u, ttl) => (force ? SC.api(u) : SC.cached(u, ttl));
         const [cfg, dev, lat, sch, air, open] = await Promise.all([settle(get('/api/config', 300000)), settle(get('/api/devices', 20000)), settle(get('/api/latest', 20000)),
-          settle(get('/app/api/schools/public', 300000)), settle(get('/api/air', 600000)), settle(get('/api/opensensors', 300000))]);
+          settle(get('/app/api/schools/public', 300000)), optional(get('/api/air', 600000)), optional(get('/api/opensensors', 300000))]);
         const bad = [cfg, dev, lat, sch].find((r) => !r.ok);
         if (bad) throw bad.e;
         D.cfg = cfg.v; D.devices = Array.isArray(dev.v) ? dev.v : []; D.latest = lat.v || {}; D.schools = (sch.v && sch.v.schools) || [];

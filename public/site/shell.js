@@ -265,7 +265,7 @@
     ask: ['A full-screen assistant. Answers come from live tools and the handbook, with source chips. Never exact vehicle positions.', 'Βοηθός πλήρους οθόνης. Οι απαντήσεις προέρχονται από ζωντανά εργαλεία και το εγχειρίδιο, με ετικέτες πηγών. Ποτέ ακριβείς θέσεις οχημάτων.'],
   };
   // Pages that exist. The lead adds an id here, or lists it in public/site/pages/index.json (read at start, see loadPagesIndex).
-  const READY = new Set(['home', 'board', 'city3d', 'weather', 'explore', 'schools', 'map', 'vehicles', 'ask', 'studio', 'approvals']);
+  const READY = new Set(['alerts', 'approvals', 'archive', 'ask', 'board', 'city3d', 'council', 'desk', 'districts', 'explore', 'feeds', 'guides', 'helpers', 'home', 'league', 'library', 'map', 'mirror', 'opsmap', 'projects', 'reports', 'research', 'schools', 'settings', 'start', 'studio', 'submitted', 'trip', 'vehicles', 'warnings', 'weather', 'whatif']);
   SC.ready = READY;
   window.SC_PAGES = window.SC_PAGES || [];
   const isReady = (id) => READY.has(id) || window.SC_PAGES.indexOf(id) >= 0;

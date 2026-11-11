@@ -22,12 +22,15 @@
     --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 400 13px/1.45 var(--font); letter-spacing: -.005em; font-feature-settings: "tnum" 1, "cv11" 1; overflow: hidden; }
+  html { background: radial-gradient(120% 95% at 50% 40%, #10294d 0%, #0a1830 50%, #050c19 100%); }
+  html, body { margin: 0; height: 100%; color: var(--text); font: 400 13px/1.45 var(--font); letter-spacing: -.005em; font-feature-settings: "tnum" 1, "cv11" 1; overflow: hidden; }
   button, select, input { font: inherit; color: inherit; }
   :focus-visible { outline: 2px solid var(--copper-2); outline-offset: 2px; }
   a { color: var(--copper-2); text-decoration: none; }
   a:hover { text-decoration: underline; }
   #view { position: fixed; inset: 0; width: 100%; height: 100%; }
+  /* holographic floor: fine horizontal scanlines, fading out towards the top */
+  body::after { content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none; background: repeating-linear-gradient(180deg, rgba(120,172,238,.085) 0 1px, transparent 1px 7px); -webkit-mask-image: linear-gradient(180deg, transparent 16%, #000 60%); mask-image: linear-gradient(180deg, transparent 16%, #000 60%); }
   .i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .glass { background: var(--glass); border: 1px solid var(--glass-edge); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: 0 16px 36px -16px rgba(0,0,0,.6); color: var(--ink-soft); }
@@ -87,7 +90,9 @@
 
   /* ---------- top chip, legend ---------- */
   .tchip { position: fixed; z-index: 3; top: 16px; left: 304px; display: none; align-items: center; gap: 8px; padding: 8px 14px 8px 11px; border-radius: 999px; background: rgba(20,32,50,.82); border: 1px solid var(--warn-line); color: var(--warn); font: 600 12.5px/1 var(--font); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
-  .tchip .i { width: 15px; height: 15px; }
+  .tchip { max-width: calc(100vw - 696px); }
+  .tchip > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tchip .i { width: 15px; height: 15px; flex: none; }
   .delayed .tchip { display: inline-flex; }
   #legend { position: fixed; z-index: 3; left: 16px; bottom: 16px; width: 272px; padding: 11px 14px 12px; border-radius: 16px; background: rgba(14,26,44,.84); }
   #lt { font: 600 12px/1.3 var(--font); color: var(--ink-soft); }
@@ -97,9 +102,10 @@
   .delayed #lgPriv { display: block; }
 
   /* ---------- sensor list ---------- */
-  #list { position: fixed; z-index: 3; top: 16px; right: 16px; width: 300px; max-height: calc(100% - 32px); display: flex; flex-direction: column; padding: 12px 10px 10px; border-radius: 20px; background: linear-gradient(170deg, rgba(20,36,60,.9), rgba(9,18,32,.93)); }
+  #list { position: fixed; z-index: 3; top: 68px; right: 16px; width: 300px; max-height: calc(100% - 152px); display: flex; flex-direction: column; padding: 12px 10px 10px; border-radius: 20px; background: linear-gradient(170deg, rgba(20,36,60,.9), rgba(9,18,32,.93)); }
   #list h2 { margin: 0 6px 8px; font: 700 11px/1.3 var(--font); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
   #list .tools { margin: 0 6px 6px; }
+  #list .hint { margin: 8px 6px 2px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.08); font: 500 12px/1.45 var(--font); color: var(--warn); }
   #list select { min-height: 32px; font-size: 12.5px; }
   #rows { overflow: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: #2a4161 transparent; }
   .row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 8px; border: 0; border-radius: 12px; background: transparent; text-align: left; cursor: pointer; color: var(--ink-soft); }
@@ -112,15 +118,34 @@
 
   /* ---------- labels on the columns and the pointer tip ---------- */
   #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
-  .lb { position: absolute; left: 0; top: 0; white-space: nowrap; padding: 4px 10px; border-radius: 999px; font: 600 12px/1.2 var(--font); background: rgba(12,22,38,.86); border: 1.5px solid var(--c, #888); color: #fff; will-change: transform; box-shadow: 0 8px 18px -8px rgba(0,0,0,.7); }
-  .lb b { font-weight: 600; margin-right: 6px; color: var(--ink-soft); }
-  .lb i { font-style: normal; color: var(--muted); margin-left: 6px; font-weight: 500; }
-  .lb.off { color: #9aa4b2; }
+  .lb { position: absolute; left: 0; top: 0; white-space: nowrap; padding: 5px 10px 6px; border-radius: 9px; text-align: left; font: 600 12px/1.25 var(--font); background: rgba(7,14,28,.92); border: 1px solid rgba(255,255,255,.14); color: #fff; will-change: transform; box-shadow: 0 10px 20px -8px rgba(0,0,0,.75); }
+  .lb b { display: block; font-weight: 700; color: #fff; }
+  .lb .v { display: flex; align-items: center; gap: 6px; font: 500 11px/1.35 var(--font); color: #cfd9e8; }
+  .lb .v::before { content: ""; width: 7px; height: 7px; border-radius: 2px; background: var(--c, #888); flex: none; }
+  .lb i { display: block; font-style: normal; color: var(--muted); font-weight: 500; font-size: 10.5px; }
+  .lb.off .v { color: #9aa4b2; }
   .lb.hot { background: var(--gold); color: var(--gold-ink); border-color: transparent; z-index: 3; }
-  .lb.hot b, .lb.hot i { color: var(--gold-ink); }
+  .lb.hot b, .lb.hot .v, .lb.hot i { color: var(--gold-ink); }
+  .lb.hot .v::before { background: var(--gold-ink); }
   #tip { position: fixed; pointer-events: none; display: none; z-index: 5; max-width: 270px; padding: 10px 12px; border-radius: 14px; background: linear-gradient(165deg, rgba(36,62,100,.95), rgba(13,25,43,.96)); border: 1px solid rgba(255,255,255,.12); box-shadow: 0 20px 40px -18px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.1); font: 400 12.5px/1.45 var(--font); color: var(--text); }
   #tip b { color: #fff; font-weight: 600; }
   #tip i { color: var(--copper-2); font-style: normal; }
+
+  /* ---------- view buttons (top right) and the round help button ---------- */
+  #bar3d { position: fixed; z-index: 4; top: 16px; right: 16px; display: flex; gap: 8px; }
+  .tb { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--edge-2); background: rgba(8,16,30,.82); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); color: var(--ink-soft); font: 600 13px/1 var(--font); cursor: pointer; white-space: nowrap; }
+  .tb:hover { background: rgba(30,52,84,.9); color: #fff; }
+  .tb .i { width: 16px; height: 16px; }
+  .tb.on { border-color: transparent; background: linear-gradient(180deg, #5ad6f0, #2fb8dc); color: #06222c; box-shadow: 0 8px 20px -8px rgba(76,203,234,.7); }
+  .tb[disabled] { opacity: .5; cursor: default; }
+  #help3d { position: fixed; z-index: 4; right: 16px; bottom: 16px; width: 52px; height: 52px; display: grid; place-items: center; padding: 0; border-radius: 50%; border: 2px solid rgba(76,203,234,.75); background: radial-gradient(circle at 50% 40%, rgba(40,110,160,.9), rgba(10,24,46,.95)); color: #d9f6ff; cursor: pointer; box-shadow: 0 0 24px rgba(76,203,234,.45), inset 0 0 12px rgba(76,203,234,.25); }
+  #help3d:hover { box-shadow: 0 0 30px rgba(76,203,234,.65), inset 0 0 14px rgba(76,203,234,.35); }
+  #help3d .i { width: 24px; height: 24px; }
+  #helpCard { position: fixed; z-index: 5; right: 16px; bottom: 80px; width: 300px; padding: 14px 16px 12px; border-radius: 16px; background: linear-gradient(165deg, rgba(36,62,100,.96), rgba(9,18,32,.97)); }
+  #helpCard[hidden] { display: none; }
+  #helpCard h3 { margin: 0 0 6px; font: 600 15px/1.3 var(--font); color: #fff; }
+  #helpCard ul { margin: 0; padding: 0 0 0 18px; color: var(--text); font-size: 12.5px; line-height: 1.5; }
+  #helpCard li + li { margin-top: 4px; }
 
   /* ---------- loading and error card ---------- */
   #msg { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px; background: var(--bg); text-align: center; }
@@ -130,17 +155,21 @@
   #msg .bar i { display: block; height: 100%; width: 30%; background: var(--gold); border-radius: 3px; transition: width .4s; }
   #msg .e { color: var(--bad); font-size: 12.5px; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
-  @media (max-width: 1100px) { #list { width: 260px; } .tchip { right: 290px; } }
+  @media (max-width: 1100px) { #list { width: 260px; } }
   @media (max-width: 760px) {
     #controls { width: calc(100% - 24px); left: 12px; top: 12px; max-height: 58%; }
     .delayed #controls { max-height: 58%; }
-    .tchip { left: 12px; right: 12px; top: 64px; justify-content: center; font-size: 11.5px; padding: 6px 10px; }
+    .tchip { max-width: none; left: 12px; right: 12px; top: 64px; justify-content: center; font-size: 11.5px; padding: 6px 10px; }
     #legend { display: none; left: 12px; right: 12px; width: auto; bottom: 12px; }
     .delayed #legend { display: block; bottom: calc(32% + 24px); }
     .delayed #legend #lt, .delayed #legend #bar, .delayed #legend #lr { display: none; }
     .delayed #lgPriv { margin: 0; padding: 0; border: 0; }
     #list { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; max-height: 32%; }
+    #bar3d, #help3d, #helpCard { display: none; }
+    #list .hint { display: none; }
   }
+  @media (max-width: 1000px) { .tb span { display: none; } .tb { padding: 0 12px; } }
+  @media (min-width: 761px) and (max-width: 1000px) { .tchip { max-width: calc(100vw - 490px); } }
 </style>
 </head>
 <body>
@@ -162,6 +191,10 @@
     <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-6 7-12a7 7 0 10-14 0c0 6 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
     <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+    <symbol id="i-tour" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M20 11a8 8 0 10-2.3 5.7M20 4v7h-7"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><path d="M5 5h14a2 2 0 012 2v8a2 2 0 01-2 2h-6l-4 4v-4H5a2 2 0 01-2-2V7a2 2 0 012-2z"/><path d="M9.8 9.4a2.3 2.3 0 114 1.4c-.8.8-1.8 1.2-1.8 2.3M12 15.2h.01"/></symbol>
   </defs>
 </svg>
 <div id="msg" role="status"><div class="glass card"><p id="msgT" data-el="Δημιουργία του νησιού…">Building the island…</p><div class="bar"><i id="msgBar"></i></div><div id="msgE"></div></div></div>
@@ -175,16 +208,17 @@
   <div class="rail-body" id="railBody">
     <div class="nav" id="navlinks"><a href="/">Back to dashboard</a><a href="/map.html">Map with roads and satellite</a><a href="/metoffice.html">Met Office data</a></div>
     <div class="rail-g" data-el="Επιφάνεια">Surface</div>
-    <label class="lay" style="--c:#E07F3F"><input type="radio" name="surf" value="temp" checked><span class="tile"><svg class="i"><use href="#i-thermo"/></svg></span><span class="lt"><b data-el="Θερμοκρασία">Temperature</b><small data-el="Μοντέλο καιρού">Weather model</small></span><i class="rd"></i></label>
+    <label class="lay" style="--c:#6cb4f2"><input type="radio" name="surf" value="holo" checked><span class="tile"><svg class="i"><use href="#i-layers"/></svg></span><span class="lt"><b data-el="Νησί">Island</b><small data-el="Μπλε ανάγλυφο">Blue relief</small></span><i class="rd"></i></label>
+    <label class="lay" style="--c:#E07F3F"><input type="radio" name="surf" value="temp"><span class="tile"><svg class="i"><use href="#i-thermo"/></svg></span><span class="lt"><b data-el="Θερμοκρασία">Temperature</b><small data-el="Μοντέλο καιρού">Weather model</small></span><i class="rd"></i></label>
     <label class="lay" style="--c:#59d98e"><input type="radio" name="surf" value="elev"><span class="tile"><svg class="i"><use href="#i-mount"/></svg></span><span class="lt"><b data-el="Υψόμετρο">Elevation</b><small data-el="Βουνά και κοιλάδες">Mountains and valleys</small></span><i class="rd"></i></label>
     <label class="lay" style="--c:#F0B94A"><input type="radio" name="surf" value="pm25"><span class="tile"><svg class="i"><use href="#i-haze"/></svg></span><span class="lt"><b data-el="Ποιότητα αέρα (PM2.5)">Air quality (PM2.5)</b><small>Open-Meteo</small></span><i class="rd"></i></label>
     <label class="lay" style="--c:#C9803F"><input type="radio" name="surf" value="dust"><span class="tile"><svg class="i"><use href="#i-dust"/></svg></span><span class="lt"><b data-el="Σκόνη">Dust</b><small>Open-Meteo</small></span><i class="rd"></i></label>
     <div class="rail-g" data-el="Στρώματα">Layers</div>
     <label class="lay" style="--c:#8fb8ff"><input type="checkbox" id="lWind" checked><span class="tile"><svg class="i"><use href="#i-wind"/></svg></span><span class="lt"><b data-el="Άνεμος">Wind</b><small data-el="Ρέουσες γραμμές">Flowing lines</small></span><i class="sw"></i></label>
-    <label class="lay" style="--c:#cfd9e8"><input type="checkbox" id="lCloud" checked><span class="tile"><svg class="i"><use href="#i-cloud"/></svg></span><span class="lt"><b data-el="Σύννεφα και βροχή">Clouds and rain</b><small data-el="Από το μοντέλο καιρού">From the weather model</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#cfd9e8"><input type="checkbox" id="lCloud"><span class="tile"><svg class="i"><use href="#i-cloud"/></svg></span><span class="lt"><b data-el="Σύννεφα και βροχή">Clouds and rain</b><small data-el="Από το μοντέλο καιρού">From the weather model</small></span><i class="sw"></i></label>
     <label class="lay" style="--c:#8f7bff"><input type="checkbox" id="lSensor" checked><span class="tile"><svg class="i"><use href="#i-bus"/></svg></span><span class="lt"><b data-el="Αισθητήρες">Sensors</b><small id="subSen" data-el="Στήλες στα οχήματά μας">Columns on our vehicles</small></span><i class="sw"></i></label>
     <label class="lay" style="--c:#8CA0B8"><input type="checkbox" id="lList" checked><span class="tile"><svg class="i"><use href="#i-list"/></svg></span><span class="lt"><b data-el="Λίστα αισθητήρων">Sensor list</b><small data-el="Στα δεξιά">On the right</small></span><i class="sw"></i></label>
-    <label class="lay" style="--c:#4C8BEA"><input type="checkbox" id="lSea" checked><span class="tile"><svg class="i"><use href="#i-wave"/></svg></span><span class="lt"><b data-el="Συνθήκες θάλασσας">Sea conditions</b><small>Open-Meteo</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#4C8BEA"><input type="checkbox" id="lSea"><span class="tile"><svg class="i"><use href="#i-wave"/></svg></span><span class="lt"><b data-el="Συνθήκες θάλασσας">Sea conditions</b><small>Open-Meteo</small></span><i class="sw"></i></label>
     <div class="rail-g" data-el="Προβολή">View</div>
     <label class="ctl"><span data-el="Οι στήλες δείχνουν">Sensor columns show</span><select id="measure"></select></label>
     <label class="ctl"><span data-el="Αριθμοί στις στήλες">Numbers on the columns</span><select id="labelMode">
@@ -199,8 +233,22 @@
     <div id="err" role="alert"></div>
   </div>
 </aside>
-<span class="tchip" id="chipDelayed"><svg class="i"><use href="#i-lock"/></svg><span data-el="Οι εκπαιδευτικοί βλέπουν τις ακριβείς θέσεις μετά τη σύνδεση">Teachers see exact positions after sign-in</span></span>
-<aside class="glass" id="list" aria-label="Sensors" data-ael="Αισθητήρες"><h2 id="listT">Sensors</h2><div class="tools"><select id="listSort" aria-label="Sort" data-ael="Ταξινόμηση"><option value="high" selected data-el="Πρώτες οι υψηλότερες">Highest first</option><option value="low" data-el="Πρώτες οι χαμηλότερες">Lowest first</option><option value="name" data-el="Ανά όνομα">By name</option></select></div><div id="rows"></div></aside>
+<span class="tchip" id="chipDelayed"><svg class="i"><use href="#i-lock"/></svg><span data-el="Ακριβείς θέσεις μόνο για εκπαιδευτικούς">Teachers see exact positions after sign-in</span></span>
+<div id="bar3d" role="toolbar" aria-label="View" data-ael="Προβολή">
+  <button type="button" class="tb" id="bTour" aria-pressed="false"><svg class="i"><use href="#i-tour"/></svg><span id="bTourT" data-el="Περιήγηση">Tour</span></button>
+  <button type="button" class="tb" id="bHome"><svg class="i"><use href="#i-home"/></svg><span data-el="Όλο το νησί">Whole island</span></button>
+  <button type="button" class="tb" id="bMenu" aria-expanded="true"><svg class="i"><use href="#i-menu"/></svg><span data-el="Μενού">Menu</span></button>
+</div>
+<button type="button" id="help3d" aria-label="How to use the 3D view" aria-expanded="false" aria-controls="helpCard" data-ael="Πώς χρησιμοποιείται η προβολή 3D"><svg class="i"><use href="#i-help"/></svg></button>
+<div class="glass" id="helpCard" role="dialog" aria-label="How to use the 3D view" data-ael="Πώς χρησιμοποιείται η προβολή 3D" hidden>
+  <h3 data-el="Πώς χρησιμοποιείται">How to use the 3D view</h3>
+  <ul>
+    <li data-el="Σύρετε για να γυρίσετε το νησί, κυλήστε για μεγέθυνση, σύρετε με το δεξί κουμπί για μετακίνηση.">Drag to turn the island, scroll to zoom, right-drag to move it.</li>
+    <li data-el="Πατήστε έναν αισθητήρα στη λίστα για να πετάξετε στη στήλη του· πατήστε μια στήλη για το ιστορικό της.">Press a sensor in the list to fly to its column; press a column to open its history.</li>
+    <li data-el="Το ύψος της στήλης δείχνει τη μέτρηση. Διαλέξτε στο πάνελ αριστερά τι χρωματίζει το έδαφος.">Column height shows the reading. Pick what colours the ground in the panel on the left.</li>
+  </ul>
+</div>
+<aside class="glass" id="list" aria-label="Sensors" data-ael="Αισθητήρες"><h2 id="listT">Sensors</h2><div class="tools"><select id="listSort" aria-label="Sort" data-ael="Ταξινόμηση"><option value="high" selected data-el="Πρώτες οι υψηλότερες">Highest first</option><option value="low" data-el="Πρώτες οι χαμηλότερες">Lowest first</option><option value="name" data-el="Ανά όνομα">By name</option></select></div><div id="rows"></div><p class="hint" data-el="Πατήστε μια στήλη ή έναν αισθητήρα στη λίστα. Διαλέξτε στρώμα αριστερά ή ξεκινήστε την περιήγηση.">Press a column or pick a sensor in the list. Choose a layer on the left, or start the tour.</p></aside>
 <div class="glass" id="legend" aria-label="Legend" data-ael="Υπόμνημα"><div id="lt">Temperature</div><div id="bar"></div><div id="lr"><span id="lo"></span><span id="hi"></span></div><p id="lgPriv"></p></div>
 <div id="tip"></div>
 <script>
@@ -248,11 +296,12 @@ const toZ = (lat) => -(lat - LAT_C) * KM_LAT;
 const toLng = (x) => x / KM_LNG + LNG_C;
 const toLat = (z) => -z / KM_LAT + LAT_C;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const state = { terrain: null, weather: null, air: null, sea: null, devices: [], latest: {}, cfg: null, surf: 'temp', exag: 8, mid: '4097', lastOk: {}, errors: {}, delayed: false };
+const state = { terrain: null, weather: null, air: null, sea: null, devices: [], latest: {}, cfg: null, surf: 'holo', exag: 8, mid: '4097', lastOk: {}, errors: {}, delayed: false };
 
 /* ---------- colour scales ---------- */
 const SCALES = {
   temp: { stops: [[0, [42, 120, 214]], [0.35, [27, 175, 122]], [0.65, [237, 161, 0]], [1, [227, 73, 72]]], unit: '°C' },
+  holo: { stops: [[0, [20, 52, 112]], [0.12, [32, 82, 156]], [0.4, [58, 122, 204]], [0.75, [108, 172, 240]], [1, [196, 228, 255]]], unit: 'm' },
   elev: { stops: [[0, [60, 140, 70]], [0.15, [150, 170, 80]], [0.4, [170, 130, 80]], [0.75, [200, 190, 180]], [1, [250, 250, 250]]], unit: 'm' },
   pm25: { stops: [[0, [27, 175, 122]], [0.4, [237, 161, 0]], [1, [227, 73, 72]]], unit: 'µg/m³' },
   dust: { stops: [[0, [27, 175, 122]], [0.4, [237, 161, 0]], [1, [150, 60, 40]]], unit: 'µg/m³' },
@@ -269,7 +318,7 @@ function rampAt(stops, t) {
   return stops[stops.length - 1][1].map((v) => v / 255);
 }
 function surfaceRange(kind) {
-  if (kind === 'elev') return [0, 1950];
+  if (kind === 'elev' || kind === 'holo') return [0, 1950];
   if (kind === 'pm25') return [0, 35];
   if (kind === 'dust') return [0, 200];
   const vals = state.weather ? state.weather.points.map((p) => p.t) : [10, 35];
@@ -291,20 +340,33 @@ function sampleGrid(grid, field, lat, lng) {
 
 /* ---------- scene ---------- */
 THREE.ColorManagement.enabled = false;
-const renderer = new THREE.WebGLRenderer({ canvas: $('view'), antialias: true });
+const renderer = new THREE.WebGLRenderer({ canvas: $('view'), antialias: true, alpha: true });
+renderer.setClearColor(0x000000, 0);
 renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0c1626);
 const camera = new THREE.PerspectiveCamera(45, 1, 1, 2000);
-camera.position.set(0, 170, 230);
+const HOME_POS = new THREE.Vector3(2, 92, 176);   // a low, wide view of the whole island (as in the design picture)
+const HOME_TGT = new THREE.Vector3(-16, 0, 4);    // a little to the left, so the island sits in the free space between the two panels
+// the opening view: a wide screen looks from a low angle; a tall, narrow one (a phone) stands further back so the whole island still fits
+function homeView() {
+  const aspect = innerWidth / Math.max(1, innerHeight);
+  const k = Math.min(2.4, Math.max(1, 1.7 / Math.max(0.2, aspect)));
+  const tgt = innerWidth < 760 ? new THREE.Vector3(0, 0, 0) : HOME_TGT.clone();
+  return { pos: tgt.clone().add(HOME_POS.clone().sub(HOME_TGT).multiplyScalar(k)), tgt };
+}
+camera.position.copy(homeView().pos);
 const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.copy(homeView().tgt);
 controls.enableDamping = true;
 controls.maxPolarAngle = Math.PI * 0.49;
 controls.minDistance = 30;
 controls.maxDistance = 600;
-scene.add(new THREE.AmbientLight(0xffffff, 0.75));
-const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+// newer three.js builds (r155 and later) use physical light units, which show the same intensities about 1.6 times darker than the colour scales were drawn for: lift them so flat ground shows its scale colour
+const physicalLights = renderer.physicallyCorrectLights === true || renderer.useLegacyLights === false;
+const LIGHT_K = physicalLights ? 1.6 : 1;
+scene.add(new THREE.AmbientLight(0xffffff, 0.75 * LIGHT_K));
+const sun = new THREE.DirectionalLight(0xffffff, 1.5 * LIGHT_K);
 sun.position.set(-120, 200, 80);
 scene.add(sun);
 const world = new THREE.Group();
@@ -314,13 +376,15 @@ function resize() {
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
+  // on a phone the panels cover the top and bottom of the picture: slide the island up into the free middle band (the view only; the controls are not affected)
+  if (w < 760) camera.setViewOffset(w, h, 0, Math.round(h * 0.13), w, h); else camera.clearViewOffset();
   camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
 resize();
 
 /* ---------- terrain ---------- */
-let terrainMesh = null;
+let terrainMesh = null, wireMesh = null;
 let tGeo = null;
 const ground = { rows: 0, cols: 0, h: null };
 
@@ -340,20 +404,23 @@ function buildTerrain() {
       pos[i * 3 + 2] = toZ(lat);
     }
   }
-  const idx = new Uint32Array((rows - 1) * (cols - 1) * 6);
-  let k = 0;
+  // only the triangles that touch land: the sea is the background, so the island stands out on its own
+  const keep = [];
   for (let r = 0; r < rows - 1; r++) {
     for (let c = 0; c < cols - 1; c++) {
       const a = r * cols + c, b = a + 1, d = a + cols, e = d + 1;
-      idx.set([a, b, d, b, e, d], k);
-      k += 6;
+      if (t.elev[a] >= 3 || t.elev[b] >= 3 || t.elev[d] >= 3 || t.elev[e] >= 3) keep.push(a, b, d, b, e, d);
     }
   }
+  const idx = new Uint32Array(keep);
   tGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   tGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   tGeo.setIndex(new THREE.BufferAttribute(idx, 1));
-  terrainMesh = new THREE.Mesh(tGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 }));
+  terrainMesh = new THREE.Mesh(tGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, flatShading: true }));
   world.add(terrainMesh);
+  wireMesh = new THREE.Mesh(tGeo, new THREE.MeshBasicMaterial({ color: 0xa6d0ff, wireframe: true, transparent: true, opacity: 0.16, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
+  wireMesh.raycast = () => {};   // the pointer should meet the ground, not the grid lines
+  world.add(wireMesh);
   applyExaggeration();
   recolor();
 }
@@ -391,8 +458,8 @@ function recolor() {
       const elev = t.elev[i];
       let rgb;
       if (elev < 3) {
-        rgb = [0.05, 0.16, 0.3];
-      } else if (kind === 'elev') {
+        rgb = [0.04, 0.12, 0.26];
+      } else if (kind === 'elev' || kind === 'holo') {
         rgb = rampAt(sc.stops, (elev - lo) / (hi - lo));
       } else {
         const lat = t.lat0 + (r / (t.rows - 1)) * (t.lat1 - t.lat0);
@@ -404,7 +471,8 @@ function recolor() {
     }
   }
   col.needsUpdate = true;
-  const names = { temp: T('Temperature (Open-Meteo model)', 'Θερμοκρασία (μοντέλο Open-Meteo)'), elev: T('Elevation', 'Υψόμετρο'), pm25: T('PM2.5 (Open-Meteo)', 'PM2.5 (Open-Meteo)'), dust: T('Dust (Open-Meteo)', 'Σκόνη (Open-Meteo)') };
+  if (wireMesh) wireMesh.material.opacity = kind === 'holo' ? 0.16 : 0.07;
+  const names = { holo: T('Elevation (blue relief)', 'Υψόμετρο (μπλε ανάγλυφο)'), temp: T('Temperature (Open-Meteo model)', 'Θερμοκρασία (μοντέλο Open-Meteo)'), elev: T('Elevation', 'Υψόμετρο'), pm25: T('PM2.5 (Open-Meteo)', 'PM2.5 (Open-Meteo)'), dust: T('Dust (Open-Meteo)', 'Σκόνη (Open-Meteo)') };
   $('lt').textContent = names[kind];
   $('bar').style.background = 'linear-gradient(90deg,' + [0, 0.25, 0.5, 0.75, 1].map((q) => { const c = rampAt(sc.stops, q).map((v) => Math.round(v * 255)); return `rgb(${c})`; }).join(',') + ')';
   $('lo').textContent = lo + ' ' + sc.unit;
@@ -505,8 +573,9 @@ function syncLabels() {
     const parts = labelParts(s, mode);
     s.label.textContent = '';
     if (parts.name) { const b = document.createElement('b'); b.textContent = parts.name; s.label.appendChild(b); }
-    s.label.appendChild(document.createTextNode(parts.value));
+    const v = document.createElement('span'); v.className = 'v'; v.textContent = parts.value; s.label.appendChild(v);
     if (parts.extra) { const i = document.createElement('i'); i.textContent = parts.extra; s.label.appendChild(i); }
+    s._lwDirty = true;
     s.label.classList.toggle('off', !parts.live);
     s.label.style.setProperty('--c', parts.live ? cssColor(s.tcolor) : '#777');
     s.label.dataset.eui = eui;
@@ -516,15 +585,38 @@ const tmpV = new THREE.Vector3();
 function placeLabels() {
   const show = $('lSensor').checked && $('labelMode').value !== 'off';
   const w = innerWidth, h = innerHeight;
+  const vis = [];
   for (const s of sensors.values()) {
     if (!s.label) continue;
     tmpV.set(toX(s.lng), s.baseY + Math.max(s.h, s.cap.visible ? s.markerH : 0) + 2, toZ(s.lat)).project(camera);
     const inView = show && tmpV.z > -1 && tmpV.z < 1 && Math.abs(tmpV.x) < 1.15 && tmpV.y > -1.1 && tmpV.y < 1.1;
     if (!inView) { s.label.style.display = 'none'; continue; }
-    s.label.style.display = 'block';
-    s.label.style.transform = `translate(${((tmpV.x + 1) / 2) * w}px, ${((1 - tmpV.y) / 2) * h}px) translate(-50%, -100%)`;
-    s.label.style.zIndex = String(Math.round((1 - tmpV.z) * 1000));   // nearer labels on top
-    s.label.classList.toggle('hot', s.d.eui === selEui);
+    s._x = ((tmpV.x + 1) / 2) * w; s._y = ((1 - tmpV.y) / 2) * h; s._z = tmpV.z;
+    vis.push(s);
+  }
+  // keep the picture calm: the chosen sensor first, then live ones, then the nearest; a label that would sit on top of one already placed waits until you zoom in
+  vis.sort((a, b) => ((b.d.eui === selEui) - (a.d.eui === selEui)) || ((b.d.online && b.v != null) - (a.d.online && a.v != null)) || (a._z - b._z));
+  // the two panels sit on top of the scene, so a label behind them would be half hidden: count them as taken
+  const taken = [];
+  for (const id of ['controls', 'list']) {
+    const P = $(id);
+    if (!P) continue;
+    const r = P.getBoundingClientRect();
+    if (!r.width || !r.height) continue;
+    taken.push([r.left, r.top, r.right, r.bottom]);
+  }
+  for (const s of vis) {
+    const L = s.label;
+    L.style.display = 'block';
+    if (!s._lw || s._lwDirty) { s._lw = L.offsetWidth; s._lh = L.offsetHeight; s._lwDirty = false; }
+    const cx = Math.min(w - s._lw / 2 - 6, Math.max(s._lw / 2 + 6, s._x));   // a label never runs off the edge of the view
+    const x0 = cx - s._lw / 2 - 4, x1 = cx + s._lw / 2 + 4, y0 = s._y - s._lh - 4, y1 = s._y + 2;
+    const hit = taken.some((r) => x0 < r[2] && x1 > r[0] && y0 < r[3] && y1 > r[1]);
+    if (hit && s.d.eui !== selEui) { L.style.display = 'none'; continue; }
+    taken.push([x0, y0, x1, y1]);
+    L.style.transform = `translate(${cx}px, ${s._y}px) translate(-50%, -100%)`;
+    L.style.zIndex = String(Math.round((1 - s._z) * 1000));   // nearer labels on top
+    L.classList.toggle('hot', s.d.eui === selEui);
   }
 }
 let selEui = null, lastRows = '';
@@ -889,7 +981,35 @@ async function loadTerrain() {
   }
 }
 
-$('fold').addEventListener('click', () => { const closed = $('controls').classList.toggle('closed'); $('fold').setAttribute('aria-expanded', closed ? 'false' : 'true'); });
+function setMenu(closed) {
+  $('controls').classList.toggle('closed', closed);
+  $('fold').setAttribute('aria-expanded', closed ? 'false' : 'true');
+  $('bMenu').setAttribute('aria-expanded', closed ? 'false' : 'true');
+}
+$('fold').addEventListener('click', () => setMenu(!$('controls').classList.contains('closed')));
+$('bMenu').addEventListener('click', () => setMenu(!$('controls').classList.contains('closed')));
+// Tour: the island turns slowly on its own (not for people who asked for less motion); any touch of the mouse stops it
+function setTour(on) {
+  controls.autoRotate = on;
+  controls.autoRotateSpeed = 1.1;
+  $('bTour').classList.toggle('on', on);
+  $('bTour').setAttribute('aria-pressed', on ? 'true' : 'false');
+  $('bTourT').textContent = on ? T('Stop', 'Διακοπή') : T('Tour', 'Περιήγηση');
+}
+if (REDUCED) { $('bTour').disabled = true; $('bTour').title = T('Turned off because your device asks for less motion', 'Απενεργοποιημένο επειδή η συσκευή σας ζητά λιγότερη κίνηση'); }
+$('bTour').addEventListener('click', () => { if (!REDUCED) { if (!controls.autoRotate) fly = null; setTour(!controls.autoRotate); } });
+controls.addEventListener('start', () => { if (controls.autoRotate) setTour(false); });
+// Whole island: fly back to the opening view
+$('bHome').addEventListener('click', () => {
+  setTour(false);
+  selEui = null; lastRows = ''; syncList();
+  const hv = homeView();
+  fly = { at: performance.now(), dur: REDUCED ? 1 : 1200, p0: camera.position.clone(), p1: hv.pos, t0: controls.target.clone(), t1: hv.tgt };
+});
+// the round help button
+function setHelp(open) { $('helpCard').hidden = !open; $('help3d').setAttribute('aria-expanded', open ? 'true' : 'false'); }
+$('help3d').addEventListener('click', () => setHelp($('helpCard').hidden));
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('helpCard').hidden) { setHelp(false); $('help3d').focus(); } });
 if (innerWidth < 760) $('controls').classList.add('closed');   // on a phone the layers start folded away
 if (REDUCED) $('lWind').checked = false;   // no flowing wind for people who asked for less motion
 
