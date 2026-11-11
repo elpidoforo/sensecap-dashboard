@@ -96,10 +96,10 @@ function unsafeText(body) {
 function whenText(at, now = Date.now()) {
   const day = (ms) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, dateStyle: 'short' }).format(new Date(ms));
   const clock = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(at));
-  const same = day(at) === day(now);
+  const today = day(at) === day(now);
   const left = Math.max(1, Math.round((at - now) / 1000));
   const inText = left < 90 ? `in ${left} seconds` : left < 5400 ? `in ${Math.round(left / 60)} minutes` : `in about ${Math.round(left / 3600)} hours`;
-  return `${same ? '' : 'tomorrow at '}${clock} Cyprus time (${inText})`;
+  return `${today ? '' : 'tomorrow at '}${clock} Cyprus time (${inText})`;
 }
 
 function parseCookies(h) {

@@ -948,7 +948,7 @@ const delayHours = () => Math.max(1, Math.round(((state.cfg && state.cfg.posDela
 const gridKm = () => Math.max(1, Math.round(((state.cfg && state.cfg.posGrid) || 0.01) * 111));
 function delayedLine() {
   const h = delayHours(), g = gridKm();
-  return T(`Positions are about ${h} ${h === 1 ? 'hour' : 'hours'} late and rounded to ${g} km`, `Οι θέσεις εμφανίζονται με καθυστέρηση περίπου ${h} ${h === 1 ? 'ώρας' : 'ωρών'} και στρογγυλοποιημένες στο ${g} χλμ.`);
+  return T(`Positions are about ${h} ${h === 1 ? 'hour' : 'hours'} late and rounded to ${g} km`, `Οι θέσεις εμφανίζονται με καθυστέρηση περίπου ${h} ${h === 1 ? 'ώρας' : 'ωρών'} και στρογγυλοποιημένες στο ${g} χλμ`);
 }
 function renderSpark(eui, s) {
   const box = $('spark');

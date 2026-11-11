@@ -2,7 +2,7 @@
   Small line chart for Met Office station history, shared by the map popup and the Met Office page.
   No libraries. Draws SVG, shows a readout when you point at it, and leaves a gap where readings are missing.
 
-    MOChart.render(box, points, { unit, label, color, ink, grid, w, h, hours })
+    MOChart.render(box, points, { unit, label, color, ink, grid, w, h, hours, latest, empty })
       box     element to draw into (its contents are replaced)
       points  [{ t: milliseconds, v: number }] oldest first
     MOChart.series(station, hours)   -> promise of the /api/cydom/history answer
@@ -101,7 +101,7 @@
     const guide = svg('line', { y1: m.t, y2: H - m.b, stroke: ink, 'stroke-width': 1, 'stroke-dasharray': '3 3', visibility: 'hidden' });
     s.append(guide, dot);
 
-    const readout = div('mo-readout', `Latest ${num(last.v)} ${o.unit || ''} · ${full(last.t)}`);
+    const readout = div('mo-readout', `${o.latest || 'Latest '}${num(last.v)} ${o.unit || ''} · ${full(last.t)}`);
     const show = (clientX) => {
       const r = s.getBoundingClientRect();
       const t = t0 + ((clientX - r.left) / Math.max(1, r.width) * W - m.l) / (W - m.l - m.r) * span;
@@ -116,7 +116,7 @@
     s.addEventListener('pointerdown', (e) => show(e.clientX));
     s.addEventListener('pointerleave', () => {
       guide.setAttribute('visibility', 'hidden'); dot.setAttribute('visibility', 'hidden');
-      readout.textContent = `Latest ${num(last.v)} ${o.unit || ''} · ${full(last.t)}`;
+      readout.textContent = `${o.latest || 'Latest '}${num(last.v)} ${o.unit || ''} · ${full(last.t)}`;
     });
     box.append(s, readout);
   }

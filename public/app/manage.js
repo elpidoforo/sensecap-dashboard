@@ -134,7 +134,7 @@
     /* assistant log */
     if (tab === 'assistant') {
       const r = await api('/app/api/manage/botlog');
-      body.append(h('p', { class: 'muted small' }, 'Questions students asked the assistant, newest first. Kept for 90 days. Students are told that teachers can read these.'));
+      body.append(h('p', { class: 'muted small' }, 'Questions asked to the assistant, newest first. People on the public website show as "Visitor": no name, account or address is saved for them. Kept for 90 days.'));
       body.append(r.rows.length ? h('div', { class: 'list' }, r.rows.map((x) => h('div', { class: 'logrow' },
         h('div', { class: 'muted small' }, x.user + (schools[x.school_id] && me.role === 'admin' ? ' · ' + schools[x.school_id].short : '') + ' · ' + fmt.full(x.at) + (x.tools.length ? ' · used ' + x.tools.length + ' lookup' + (x.tools.length > 1 ? 's' : '') : '')),
         h('div', { class: 'q' }, x.question), x.error ? h('div', { class: 'a', style: 'color:var(--bad)' }, 'Error: ' + x.error) : h('div', { class: 'a' }, x.answer || '')))) : h('div', { class: 'empty' }, 'No questions yet.'));
@@ -146,7 +146,7 @@
       const editor = (d) => {
         const title = h('input', { type: 'text', maxlength: '80', value: d ? d.title : '', 'aria-label': 'Title' });
         const text = h('textarea', { rows: '10', maxlength: '6000', 'aria-label': 'Text' }); text.value = d ? d.body : '';
-        const sh = App.sheet(d ? 'Edit page' : 'New page', h('div', null, h('p', { class: 'muted small' }, 'The assistant searches these pages before it answers questions about the project. Write facts, deadlines, instructions.'),
+        const sh = App.sheet(d ? 'Edit page' : 'New page', h('div', null, h('p', { class: 'muted small' }, 'The assistant searches these pages before it answers questions about the project. Write facts, deadlines, instructions. It also answers visitors of the public website, so keep private details out. A title that starts with Staff, Private or Internal is never given to visitors.'),
           h('label', { class: 'field' }, h('span', null, 'Title'), title), h('label', { class: 'field' }, h('span', null, 'Text'), text),
           h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: async () => { if (await act('/app/api/manage/handbook', { id: d ? d.id : undefined, title: title.value, body: text.value }, 'Saved')) { sh.close(); refresh(); } } }, 'Save'),
             d ? h('button', { class: 'btn danger', onclick: async () => { sh.close(); if (await App.confirm('Delete "' + d.title + '"?', '', 'Delete', true) && await act(`/app/api/manage/handbook/${d.id}/delete`, {}, 'Deleted')) refresh(); } }, 'Delete') : null)));

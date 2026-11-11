@@ -32,8 +32,9 @@ Open http://localhost:3000.
 | `ANTHROPIC_API_KEY` | no | Switches the Ask assistant on. Without it the app works and the assistant says it is not switched on |
 | `BOT_MODEL` | no | Model for the assistant (default `claude-sonnet-5-5`) |
 | `ANTHROPIC_BASE_URL` | no | Only for testing against a different endpoint |
-| `BOT_DAILY_LIMIT` | no | Questions per person per day (default 40) |
-| `BOT_GLOBAL_DAILY` | no | Questions per day for everyone together (default 1500) |
+| `BOT_DAILY_LIMIT` | no | Questions per signed-in person per day (default 40) |
+| `BOT_VISITOR_DAILY`, `BOT_IP_DAILY`, `BOT_IP_MINUTE` | no | Limits of the public Ask for visitors (defaults 30, 150 and 30). See Ask for visitors in the Student and team app section |
+| `BOT_GLOBAL_DAILY` | no | Questions per day for everyone together, visitors and signed-in users (default 800) |
 | `CHAT_RETENTION_DAYS` | no | Chat messages older than this are deleted (default 400) |
 | `BOT_LOG_DAYS` | no | Assistant questions and answers older than this are deleted (default 90) |
 
@@ -152,8 +153,29 @@ An installable web app (PWA) at `/app/` for students and teachers of PASCAL Larn
 What it does:
 
 - **Data:** home screen with the Met Office strip, vehicle cards with a CO2 ribbon, 24 hour / 7 day / 30 day charts, the 54 Met Office stations with history and CSV, and the map and 3D view inside the app.
-- **Chat:** group channels only. One for all schools, one per school, one per team. No private messages. Students cannot post links, emails, phone numbers or @handles. Anyone can report a message; teachers can delete messages and mute members.
-- **Ask:** an assistant that reads the live data, the Met Office pages, the vehicle history and an editable handbook (Manage, Handbook). Every question and answer is visible to teachers, and any answer can be reported.
+- **Chat is closed for students.** Channels stay (one for all schools, one per school, one per team) and students can still read them, but only teachers and admins can post (`POST /app/api/messages` answers a student with 403 "Chat is closed. Teachers post announcements here."; the app hides the composer and shows that sentence). Old messages and accounts are untouched. Teachers can post links; a message from a student can still be reported and removed.
+- **Announcements (public):** `GET /app/api/announcements` needs no sign-in and returns the last 10 messages that teachers or admins posted in the All schools channel (deleted ones left out): `{ items: [{ id, at, text, by }] }`, where `by` is a role and a school such as "Teacher, PASCAL Lefkosia", never a name. Cached for 30 seconds (a new or deleted message shows at once). Tell teachers that what they post in All schools is public.
+- **Public schools list:** `GET /app/api/schools/public` needs no sign-in: `{ schools: [{ slug, name, short, lat, lng, teams: [{ id, name, device_eui }] }] }`. Team names only: no join codes, no members. (`GET /app/api/schools` lists only id and name, also without codes.)
+- **Ask:** an assistant that reads the live data, the Met Office pages, the vehicle history and an editable handbook (Manage, Handbook). Visitors can use it without signing in (see below); signed-in members use `POST /app/api/bot`. Every question and answer is visible to teachers, and any answer can be reported.
+
+### Ask for visitors (no sign-in)
+
+`POST /app/api/ask` takes the same request (`{ question, history }`) and returns the same stream of lines (`tool`, then `answer` or `error`) as `POST /app/api/bot`, with no session. The answer line also carries `remaining` (questions this visitor has left) and `limit`. `GET /app/api/ask/status` returns `{ enabled, remaining, limit, available }` (`available` is false while the network or site limit stops the visitor; then `retry_at` says when). `POST /app/api/ask/:id/report` lets a visitor report an answer they were given (`id` is the answer's `id`).
+
+- **Who is who:** a random cookie `sc_v` (HttpOnly, SameSite=Lax, one year, Secure behind https) tells visitors apart. Only a short hash of it is stored. Visitors have no account and no name.
+- **Limits:** 6 questions a minute and `BOT_VISITOR_DAILY` a day per visitor; `BOT_IP_MINUTE` a minute and `BOT_IP_DAILY` a day per network address (the first `X-Forwarded-For` value, like the other limiters); `BOT_GLOBAL_DAILY` a day for visitors and signed-in users together. A refused request is a 429 with a plain sentence that says when it ends (for example "You can ask again at 14:32 Cyprus time (in about 3 hours)") and `retry_at`, `retry_after` and `Retry-After`. A day is a rolling 24 hours. The per-visitor and global counts come from the saved log, so a restart does not reset them; the per-network counters live in memory and start again after a restart.
+
+  | Variable | Default | Meaning |
+  | --- | --- | --- |
+  | `BOT_VISITOR_DAILY` | 30 | Questions per visitor (cookie) per day |
+  | `BOT_IP_DAILY` | 150 | Questions per network address per day. A school usually sits behind one address, so raise it if a whole class uses Ask at the same time |
+  | `BOT_IP_MINUTE` | 30 | Questions per network address per minute (stops bursts from clients that throw their cookie away) |
+  | `BOT_GLOBAL_DAILY` | 800 | Questions per day for everybody together (was 1500) |
+  | `BOT_LOG_DAYS` | 90 | Questions and answers older than this are deleted (also visitor ones, at startup and every 6 hours) |
+- **Log:** each question is saved in `bot_logs` with no user id, no school and no address, only the short visitor hash. Teachers read them in Manage, Assistant as "Visitor". Reports of visitor answers carry no reporter (per network address, 5 an hour; only the visitor who got the answer can report it) and every teacher sees them in Reports.
+- **What the assistant may say:** visitors get a school-neutral prompt, the handbook, and the same read-only tools. It never gets or says a precise position: vehicle positions are rounded to 0.01 degree (about 1 km), shown only when they are at least 2 hours old (or already delayed by the server), the newest 2 hours of a route are left out, and raw GPS measurement ids never appear in tool results or handbook text. This is enforced in `bot.js` as well as in the data layer.
+- **Handbook for visitors:** the assistant also reads two pages that belong to the code (`SITE_GUIDE` in `knowledge.js`: how the website works, privacy and safety). Pages whose title starts with "Staff", "Private" or "Internal" are never given to visitors. The two old starter pages about the login-and-chat app ("Using this app", "Chat rules") are skipped while they are still the original text; nothing in the handbook is changed or deleted.
+- Databases made before this change get one new column, `bot_logs.visitor`; no row is changed.
 
 ### Setting it up
 

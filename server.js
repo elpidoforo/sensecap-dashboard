@@ -1073,7 +1073,7 @@ const server = http.createServer(async (req, res) => {
     if (studio && (await studio.handle(req, res, url))) return;     // /studio/* and /mcp: the Build studio does its own sign-in
     if (url.pathname === '/app') { res.writeHead(302, { Location: '/app/' }); return res.end(); }
     const inApp = url.pathname.startsWith('/app/');
-    const openAsset = /^\/cities\/(login\.html|login\.js|cities\.css|logo\.svg)$/.test(url.pathname);   // what the sign-in page itself needs
+    const openAsset = /^\/cities\/(login\.html|login\.js|cities\.css|logo\.svg)$|^\/teachers\/?$/.test(url.pathname);   // what the class sign-in page needs, and the teachers' way in (it only redirects into the app)
     if (!inApp && !openAsset && !authorised(req)) {
       if (PASS) {
         res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Sensor dashboard"' });
