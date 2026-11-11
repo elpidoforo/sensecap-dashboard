@@ -138,6 +138,7 @@ textarea.wf-sum { min-height: 150px; font: 400 13.5px/1.55 var(--nm-font); resiz
 .wf-num { width: 92px; min-height: 38px; padding: 6px 8px; display: inline-block; }
 .wf-src { grid-column: 1 / -1; margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--nm-muted); }
 
+@media (min-width: 1101px) { .wf-grid { align-items: start; } .wf-ctl { position: sticky; top: 16px; } }
 @media (max-width: 1100px) { .wf-grid, .wf-how-g { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 760px) {
   .wf { padding: 16px 14px 18px; }

@@ -37,8 +37,9 @@
   .glass { background: var(--glass); border: 1px solid var(--glass-edge); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: 0 16px 36px -16px rgba(0,0,0,.6); color: var(--ink-soft); }
 
   /* ---------- layer rail ---------- */
-  #layers { position: fixed; z-index: 4; top: 16px; left: 16px; width: 272px; max-height: calc(100% - 32px); display: flex; flex-direction: column; border-radius: 20px; background: linear-gradient(170deg, rgba(20,36,60,.9), rgba(9,18,32,.93)); }
-  .rail-h { display: flex; align-items: center; gap: 8px; padding: 14px 12px 8px 16px; }
+  #layers { position: fixed; z-index: 4; top: 16px; left: 16px; width: 260px; max-height: calc(100% - 104px); display: flex; flex-direction: column; border-radius: 20px; background: linear-gradient(170deg, rgba(20,36,60,.9), rgba(9,18,32,.93)); }
+  .rail-h { display: flex; align-items: center; gap: 8px; padding: 18px 18px 4px 18px; }
+  .embed .rail-h .live { display: none; }
   .rail-h .eyebrow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 700 11px/1 var(--font); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
   .rail-h em { font: 600 11.5px/1 var(--font); font-style: normal; color: var(--copper-2); white-space: nowrap; }
   :lang(el) .rail-h { gap: 6px; }
@@ -52,13 +53,16 @@
   .iconbtn { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 9px; border: 1px solid var(--edge); background: rgba(255,255,255,.05); color: #cfdaea; cursor: pointer; padding: 0; }
   .iconbtn:hover { background: rgba(255,255,255,.12); }
   .iconbtn .i { width: 16px; height: 16px; transition: transform .2s; }
+  #fold { display: none; }
   #layers.closed #fold .i { transform: rotate(-90deg); }
   .rail-body { overflow: auto; padding: 0 10px 12px; scrollbar-width: thin; scrollbar-color: #2a4161 transparent; }
   #layers.closed .rail-body { display: none; }
   .nav { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0 6px 4px; font-size: 12.5px; }
   .embed .nav { display: none; }
-  .rail-g { display: flex; align-items: center; gap: 8px; margin: 12px 6px 3px; font: 700 10px/1 var(--font); letter-spacing: .16em; text-transform: uppercase; color: #6f86a3; }
+  .rail-g { display: flex; align-items: center; gap: 8px; margin: 14px 6px 4px; font: 700 10px/1 var(--font); letter-spacing: .16em; text-transform: uppercase; color: #6f86a3; }
   .rail-g::after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,.08); }
+  .rail-h + .rail-body > .nav + .rail-g { margin-top: 8px; }
+  details.grp .rail-g:first-of-type { margin-top: 6px; }
   .lay { position: relative; display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 13px; cursor: pointer; transition: background .18s; }
   .lay:hover { background: rgba(255,255,255,.055); }
   .lay > input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
@@ -102,36 +106,44 @@
   .links { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 2px 6px 0; font-size: 12.5px; }
 
   /* ---------- top row: privacy chip and base map ---------- */
-  .toprow { position: fixed; z-index: 3; top: 16px; left: 304px; right: 372px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; pointer-events: none; }
+  .toprow { position: fixed; z-index: 3; top: 16px; left: 292px; right: 368px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; pointer-events: none; }
   .toprow > * { pointer-events: auto; }
-  .tchip { display: none; align-items: center; gap: 8px; padding: 8px 14px 8px 11px; border-radius: 999px; background: rgba(20,32,50,.82); border: 1px solid var(--warn-line); color: var(--warn); font: 600 12.5px/1 var(--font); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
-  .tchip { max-width: 100%; white-space: normal; line-height: 1.25; border-radius: 18px; }
+  .tchip { display: none; align-items: center; gap: 8px; padding: 10px 16px 10px 13px; border-radius: 999px; background: rgba(20,32,50,.82); border: 1px solid var(--warn-line); color: var(--warn); font: 600 12.5px/1 var(--font); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+  .tchip { max-width: 100%; white-space: normal; line-height: 1.25; }
   .tchip .i { width: 15px; height: 15px; flex: none; }
   .delayed .tchip { display: inline-flex; }
-  #base { display: inline-flex; flex-wrap: wrap; justify-content: center; max-width: 100%; gap: 2px; padding: 4px; border-radius: 22px; background: linear-gradient(180deg, rgba(36,62,98,.72), rgba(18,32,54,.78)); border: 1px solid var(--glass-edge); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: 0 14px 30px -16px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.08); }
-  #base button { border: 0; background: transparent; color: #cfdaea; padding: 6px 13px; border-radius: 999px; font: 600 12.5px/1.2 var(--font); cursor: pointer; transition: background .25s, color .2s; white-space: nowrap; }
-  #base button:hover:not(.on) { background: rgba(255,255,255,.09); color: #fff; }
-  #base button.on { background: var(--gold); color: var(--gold-ink); font-weight: 650; box-shadow: 0 8px 18px -6px rgba(232,150,63,.75), inset 0 1px 0 rgba(255,255,255,.5); }
+  /* base map: one small button that opens the five choices */
+  #base { position: relative; }
+  #baseBtn { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px 0 12px; border-radius: 999px; background: rgba(20,32,50,.82); border: 1px solid var(--glass-edge); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); color: var(--ink-soft); font: 600 12.5px/1 var(--font); cursor: pointer; white-space: nowrap; }
+  #baseBtn:hover { background: rgba(36,56,86,.9); }
+  #baseBtn .i { width: 15px; height: 15px; }
+  #baseBtn .chev { width: 14px; height: 14px; color: var(--muted); transition: transform .2s; }
+  #base.open #baseBtn .chev { transform: rotate(180deg); }
+  #baseMenu { display: none; position: absolute; z-index: 5; top: calc(100% + 8px); left: 0; min-width: 150px; flex-direction: column; gap: 2px; padding: 5px; border-radius: 16px; background: linear-gradient(180deg, rgba(36,62,98,.94), rgba(14,26,44,.96)); border: 1px solid var(--glass-edge); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: 0 14px 30px -14px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.08); }
+  #base.open #baseMenu { display: flex; }
+  #baseMenu button { border: 0; background: transparent; color: #cfdaea; padding: 8px 12px; border-radius: 11px; text-align: left; font: 600 12.5px/1.2 var(--font); cursor: pointer; white-space: nowrap; }
+  #baseMenu button:hover:not(.on) { background: rgba(255,255,255,.09); color: #fff; }
+  #baseMenu button.on { background: var(--gold); color: var(--gold-ink); font-weight: 650; }
 
   /* ---------- right column: legend and the selected vehicle ---------- */
-  .rcol { position: fixed; z-index: 3; top: 16px; right: 16px; width: 344px; max-height: calc(100% - 32px); display: flex; flex-direction: column; gap: 12px; pointer-events: none; }
+  .rcol { position: fixed; z-index: 3; top: 16px; right: 16px; bottom: 104px; width: 336px; display: flex; flex-direction: column; gap: 12px; pointer-events: none; }
   .rcol > * { pointer-events: auto; }
-  #legend { flex: none; padding: 11px 14px 12px; border-radius: 16px; background: rgba(14,26,44,.84); }
+  #legend { flex: none; padding: 14px 14px 13px; border-radius: 16px; background: rgba(14,26,44,.84); }
   .lg-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font: 500 12.5px/1 var(--font); color: var(--ink-soft); }
   .lg-row span { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
   .d-sch { width: 11px; height: 11px; border-radius: 50%; background: var(--copper); box-shadow: 0 0 0 3px rgba(224,127,63,.22); }
   .d-st { width: 8px; height: 8px; background: var(--cyan); transform: rotate(45deg); border-radius: 1.5px; margin: 0 1px; }
   .d-veh { width: 15px; height: 15px; border-radius: 50%; background: radial-gradient(circle, rgba(143,123,255,.85), rgba(143,123,255,.2)); outline: 1px dashed rgba(196,184,255,.7); outline-offset: 1px; }
-  #legend .scale { margin-top: 10px; padding-top: 9px; border-top: 1px solid rgba(255,255,255,.08); }
+  #legend .scale { margin-top: 11px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08); }
   #lgT { font: 600 12px/1.3 var(--font); color: var(--ink-soft); }
   #lgBar { height: 8px; border-radius: 4px; margin: 5px 0 3px; }
   #legend .row { display: flex; justify-content: space-between; color: var(--muted); font-size: 11.5px; }
-  #lgPriv { display: none; margin: 9px 0 0; padding-top: 9px; border-top: 1px solid rgba(255,255,255,.08); font: 600 12px/1.4 var(--font); color: #fff; }
+  #lgPriv { display: none; margin: 12px 0 0; padding: 0; font: 600 12.5px/1.4 var(--font); color: #fff; }
   .delayed #lgPriv { display: block; }
   .detailopen #legend .scale { margin-top: 0; padding-top: 0; border-top: 0; }
   .detailopen #legend .lg-row, .detailopen #legend #lgPriv { display: none; }   /* the card repeats the delay line; room for the buttons */
   .delayed #rowPulse { display: none; }
-  #detail { display: none; min-height: 0; overflow: auto; padding: 14px 14px 12px; border-radius: 20px; background: linear-gradient(165deg, rgba(36,62,100,.92), rgba(13,25,43,.94)); box-shadow: 0 26px 50px -20px rgba(0,0,0,.85), 0 0 0 1px rgba(143,123,255,.2), inset 0 1px 0 rgba(255,255,255,.1); scrollbar-width: thin; }
+  #detail { display: none; flex: 0 1 auto; margin-top: auto; min-height: 0; overflow: auto; padding: 14px 14px 12px; border-radius: 20px; background: linear-gradient(165deg, rgba(36,62,100,.92), rgba(13,25,43,.94)); box-shadow: 0 26px 50px -20px rgba(0,0,0,.85), 0 0 0 1px rgba(143,123,255,.2), inset 0 1px 0 rgba(255,255,255,.1); scrollbar-width: thin; }
   .dt-h { display: flex; align-items: flex-start; gap: 10px; }
   .dt-h .tile { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; flex: none; color: #d6ccff; background: rgba(143,123,255,.2); border: 1px solid rgba(143,123,255,.5); }
   .dt-h .tt { min-width: 0; flex: 1; }
@@ -154,23 +166,32 @@
   #detail td:last-child { text-align: right; color: #fff; font-weight: 600; }
   .dt-link { margin: 10px 0 0; font-size: 12.5px; }
 
-  /* ---------- time-lapse pill bar ---------- */
-  #replay { position: fixed; z-index: 4; left: 16px; right: 16px; bottom: 16px; margin: 0 auto; max-width: 760px; height: 60px; display: none; align-items: center; gap: 12px; padding: 0 10px 0 9px; border-radius: 999px; background: linear-gradient(180deg, rgba(36,62,98,.8), rgba(14,26,44,.86)); box-shadow: 0 16px 34px -14px rgba(0,0,0,.8); }
-  #replay .play { width: 42px; height: 42px; flex: none; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--gold); color: var(--gold-ink); cursor: pointer; box-shadow: 0 8px 18px -6px rgba(232,150,63,.75), inset 0 1px 0 rgba(255,255,255,.55); padding: 0; }
+  /* ---------- time-lapse pill bar (always there: press play to replay the day) ---------- */
+  #replay { position: fixed; z-index: 4; left: 16px; right: 16px; bottom: 16px; margin: 0 auto; max-width: 700px; height: 62px; display: flex; align-items: center; gap: 14px; padding: 0 12px 0 10px; border-radius: 999px; background: linear-gradient(180deg, rgba(36,62,98,.8), rgba(14,26,44,.88)); box-shadow: 0 16px 34px -14px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.08); }
+  #replay .play { width: 44px; height: 44px; flex: none; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--gold); color: var(--gold-ink); cursor: pointer; box-shadow: 0 8px 18px -6px rgba(232,150,63,.75), inset 0 1px 0 rgba(255,255,255,.55); padding: 0; }
   #replay .play .i { width: 18px; height: 18px; fill: currentColor; stroke: none; margin-left: 2px; }
   #replay .play.pause .i { margin-left: 0; }
-  #replay .when { flex: none; min-width: 96px; }
+  #replay .when { flex: none; min-width: 92px; }
   #replay .when small { display: block; font: 700 9.5px/1 var(--font); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
-  #replay .when b { display: block; margin-top: 4px; font: 600 15px/1 var(--display); color: #fff; letter-spacing: -.01em; white-space: nowrap; }
-  #rpSlider { flex: 1; min-width: 60px; }
-  .speeds { flex: none; display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(6,14,26,.55); border: 1px solid var(--glass-edge); }
-  .speeds button { border: 0; background: transparent; color: #cfdaea; padding: 6px 10px; border-radius: 999px; font: 600 12px/1.2 var(--font); cursor: pointer; }
-  .speeds button.on { background: var(--gold); color: var(--gold-ink); font-weight: 650; }
-  #rpLive { flex: none; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px; border-radius: 999px; border: 1px solid var(--edge-2); background: rgba(255,255,255,.05); color: var(--ink-soft); font: 600 12.5px/1 var(--font); cursor: pointer; }
-  #rpLive::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--dot-ok); box-shadow: 0 0 8px var(--dot-ok); }
-  #rpClose { flex: none; width: 30px; height: 30px; font-size: 17px; }
-  .replaying #layers { max-height: calc(100% - 108px); }
-  .replaying .rcol { max-height: calc(100% - 108px); }
+  #replay .when b { display: block; margin-top: 5px; font: 600 16px/1 var(--display); color: #fff; letter-spacing: -.01em; white-space: nowrap; }
+  #replay .scrub { flex: 1; min-width: 70px; padding-top: 1px; }
+  #rpSlider { display: block; width: 100%; height: 18px; margin: 0; --p: 100%; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; }
+  #rpSlider::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, #E07F3F, #F7C46B var(--p), rgba(255,255,255,.12) var(--p)); }
+  #rpSlider::-moz-range-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, #E07F3F, #F7C46B var(--p), rgba(255,255,255,.12) var(--p)); }
+  #rpSlider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -5px; border-radius: 50%; background: #fff; border: 3px solid var(--copper); box-shadow: 0 0 0 4px rgba(247,196,107,.2); }
+  #rpSlider::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; background: #fff; border: 3px solid var(--copper); box-shadow: 0 0 0 4px rgba(247,196,107,.2); }
+  #rpTicks { position: relative; height: 24px; margin: 3px 8px 0; }
+  #rpTicks i { position: absolute; top: 0; width: 1px; height: 5px; background: rgba(255,255,255,.28); }
+  #rpTicks i.big { height: 9px; }
+  #rpTicks i.past { background: rgba(247,196,107,.65); }
+  #rpTicks span { position: absolute; top: 11px; transform: translateX(-50%); font: 500 9.5px/1 var(--font); color: var(--mute); white-space: nowrap; }
+  .speeds { flex: none; display: inline-flex; gap: 2px; padding: 4px; border-radius: 999px; background: rgba(6,14,26,.55); border: 1px solid var(--glass-edge); }
+  .speeds button { border: 0; background: transparent; color: #cfdaea; padding: 7px 11px; border-radius: 999px; font: 600 12.5px/1.2 var(--font); cursor: pointer; }
+  .speeds button.on { background: var(--gold); color: var(--gold-ink); font-weight: 650; box-shadow: 0 6px 14px -6px rgba(232,150,63,.7), inset 0 1px 0 rgba(255,255,255,.45); }
+  #rpLive { flex: none; display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px 0 12px; border-radius: 999px; border: 1px solid var(--edge-2); background: rgba(255,255,255,.05); color: var(--ink-soft); font: 600 12.5px/1 var(--font); cursor: pointer; }
+  #rpLive::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #5b6b82; }
+  #rpLive.on { border-color: var(--ok-line); background: var(--ok-bg); color: var(--ok); }
+  #rpLive.on::before { background: var(--dot-ok); box-shadow: 0 0 8px var(--dot-ok); }
 
   /* ---------- map popups (Met Office stations, schools, open sensors) ---------- */
   .maplibregl-popup { z-index: 5; }
@@ -214,7 +235,6 @@
   .maplibregl-ctrl-attrib { background: rgba(9,18,32,.6) !important; color: #9fb2ca; }
   .maplibregl-ctrl-attrib a { color: var(--info); }
   .maplibregl-ctrl-bottom-right { margin-bottom: 0; }
-  .replaying .maplibregl-ctrl-bottom-right { margin-bottom: 76px; }
 
   .banner { position: fixed; z-index: 6; top: 64px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px; border-radius: 14px; border: 1px solid rgba(255,122,106,.4); background: rgba(52,20,22,.88); color: var(--bad); font: 500 13px/1.4 var(--font); max-width: min(560px, calc(100% - 32px)); }
   .banner[hidden] { display: none; }
@@ -287,50 +307,55 @@
     <div class="nav" id="navlinks"><a href="/" data-el="Όλο το έργο">Whole project</a><a href="/3d.html" data-el="Νησί 3D">3D island</a><a href="/#/weather" data-el="Μετεωρολογικό αρχείο">Met Office record</a></div>
 
     <div class="rail-g" data-el="Στο νησί">On the island</div>
-    <label class="lay" style="--c:#8f7bff"><input type="checkbox" id="lDots" checked><span class="tile"><svg class="i"><use href="#i-bus"/></svg></span><span class="lt"><b data-el="Οχήματα">Vehicles</b><small id="subVeh" data-el="Λεωφορείο ή αυτοκίνητο">Bus or car</small></span><i class="sw"></i></label>
-    <label class="lay" style="--c:#F2B24C"><input type="checkbox" id="lCols" checked><span class="tile"><svg class="i"><use href="#i-cube"/></svg></span><span class="lt"><b data-el="Στήλες 3D">3D columns</b><small data-el="Το ύψος δείχνει την τιμή">Height shows the value</small></span><i class="sw"></i></label>
     <label class="lay" style="--c:#E07F3F"><input type="checkbox" id="lSchools" checked><span class="tile"><svg class="i"><use href="#i-cap"/></svg></span><span class="lt"><b data-el="Σχολεία">Schools</b><small id="subSch">–</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#8f7bff"><input type="checkbox" id="lDots" checked><span class="tile"><svg class="i"><use href="#i-bus"/></svg></span><span class="lt"><b data-el="Οχήματα">Vehicles</b><small id="subVeh" data-el="Λεωφορείο ή αυτοκίνητο">Bus or car</small></span><i class="sw"></i></label>
     <label class="lay" style="--c:#4CCBEA"><input type="checkbox" id="lCydom" checked><span class="tile"><svg class="i"><use href="#i-sensor"/></svg></span><span class="lt"><b data-el="Σταθμοί Μετεωρολογικής">Met Office stations</b><small id="subSta">–</small></span><i class="sw"></i></label>
-    <label class="lay" style="--c:#59d98e"><input type="checkbox" id="lOpen" checked><span class="tile"><svg class="i"><use href="#i-haze"/></svg></span><span class="lt"><b data-el="Ανοιχτοί αισθητήρες αέρα">Open air sensors</b><small data-el="Εθελοντές Sensor.Community">Sensor.Community volunteers</small></span><i class="sw"></i></label>
-    <label class="lay" style="--c:#4C8BEA"><input type="checkbox" id="lSea" checked><span class="tile"><svg class="i"><use href="#i-wave"/></svg></span><span class="lt"><b data-el="Συνθήκες θάλασσας">Sea conditions</b><small data-el="Open-Meteo θάλασσα">Open-Meteo marine</small></span><i class="sw"></i></label>
-
-    <div class="ctl"><span data-el="Χρωματισμός οχημάτων και ιχνών">Colour vehicles and trails by</span><select id="measure" aria-label="Measurement" data-ael="Μέτρηση"></select></div>
-    <div class="ctl"><span data-el="Ίχνος πίσω από κάθε όχημα">Trail behind each vehicle</span>
-      <select id="trailWin" aria-label="Trail length" data-ael="Μήκος ίχνους"><option value="0" data-el="Κλειστό">Off</option><option value="1" data-el="Τελευταία ώρα">Last hour</option><option value="6" selected data-el="Τελευταίες 6 ώρες">Last 6 hours</option><option value="24" data-el="Τελευταίες 24 ώρες">Last 24 hours</option><option value="72" data-el="Τελευταίες 3 ημέρες">Last 3 days</option><option value="168" data-el="Τελευταίες 7 ημέρες">Last 7 days</option></select></div>
-    <div class="note" data-el="Διακεκομμένη γραμμή σημαίνει ότι δεν υπήρχε σήμα GPS για πάνω από 10 λεπτά.">A dashed line means no GPS signal for over 10 minutes.</div>
-    <label class="lay" id="rowPulse" style="--c:#8f7bff"><input type="checkbox" id="lPulse" checked><span class="tile"><svg class="i"><use href="#i-sensor"/></svg></span><span class="lt"><b data-el="Παλλόμενα οχήματα">Pulsing vehicles</b></span><i class="sw"></i></label>
-    <div class="btns"><button class="btn" id="btnLapse"><svg class="i"><use href="#i-clock"/></svg><span data-el="Χρονική επανάληψη">Time-lapse</span></button><button class="btn" id="btnTour"><svg class="i"><use href="#i-tour"/></svg><span id="tourTxt" data-el="Περιήγηση κάμερας">Camera tour</span></button></div>
 
     <div class="rail-g" data-el="Καιρός">Weather</div>
-    <label class="lay" style="--c:#8fb8ff"><input type="checkbox" id="lWindAnim" checked><span class="tile"><svg class="i"><use href="#i-wind"/></svg></span><span class="lt"><b data-el="Ρέων άνεμος">Flowing wind</b><small data-el="Γραμμές που ακολουθούν τον άνεμο Open-Meteo">Streaks follow the Open-Meteo wind</small></span><i class="sw"></i></label>
-    <label class="lay" style="--c:#8fb8ff"><input type="checkbox" id="lWind" checked><span class="tile"><svg class="i"><use href="#i-arrow"/></svg></span><span class="lt"><b data-el="Βέλη ανέμου">Wind arrows</b><small data-el="Μοντέλο, κατεύθυνση και ταχύτητα">Model, direction and speed</small></span><i class="sw"></i></label>
+    <label class="lay" style="--c:#8fb8ff"><input type="checkbox" id="lWindAnim" checked><span class="tile"><svg class="i"><use href="#i-wind"/></svg></span><span class="lt"><b data-el="Άνεμος">Wind</b><small id="subWind" data-el="Γραμμές που ακολουθούν τον άνεμο Open-Meteo">Streaks follow the Open-Meteo wind</small></span><i class="sw"></i></label>
     <input type="radio" name="surf" value="off" class="sr" checked aria-hidden="true" tabindex="-1">
     <label class="lay" style="--c:#F2B24C"><input type="radio" name="surf" value="t"><span class="tile"><svg class="i"><use href="#i-thermo"/></svg></span><span class="lt"><b data-el="Θερμοκρασία">Temperature</b><small data-el="Επιφάνεια μοντέλου">Model surface</small></span><i class="sw"></i></label>
-    <label class="lay" style="--c:#4C8BEA"><input type="radio" name="surf" value="rh"><span class="tile"><svg class="i"><use href="#i-drop"/></svg></span><span class="lt"><b data-el="Υγρασία">Humidity</b><small data-el="Επιφάνεια μοντέλου">Model surface</small></span><i class="sw"></i></label>
-    <label class="lay" style="--c:#cfdaea"><input type="radio" name="surf" value="cloud"><span class="tile"><svg class="i"><use href="#i-cloud"/></svg></span><span class="lt"><b data-el="Νεφοκάλυψη">Cloud cover</b><small data-el="Επιφάνεια μοντέλου">Model surface</small></span><i class="sw"></i></label>
     <label class="lay" style="--c:#59a0ff"><input type="radio" name="surf" value="rain"><span class="tile"><svg class="i"><use href="#i-rain"/></svg></span><span class="lt"><b data-el="Βροχή">Rain</b><small data-el="Επιφάνεια μοντέλου">Model surface</small></span><i class="sw"></i></label>
-    <label class="lay" style="--c:#59d98e"><input type="radio" name="surf" value="pm25"><span class="tile"><svg class="i"><use href="#i-haze"/></svg></span><span class="lt"><b>PM2.5</b><small data-el="Ποιότητα αέρα Open-Meteo">Open-Meteo air quality</small></span><i class="sw"></i></label>
-    <label class="lay" style="--c:#c98a5a"><input type="radio" name="surf" value="dust"><span class="tile"><svg class="i"><use href="#i-dust"/></svg></span><span class="lt"><b data-el="Σκόνη">Dust</b><small data-el="Ποιότητα αέρα Open-Meteo">Open-Meteo air quality</small></span><i class="sw"></i></label>
-    <div class="ctl"><span data-el="Διαφάνεια επιφάνειας">Surface opacity</span><input type="range" id="surfOp" min="0.1" max="1" step="0.05" value="0.6" aria-label="Surface opacity" data-ael="Διαφάνεια επιφάνειας"></div>
+    <input type="radio" name="nasa" value="off" class="sr" checked aria-hidden="true" tabindex="-1">
+    <label class="lay" style="--c:#4C8BEA"><input type="radio" name="nasa" value="rgb"><span class="tile"><svg class="i"><use href="#i-sat"/></svg></span><span class="lt"><b data-el="Δορυφόρος">Satellite</b><small data-el="NASA, πραγματικά χρώματα">NASA true colour</small></span><i class="sw"></i></label>
 
-    <details class="grp" id="grpNasa"><summary><span data-el="Δορυφόρος NASA">NASA satellite</span><svg class="i"><use href="#i-chev"/></svg></summary>
-      <input type="radio" name="nasa" value="off" class="sr" checked aria-hidden="true" tabindex="-1">
-      <label class="lay" style="--c:#4C8BEA"><input type="radio" name="nasa" value="rgb"><span class="tile"><svg class="i"><use href="#i-sat"/></svg></span><span class="lt"><b data-el="Φωτογραφία πραγματικών χρωμάτων">True colour photo</b><small>VIIRS</small></span><i class="sw"></i></label>
+    <details class="grp" id="grpMore"><summary><span data-el="Περισσότερα στρώματα και επιλογές">More layers and options</span><svg class="i"><use href="#i-chev"/></svg></summary>
+
+      <div class="rail-g" data-el="Χρώμα και ίχνη οχημάτων">Vehicle colours and trails</div>
+      <div class="ctl"><span data-el="Χρωματισμός οχημάτων και ιχνών">Colour vehicles and trails by</span><select id="measure" aria-label="Measurement" data-ael="Μέτρηση"></select></div>
+      <div class="ctl"><span data-el="Ίχνος πίσω από κάθε όχημα">Trail behind each vehicle</span>
+        <select id="trailWin" aria-label="Trail length" data-ael="Μήκος ίχνους"><option value="0" data-el="Κλειστό">Off</option><option value="1" data-el="Τελευταία ώρα">Last hour</option><option value="6" selected data-el="Τελευταίες 6 ώρες">Last 6 hours</option><option value="24" data-el="Τελευταίες 24 ώρες">Last 24 hours</option><option value="72" data-el="Τελευταίες 3 ημέρες">Last 3 days</option><option value="168" data-el="Τελευταίες 7 ημέρες">Last 7 days</option></select></div>
+      <div class="note" data-el="Διακεκομμένη γραμμή σημαίνει ότι δεν υπήρχε σήμα GPS για πάνω από 10 λεπτά.">A dashed line means no GPS signal for over 10 minutes.</div>
+      <label class="lay opt" id="rowPulse" style="--c:#8f7bff"><input type="checkbox" id="lPulse" checked><span class="tile"><svg class="i"><use href="#i-sensor"/></svg></span><span class="lt"><b data-el="Παλλόμενα οχήματα">Pulsing vehicles</b></span><i class="sw"></i></label>
+
+      <div class="rail-g" data-el="Ακόμα στο νησί">More on the island</div>
+      <label class="lay" style="--c:#F2B24C"><input type="checkbox" id="lCols"><span class="tile"><svg class="i"><use href="#i-cube"/></svg></span><span class="lt"><b data-el="Στήλες 3D">3D columns</b><small data-el="Το ύψος δείχνει την τιμή">Height shows the value</small></span><i class="sw"></i></label>
+      <label class="lay" style="--c:#59d98e"><input type="checkbox" id="lOpen"><span class="tile"><svg class="i"><use href="#i-haze"/></svg></span><span class="lt"><b data-el="Ανοιχτοί αισθητήρες αέρα">Open air sensors</b><small data-el="Εθελοντές Sensor.Community">Sensor.Community volunteers</small></span><i class="sw"></i></label>
+      <label class="lay" style="--c:#4C8BEA"><input type="checkbox" id="lSea"><span class="tile"><svg class="i"><use href="#i-wave"/></svg></span><span class="lt"><b data-el="Συνθήκες θάλασσας">Sea conditions</b><small data-el="Open-Meteo θάλασσα">Open-Meteo marine</small></span><i class="sw"></i></label>
+
+      <div class="rail-g" data-el="Ακόμα καιρός">More weather</div>
+      <label class="lay" style="--c:#8fb8ff"><input type="checkbox" id="lWind"><span class="tile"><svg class="i"><use href="#i-arrow"/></svg></span><span class="lt"><b data-el="Βέλη ανέμου">Wind arrows</b><small data-el="Μοντέλο, κατεύθυνση και ταχύτητα">Model, direction and speed</small></span><i class="sw"></i></label>
+      <label class="lay" style="--c:#4C8BEA"><input type="radio" name="surf" value="rh"><span class="tile"><svg class="i"><use href="#i-drop"/></svg></span><span class="lt"><b data-el="Υγρασία">Humidity</b><small data-el="Επιφάνεια μοντέλου">Model surface</small></span><i class="sw"></i></label>
+      <label class="lay" style="--c:#cfdaea"><input type="radio" name="surf" value="cloud"><span class="tile"><svg class="i"><use href="#i-cloud"/></svg></span><span class="lt"><b data-el="Νεφοκάλυψη">Cloud cover</b><small data-el="Επιφάνεια μοντέλου">Model surface</small></span><i class="sw"></i></label>
+      <label class="lay" style="--c:#59d98e"><input type="radio" name="surf" value="pm25"><span class="tile"><svg class="i"><use href="#i-haze"/></svg></span><span class="lt"><b>PM2.5</b><small data-el="Ποιότητα αέρα Open-Meteo">Open-Meteo air quality</small></span><i class="sw"></i></label>
+      <label class="lay" style="--c:#c98a5a"><input type="radio" name="surf" value="dust"><span class="tile"><svg class="i"><use href="#i-dust"/></svg></span><span class="lt"><b data-el="Σκόνη">Dust</b><small data-el="Ποιότητα αέρα Open-Meteo">Open-Meteo air quality</small></span><i class="sw"></i></label>
+      <div class="ctl"><span data-el="Διαφάνεια επιφάνειας">Surface opacity</span><input type="range" id="surfOp" min="0.1" max="1" step="0.05" value="0.6" aria-label="Surface opacity" data-ael="Διαφάνεια επιφάνειας"></div>
+
+      <div class="rail-g" data-el="Δορυφόρος NASA">NASA satellite</div>
       <label class="lay" style="--c:#F2B24C"><input type="radio" name="nasa" value="lst"><span class="tile"><svg class="i"><use href="#i-thermo"/></svg></span><span class="lt"><b data-el="Θερμοκρασία εδάφους">Land surface temperature</b><small>MODIS</small></span><i class="sw"></i></label>
       <label class="lay" style="--c:#c98a5a"><input type="radio" name="nasa" value="aod"><span class="tile"><svg class="i"><use href="#i-dust"/></svg></span><span class="lt"><b data-el="Αερολύματα (σκόνη και ομίχλη)">Aerosols (dust and haze)</b><small>MODIS</small></span><i class="sw"></i></label>
       <div class="ctl"><span data-el="Ημερομηνία δορυφόρου">Satellite date</span><input type="date" id="nasaDate" aria-label="Satellite date" data-ael="Ημερομηνία δορυφόρου"></div>
       <div class="ctl"><span data-el="Διαφάνεια δορυφόρου">Satellite opacity</span><input type="range" id="nasaOp" min="0.1" max="1" step="0.05" value="0.8" aria-label="Satellite opacity" data-ael="Διαφάνεια δορυφόρου"></div>
-    </details>
 
-    <details class="grp" id="grpMap"><summary><span data-el="Επιλογές χάρτη">Map options</span><svg class="i"><use href="#i-chev"/></svg></summary>
-      <label class="lay" style="--c:#59d98e"><input type="checkbox" id="lTerrain" checked><span class="tile"><svg class="i"><use href="#i-mount"/></svg></span><span class="lt"><b data-el="Ανάγλυφο 3D">3D terrain</b></span><i class="sw"></i></label>
+      <div class="rail-g" data-el="Επιλογές χάρτη">Map options</div>
+      <label class="lay opt" style="--c:#59d98e"><input type="checkbox" id="lTerrain" checked><span class="tile"><svg class="i"><use href="#i-mount"/></svg></span><span class="lt"><b data-el="Ανάγλυφο 3D">3D terrain</b></span><i class="sw"></i></label>
       <div class="ctl"><input type="range" id="exag" min="0.5" max="4" step="0.1" value="1.5" aria-label="Terrain height" data-ael="Ύψος αναγλύφου"></div>
-      <label class="lay" style="--c:#8CA0B8"><input type="checkbox" id="lHill" checked><span class="tile"><svg class="i"><use href="#i-layers"/></svg></span><span class="lt"><b data-el="Σκίαση αναγλύφου">Hillshade</b></span><i class="sw"></i></label>
-      <label class="lay" style="--c:#8CA0B8"><input type="checkbox" id="lRoads"><span class="tile"><svg class="i"><use href="#i-road"/></svg></span><span class="lt"><b data-el="Δρόμοι">Roads overlay</b><small data-el="OpenStreetMap, χρήσιμο στον δορυφόρο">OpenStreetMap, useful on satellite</small></span><i class="sw"></i></label>
-      <label class="lay" style="--c:#8CA0B8"><input type="checkbox" id="lLabels"><span class="tile"><svg class="i"><use href="#i-tag"/></svg></span><span class="lt"><b data-el="Ονόματα τόπων">Place names</b></span><i class="sw"></i></label>
-    </details>
+      <label class="lay opt" style="--c:#8CA0B8"><input type="checkbox" id="lHill" checked><span class="tile"><svg class="i"><use href="#i-layers"/></svg></span><span class="lt"><b data-el="Σκίαση αναγλύφου">Hillshade</b></span><i class="sw"></i></label>
+      <label class="lay opt" style="--c:#8CA0B8"><input type="checkbox" id="lRoads"><span class="tile"><svg class="i"><use href="#i-road"/></svg></span><span class="lt"><b data-el="Δρόμοι">Roads overlay</b><small data-el="OpenStreetMap, χρήσιμο στον δορυφόρο">OpenStreetMap, useful on satellite</small></span><i class="sw"></i></label>
+      <label class="lay opt" style="--c:#8CA0B8"><input type="checkbox" id="lLabels"><span class="tile"><svg class="i"><use href="#i-tag"/></svg></span><span class="lt"><b data-el="Ονόματα τόπων">Place names</b></span><i class="sw"></i></label>
+      <div class="btns"><button class="btn" id="btnTour"><svg class="i"><use href="#i-tour"/></svg><span id="tourTxt" data-el="Περιήγηση κάμερας">Camera tour</span></button></div>
 
-    <details class="grp"><summary><span data-el="Σελίδες Μετεωρολογικής Υπηρεσίας">Met Office pages</span><svg class="i"><use href="#i-chev"/></svg></summary>
+      <div class="rail-g" data-el="Σελίδες Μετεωρολογικής Υπηρεσίας">Met Office pages</div>
       <div class="links">
         <a href="/#/weather" target="_top" data-el="Όλα τα δεδομένα">All Met Office data</a>
         <a href="https://www.dom.org.cy/RADAR_IMG/index.html" target="_blank" rel="noopener" data-el="Ραντάρ">Radar</a>
@@ -338,9 +363,8 @@
         <a href="https://www.dom.org.cy/FORECAST/index.html" target="_blank" rel="noopener" data-el="Πρόγνωση">Forecast</a>
         <a href="https://www.dom.org.cy/AWS/ALL_STATIONS_MAP.html" target="_blank" rel="noopener" data-el="Χάρτης σταθμών">Station map</a>
       </div>
-    </details>
 
-    <details class="grp"><summary><span data-el="Κατάσταση δεδομένων">Data status</span><svg class="i"><use href="#i-chev"/></svg></summary>
+      <div class="rail-g" data-el="Κατάσταση δεδομένων">Data status</div>
       <div class="st" id="status"></div>
     </details>
   </div>
@@ -350,16 +374,19 @@
 
 <div class="toprow">
   <span class="tchip" id="chipDelayed"><svg class="i"><use href="#i-lock"/></svg><span data-el="Οι εκπαιδευτικοί βλέπουν τις ακριβείς θέσεις μετά τη σύνδεση">Teachers see exact positions after sign-in</span></span>
-  <div id="base" role="group" aria-label="Base map" data-ael="Υπόβαθρο χάρτη">
-    <button data-b="dark" class="on" data-el="Σκοτεινός">Dark</button><button data-b="osm" data-el="Χάρτης">Map</button><button data-b="eox" data-el="Δορυφόρος">Satellite</button><button data-b="esri" data-el="Δορυφόρος HD">Satellite HD</button><button data-b="topo" data-el="Ανάγλυφο">Terrain</button>
+  <div id="base">
+    <button type="button" id="baseBtn" aria-haspopup="true" aria-expanded="false" aria-controls="baseMenu"><svg class="i"><use href="#i-layers"/></svg><span id="baseLbl" data-el="Σκοτεινός">Dark</span><svg class="i chev"><use href="#i-chev"/></svg></button>
+    <div id="baseMenu" role="group" aria-label="Base map" data-ael="Υπόβαθρο χάρτη">
+      <button type="button" data-b="dark" class="on" data-el="Σκοτεινός">Dark</button><button type="button" data-b="osm" data-el="Χάρτης">Map</button><button type="button" data-b="eox" data-el="Δορυφόρος">Satellite</button><button type="button" data-b="esri" data-el="Δορυφόρος HD">Satellite HD</button><button type="button" data-b="topo" data-el="Ανάγλυφο">Terrain</button>
+    </div>
   </div>
 </div>
 
 <div class="rcol">
   <div class="glass" id="legend" aria-label="Legend" data-ael="Υπόμνημα">
     <div class="lg-row"><span><i class="d-sch"></i><span data-el="Σχολείο">School</span></span><span><i class="d-st"></i><span data-el="Σταθμός Μετεωρολογικής">Met Office station</span></span><span><i class="d-veh"></i><span data-el="Όχημα">Vehicle</span></span></div>
-    <div class="scale"><div id="lgT"></div><div id="lgBar"></div><div class="row"><span id="lgLo"></span><span id="lgHi"></span></div></div>
     <p id="lgPriv"></p>
+    <div class="scale"><div id="lgT"></div><div id="lgBar"></div><div class="row"><span id="lgLo"></span><span id="lgHi"></span></div></div>
   </div>
   <div class="glass" id="detail" role="region" aria-label="Selected vehicle" data-ael="Επιλεγμένο όχημα"></div>
 </div>
@@ -367,10 +394,9 @@
 <div class="glass" id="replay" role="group" aria-label="Time-lapse" data-ael="Χρονική επανάληψη">
   <button class="play" id="rpPlay" aria-label="Play or pause" data-ael="Αναπαραγωγή ή παύση"><svg class="i"><use href="#i-play"/></svg></button>
   <div class="when"><small data-el="Επανάληψη">Replay</small><b id="rpTime">Live</b></div>
-  <input type="range" id="rpSlider" min="0" max="1000" value="1000" aria-label="Time" data-ael="Ώρα">
+  <div class="scrub"><input type="range" id="rpSlider" min="0" max="1000" value="1000" aria-label="Time" data-ael="Ώρα"><div class="ticks" id="rpTicks" aria-hidden="true"></div></div>
   <div class="speeds" id="rpSpeeds" role="group" aria-label="Speed" data-ael="Ταχύτητα"><button data-v="0.5">0.5×</button><button data-v="1" class="on">1×</button><button data-v="3">3×</button></div>
-  <button id="rpLive" data-el="Ζωντανά">Live</button>
-  <button class="iconbtn" id="rpClose" aria-label="Close time-lapse" data-ael="Κλείσιμο χρονικής επανάληψης">&times;</button>
+  <button id="rpLive" class="on" data-el="Ζωντανά">Live</button>
 </div>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>

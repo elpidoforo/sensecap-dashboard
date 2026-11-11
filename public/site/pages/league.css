@@ -60,6 +60,6 @@
   .lg-pts { position: absolute; top: 14px; right: 16px; text-align: right; }
   .lg-pts b { font-size: 28px; }
   .lg-pts span { display: block; font-size: 12px; }
-  .lg-mid h3 { padding-right: 78px; }
+  .lg-mid h3 { padding-right: 78px; min-height: 46px; margin-bottom: 4px; }
   .lg-off { padding: 24px 20px 22px; }
 }
