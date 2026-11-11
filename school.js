@@ -1,6 +1,7 @@
 'use strict';
-/* Student and team app: accounts with school codes and teacher approval, group chat with moderation, and the assistant.
-   Everything lives in one SQLite file on the volume (node:sqlite, Node 22.5+). No personal data beyond a display name. */
+/* Student and team app: teacher accounts (and the older student accounts), teacher announcements, and the assistant.
+   Everything lives in one SQLite file on the volume (node:sqlite, Node 22.5+). No personal data beyond a display name.
+   Visitors need no account: they can read announcements and ask the assistant with per-visitor, per-network and global limits. */
 
 const fs = require('fs');
 const path = require('path');
@@ -20,13 +21,16 @@ const DAY = 86400000;
 const SESSION_DAYS = 30;
 const CHAT_RETENTION_DAYS = Number(process.env.CHAT_RETENTION_DAYS) || 400;
 const BOT_LOG_DAYS = Number(process.env.BOT_LOG_DAYS) || 90;
+const TZ = 'Asia/Nicosia';
+const envInt = (name, def) => { const n = Math.floor(Number(process.env[name])); return Number.isFinite(n) && n > 0 ? n : def; };
+const CHAT_CLOSED = 'Chat is closed. Teachers post announcements here.';
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const REPORT_REASONS = { unkind: 'Unkind or bullying', inappropriate: 'Inappropriate', private: 'Shares private information', other: 'Something else' };
 
 class HttpError extends Error {
-  constructor(status, message, code) { super(message); this.status = status; this.code = code || null; }
+  constructor(status, message, code, extra) { super(message); this.status = status; this.code = code || null; this.extra = extra || null; }
 }
-const fail = (status, message, code) => { throw new HttpError(status, message, code); };
+const fail = (status, message, code, extra) => { throw new HttpError(status, message, code, extra); };
 
 /* ---------- small helpers ---------- */
 
@@ -88,6 +92,16 @@ function unsafeText(body) {
   return null;
 }
 
+/* "14:32 Cyprus time" or "tomorrow at 02:10 Cyprus time", and "in about 3 hours": plain words for when a limit ends. */
+function whenText(at, now = Date.now()) {
+  const day = (ms) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, dateStyle: 'short' }).format(new Date(ms));
+  const clock = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(at));
+  const same = day(at) === day(now);
+  const left = Math.max(1, Math.round((at - now) / 1000));
+  const inText = left < 90 ? `in ${left} seconds` : left < 5400 ? `in ${Math.round(left / 60)} minutes` : `in about ${Math.round(left / 3600)} hours`;
+  return `${same ? '' : 'tomorrow at '}${clock} Cyprus time (${inText})`;
+}
+
 function parseCookies(h) {
   const out = {};
   for (const part of String(h || '').split(';')) {
@@ -130,6 +144,12 @@ class Limiter {
   count(key, windowMs) {
     const now = Date.now();
     return (this.hits.get(key) || []).filter((t) => now - t < windowMs).length;
+  }
+  // Milliseconds until one more hit would be allowed (0 when it is allowed now). Nothing is recorded.
+  wait(key, max, windowMs) {
+    const now = Date.now();
+    const list = (this.hits.get(key) || []).filter((t) => now - t < windowMs);
+    return list.length < max ? 0 : Math.max(1000, list[list.length - max] + windowMs - now);
   }
   clear(key) { this.hits.delete(key); }
   sweep(windowMs = 3600000) {
@@ -196,12 +216,16 @@ function createApp(opts = {}) {
     );
     CREATE TABLE IF NOT EXISTS bot_logs (
       id INTEGER PRIMARY KEY, user_id INTEGER, school_id INTEGER, created_at INTEGER NOT NULL, question TEXT, answer TEXT,
-      tools TEXT, ms INTEGER, tokens_in INTEGER, tokens_out INTEGER, error TEXT
+      tools TEXT, ms INTEGER, tokens_in INTEGER, tokens_out INTEGER, error TEXT, visitor TEXT
     );
     CREATE INDEX IF NOT EXISTS bot_logs_user ON bot_logs(user_id, created_at);
     CREATE TABLE IF NOT EXISTS handbook (id INTEGER PRIMARY KEY, title TEXT UNIQUE NOT NULL, body TEXT NOT NULL, updated_at INTEGER, updated_by INTEGER);
     CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, actor_id INTEGER, action TEXT NOT NULL, target TEXT, detail TEXT);
   `);
+
+  // Databases made before the public Ask have no visitor column. Adding it changes no existing row.
+  if (!db.prepare('PRAGMA table_info(bot_logs)').all().some((c) => c.name === 'visitor')) db.exec('ALTER TABLE bot_logs ADD COLUMN visitor TEXT');
+  db.exec('CREATE INDEX IF NOT EXISTS bot_logs_visitor ON bot_logs(visitor, created_at); CREATE INDEX IF NOT EXISTS bot_logs_time ON bot_logs(created_at);');
 
   const stmts = new Map();
   const prep = (sql) => { let s = stmts.get(sql); if (!s) { s = db.prepare(sql); stmts.set(sql, s); } return s; };

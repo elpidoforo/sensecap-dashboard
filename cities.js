@@ -1,9 +1,10 @@
 'use strict';
-/* /cities/api/overview: what the student site shows.
+/* /cities/api/overview: what the site and the Build studio pages show.
  * Privacy by design: no vehicle positions and no raw GPS. Per school we return averages and counts, and routes only as
- * grid cells (about 1 km) built from points older than DELAY_MS, with the count of visits per cell. */
-const DELAY_MS = 2 * 3600000;
-const CELL = 0.01;
+ * grid cells (about 1 km) built from points older than the public delay, with the count of visits per cell.
+ * The delay and the grid are the same as for the public vehicle positions (PUBLIC_POS_DELAY_MIN, PUBLIC_POS_GRID, see privacy.js). */
+const { createPrivacy } = require('./privacy');
+const priv = createPrivacy();
 
 const SCHOOLS = [
   { key: 'PASCAL Larnaka', id: 'larnaca', name: 'PASCAL English School Larnaca', el: 'PASCAL English School Λάρνακα', lat: 34.9217, lng: 33.6232 },
@@ -19,9 +20,9 @@ function cellsFrom(trails, now) {
   for (const pts of Object.values(trails || {})) {
     let last = '';
     for (const p of pts || []) {
-      if (!Array.isArray(p) || now - p[0] < DELAY_MS) continue;
-      const la = Math.round(p[1] / CELL) * CELL, ln = Math.round(p[2] / CELL) * CELL;
-      const k = la.toFixed(2) + ',' + ln.toFixed(2);
+      if (!Array.isArray(p) || !isFinite(p[1]) || !isFinite(p[2]) || now - p[0] < priv.delayMs) continue;
+      const la = priv.snap(p[1]), ln = priv.snap(p[2]);
+      const k = la + ',' + ln;
       if (k === last) continue;
       last = k;
       m.set(k, (m.get(k) || 0) + 1);
@@ -47,7 +48,7 @@ async function overview({ devices, latest, trails }) {
       cells: cellsFrom(own, now),
     };
   });
-  return { updated: new Date().toISOString(), delayMinutes: DELAY_MS / 60000, cellKm: 1, schools: out };
+  return { updated: new Date().toISOString(), delayMinutes: priv.delayMin, cellKm: Math.max(1, Math.round(priv.grid * 111)), schools: out };
 }
 
 module.exports = { overview, SCHOOLS };

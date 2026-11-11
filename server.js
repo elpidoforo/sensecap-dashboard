@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 
 const ID = process.env.SENSECAP_API_ID;
 const KEY = process.env.SENSECAP_API_KEY;
@@ -24,14 +25,19 @@ const FALLBACK_NAMES = {
 };
 let measurementNames = { ...FALLBACK_NAMES };
 
-const cache = new Map();
-async function cached(key, ttlMs, fn) {
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.t < ttlMs) return hit.v;
-  const v = await fn();
-  cache.set(key, { t: Date.now(), v });
-  return v;
-}
+const { createCache } = require('./cache');
+const { createPrivacy } = require('./privacy');
+const priv = createPrivacy();
+
+// Every cache is bounded. `cached` holds the fixed keys (devices, weather, Met Office pages...). The keys that come from a
+// request have their own caches with a small cap each, so odd query strings cannot make the memory grow.
+const cached = createCache({ max: 100 }).get;
+const seriesCache = createCache({ max: 200 });
+const trailCache = createCache({ max: 60 });                  // a trail answer is large, so fewer of them
+const imageCache = createCache({ max: 100, maxBytes: 60e6, sizeOf: (v) => v.buf.length });
+const publicViews = createCache({ max: 200 });                // answers for visitors, see "who sees what" below
+
+const whole = (v, dflt, min, max) => Math.min(max, Math.max(min, Math.round(Number(v) || dflt)));   // hours and days are whole numbers
 
 async function api(endpoint, { method = 'GET', query = {}, body } = {}) {
   const url = new URL(HOST + endpoint);
@@ -169,7 +175,7 @@ async function liveLatest() {
 }
 
 async function liveSeries(eui, mid, channel, days) {
-  return cached(`series:${eui}:${mid}:${channel}:${days}`, 120000, async () => {
+  return seriesCache.get(`series:${eui}:${mid}:${channel}:${days}`, 120000, async () => {
     const end = Date.now();
     const start = end - days * 86400000;
     const interval = Math.max(10, Math.round((days * 24 * 60) / 240));
@@ -267,7 +273,7 @@ async function liveTrail(dev, hours, mid) {
 }
 
 async function liveTrails(hours, mid) {
-  return cached(`trails:${hours}:${mid}`, hours <= 6 ? 240000 : 900000, async () => {
+  return trailCache.get(`trails:${hours}:${mid}`, hours <= 6 ? 240000 : 900000, async () => {
     const devices = await liveDevices();
     const rows = await mapLimit(devices, 3, (d) => liveTrail(d, hours, mid));
     return assembleTrails(devices, rows, hours, mid);
@@ -827,7 +833,7 @@ function domNet() {
 }
 
 function domImage(url) {
-  return cached('domimg:' + url, 300000, async () => {
+  return imageCache.get(url, 300000, async () => {
     const r = await fetch(url, { signal: AbortSignal.timeout(25000) });
     if (!r.ok) throw new Error(`Met Office image returned HTTP ${r.status}`);
     const buf = Buffer.from(await r.arrayBuffer());
@@ -837,10 +843,12 @@ function domImage(url) {
 }
 // Only pictures from the Met Office site, either by a known name or by address (for pictures found inside its pages).
 function domImageUrl(name, u) {
-  if (name) return DOM_IMAGES[name] || null;
+  if (name) return Object.hasOwn(DOM_IMAGES, name) ? DOM_IMAGES[name] : null;
   try {
     const x = new URL(u);
-    return x.origin === DOM && /\.(png|gif|jpe?g)$/i.test(x.pathname) ? x.href : null;
+    if (x.origin !== DOM || !/\.(png|gif|jpe?g)$/i.test(x.pathname)) return null;
+    x.search = ''; x.hash = ''; x.username = ''; x.password = '';   // one cache entry per picture, whatever the query string says
+    return x.href;
   } catch (e) { return null; }
 }
 
@@ -882,25 +890,79 @@ const classLogin = createClassLogin();
 let appCore = null;
 let studio = null;
 
-// What the assistant may read. Everything is read-only and comes from the same functions the dashboard uses.
+/* ---------- who sees what (vehicle positions) ----------
+   'exact': teachers, admins and the holder of DASHBOARD_PASSWORD get today's exact data.
+   'public': everybody else gets positions that are at least PUBLIC_POS_DELAY_MIN minutes old and rounded to PUBLIC_POS_GRID
+   degrees, a trail made of such points only, and no GPS measurement ids (see privacy.js).
+   The caches below this line only ever hold exact data inside the data layer (rawTrails and friends); every answer that
+   leaves the server goes through devicesFor / latestFor / trailsFor with a level, and the answers that are cached
+   (publicViews) are keyed by that level, so exact data cannot reach a visitor from a cache. */
+
+const rawDevices = async () => (DEMO ? DEMO_DEVICES : await liveDevices());
+const rawLatest = async () => (DEMO ? demoLatest() : await liveLatest());
+const rawTrails = async (hours, mid) => (DEMO ? demoTrails(hours, mid) : await liveTrails(hours, mid));
+
+let lastWarning = '';
+function warnOnce(msg) { if (msg !== lastWarning) { lastWarning = msg; console.error(msg); } }
+
+// A level-keyed cache of what visitors get. Exact answers are never stored here.
+const viewTtl = 15000;
+function publicView(level, key, fn) {
+  if (level !== 'public') throw new Error('Only public answers are cached');
+  return publicViews.get(level + '|' + key, viewTtl, fn);
+}
+
+async function publicPositions(devices) {
+  const now = Date.now();
+  let trails = {};
+  try { trails = (await rawTrails(priv.windowHours, '')).trails || {}; }
+  catch (e) { warnOnce('Public positions: could not read the GPS history: ' + e.message); }
+  const out = new Map();
+  for (const d of devices) out.set(d.eui, priv.publicPosition(trails[d.eui], now) || priv.silentPosition(d, toMs(d.lastSeen), now));
+  return out;
+}
+
+function devicesFor(level) {
+  if (level === 'exact') return rawDevices();
+  return publicView(level, 'devices', async () => {
+    const devices = await rawDevices();
+    const pos = await publicPositions(devices);
+    return devices.map((d) => priv.publicDevice(d, pos.get(d.eui)));
+  });
+}
+async function latestFor(level) {
+  const latest = await rawLatest();
+  return level === 'exact' ? latest : priv.stripGpsLatest(latest);
+}
+function trailsFor(level, hours, mid) {
+  if (level === 'exact') return rawTrails(hours, mid);
+  return publicView(level, `trails|${hours}|${mid}`, async () => priv.publicTrails(await rawTrails(hours, mid)));
+}
+
+// What the assistant and the Build studio may read. Everything is read-only and ALWAYS the public view, even when a teacher
+// is the one asking: delayed and rounded positions, no GPS measurement ids, no GPS history. The tools can never leak a position.
 const botData = {
   get demo() { return DEMO; },
   names: () => measurementNames,
-  devices: async () => (DEMO ? DEMO_DEVICES : await liveDevices()),
-  latest: async () => (DEMO ? demoLatest() : await liveLatest()),
+  devices: async () => (await devicesFor('public')).map((d) => priv.toolDevice(d)),
+  latest: async () => latestFor('public'),
   series: async (eui, mid, days) => {
+    const m = priv.normMid(mid);
+    if (m == null) throw new Error('Unknown measurement');
+    if (priv.isGpsMid(m)) throw new Error('GPS history is not available to the assistant.');
+    days = whole(days, 1, 1, 30);
     let pts;
-    if (DEMO) pts = demoSeries(eui, mid, days);
+    if (DEMO) pts = demoSeries(eui, m, days);
     else {
       const dev = (await liveDevices()).find((d) => d.eui === eui);
       if (!dev) throw new Error('Unknown device');
-      pts = await liveSeries(eui, mid, dev.channelOf[mid] || 1, days);
+      pts = await liveSeries(eui, m, dev.channelOf[m] || 1, days);
     }
     return pts.map((p) => ({ t: toMs(p.t), v: p.v }));
   },
   trail: async (eui, hours) => {
-    const t = DEMO ? demoTrails(hours, '4097') : await liveTrails(hours, '4097');
-    return (t.trails && t.trails[eui]) || [];
+    const t = await rawTrails(whole(hours, 6, 1, 168), '4097');
+    return priv.publicTrail((t.trails && t.trails[eui]) || [], Date.now());
   },
   weather, air, sea, cydom,
   history: () => history,
@@ -926,43 +988,68 @@ function sendJson(res, status, obj) {
   res.end(JSON.stringify(obj));
 }
 
-// The dashboard pages and their data are locked when DASHBOARD_PASSWORD is set (any username) or LOCK_DASHBOARD=1.
-// Approved members of the student app get in with their sign-in, so they never see a password box.
+// The whole site is open to everybody. It is only locked when someone switches a gate on again: DASHBOARD_PASSWORD (any
+// username), LOCK_DASHBOARD=1 or the shared class sign-in (CLASS_LOGIN_USER and CLASS_LOGIN_PASSWORD). Members of the student
+// app get through a gate with their own sign-in, so they never see a password box.
 const LOCKED = Boolean(PASS) || process.env.LOCK_DASHBOARD === '1' || classLogin.enabled;
+
+// A valid DASHBOARD_PASSWORD in a Basic authorization header (any username).
+const sameText = (a, b) => {
+  const x = crypto.createHash('sha256').update(String(a)).digest();
+  const y = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(x, y);
+};
+function passwordOk(req) {
+  if (!PASS) return false;
+  const h = req.headers.authorization || '';
+  if (!h.startsWith('Basic ')) return false;
+  const [, pw = ''] = Buffer.from(h.slice(6), 'base64').toString().split(/:(.*)/s);
+  return sameText(pw, PASS);
+}
 function authorised(req) {
   if (!LOCKED) return true;
-  if (PASS) {
-    const h = req.headers.authorization || '';
-    if (h.startsWith('Basic ')) {
-      const [, pw = ''] = Buffer.from(h.slice(6), 'base64').toString().split(/:(.*)/s);
-      if (pw === PASS) return true;
-    }
-  }
+  if (passwordOk(req)) return true;
   return classLogin.valid(req) || Boolean(appCore && appCore.authorise(req));
 }
 
-// Raw vehicle positions and live trails are for teachers. With the shared class sign-in on, a student session only gets
-// delayed, grouped routes from /cities/api/overview (see cities.js).
+// Exact vehicle positions are for teachers and admins (a student-app session with that role) and for the holder of
+// DASHBOARD_PASSWORD, and for nobody else. Switching a gate off or on does not change that: a visitor, a student and a
+// signed-in student all get the delayed, rounded view (see "who sees what" above and privacy.js).
 function privileged(req) {
-  if (!classLogin.enabled || !LOCKED) return true;
-  if (PASS) {
-    const h = req.headers.authorization || '';
-    if (h.startsWith('Basic ') && Buffer.from(h.slice(6), 'base64').toString().split(/:(.*)/s)[1] === PASS) return true;
-  }
+  if (passwordOk(req)) return true;
   const u = appCore && appCore.authorise(req);
   return Boolean(u && (u.role === 'teacher' || u.role === 'admin'));
 }
-const RAW_PAGES = /^\/(index\.html|map\.html|3d\.html)?$/;
+const levelOf = (req) => (privileged(req) ? 'exact' : 'public');
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml',
   '.png': 'image/png', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.ico': 'image/x-icon',
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.avif': 'image/avif',
+  '.woff': 'font/woff', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8',
 };
 const CITIES_CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
 const APP_CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
+// The site shell: / and /site/*. It loads the map and the 3D view in same-origin frames (those pages keep no policy of their own
+// because they use CDN scripts and inline code).
+const SITE_CSP = "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
+
+// The old pages now live inside the site shell. Opened on their own they send people there. With ?embed=1 the shell (or the
+// student app) gets the page itself, to show in a same-origin frame.
+const SHELL_ROUTES = { '/metoffice.html': '/#/weather', '/dashboard.html': '/#/vehicles', '/map.html': '/#/map', '/3d.html': '/#/3d' };
+function redirectFor(url) {
+  const p = url.pathname;
+  if (p === '/index.html') return '/';
+  if (p === '/cities' || p === '/cities/' || p === '/cities/index.html') return '/#/';
+  if (p === '/cities/login.html' && !classLogin.enabled) return '/';   // with the class sign-in switched on, this page is the sign-in
+  if (p === '/teachers' || p === '/teachers/') return '/app/#/staff';   // teachers sign in inside the student app
+  if (Object.hasOwn(SHELL_ROUTES, p) && url.searchParams.get('embed') !== '1') return SHELL_ROUTES[p];
+  return null;
+}
 
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, 'http://localhost');
+  let url;
+  try { url = new URL(req.url, 'http://localhost'); } catch (e) { res.writeHead(400); return res.end('Bad request'); }
   try {
     if (appCore && (await appCore.handle(req, res, url))) return;   // /app/api/*: the app does its own sign-in
     if (await classLogin.handle(req, res, url)) return;              // /cities/api/login: the shared class sign-in
@@ -978,32 +1065,32 @@ const server = http.createServer(async (req, res) => {
       if (/\.html$|\/$/.test(url.pathname)) { res.writeHead(302, { Location: classLogin.enabled ? '/cities/login.html' : '/app/' }); return res.end(); }
       return sendJson(res, 401, { error: 'Sign in to the student app first.' });
     }
-    if (classLogin.enabled && !privileged(req)) {
-      if (RAW_PAGES.test(url.pathname) && !inApp) { res.writeHead(302, { Location: '/cities/' }); return res.end(); }
-      if (url.pathname === '/api/trails') return sendJson(res, 403, { error: 'Live routes are for teachers. Open the Space view in /cities/.' });
-    }
+    const to = redirectFor(url);
+    if (to) { res.writeHead(302, { Location: to, 'Cache-Control': 'no-store' }); return res.end(); }
     if (url.pathname === '/cities/api/overview') {
       return sendJson(res, 200, await citiesApi.overview({
-        devices: async () => (DEMO ? DEMO_DEVICES : await liveDevices()),
-        latest: async () => (DEMO ? demoLatest() : await liveLatest()),
-        trails: async (h) => (DEMO ? demoTrails(h, '4097') : await liveTrails(h, '4097')),
+        devices: rawDevices,
+        latest: rawLatest,
+        trails: (h) => rawTrails(h, '4097'),
       }));
     }
     if (url.pathname === '/api/config') {
-      return sendJson(res, 200, { demo: DEMO, names: measurementNames, gps: [GPS_LAT, GPS_LNG] });
+      return sendJson(res, 200, { demo: DEMO, names: measurementNames, gps: [GPS_LAT, GPS_LNG], exactPositions: privileged(req), posDelayMin: priv.delayMin, posGrid: priv.grid });
     }
     if (url.pathname === '/api/devices') {
-      const dv = DEMO ? DEMO_DEVICES : await liveDevices();
-      return sendJson(res, 200, classLogin.enabled && !privileged(req) ? dv.map(({ lat, lng, ...rest }) => rest) : dv);
+      return sendJson(res, 200, await devicesFor(levelOf(req)));
     }
     if (url.pathname === '/api/latest') {
-      return sendJson(res, 200, DEMO ? demoLatest() : await liveLatest());
+      return sendJson(res, 200, await latestFor(levelOf(req)));
     }
     if (url.pathname === '/api/series') {
       const eui = url.searchParams.get('eui');
-      const mid = url.searchParams.get('mid');
-      const days = Math.min(30, Math.max(1, Number(url.searchParams.get('days')) || 1));
-      if (!eui || !mid) return sendJson(res, 400, { error: 'eui and mid are required' });
+      const midParam = url.searchParams.get('mid');
+      const days = whole(url.searchParams.get('days'), 1, 1, 30);
+      if (!eui || !midParam) return sendJson(res, 400, { error: 'eui and mid are required' });
+      const mid = priv.normMid(midParam);
+      if (mid == null) return sendJson(res, 400, { error: 'mid must be a measurement id such as 4097' });
+      if (priv.isGpsMid(mid) && levelOf(req) !== 'exact') return sendJson(res, 403, { error: 'The history of GPS positions is for teachers.' });
       if (DEMO) return sendJson(res, 200, demoSeries(eui, mid, days));
       const devices = await liveDevices();
       const dev = devices.find((d) => d.eui === eui);
@@ -1011,9 +1098,10 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, await liveSeries(eui, mid, dev.channelOf[mid] || 1, days));
     }
     if (url.pathname === '/api/trails') {
-      const hours = Math.min(168, Math.max(1, Number(url.searchParams.get('hours')) || 6));
-      const mid = url.searchParams.get('mid') || '4097';
-      return sendJson(res, 200, DEMO ? demoTrails(hours, mid) : await liveTrails(hours, mid));
+      const hours = whole(url.searchParams.get('hours'), 6, 1, 168);
+      const mid = priv.normMid(url.searchParams.get('mid') || '4097');
+      if (mid == null) return sendJson(res, 400, { error: 'mid must be a measurement id such as 4097' });
+      return sendJson(res, 200, await trailsFor(levelOf(req), hours, mid));
     }
     if (url.pathname === '/api/terrain') {
       const st = terrainStatus();
@@ -1039,12 +1127,12 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/dom/page') {
       const name = url.searchParams.get('name');
-      if (!DOM_PAGES[name]) return sendJson(res, 404, { error: 'Unknown page', pages: Object.keys(DOM_PAGES) });
+      if (!Object.hasOwn(DOM_PAGES, name)) return sendJson(res, 404, { error: 'Unknown page', pages: Object.keys(DOM_PAGES) });
       return sendJson(res, 200, await domPage(name));
     }
     if (url.pathname === '/api/dom/pages/history') {
       const name = url.searchParams.get('name');
-      if (!pageStore || (!DOM_PAGES[name] && name !== 'net')) return sendJson(res, 404, { error: 'Unknown page' });
+      if (!pageStore || (!Object.hasOwn(DOM_PAGES, name) && name !== 'net')) return sendJson(res, 404, { error: 'Unknown page' });
       return sendJson(res, 200, pageStore.versions(name, Math.min(HISTORY_DAYS, Math.max(1, Number(url.searchParams.get('days')) || 30))));
     }
     if (url.pathname === '/api/dom/net') return sendJson(res, 200, await domNet());
@@ -1068,7 +1156,8 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(404);
         return res.end('Not found');
       }
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream', 'Cache-Control': 'no-cache', ...(inApp ? { 'Content-Security-Policy': APP_CSP, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' } : url.pathname.startsWith('/cities') ? { 'Content-Security-Policy': CITIES_CSP, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' } : {}) });
+      const csp = inApp ? APP_CSP : url.pathname.startsWith('/cities') ? CITIES_CSP : url.pathname === '/' || url.pathname.startsWith('/site/') ? SITE_CSP : null;
+      res.writeHead(200, { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream', 'Cache-Control': 'no-cache', ...(csp ? { 'Content-Security-Policy': csp, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' } : {}) });
       res.end(buf);
     });
   } catch (e) {

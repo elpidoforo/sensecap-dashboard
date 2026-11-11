@@ -1,6 +1,8 @@
 'use strict';
 /* Starter pages for the assistant's handbook. Teachers can edit, add and delete pages inside the app,
-   so this list is only used once, when the database is created. Keep to things that are true; the assistant repeats them. */
+   so STARTER is only used once, when the database is created. Keep to things that are true; the assistant repeats them.
+   SITE_GUIDE is different: it belongs to the code, always matches how the website works today, and is read by the assistant
+   next to the teachers' pages (for signed-in users and for visitors). */
 
 const STARTER = [
   {
@@ -8,26 +10,15 @@ const STARTER = [
     body: [
       'The Smart Cities project connects four schools in Cyprus: PASCAL Larnaka, PASCAL Lefkosia, PASCAL Limassol and the International School of Paphos.',
       'Teams of upper-school (IB) students, at least five per team, work with Seeed SenseCAP sensors that are fitted to school buses and cars. The sensors measure the air around the vehicle and report where the vehicle is.',
-      'Students use the app to look at the live data, the maps and the history, to compare their readings with the official weather stations, and to talk with their team, their school and the other schools.',
-      'Teachers can add the project brief, deadlines and marking criteria as pages in this handbook, and the assistant will use them.',
-    ].join('\n'),
-  },
-  {
-    title: 'Using this app',
-    body: [
-      'Home shows your school\'s vehicles with their latest readings, plus the nearest Met Office weather station.',
-      'Map shows every vehicle on a map, with the route it drove, a time-lapse of the day, wind and the weather stations. 3D shows the island with a column for each sensor.',
-      'Met Office lists the official automatic weather stations of the Cyprus Department of Meteorology and their last readings.',
-      'Chat has three kinds of channel: All schools, your school, and your team. There are no private messages between students. Anyone can report a message, and teachers can delete messages and mute people.',
-      'Ask is the assistant. It can look up live readings and history, explain science ideas and help you plan how to analyse data. It is an AI, it can make mistakes, and your teachers can read what you ask it.',
-      'To join, a student needs the school code from their teacher and then waits for a teacher to approve the account. If you forget your password, a teacher can reset it.',
+      'Students and visitors use the website to look at the live data, the maps and the history, and to compare the readings with the official weather stations. Teachers post announcements for the students.',
+      'Teachers can add the project brief, deadlines and marking criteria as pages in this handbook, and the assistant will use them. The assistant also answers questions from visitors to the public website, so do not put private information in a page. A page whose title starts with "Staff", "Private" or "Internal" is never given to visitors.',
     ].join('\n'),
   },
   {
     title: 'What the sensors measure',
     body: [
-      'The SenseCAP sensors report numbered measurements. The ones used here: 4097 air temperature in degrees Celsius, 4098 relative air humidity in %RH, 4099 light intensity in lux, 4100 carbon dioxide (CO2) in ppm, 4101 barometric pressure in pascal (100 Pa = 1 hPa, so 101300 Pa is 1013 hPa), 4197 longitude and 4198 latitude from GPS.',
-      'A vehicle may carry only some of these. The app shows only the measurements a sensor really has.',
+      'The SenseCAP sensors report numbered measurements. The ones used here: 4097 air temperature in degrees Celsius, 4098 relative air humidity in %RH, 4099 light intensity in lux, 4100 carbon dioxide (CO2) in ppm, 4101 barometric pressure in pascal (100 Pa = 1 hPa, so 101300 Pa is 1013 hPa). Each vehicle also has GPS, but the website never shows exact positions.',
+      'A vehicle may carry only some of these. The website shows only the measurements a sensor really has.',
       'A sensor on a moving vehicle measures the air around the vehicle, not the weather of the whole town. Sun on the roof, an open window, air conditioning, engine heat and passengers all change the numbers, especially temperature and CO2.',
     ].join('\n'),
   },
@@ -76,15 +67,48 @@ const STARTER = [
       'Do not copy the assistant\'s text into your report. Use it to understand, then write in your own words and show your own data.',
     ].join('\n'),
   },
-  {
-    title: 'Chat rules',
-    body: [
+];
+
+
+/* The first versions of two starter pages described a login-and-chat app that no longer exists. Databases that were created back then still
+   hold them. They are never changed or deleted, but while a page is still word for word the old text, the assistant does not read it. */
+const LEGACY = {
+  'Using this app': [
+      'Home shows your school\'s vehicles with their latest readings, plus the nearest Met Office weather station.',
+      'Map shows every vehicle on a map, with the route it drove, a time-lapse of the day, wind and the weather stations. 3D shows the island with a column for each sensor.',
+      'Met Office lists the official automatic weather stations of the Cyprus Department of Meteorology and their last readings.',
+      'Chat has three kinds of channel: All schools, your school, and your team. There are no private messages between students. Anyone can report a message, and teachers can delete messages and mute people.',
+      'Ask is the assistant. It can look up live readings and history, explain science ideas and help you plan how to analyse data. It is an AI, it can make mistakes, and your teachers can read what you ask it.',
+      'To join, a student needs the school code from their teacher and then waits for a teacher to approve the account. If you forget your password, a teacher can reset it.',
+    ].join('\n'),
+  'Chat rules': [
       'Be kind and keep it about the project. No bullying, no rude or unkind comments about anyone.',
       'Never share private information: phone numbers, e-mail addresses, home addresses, social media handles or passwords. The app blocks links, e-mails and phone numbers in student messages.',
       'Use the report button on a message that worries you. Teachers read reports, can delete a message and can mute a member for a while.',
       'If something makes you feel unsafe, tell a teacher or another adult you trust today. The Cyprus child helpline is 116111 and the emergency number is 112.',
     ].join('\n'),
+};
+
+const SITE_GUIDE = [
+  {
+    title: 'How this website works',
+    body: [
+      'Anyone can open the website without signing in. It shows the Smart Cities sensor data (the dashboard), the map, a 3D view of Cyprus, the Met Office weather stations, announcements from the teachers and the Ask assistant.',
+      'Vehicle positions are never live. Visitors see positions with a delay of at least two hours and rounded to about one kilometre (0.01 degree) so that nobody can follow a school bus or car. Only signed-in teachers see exact positions.',
+      'Students do not need an account. In the Build studio a student enters the class code from the teacher and a team name, describes a tool, and Claude builds it. A teacher must approve a tool before anyone else can see it. Approved tools are public.',
+      'Teachers sign in with their own account to see exact positions, approve tools, manage teams, read the questions that visitors asked the assistant and post announcements.',
+      'Students cannot post messages. Teachers post announcements, and everyone can read them.',
+      'Ask is an AI assistant. It reads the live data, the Met Office pages, the history and this handbook. It can make mistakes. Each visitor can ask a limited number of questions per day, and the whole site has a daily limit.',
+    ].join('\n'),
+  },
+  {
+    title: 'Privacy and safety on this website',
+    body: [
+      'Visitors do not give a name or an account. A random cookie counts how many questions a visitor asked, and questions and answers are saved without any name for 90 days so that teachers can check them. Answers can be reported.',
+      'Never type personal details (full names, phone numbers, addresses, e-mails, social media or passwords) into the assistant.',
+      'If a young person is being hurt, bullied or is unsafe, they should tell a teacher or another trusted adult today. The Cyprus child helpline is 116111 and the emergency number is 112.',
+    ].join('\n'),
   },
 ];
 
-module.exports = { STARTER };
+module.exports = { STARTER, SITE_GUIDE, LEGACY };
