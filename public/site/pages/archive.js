@@ -22,6 +22,7 @@
   const weekdayName = (ms) => new Intl.DateTimeFormat(loc(), { timeZone: 'UTC', weekday: 'short' }).format(ms);
   function bytesText(n) {
     if (n == null || !isFinite(n)) return '–';
+    if (n <= 0) return '0 KB';
     if (n < 1024 * 1024) return Math.max(1, Math.round(n / 1024)) + ' KB';
     if (n < 1024 * 1024 * 1024) return (n / 1048576).toFixed(n < 10485760 ? 1 : 0) + ' MB';
     return (n / 1073741824).toFixed(2) + ' GB';

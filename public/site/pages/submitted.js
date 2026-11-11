@@ -55,6 +55,7 @@
   const errMsg = (e) => (e && e.message) || t('Something went wrong. Try again.', 'Κάτι πήγε στραβά. Δοκιμάστε ξανά.');
   const toMs = (x) => (typeof x === 'number' ? x : x ? Date.parse(x) || 0 : 0);
   const key = (it) => it.kind + ':' + it.id;
+  const ttl = (it) => (SC.lang === 'el' && it.titleEl ? it.titleEl : it.title);
   const plural = (n, one, many, oneEl, manyEl) => (n === 1 ? t(n + ' ' + one, n + ' ' + oneEl) : t(n + ' ' + many, n + ' ' + manyEl));
   function schoolColor(short) {
     const s = String(short || '').toLowerCase();
@@ -113,7 +114,7 @@
     async function loadItems() {
       try {
         const r = await SC.api('/studio/api/submitted');
-        S.items = ((r && (r.items || r.queue)) || []).filter((x) => x && KINDS.includes(x.kind) && x.id != null).map((x) => ({ kind: x.kind, id: x.id, title: String(x.title || ''), author: x.author_label || x.author || '', school: x.school || '', at: toMs(x.at || x.updatedAt), status: String(x.status || (staff() ? 'pending' : 'approved')).toLowerCase() }));
+        S.items = ((r && (r.items || r.queue)) || []).filter((x) => x && KINDS.includes(x.kind) && x.id != null).map((x) => ({ kind: x.kind, id: x.id, title: String(x.title || ''), titleEl: x.title_el ? String(x.title_el) : '', author: x.author_label || x.author || '', school: x.school || '', at: toMs(x.at || x.updatedAt), status: String(x.status || (staff() ? 'pending' : 'approved')).toLowerCase() }));
         S.err = null; S.at = Date.now();
       } catch (e) { S.err = e; }
     }
@@ -147,7 +148,7 @@
       const st = staff();
       const base = st ? S.items.filter((x) => !isDecided(x)) : S.items;
       const parts = [[base.length, st ? t('waiting', 'σε αναμονή') : (base.length === 1 ? t('published piece', 'δημοσιευμένο στοιχείο') : t('published pieces', 'δημοσιευμένα στοιχεία'))],
-        ...KINDS.map((k) => [base.filter((x) => x.kind === k).length, kplural(k).toLowerCase()])];
+        ...KINDS.map((k) => { const n = base.filter((x) => x.kind === k).length; return [n, (n === 1 ? kname(k) : kplural(k)).toLowerCase()]; })];
       statsHost.replaceChildren(el('div', { class: 'sb-stats', role: 'group', 'aria-label': t('Work in numbers', 'Οι εργασίες σε αριθμούς') },
         ...parts.flatMap(([n, label], i) => [i ? el('span', { class: 'sep', 'aria-hidden': 'true' }) : null, el('span', null, el('b', null, String(n)), ' ' + label)]).filter(Boolean)));
     }
@@ -186,14 +187,14 @@
         el('div', { class: 'sb-qh' }, el('h2', null, t('Queue', 'Ουρά'), el('span', null, '·'), String(list.length))),
         list.length ? el('ul', { class: 'sb-qlist' }, list.map((it) => el('li', null, el('button', { type: 'button', class: 'sb-row' + (key(it) === S.cur ? ' on' : ''), 'aria-current': key(it) === S.cur ? 'true' : null, 'data-k': key(it), onclick: () => select(it) },
           kindTile(it.kind),
-          el('span', { class: 'sb-rx' }, el('b', null, it.title || kname(it.kind)),
+          el('span', { class: 'sb-rx' }, el('b', null, ttl(it) || kname(it.kind)),
             el('small', null, kname(it.kind) + (it.author ? ' · ' + it.author : '') + (it.at ? ' · ' + SC.ago(it.at) : ''))),
           badgeOf(it)))))
           : el('div', { class: 'empty sb-empty' }, el('b', { style: { display: 'block', color: 'var(--nm-ink-soft)' } }, S.items.length ? t('Nothing matches these filters.', 'Τίποτα δεν ταιριάζει με αυτά τα φίλτρα.') : t('Nothing is waiting. All clear.', 'Τίποτα δεν περιμένει. Όλα καθαρά.')),
             S.items.length ? t('Choose All, or another kind or school.', 'Επιλέξτε «Όλα» ή άλλο είδος ή σχολείο.') : t('New work shows up here when a team presses Send to teacher, a council session is put forward, or a report is made.', 'Νέες εργασίες εμφανίζονται εδώ όταν μια ομάδα πατήσει «Αποστολή στον εκπαιδευτικό», όταν προταθεί μια συνεδρία συμβουλίου ή όταν φτιαχτεί μια αναφορά.')));
       const detail = el('section', { class: 'nm-card nm-card--glow sb-detail', id: 'sb-detail', 'aria-label': t('Preview and decision', 'Προεπισκόπηση και απόφαση') });
       bodyHost.replaceChildren(el('div', { class: 'nm-callout sb-callout' }, ic('shield'), el('span', null, el('b', null, t('You decide here.', 'Εσείς αποφασίζετε εδώ.')), ' ' + t('Nothing is public until a teacher says yes. Notes you write are read by the team.', 'Τίποτα δεν γίνεται δημόσιο αν δεν πει ναι ένας εκπαιδευτικός. Τα σημειώματά σας τα διαβάζει η ομάδα.'))),
-        bar, el('div', { class: 'sb-split' }, queue, detail), logCard());
+        bar, el('div', { class: 'sb-split' }, queue, detail), ...[logCard()].filter(Boolean));
       drawDetail();
       drawStats();
     }
@@ -235,7 +236,7 @@
     function previewTool(d) {
       const idea = d.idea && String(d.idea).trim();
       return [
-        (d.flags || []).includes('coordinates') ? el('div', { class: 'nm-callout nm-callout--warn' }, ic('lock'), ' ' + t('This page may contain an exact position. Look before you approve.', 'Αυτή η σελίδα ίσως περιέχει ακριβή θέση. Κοιτάξτε προτού εγκρίνετε.')) : null,
+        (d.flags || []).includes('coordinates') ? el('div', { class: 'nm-callout nm-callout--warn' }, ic('lock'), el('span', null, t('This page may contain an exact position. Look before you approve.', 'Αυτή η σελίδα ίσως περιέχει ακριβή θέση. Κοιτάξτε προτού εγκρίνετε.'))) : null,
         el('div', { class: 'sb-pvbar' }, el('span', { class: 'sb-pvtag' }, ic('lock'), t('Preview in a safe box, no internet', 'Προεπισκόπηση σε ασφαλές κουτί, χωρίς internet')), el('span', { class: 'sb-sp' }), el('a', { class: 'nm-btn nm-btn--sm', href: '/studio/p/' + d.id, target: '_blank', rel: 'noopener' }, ic('ext'), t('Open in a new tab', 'Άνοιγμα σε νέα καρτέλα'))),
         el('div', { class: 'sb-preview' }, el('iframe', { class: 'sb-frame', sandbox: 'allow-scripts', src: '/studio/p/' + d.id, title: t('Preview of ' + d.title, 'Προεπισκόπηση: ' + d.title), referrerpolicy: 'no-referrer' })),
         block(t('What the team asked for', 'Τι ζήτησε η ομάδα'), idea ? el('p', null, idea) : el('p', { class: 'muted' }, t('No description was saved.', 'Δεν αποθηκεύτηκε περιγραφή.'))),
@@ -262,7 +263,7 @@
       const lean = LEAN[ch.lean] || null;
       const list = (a) => (Array.isArray(a) && a.length ? el('ul', { class: 'sb-bul' }, a.map((x) => el('li', null, typeof x === 'string' ? x : tx(x.text || x.label || x.name || '')))) : null);
       return [
-        el('div', { class: 'nm-callout nm-callout--info' }, ic('sparkle'), ' ', el('b', null, t('AI role-play.', 'Παιχνίδι ρόλων με AI.')), ' ' + t('Every seat below is written by an AI from our public data. It is not a person and not an official opinion.', 'Κάθε θέση παρακάτω γράφτηκε από AI με βάση τα δημόσια δεδομένα μας. Δεν είναι πρόσωπο ούτε επίσημη γνώμη.')),
+        el('div', { class: 'nm-callout nm-callout--info' }, ic('sparkle'), el('span', null, el('b', null, t('AI role-play.', 'Παιχνίδι ρόλων με AI.')), ' ' + t('Every seat below is written by an AI from our public data. It is not a person and not an official opinion.', 'Κάθε θέση παρακάτω γράφτηκε από AI με βάση τα δημόσια δεδομένα μας. Δεν είναι πρόσωπο ούτε επίσημη γνώμη.'))),
         block(t('The question', 'Το ερώτημα'), el('p', { class: 'sb-big' }, String(s.question || s.title || ''))),
         seats.length ? block(t('The seats', 'Οι θέσεις'), el('ul', { class: 'sb-seats' }, seats.map((x) => { const st = STANCE[x.stance] || null; return el('li', null, el('div', { class: 'sb-seat-h' }, el('b', null, tx(x.name) || x.id || t('A seat', 'Μια θέση')), st ? el('span', { class: 'nm-badge nm-badge--' + st[0] }, t(st[1], st[2])) : null), el('p', null, x.failed ? t('This seat did not answer.', 'Αυτή η θέση δεν απάντησε.') : String(x.text || ''))); }))) : null,
         (ch.verdict || (ch.scores && ch.scores.length)) ? block(t('The Chair', 'Ο Πρόεδρος'),
@@ -310,9 +311,9 @@
         await SC.api(url, { method: 'POST', body });
         const good = ['approve', 'publish', 'release'].includes(decision);
         const text = decision === 'withdraw' ? t('Withdrawn', 'Αποσύρθηκε') : good ? (it.kind === 'report' ? t('Released', 'Δημοσιεύτηκε') : it.kind === 'council' ? t('Published', 'Δημοσιεύτηκε') : t('Approved', 'Εγκρίθηκε')) : t('Sent back', 'Επιστράφηκε');
-        S.log.unshift({ kind: it.kind, title: it.title || kname(it.kind), text, at: Date.now() });
+        S.log.unshift({ kind: it.kind, title: ttl(it) || kname(it.kind), text, at: Date.now() });
         S.detail.delete(key(it));
-        const m = text + ': ' + (it.title || kname(it.kind));
+        const m = text + ': ' + (ttl(it) || kname(it.kind));
         SC.toast(m); live.textContent = m;
         S.busy = false;
         await loadItems();
@@ -367,7 +368,7 @@
       loadDetail(it);
       const c = S.detail.get(key(it)) || { state: 'loading' };
       const head = el('div', { class: 'sb-dh' }, el('div', { class: 'sb-dtags' }, kindTile(it.kind), el('span', { class: 'sb-eb cu' }, kname(it.kind)), badgeOf(it)),
-        el('h2', { id: 'sb-dh' }, it.title || kname(it.kind)),
+        el('h2', { id: 'sb-dh' }, ttl(it) || kname(it.kind)),
         el('div', { class: 'sb-who' }, el('i', { style: { background: schoolColor(it.school) } }), el('span', null, [it.author, it.school && !String(it.author).includes(it.school) ? it.school : '', it.at ? t('sent ' + SC.ago(it.at), 'στάλθηκε ' + SC.ago(it.at)) : ''].filter(Boolean).join(' · '))));
       let body;
       if (c.state === 'loading') body = el('div', { class: 'loading' }, t('Loading the preview', 'Φόρτωση της προεπισκόπησης'));
@@ -399,10 +400,10 @@
         }
       };
       const x = el('button', { class: 'nm-btn nm-btn--sm', type: 'button', onclick: close }, ic('x'), t('Close', 'Κλείσιμο'));
-      const box = el('div', { class: 'sb-view nm-enter', role: 'dialog', 'aria-modal': 'true', 'aria-label': it.title },
-        el('div', { class: 'sb-view-h' }, el('div', { class: 'sb-view-t' }, el('h2', null, it.title), el('div', { class: 'sb-who' }, el('i', { style: { background: schoolColor(it.school) } }), el('span', null, it.author || it.school))),
+      const box = el('div', { class: 'sb-view nm-enter', role: 'dialog', 'aria-modal': 'true', 'aria-label': ttl(it) },
+        el('div', { class: 'sb-view-h' }, el('div', { class: 'sb-view-t' }, el('h2', null, ttl(it)), el('div', { class: 'sb-who' }, el('i', { style: { background: schoolColor(it.school) } }), el('span', null, it.author || it.school))),
           el('a', { class: 'nm-btn nm-btn--sm', href: '/studio/p/' + it.id, target: '_blank', rel: 'noopener' }, ic('ext'), t('Open in a new tab', 'Άνοιγμα σε νέα καρτέλα')), x),
-        el('div', { class: 'sb-view-f' }, el('iframe', { class: 'sb-frame', sandbox: 'allow-scripts', src: '/studio/p/' + it.id, title: it.title, referrerpolicy: 'no-referrer' })),
+        el('div', { class: 'sb-view-f' }, el('iframe', { class: 'sb-frame', sandbox: 'allow-scripts', src: '/studio/p/' + it.id, title: ttl(it), referrerpolicy: 'no-referrer' })),
         el('p', { class: 'sb-view-n' }, ic('lock'), t('Runs in a safe box: no internet, no cookies. It can only read the delayed, rounded overview of the data.', 'Τρέχει σε ασφαλές κουτί: χωρίς internet, χωρίς cookies. Μπορεί να διαβάσει μόνο τη συνολική εικόνα των δεδομένων, με καθυστέρηση και στρογγυλοποίηση.')));
       const scrim = el('div', { class: 'sb-scrim', onclick: (e) => { if (e.target === scrim) close(); } }, box);
       document.body.append(scrim); document.addEventListener('keydown', onKey); x.focus();
@@ -410,10 +411,10 @@
     function galCard(it) {
       return el('article', { class: 'sb-gc nm-lift', style: '--kc:' + KIND[it.kind].color },
         el('div', { class: 'sb-gt' }, kindTile(it.kind), el('span', { class: 'sb-eb' }, kname(it.kind)), el('span', { class: 'nm-badge nm-badge--ok sb-pub' }, ic('check'), t('Approved', 'Εγκρίθηκε'))),
-        el('h3', null, it.title || kname(it.kind)),
+        el('h3', null, ttl(it) || kname(it.kind)),
         el('div', { class: 'sb-who' }, el('i', { style: { background: schoolColor(it.school) } }), el('span', null, [it.author || t('A student team', 'Μια ομάδα μαθητών'), it.school && !String(it.author || '').includes(it.school) ? it.school : ''].filter(Boolean).join(' · '))),
         el('div', { class: 'sb-gf' }, el('span', { class: 'sb-when' }, it.at ? t('Approved ' + SC.date(it.at), 'Εγκρίθηκε ' + SC.date(it.at)) : ''),
-          el('button', { class: 'nm-btn nm-btn--sm', type: 'button', 'aria-label': t('Open: ', 'Άνοιγμα: ') + (it.title || kname(it.kind)), onclick: () => open(it) }, t('Open', 'Άνοιγμα'), ic(it.kind === 'tool' ? 'arrow' : 'ext'))));
+          el('button', { class: 'nm-btn nm-btn--sm', type: 'button', 'aria-label': t('Open: ', 'Άνοιγμα: ') + (ttl(it) || kname(it.kind)), onclick: () => open(it) }, t('Open', 'Άνοιγμα'), ic(it.kind === 'tool' ? 'arrow' : 'ext'))));
     }
     function drawGallery() {
       const list = S.items.filter((x) => (S.kind === 'all' || x.kind === S.kind)).sort((a, b) => b.at - a.at);

@@ -4,9 +4,12 @@
     #/schools?school=<slug>      opens with that school selected (the live map links here); ?team=<id> opens that team
   Sources (all public, no sign-in): /app/api/schools/public (school, team name, the sensor EUI a team carries)
     /app/api/announcements (teacher posts, author is only "Teacher, <school>") /api/config /api/devices /api/latest /api/series
-    /studio/api/projects?scope=gallery (approved projects only, matched to a team by team name and school).
-  Honest by design: nothing here is invented. The API has no topics, team sizes or focus questions, so none are shown.
-  A team without a linked sensor says so. A team without an approved project says so and points to the Build studio.
+    /studio/api/projects?scope=gallery (approved projects only, matched to a team by team name and school)
+    /studio/api/plans?scope=public (team plans a teacher approved: the team's question; matched the same way).
+  Honest by design: nothing here is invented. The picture shows a "focus" and a member count per team; the API has neither.
+  So: the card's focus line is the team's approved plan question when there is one, otherwise the sensor it carries.
+  "Topic" is what a team's sensor measures (temperature, humidity, CO2 ...). No member counts are shown. "What the sensor
+  showed today" is worked out from the readings and says so. A team without a linked sensor says so.
   Privacy: no student names or photos anywhere (the studio "author" field is never read). No position of any vehicle
   is shown on this page, only counts. The note at the top says how positions are treated on the map.
   The school API does not say which vehicles belong to a school, so a vehicle belongs to a school when its group name
@@ -24,6 +27,12 @@
   const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const fin = (v) => typeof v === 'number' && isFinite(v);
   const plural = (n, en, el1) => T(n + ' ' + (n === 1 ? en[0] : en[1]), n + ' ' + (n === 1 ? el1[0] : el1[1]));
+  // number words for the headings ("Twelve teams"); Greek has a neuter ("σχολεία") and a feminine ("ομάδες") form for 1 to 4
+  const NW_EN = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+  const NW_EL = { n: ['κανένα', 'ένα', 'δύο', 'τρία', 'τέσσερα'], f: ['καμία', 'μία', 'δύο', 'τρεις', 'τέσσερις'], x: [, , , , , 'πέντε', 'έξι', 'επτά', 'οκτώ', 'εννέα', 'δέκα', 'έντεκα', 'δώδεκα'] };
+  const numWord = (n, g) => (n >= 0 && n <= 12 ? (SC.lang === 'el' ? (n <= 4 ? NW_EL[g || 'n'][n] : NW_EL.x[n]) : NW_EN[n]) : String(n));
+  const cap = (x) => x.charAt(0).toUpperCase() + x.slice(1);
+  const chev = (n) => SC.svgEl('svg', { viewBox: '0 0 24 24', width: n || 16, height: n || 16, fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, SC.svgEl('path', { d: 'M6 9l6 6 6-6' }));
 
   /* ---------- the four schools: colour, district, and the words that match a vehicle's group name ---------- */
   const KNOWN = {
@@ -40,18 +49,29 @@
   SC.register('schools', {
     title: ['Schools and teams', 'Σχολεία και ομάδες'],
     async render(root, ctx) {
-      const D = { cfg: null, schools: [], devices: [], latest: {}, ann: [], devErr: null, at: 0 };
-      const S = { filter: 'all', q: '', fresh: false, sort: 'school', sel: null, tab: 'overview', gallery: null, galleryErr: null, galleryLoading: false, seen: false };
+      const D = { cfg: null, schools: [], devices: [], latest: {}, ann: [], plans: [], devErr: null, at: 0 };
+      const S = { filter: 'all', q: '', fresh: false, topic: 'all', sort: 'school', sel: null, tab: 'overview', gallery: null, galleryErr: null, galleryLoading: false, seen: false };
+      const SP = {};   // sparkline values per sensor: { '<eui>:<mid>': [numbers] | 'none' }
       let timer = 0, dead = false, headEl = null;
       const A = {};   // the parts of the page that are redrawn
 
+      // "Four schools in four districts put sensors on buses, cars and in classrooms." The counts come from the data once it has loaded.
+      function ledeText() {
+        const n = D.schools.length;
+        const dn = new Set(D.schools.map((s) => s.d || s.slug)).size;
+        const fixed = D.devices.some((d) => !isVehicle(d));
+        const en = (n ? cap(numWord(n, 'n')) + ' schools' + (dn ? ' in ' + numWord(dn, 'f') + ' ' + (dn === 1 ? 'district' : 'districts') : '') : 'Schools')
+          + ' put sensors on buses and cars' + (fixed ? ' and in classrooms' : '') + '. Open a team to see which sensor it carries and what it reads. Teams are shown by name only, never by student.';
+        const el1 = (n ? cap(numWord(n, 'n')) + ' ' + (n === 1 ? 'σχολείο' : 'σχολεία') + (dn ? ' σε ' + numWord(dn, 'f') + ' ' + (dn === 1 ? 'επαρχία' : 'επαρχίες') : '') : 'Τα σχολεία')
+          + ' βάζουν αισθητήρες σε λεωφορεία και αυτοκίνητα' + (fixed ? ' και σε τάξεις' : '') + '. Ανοίξτε μια ομάδα για να δείτε ποιον αισθητήρα φέρει και τι μετρά. Οι ομάδες εμφανίζονται μόνο με το όνομά τους, ποτέ με μαθητές.';
+        return T(en, el1);
+      }
       const pageHead = (extra) => SC.head(Object.assign({
-        title: T('Schools and the teams behind the data', 'Τα σχολεία και οι ομάδες πίσω από τα δεδομένα'),
-        lede: T('Four schools put sensors on buses and cars. Open a team to see which sensor it carries and what it reads. Teams are shown by name only, never by student.',
-          'Τέσσερα σχολεία βάζουν αισθητήρες σε λεωφορεία και αυτοκίνητα. Ανοίξτε μια ομάδα για να δείτε ποιον αισθητήρα φέρει και τι μετρά. Οι ομάδες εμφανίζονται μόνο με το όνομά τους, ποτέ με μαθητές.'),
+        title: T('Schools and the teams behind the data.', 'Τα σχολεία και οι ομάδες πίσω από τα δεδομένα.'),
+        lede: ledeText(),
         help: [
-          'Each card is one school. Press a school or a name in the filter to see only its teams. Search looks in team and school names. A team profile has three tabs: Overview (what its sensor reads now), Data (a 24 hour chart and the latest readings) and Projects (pages the team built in the Build studio and a teacher approved). Nothing on this page names a student.',
-          'Κάθε κάρτα είναι ένα σχολείο. Πατήστε ένα σχολείο ή ένα όνομα στο φίλτρο για να δείτε μόνο τις ομάδες του. Η αναζήτηση ψάχνει σε ονόματα ομάδων και σχολείων. Το προφίλ μιας ομάδας έχει τρεις καρτέλες: Επισκόπηση (τι μετρά τώρα ο αισθητήρας της), Δεδομένα (γράφημα 24 ωρών και οι τελευταίες μετρήσεις) και Έργα (σελίδες που έφτιαξε η ομάδα στο Στούντιο και ενέκρινε ένας εκπαιδευτικός). Τίποτα σε αυτή τη σελίδα δεν κατονομάζει μαθητή.',
+          'Each card is one school. Press a school or a name in the filter to see only its teams. Search looks in team, school and topic names and in the questions teams shared. Topic is what a team’s sensor measures. A team profile has three tabs: Overview (the team’s question, what its sensor reads now and a chart of today), Data (a 24 hour chart and the latest readings) and Projects (pages the team built in the Build studio and a teacher approved). Nothing on this page names a student.',
+          'Κάθε κάρτα είναι ένα σχολείο. Πατήστε ένα σχολείο ή ένα όνομα στο φίλτρο για να δείτε μόνο τις ομάδες του. Η αναζήτηση ψάχνει σε ονόματα ομάδων, σχολείων και θεμάτων και στις ερωτήσεις που μοιράστηκαν οι ομάδες. Θέμα είναι αυτό που μετρά ο αισθητήρας μιας ομάδας. Το προφίλ μιας ομάδας έχει τρεις καρτέλες: Επισκόπηση (η ερώτηση της ομάδας, τι μετρά τώρα ο αισθητήρας της και ένα γράφημα της σημερινής μέρας), Δεδομένα (γράφημα 24 ωρών και οι τελευταίες μετρήσεις) και Έργα (σελίδες που έφτιαξε η ομάδα στο Στούντιο και ενέκρινε ένας εκπαιδευτικός). Τίποτα σε αυτή τη σελίδα δεν κατονομάζει μαθητή.',
         ],
       }, extra || {}));
       headEl = pageHead();
@@ -109,21 +129,38 @@
         D.schools.forEach((s) => s.teams.forEach((t) => out.push({ t, s, d: deviceOf(t.eui) })));
         return out;
       }
+      // the team's approved plan (the studio labels the school with its short name); the newest one wins
+      const sameName = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+      const planOf = (t, s) => D.plans.filter((p) => p && p.question && sameName(p.team, t.name) && (sameName(p.school, s.apiShort) || sameName(p.school, s.apiName)))
+        .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0] || null;
+      // topics: what the team sensors measure, most common first
+      function topicIds() {
+        const c = {};
+        allTeams().forEach(({ d }) => { if (d) mids(d).forEach((m) => { c[m] = (c[m] || 0) + 1; }); });
+        return Object.keys(c).sort((a, b) => c[b] - c[a] || Number(a) - Number(b));
+      }
+      const primary = (d) => { const ms = mids(d); return ms.includes('4097') ? '4097' : ms[0] || null; };
       function visibleTeams() {
         const q = S.q.trim().toLowerCase();
         let list = allTeams().filter(({ t, s, d }) => {
           if (S.filter !== 'all' && s.slug !== S.filter) return false;
-          if (q && !(t.name.toLowerCase().includes(q) || s.name.toLowerCase().includes(q) || s.apiName.toLowerCase().includes(q) || s.short.toLowerCase().includes(q))) return false;
+          if (S.topic !== 'all' && !(d && mids(d).includes(S.topic))) return false;
+          if (q) {
+            const pl = planOf(t, s);
+            const hay = [t.name, s.name, s.apiName, s.short, d ? d.name : '', d ? mids(d).map(nameOf).join(' ') : '', pl ? pl.question + ' ' + (pl.title || '') : ''].join(' ').toLowerCase();
+            if (!hay.includes(q)) return false;
+          }
           if (S.fresh) { const st = d && status(d); if (!st || st.st !== 'ok') return false; }
           return true;
         });
         if (S.sort === 'name') list = list.slice().sort((a, b) => a.t.name.localeCompare(b.t.name));
         return list;
       }
+      const filtered = () => S.filter !== 'all' || S.q.trim() !== '' || S.fresh || S.topic !== 'all';
 
       async function load() {
-        const [cfg, sch, dev, lat, ann] = await Promise.allSettled([
-          SC.cached('/api/config', 60000), SC.api('/app/api/schools/public'), SC.api('/api/devices'), SC.api('/api/latest'), SC.api('/app/api/announcements'),
+        const [cfg, sch, dev, lat, ann, pl] = await Promise.allSettled([
+          SC.cached('/api/config', 60000), SC.api('/app/api/schools/public'), SC.api('/api/devices'), SC.api('/api/latest'), SC.api('/app/api/announcements'), SC.api('/studio/api/plans?scope=public'),
         ]);
         if (sch.status === 'rejected') throw sch.reason;
         D.cfg = cfg.status === 'fulfilled' ? cfg.value : D.cfg;
@@ -132,6 +169,7 @@
         if (dev.status === 'fulfilled' && lat.status === 'fulfilled') { D.devices = Array.isArray(dev.value) ? dev.value : dev.value.devices || []; D.latest = lat.value || {}; }
         else { D.devErr = (dev.status === 'rejected' ? dev.reason : lat.reason).message; }
         D.ann = ann.status === 'fulfilled' ? (ann.value.items || []).slice(0, 5) : [];
+        D.plans = pl.status === 'fulfilled' && pl.value && Array.isArray(pl.value.plans) ? pl.value.plans : [];   // the question is a nice extra: no error when it is missing
         D.at = Date.now();
       }
 
@@ -185,8 +223,8 @@
           const dim = S.filter !== 'all' && !sel;
           const pick = el('button', { type: 'button', class: 'sx-pick', 'data-k': 'sch-' + s.slug, 'aria-pressed': sel ? 'true' : 'false',
             'aria-label': T('Show the teams of ' + s.name, 'Εμφάνιση των ομάδων του σχολείου ' + s.name), onclick: () => { setFilter(sel ? 'all' : s.slug); } },
-            plural(s.teams.length, ['team', 'teams'], ['ομάδα', 'ομάδες']), icon('arrow', 16));
-          A.schools.append(tint(el('article', { class: 'nm-card nm-lift sx-sch' + (sel ? ' is-sel' : '') + (dim ? ' dim' : '') },
+            !s.teams.length ? T('No teams yet', 'Καμία ομάδα ακόμα') : s.teams.length === 1 ? T('See the team', 'Δείτε την ομάδα') : T('See the ' + s.teams.length + ' teams', 'Δείτε τις ' + s.teams.length + ' ομάδες'), icon('arrow', 16));
+          A.schools.append(tint(el('article', { class: 'nm-card nm-lift sx-sch' + (sel ? ' is-sel' : '') + (dim ? ' dim' : ''), 'data-s': s.slug },
             el('div', { class: 'sx-sch-top' },
               el('span', { class: 'sx-eb' }, el('i'), s.dist || T('School', 'Σχολείο')),
               D.devErr ? el('span', { class: 'sx-live off' }, T('No live data', 'Χωρίς ζωντανά δεδομένα'))
@@ -215,28 +253,59 @@
       }
 
       /* ---------- team cards ---------- */
+      const dotCls = (st) => 'dot' + (!st ? ' off' : st.st === 'ok' ? '' : st.st === 'stale' ? ' warn' : ' bad');
+      const kindOf = (d) => (isVehicle(d) ? T('vehicle sensor', 'αισθητήρας οχήματος') : T('fixed sensor', 'σταθερός αισθητήρας'));
+      // the little 24 hour line on a card: one /api/series call per sensor, asked after the cards are drawn, a few at a time
+      const sparkKey = (d) => { const m = primary(d); return m ? d.eui + ':' + m : null; };
+      function paintSpark(slot, d, s) {
+        slot.replaceChildren();
+        const k = d && sparkKey(d), x = k && SP[k];
+        if (!x || !x.v || x.v.length < 3) return;
+        slot.append(SCChart.spark(x.v, { w: 64, h: 22, color: s.col, area: false }));
+        slot.setAttribute('title', nameOf(primary(d)) + ', ' + T('last 24 hours', 'τελευταίες 24 ώρες'));
+      }
+      let sparkRun = 0;
+      async function loadSparks() {
+        const run = ++sparkRun;
+        const todo = visibleTeams().filter(({ d }) => d && sparkKey(d) && (!SP[sparkKey(d)] || Date.now() - SP[sparkKey(d)].at > 300000));
+        const seen = new Set();
+        const queue = todo.filter(({ d }) => !seen.has(d.eui) && seen.add(d.eui));
+        let i = 0;
+        const worker = async () => {
+          while (i < queue.length && !dead) {
+            const { d } = queue[i++], k = sparkKey(d), m = primary(d);
+            SP[k] = { v: SP[k] ? SP[k].v : null, at: Date.now() };
+            try {
+              const rows = await SC.cached('/api/series?eui=' + enc(d.eui) + '&mid=' + enc(m) + '&days=1', 120000);
+              SP[k] = { v: (Array.isArray(rows) ? rows : []).map((r) => Number(r.v)).filter(fin), at: Date.now() };
+            } catch (e) { SP[k] = { v: SP[k] ? SP[k].v : null, at: Date.now() }; }   // no line on that card; asked again later
+            if (dead || !A.teams) return;
+            A.teams.querySelectorAll('.sx-spark').forEach((n) => { if (n.dataset.eui === d.eui) { const x = allTeams().find((y) => y.d && y.d.eui === d.eui); if (x) paintSpark(n, x.d, x.s); } });
+          }
+        };
+        void run;
+        await Promise.all([worker(), worker(), worker()]);
+      }
       function teamCard({ t, s, d }) {
         const st = status(d);
         const sel = S.sel === t.id;
         const open = el('button', { type: 'button', class: 'sx-open', 'data-k': 'team-' + t.id, 'aria-pressed': sel ? 'true' : 'false', 'aria-label': T('Open the profile of team ' + t.name, 'Άνοιγμα του προφίλ της ομάδας ' + t.name), onclick: () => selectTeam(t.id, true) }, t.name);
-        const ic = devIcon(d);
-        let device;
-        if (!t.eui) device = el('p', { class: 'sx-none' }, T('No sensor linked yet', 'Δεν έχει συνδεθεί ακόμα αισθητήρας'));
-        else if (D.devErr) device = el('p', { class: 'sx-none' }, T('Live readings are not available right now', 'Οι ζωντανές μετρήσεις δεν είναι διαθέσιμες αυτή τη στιγμή'));
-        else if (!d) device = el('p', { class: 'sx-none' }, T('Its sensor is not in the live data right now', 'Ο αισθητήρας της δεν υπάρχει αυτή τη στιγμή στα ζωντανά δεδομένα'));
-        else {
-          const rs = reads(d, 3);
-          device = el('div', { class: 'sx-dev' },
-            el('div', { class: 'sx-dev-n' }, icon(isVehicle(d) ? 'route' : 'sensor', 15), el('span', null, d.name)),
-            rs.length ? el('ul', { class: 'sx-reads' }, rs.map((m) => el('li', { title: nameOf(m) }, el('b', null, val(d, m)), el('small', null, nameOf(m))))) : el('p', { class: 'sx-none' }, T('No reading yet', 'Καμία μέτρηση ακόμα')));
-        }
+        const pl = planOf(t, s);
+        let focusL = T('Sensor', 'Αισθητήρας'), focus, none = false;
+        if (pl) { focusL = T('Question', 'Ερώτηση'); focus = pl.question; }
+        else if (!t.eui) { focus = T('No sensor linked yet', 'Δεν έχει συνδεθεί ακόμα αισθητήρας'); none = true; }
+        else if (D.devErr) { focus = T('Live readings are not available right now', 'Οι ζωντανές μετρήσεις δεν είναι διαθέσιμες αυτή τη στιγμή'); none = true; }
+        else if (!d) { focus = T('Its sensor is not in the live data right now', 'Ο αισθητήρας της δεν υπάρχει αυτή τη στιγμή στα ζωντανά δεδομένα'); none = true; }
+        else focus = d.name;
+        const slot = el('span', { class: 'sx-spark', 'data-eui': d ? d.eui : null, 'aria-hidden': 'true' });
+        paintSpark(slot, d, s);
         return tint(el('article', { class: 'nm-card nm-lift sx-team' + (sel ? ' nm-card--selected' : '') },
-          el('div', { class: 'sx-team-hd' }, el('span', { class: 'sx-emb' }, icon(ic, 22)),
-            el('div', null, el('h4', null, open), el('div', { class: 'sx-where' }, el('i'), s.short))),
-          device,
+          el('div', { class: 'sx-team-hd' }, el('span', { class: 'sx-emb' }, icon(devIcon(d), 22)),
+            el('div', null, el('h4', null, open), el('div', { class: 'sx-where' }, el('i'), s.short + (d ? ' · ' + kindOf(d) : '')))),
+          el('div', { class: 'sx-focus' }, el('div', { class: 'sx-topic-l' }, focusL), el('div', { class: 'sx-topic' + (none ? ' none' : '') }, focus)),
           el('div', { class: 'sx-team-ft' },
-            el('span', null, el('i', { class: 'dot' + (!st ? ' off' : st.st === 'ok' ? '' : st.st === 'stale' ? ' warn' : ' bad') }),
-              !t.eui ? T('Waiting for a sensor', 'Αναμονή για αισθητήρα') : st ? T('Last reading ', 'Τελευταία μέτρηση ') + when(st.t) : T('No data', 'Χωρίς δεδομένα')))), s.col);
+            el('span', null, el('i', { class: dotCls(st) }),
+              !t.eui ? T('Waiting for a sensor', 'Αναμονή για αισθητήρα') : st ? T('Last reading ', 'Τελευταία μέτρηση ') + when(st.t) : T('No data', 'Χωρίς δεδομένα')), slot)), s.col);
       }
       function drawTeams(select) {
         const list = visibleTeams();
@@ -244,8 +313,12 @@
         const total = allTeams().length;
         const sch = S.filter === 'all' ? null : schoolOf(S.filter);
         const nTeams = plural(total, ['team', 'teams'], ['ομάδα', 'ομάδες']);
+        const allLinked = total > 0 && allTeams().every(({ t }) => t.eui);
+        A.h2.textContent = !total ? T('The teams', 'Οι ομάδες')
+          : allLinked ? T(cap(numWord(total, 'f')) + (total === 1 ? ' team, one sensor.' : ' teams, one sensor each.'), cap(numWord(total, 'f')) + (total === 1 ? ' ομάδα, ένας αισθητήρας.' : ' ομάδες, ένας αισθητήρας η καθεμία.'))
+            : T(cap(numWord(total, 'f')) + (total === 1 ? ' team' : ' teams') + ' and the sensors they carry.', cap(numWord(total, 'f')) + (total === 1 ? ' ομάδα' : ' ομάδες') + ' και οι αισθητήρες που φέρουν.');
         A.count.textContent = !total ? T('No teams yet', 'Δεν υπάρχουν ακόμα ομάδες')
-          : S.filter === 'all' && !S.q && !S.fresh ? T('Showing all ' + nTeams + ' · sorted by ' + (S.sort === 'name' ? 'team name' : 'school'), 'Εμφάνιση όλων των ομάδων (' + total + ') · ταξινόμηση ανά ' + (S.sort === 'name' ? 'όνομα ομάδας' : 'σχολείο'))
+          : !filtered() ? T('Showing all ' + nTeams + ' · sorted by ' + (S.sort === 'name' ? 'team name' : 'school'), 'Εμφάνιση όλων των ομάδων (' + total + ') · ταξινόμηση ανά ' + (S.sort === 'name' ? 'όνομα ομάδας' : 'σχολείο'))
             : T('Showing ' + list.length + ' of ' + nTeams + (sch ? ' · ' + sch.name : ''), 'Εμφάνιση ' + list.length + ' από ' + nTeams + (sch ? ' · ' + sch.name : ''));
         A.sortBox.hidden = total < 2;
         if (!total) {
@@ -259,7 +332,7 @@
         A.detail.hidden = false; A.split.classList.remove('solo');
         if (!list.length) {
           A.teams.className = 'sx-teams empty-wrap';
-          A.teams.append(el('div', { class: 'empty' }, S.filter !== 'all' && !S.q && !S.fresh && sch ? T(sch.name + ' has no teams yet.', 'Το σχολείο ' + sch.name + ' δεν έχει ακόμα ομάδες.') : T('No team matches. Clear the search or pick another school.', 'Καμία ομάδα δεν ταιριάζει. Καθαρίστε την αναζήτηση ή διαλέξτε άλλο σχολείο.'),
+          A.teams.append(el('div', { class: 'empty' }, S.filter !== 'all' && !S.q && !S.fresh && S.topic === 'all' && sch ? T(sch.name + ' has no teams yet.', 'Το σχολείο ' + sch.name + ' δεν έχει ακόμα ομάδες.') : T('No team matches. Clear the search or pick another school.', 'Καμία ομάδα δεν ταιριάζει. Καθαρίστε την αναζήτηση ή διαλέξτε άλλο σχολείο.'),
             el('div', { style: { marginTop: '12px' } }, el('button', { class: 'nm-btn', type: 'button', onclick: clearFilters }, T('Clear filters', 'Καθαρισμός φίλτρων')))));
           drawDetail();
           return;
@@ -269,9 +342,17 @@
         if (select && !list.some((x) => x.t.id === S.sel)) selectTeam(list[0].t.id, false);
         else if (S.sel == null) selectTeam(list[0].t.id, false);
         else drawDetail();
+        markCurrent();
+        loadSparks();
+      }
+      // the school card of the team being looked at gets the same soft outline as a chosen school
+      function markCurrent() {
+        if (!A.schools) return;
+        const cur = allTeams().find((x) => x.t.id === S.sel);
+        A.schools.querySelectorAll('.sx-sch').forEach((n) => n.classList.toggle('is-sel', S.filter === n.dataset.s || (S.filter === 'all' && !!cur && cur.s.slug === n.dataset.s)));
       }
       function clearFilters() {
-        S.filter = 'all'; S.q = ''; S.fresh = false; A.q.value = ''; A.freshCb.checked = false;
+        S.filter = 'all'; S.q = ''; S.fresh = false; S.topic = 'all'; A.q.value = ''; A.freshCb.checked = false; if (A.topic) A.topic.value = 'all';
         keepFocus(() => { drawPills(); drawSchools(); drawTeams(true); });
       }
       function selectTeam(id, user) {

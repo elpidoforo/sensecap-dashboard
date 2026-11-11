@@ -264,7 +264,7 @@
               el('li', null, el('b', null, T('Real PM2.5 near each stretch. ', 'Πραγματικό PM2.5 κοντά σε κάθε τμήμα. ')), T('The line is cut into ' + SAMPLES + ' stretches. For each one the page takes, in this order: a school sensor or Sensor.Community sensors within 8 km (nearer ones count more), else the nearest point of the Open-Meteo air-quality model. The route average is the plain mean of the stretches.', 'Η γραμμή κόβεται σε ' + SAMPLES + ' τμήματα. Για κάθε ένα η σελίδα παίρνει, με αυτή τη σειρά: έναν αισθητήρα σχολείου ή αισθητήρες Sensor.Community σε απόσταση έως 8 χλμ. (οι πιο κοντινοί μετρούν περισσότερο), αλλιώς το πλησιέστερο σημείο του μοντέλου ποιότητας αέρα Open-Meteo. Ο μέσος όρος της διαδρομής είναι ο απλός μέσος όρος των τμημάτων.')),
               el('li', null, el('b', null, T('Time, air and breathing for each way. ', 'Χρόνος, αέρας και αναπνοή για κάθε τρόπο. ')), T('Inhaled PM2.5 = route average × in-vehicle ratio × breathing rate × time. The table gives the numbers. The range uses the low and high ratio.', 'Εισπνεόμενο PM2.5 = μέσος όρος διαδρομής × λόγος μέσα στο όχημα × ρυθμός αναπνοής × χρόνος. Ο πίνακας δίνει τους αριθμούς. Το εύρος χρησιμοποιεί τον χαμηλό και τον υψηλό λόγο.')),
               el('li', null, el('b', null, T('What it leaves out. ', 'Τι αφήνει έξω. ')), T('Real roads, traffic jams, open windows, filters, a particular child\'s lungs and the health benefits of walking. Treat the result as a way to think, not as advice.', 'Πραγματικούς δρόμους, μποτιλιάρισμα, ανοιχτά παράθυρα, φίλτρα, τους πνεύμονες ενός συγκεκριμένου παιδιού και τα οφέλη του περπατήματος. Δείτε το αποτέλεσμα ως τρόπο σκέψης, όχι ως συμβουλή.'))),
-            el('div', { class: 'rt' }, el('pre', { class: 'mr-formula', tabindex: 0 }, 'road km     = straight line × ' + ROAD + '   (or the length you chose)\ntime (h)    = road km ÷ speed\ninhaled µg  = air µg/m³ × ratio × m³ per hour × time (h)\nrange       = same, with the low and the high ratio'),
+            el('div', { class: 'rt' }, el('pre', { class: 'mr-formula', tabindex: 0 }, T('road km = straight line × ' + ROAD + ' (or the length you chose)\ntime (h) = road km ÷ speed\ninhaled µg = air µg/m³ × ratio × m³ per hour × time (h)\nrange = same, with the low and the high ratio', 'χλμ. δρόμου = ευθεία γραμμή × ' + ROAD + ' (ή το μήκος που επιλέξατε)\nχρόνος (ώρες) = χλμ. δρόμου ÷ ταχύτητα\nεισπνεόμενα µg = αέρας µg/m³ × λόγος × m³ ανά ώρα × χρόνος (ώρες)\nεύρος = το ίδιο, με τον χαμηλό και τον υψηλό λόγο')),
               el('p', { class: 'mr-un' }, el('b', null, T('Not tested. ', 'Δεν έχει δοκιμαστεί. ')), T('Nobody has measured these ratios on our buses or cars. A PM2.5 sensor carried on a real trip would show how far off they are.', 'Κανείς δεν έχει μετρήσει αυτούς τους λόγους στα λεωφορεία ή τα αυτοκίνητά μας. Ένας αισθητήρας PM2.5 σε μια πραγματική διαδρομή θα έδειχνε πόσο απέχουν.'))),
             el('div', { class: 'mr-tbl' }, el('div', { class: 'nm-table-wrap' }, el('table', { class: 'nm-table' },
               el('thead', null, el('tr', null, el('th', null, T('Way', 'Τρόπος')), el('th', null, T('Speed, up to 10 km / over 10 km', 'Ταχύτητα, έως 10 χλμ. / πάνω από 10 χλμ.')), el('th', null, T('Breathing', 'Αναπνοή')), el('th', null, T('Air ratio (low – high)', 'Λόγος αέρα (χαμηλός – υψηλός)')), el('th', null, T('Why', 'Γιατί')))),
@@ -340,16 +340,16 @@
         A.mapBox = el('div', { class: 'mr-map' });
         A.zoomBtn = el('button', { type: 'button', class: 'nm-btn mr-zoom', onclick: () => { S.zoom = !S.zoom; paint(); } });
         A.facts = el('div', { class: 'mr-facts' });
-        A.res = el('div', { class: 'mr-res' });
-        A.stripBox = el('div');
+        A.res = el('div', { class: 'mr-res mr-resbox' });
+        A.stripBox = el('div', { class: 'mr-stripbox' });
         fill(body,
           el('section', { class: 'nm-card mr-ctl' }, kindBar, schBar, extra, modeBar),
           el('div', { class: 'mr-grid' },
             el('section', { class: 'nm-card mr-mapcard', 'aria-label': T('The route on the island', 'Η διαδρομή στο νησί') },
               el('div', { class: 'mr-cap-row' }, el('div', { class: 'mr-cap' }, T('The route on the island', 'Η διαδρομή στο νησί')), el('span', { class: 'mr-sim' }, ic('alert', 14), T('Simulation', 'Προσομοίωση')), A.zoomBtn),
               A.mapBox, A.facts),
-            A.res),
-          A.stripBox, how());
+            A.res, A.stripBox),
+          how());
         paint();
       }
 

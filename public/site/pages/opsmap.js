@@ -175,7 +175,7 @@
       const k = kindOf(n.kind);
       const e = rec.el;
       e.dataset.status = n.status;
-      e.querySelector('.om-lb').textContent = rec.name;
+      e.querySelector('.om-lb').textContent = rec.name.replace(/\./g, '.\u200b');   // lets “Sensor.Community” break after the dot
             const ic = e.querySelector('.om-ic'); ic.replaceChildren(SC.icon(k[2], 18));
       e.querySelector('.om-bt').replaceChildren(badge(n.status));
       e.setAttribute('aria-label', rec.name + ', ' + t(k[0], k[1]) + ', ' + stWord(n.status));

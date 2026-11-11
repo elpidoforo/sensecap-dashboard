@@ -224,10 +224,12 @@
         }
         const total = GROUPS.reduce((n, g) => n + (S.res[g.id] ? S.res[g.id].length : 0), 0);
         const pending = GROUPS.some((g) => S.res[g.id] == null && !(g.id === 'handbook' ? S.err.handbook : S.err.server));
+        const failed = Boolean(S.err.server || S.err.handbook);
         const bar = h('div', { class: 'rs-bar' },
           h('p', { class: 'rs-sum', role: 'status', 'aria-live': 'polite' }, pending ? T('Searching for “' + S.q + '”…', 'Αναζήτηση για «' + S.q + '»…')
-            : total ? T(total + (total === 1 ? ' result' : ' results') + ' for “' + S.q + '”', total + (total === 1 ? ' αποτέλεσμα' : ' αποτελέσματα') + ' για «' + S.q + '»')
-              : T('No results for “' + S.q + '”', 'Κανένα αποτέλεσμα για «' + S.q + '»')),
+            : total ? T(total + (total === 1 ? ' result' : ' results') + ' for “' + S.q + '”' + (failed ? ', but some sources could not be searched' : ''), total + (total === 1 ? ' αποτέλεσμα' : ' αποτελέσματα') + ' για «' + S.q + '»' + (failed ? ', αλλά κάποιες πηγές δεν αναζητήθηκαν' : ''))
+              : failed ? T('Nothing found for “' + S.q + '”, and not every source could be searched', 'Δεν βρέθηκε τίποτα για «' + S.q + '» και δεν αναζητήθηκαν όλες οι πηγές')
+                : T('No results for “' + S.q + '”', 'Κανένα αποτέλεσμα για «' + S.q + '»')),
           h('div', { class: 'nm-pillbar rs-pills', role: 'group', 'aria-label': T('Show results from', 'Εμφάνιση αποτελεσμάτων από') },
             [['all', T('All', 'Όλα'), total]].concat(GROUPS.map((g) => [g.id, g.pill, S.res[g.id] ? S.res[g.id].length : null])).map(([id, label, n]) =>
               h('button', { type: 'button', class: S.only === id ? 'on' : '', 'aria-pressed': S.only === id ? 'true' : 'false', onclick: () => { S.only = id; paint(); } }, label + (n != null && !pending ? ' ' + n : '')))));

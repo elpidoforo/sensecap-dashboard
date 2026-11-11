@@ -58,6 +58,10 @@
 .sb-bigtick svg { width: 32px; height: 32px; }
 
 /* preview blocks */
+.sb-pv .nm-callout { display: flex; align-items: flex-start; gap: 10px; font-size: 14.5px; line-height: 1.5; }
+.sb-pv .nm-callout > svg { flex: none; width: 20px; height: 20px; margin-top: 2px; color: var(--nm-cyan); }
+.sb-pv .nm-callout--warn > svg { color: #F0B94A; }
+.sb-pv .nm-callout > span, .sb-pv .nm-callout b { color: #fff; }
 .sb-pv { display: flex; flex-direction: column; gap: 18px; margin-top: 14px; }
 .sb-blk { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .sb-blk p { margin: 0; font-size: 15px; line-height: 1.55; color: var(--nm-text); overflow-wrap: anywhere; }

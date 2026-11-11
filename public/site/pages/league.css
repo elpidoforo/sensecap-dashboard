@@ -18,7 +18,7 @@
 .lg-main > * { min-width: 0; }
 .lg-left, .lg-right { display: flex; flex-direction: column; gap: var(--nm-gap-s); min-width: 0; }
 .lg-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--nm-gap-s); }
-.lg-row { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 16px; align-items: start; padding: 20px 22px; }
+.lg-row { display: grid; grid-template-columns: 54px minmax(0, 1fr) 86px; gap: 16px; align-items: start; padding: 20px 22px; }
 .lg-row.first { border-color: var(--nm-copper-line); background: radial-gradient(320px 140px at 0 0, rgba(247, 196, 107, .14), transparent 70%), var(--nm-panel); }
 .lg-rank { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: rgba(255, 255, 255, .07); border: 1px solid var(--nm-edge-2); color: var(--nm-ink-soft); font: 700 20px/1 var(--nm-font-display); }
 .lg-row.first .lg-rank { background: var(--nm-gold-grad); color: var(--nm-gold-ink); border: 0; box-shadow: 0 8px 18px -6px rgba(232, 150, 63, .75); }
