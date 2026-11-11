@@ -31,7 +31,7 @@
   a { color: var(--copper-2); text-decoration: none; }
   a:hover { text-decoration: underline; }
   #map { position: fixed; inset: 0; background: var(--bg); }
-  #windCv { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+  #windCv { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }   /* moved inside #map below, so popups sit above the wind */
   .i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .glass { background: var(--glass); border: 1px solid var(--glass-edge); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: 0 16px 36px -16px rgba(0,0,0,.6); color: var(--ink-soft); }
@@ -39,7 +39,7 @@
   /* ---------- layer rail ---------- */
   #layers { position: fixed; z-index: 4; top: 16px; left: 16px; width: 272px; max-height: calc(100% - 32px); display: flex; flex-direction: column; border-radius: 20px; background: linear-gradient(170deg, rgba(20,36,60,.9), rgba(9,18,32,.93)); }
   .rail-h { display: flex; align-items: center; gap: 8px; padding: 14px 12px 8px 16px; }
-  .rail-h .eyebrow { flex: 1; font: 700 11px/1 var(--font); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  .rail-h .eyebrow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 700 11px/1 var(--font); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
   .rail-h em { font: 600 11.5px/1 var(--font); font-style: normal; color: var(--copper-2); white-space: nowrap; }
   .live { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--ok-line); background: var(--ok-bg); color: var(--ok); font: 600 11px/1 var(--font); white-space: nowrap; }
   .live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--dot-ok); }
@@ -123,6 +123,8 @@
   #legend .row { display: flex; justify-content: space-between; color: var(--muted); font-size: 11.5px; }
   #lgPriv { display: none; margin: 9px 0 0; padding-top: 9px; border-top: 1px solid rgba(255,255,255,.08); font: 600 12px/1.4 var(--font); color: #fff; }
   .delayed #lgPriv { display: block; }
+  .detailopen #legend .scale { margin-top: 0; padding-top: 0; border-top: 0; }
+  .detailopen #legend .lg-row, .detailopen #legend #lgPriv { display: none; }   /* the card repeats the delay line; room for the buttons */
   .delayed #rowPulse { display: none; }
   #detail { display: none; min-height: 0; overflow: auto; padding: 14px 14px 12px; border-radius: 20px; background: linear-gradient(165deg, rgba(36,62,100,.92), rgba(13,25,43,.94)); box-shadow: 0 26px 50px -20px rgba(0,0,0,.85), 0 0 0 1px rgba(143,123,255,.2), inset 0 1px 0 rgba(255,255,255,.1); scrollbar-width: thin; }
   .dt-h { display: flex; align-items: flex-start; gap: 10px; }
@@ -222,14 +224,16 @@
     .rcol { top: auto; bottom: 64px; left: 12px; right: 12px; width: auto; max-height: 46%; flex-direction: column-reverse; }
     #legend { display: none; }
     .delayed #legend { display: block; }
+    .detailopen #legend, .detailopen.delayed #legend { display: none; }
     .delayed #legend .lg-row, .delayed #legend .scale { display: none; }
     .delayed #lgPriv { margin: 0; padding: 0; border: 0; }
     .toprow { left: 12px; right: 12px; bottom: 12px; justify-content: center; }
-    .tchip { display: none !important; }
+    .tchip { font-size: 11px; padding: 5px 10px; }
+    .delayed .rcol { bottom: 112px; }
     #replay { left: 12px; right: 12px; bottom: 12px; height: auto; padding: 8px 10px; flex-wrap: wrap; border-radius: 22px; max-width: none; }
     #rpSlider { flex: 1 1 100%; order: 5; }
     .replaying #layers { max-height: 40%; }
-    .replaying .rcol { bottom: 150px; max-height: 30%; }
+    .replaying .rcol, .delayed.replaying .rcol { bottom: 150px; max-height: 30%; }
   }
 </style>
 </head>
@@ -271,7 +275,7 @@
 
 <aside class="glass" id="layers" aria-label="Map layers" data-ael="Στρώματα χάρτη">
   <div class="rail-h">
-    <span class="eyebrow" data-el="Στρώματα χάρτη">Map layers</span><em id="onCount"></em><span class="live stale" id="live">Waiting</span>
+    <span class="eyebrow" data-el="Στρώματα">Map layers</span><em id="onCount"></em><span class="live stale" id="live">Waiting</span>
     <button class="iconbtn" id="fold" aria-label="Show or hide layers" aria-expanded="true" data-ael="Εμφάνιση ή απόκρυψη στρωμάτων"><svg class="i"><use href="#i-chev"/></svg></button>
   </div>
   <div class="rail-body" id="railBody">
@@ -347,12 +351,12 @@
 </div>
 
 <div class="rcol">
-  <div class="glass" id="legend" aria-label="Legend">
+  <div class="glass" id="legend" aria-label="Legend" data-ael="Υπόμνημα">
     <div class="lg-row"><span><i class="d-sch"></i><span data-el="Σχολείο">School</span></span><span><i class="d-st"></i><span data-el="Σταθμός Μετεωρολογικής">Met Office station</span></span><span><i class="d-veh"></i><span data-el="Όχημα">Vehicle</span></span></div>
     <div class="scale"><div id="lgT"></div><div id="lgBar"></div><div class="row"><span id="lgLo"></span><span id="lgHi"></span></div></div>
     <p id="lgPriv"></p>
   </div>
-  <div class="glass" id="detail" role="region" aria-label="Selected vehicle"></div>
+  <div class="glass" id="detail" role="region" aria-label="Selected vehicle" data-ael="Επιλεγμένο όχημα"></div>
 </div>
 
 <div class="glass" id="replay" role="group" aria-label="Time-lapse" data-ael="Χρονική επανάληψη">
@@ -493,6 +497,8 @@ const map = new maplibregl.Map({
   container: 'map', style, center: [33.25, 35.0], zoom: 8, pitch: 55, bearing: -8, maxPitch: 80, hash: false,
   attributionControl: { compact: true },
 });
+// The wind canvas lives inside the map element, under the popups (they are appended to the same element).
+if (map.getContainer && $('windCv')) { const box = map.getContainer(); if (box && box.appendChild) box.appendChild($('windCv')); }
 const mapErrors = new Set();
 map.on('error', (e) => {
   const m = (e && e.error && e.error.message) || 'Map layer problem';
@@ -575,6 +581,8 @@ function renderSurface() {
 const WEATHER_FIELD = { 4097: 't', 4098: 'rh' };
 const MIN_MOVE_M = 15;       // GPS points closer than this are merged into one
 const GAP_MS = 10 * 60000;   // a longer silence is drawn dashed
+// Public trails are rounded and de-duplicated, so their points are sparse: only a much longer silence is a real gap there.
+const gapMs = () => (state.delayed ? 45 * 60000 : GAP_MS);
 const OFF_COLOR = 'rgb(140,140,134)';
 
 function mRange(mid, vals) {
@@ -621,7 +629,7 @@ function keepPoints(pts) {
   const out = [];
   let prev = null;
   pts.forEach((p) => {
-    const gap = prev && p.t - prev.t > GAP_MS;
+    const gap = prev && p.t - prev.t > gapMs();
     if (!out.length || gap || mDist(out[out.length - 1], p) >= MIN_MOVE_M) out.push({ ...p, gapBefore: !!gap });
     prev = p;
   });
@@ -866,12 +874,12 @@ function updateLegend() {
   const kind = document.querySelector('input[name=surf]:checked').value;
   if (kind !== 'off') {
     const sc = SCALES[kind], [lo, hi] = sc.range();
-    $('lgT').textContent = sc.name;
+    $('lgT').textContent = T(sc.name, sc.el);
     $('lgBar').style.background = gradientCss(sc.stops.length === 2 && kind === 'cloud' ? [[0, [20, 20, 20]], [1, [255, 255, 255]]] : sc.stops);
     $('lgLo').textContent = `${lo} ${sc.unit}`; $('lgHi').textContent = `${hi} ${sc.unit}`;
   } else {
     const [lo, hi] = valueRange();
-    $('lgT').textContent = `Vehicles and trails: ${nameOf(state.mid)}`;
+    $('lgT').textContent = T('Vehicles and trails: ', 'Οχήματα και ίχνη: ') + nameOf(state.mid);
     $('lgBar').style.background = gradientCss(TEMP);
     $('lgLo').textContent = `${r1(lo)} ${unitOf(state.mid)}`; $('lgHi').textContent = `${r1(hi)} ${unitOf(state.mid)}`;
   }
@@ -910,6 +918,8 @@ function updateCydom() {
     const { obs, ...rest } = p;
     return pt(p.lng, p.lat, { ...rest, obs: JSON.stringify(obs || []), icon: sqIcon(p.temp), label: p.temp != null ? `${r1(p.temp)}°` : p.name });
   }) });
+  const n = state.cydom.points.length, sub = $('subSta');
+  if (sub) sub.textContent = n ? T(n + (n === 1 ? ' station' : ' stations'), n + (n === 1 ? ' σταθμός' : ' σταθμοί')) + (state.cydom.feedTime ? ' · ' + ago(state.cydom.feedTime) : '') : T('No stations right now', 'Κανένας σταθμός αυτή τη στιγμή');
 }
 const readingAge = (iso) => (iso ? ago(iso) : T('unknown time', 'άγνωστη ώρα'));
 const isOld = (iso) => !iso || Date.now() - new Date(iso).getTime() > 3 * 3600000;
@@ -1016,8 +1026,9 @@ async function showDetail(eui, fresh = true) {
   const box = $('detail');
   box.innerHTML = html;
   box.style.display = 'block';
+  if (ROOT && ROOT.classList) ROOT.classList.add('detailopen');
   if (!box.dataset.held) { box.dataset.held = '1'; box.addEventListener('pointerdown', () => { state.hold = performance.now() + 1500; }); }
-  $('dx').onclick = () => { box.style.display = 'none'; state.selected = null; if (state.follow === eui) state.follow = null; updateTrails(); };
+  $('dx').onclick = () => { box.style.display = 'none'; if (ROOT && ROOT.classList) ROOT.classList.remove('detailopen'); state.selected = null; if (state.follow === eui) state.follow = null; updateTrails(); };
   $('bFollow').onclick = () => { state.hold = 0; state.follow = state.follow === eui ? null : eui; if (state.tour) stopTour(); showDetail(eui, false); };
   $('bReplay').onclick = () => { state.hold = 0; startReplay(eui); };
   if (changed) updateTrails();   // the chosen vehicle's trail is drawn strong, the others fade
@@ -1467,7 +1478,7 @@ function cydomHtml(p) {
     (rows ? `<div class="pp-obs"><table>${rows}</table></div>` : '') +
     `<div class="pp-f"><a class="btn mo-csv" href="/api/cydom/history.csv?station=${encodeURIComponent(p.id)}&days=1" download>${icon('dl')}${T('Download CSV · 24 hours', 'Λήψη CSV · 24 ώρες')}</a>` +
     `<a class="btn" href="/#/weather/${encodeURIComponent(p.id)}" target="_top">${T('All data for this station', 'Όλα τα δεδομένα του σταθμού')}</a></div>` +
-    `<div class="pp-credit">© Cyprus Department of Meteorology</div></div>`;
+    `<div class="pp-credit">${T('© Cyprus Department of Meteorology', '© Τμήμα Μετεωρολογίας Κύπρου')}</div></div>`;
 }
 const CYDOM_POPUP = { popup: { maxWidth: '320px' }, after: cydomHistory };
 popupOn('cydom-dots', cydomHtml, CYDOM_POPUP);

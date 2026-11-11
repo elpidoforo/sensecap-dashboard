@@ -378,7 +378,7 @@
           return;
         }
         if (!st.cat || !avail.find((c) => c.id === st.cat)) st.cat = avail[0].id;
-        chipsBox.replaceChildren(...avail.map((c) => el('button', { class: 'bd-chip' + (c.id === st.cat ? ' on' : ''), type: 'button', 'aria-pressed': c.id === st.cat ? 'true' : 'false', onclick: () => { st.cat = c.id; paintMap(); } }, T(c.en, c.el))));
+        chipsBox.replaceChildren(...avail.map((c) => el('button', { class: 'bd-chip' + (c.id === st.cat ? ' on' : ''), type: 'button', 'aria-pressed': c.id === st.cat ? 'true' : 'false', onclick: () => { st.cat = c.id; paintMap(); const on = chipsBox.querySelector('.on'); if (on) on.focus(); } }, T(c.en, c.el))));
         const C = cat(st.cat), now = Date.now(), dv = devices();
         const cols = SCH.map((s) => {
           const vals = []; let unit = null;
@@ -413,10 +413,10 @@
         const bad = dv.map((d, i) => ({ d, s: sts[i], m: seenMs(d) })).filter((x) => x.s !== 'on').sort((a, b) => a.m - b.m).slice(0, 4);
         ringBody.replaceChildren(
           el('div', { class: 'bd-eb' }, T('Sensors online · all ' + dv.length + ' sensors', 'Αισθητήρες σε λειτουργία · και οι ' + dv.length)),
-          el('div', { class: 'bd-ringtop', style: 'margin-top:14px' }, ringSvg(on, quiet, off, veh, fixed, other),
+          el('div', { class: 'bd-ringtop' }, ringSvg(on, quiet, off, veh, fixed, other),
             el('ul', { class: 'bd-leg' }, li('#59d98e', T('Online', 'Σε λειτουργία'), on), li('#F2B24C', T('Quiet for over an hour', 'Σιωπηλοί πάνω από μία ώρα'), quiet), li('#FF7A6A', T('Offline', 'Εκτός λειτουργίας'), off), el('hr'),
               li('#4CCBEA', T('Named as bus or car', 'Ονομάζονται λεωφορείο/αυτοκίνητο'), veh), li('#7d93b3', T('Named as classroom or fixed', 'Ονομάζονται τάξη/σταθερός'), fixed), li('#4b6a8c', T('Name does not say', 'Το όνομα δεν το δηλώνει'), other))),
-          el('div', { style: 'margin-top:14px' }, el('div', { class: 'bd-bigok' + (pct < 50 ? ' bad' : pct < 80 ? ' warn' : '') }, String(pct), el('small', null, T('% online', '% σε λειτουργία'))),
+          el('div', null, el('div', { class: 'bd-bigok' + (pct < 50 ? ' bad' : pct < 80 ? ' warn' : '') }, String(pct), el('small', null, T('% online', '% σε λειτουργία'))),
             el('p', { style: 'margin-top:4px' }, T(on + ' of ' + dv.length + ' sensors sent a reading in the last hour. ', on + ' από ' + dv.length + ' αισθητήρες έστειλαν μέτρηση την τελευταία ώρα. '), ready('vehicles') ? inl('vehicles', T('Vehicles', 'Οχήματα')) : null)),
           el('div', { class: 'nm-callout nm-callout--info' }, T('Quiet: nothing sent for over an hour. Offline: nothing for over a day. Moving or fixed is not guessed: it follows the device name.', 'Σιωπηλός: τίποτα για πάνω από μία ώρα. Εκτός λειτουργίας: τίποτα για πάνω από μία ημέρα. Το αν κινείται ή είναι σταθερός δεν εικάζεται: ακολουθεί το όνομα της συσκευής.')),
           bad.length ? el('ul', { class: 'bd-quiet' }, bad.map((x) => el('li', null, el('i', { style: 'background:' + (x.s === 'quiet' ? '#F2B24C' : '#FF7A6A') }), el('em', { title: x.d.name }, x.d.name),
@@ -517,7 +517,7 @@
         } else g.append(el('div', { class: 'empty' }, st.series === 'loading' ? T('Loading…', 'Φόρτωση…') : T('No hourly history yet.', 'Δεν υπάρχει ακόμα ωριαίο ιστορικό.')));
         const delayNote = exactNow ? T('You are signed in as a teacher, so positions are exact. ', 'Είστε συνδεδεμένος ως εκπαιδευτικός, οπότε οι θέσεις είναι ακριβείς. ') : T('Positions are public only after ' + delayH + ' h, rounded to about 1 km. ', 'Οι θέσεις δημοσιεύονται μετά από ' + delayH + ' ώρες, στρογγυλοποιημένες περίπου στο 1 χλμ. ');
         kVeh.replaceChildren(lab,
-          el('div', { class: 'val' }, el('span', { class: 'num bd-cy' }, String(on.length)), el('span', { class: 'chipu' }, T('of ' + dv.length, 'από ' + dv.length)), moving != null ? el('span', { class: 'chipu' }, exactNow ? T(moving + ' moving now', moving + ' σε κίνηση τώρα') : T(moving + ' moving about ' + delayH + ' h ago', moving + ' σε κίνηση πριν από περίπου ' + delayH + ' ώρες')) : null),
+          el('div', { class: 'val' }, el('span', { class: 'num bd-cy' }, String(on.length)), el('span', { class: 'chipu' }, T('of ' + dv.length, 'από ' + dv.length)), moving != null && on.length ? el('span', { class: 'chipu' }, exactNow ? T(moving + ' moving now', moving + ' σε κίνηση τώρα') : T(moving + ' moving about ' + delayH + ' h ago', moving + ' σε κίνηση πριν από περίπου ' + delayH + ' ώρες')) : null),
           el('p', { class: 'sub' }, T('Vehicle sensors that sent a reading in the last hour. ', 'Αισθητήρες οχημάτων που έστειλαν μέτρηση την τελευταία ώρα. '), delayNote, ready('vehicles') ? inl('vehicles', T('Vehicles', 'Οχήματα')) : null), g);
       }
 
