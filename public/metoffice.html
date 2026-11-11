@@ -178,6 +178,8 @@ const isOld = (ms) => !ms || Date.now() - ms > 3 * 3600000;
 const compass = (d) => (d == null ? '' : ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((d % 360) + 360) % 360 / 45) % 8]);
 const failure = (what, e) => h('p', { class: 'err' }, `Could not load ${what}. ${e.message}`);
 const pic = (src, alt) => h('img', { class: 'pic', src, alt, loading: 'lazy', onerror: (e) => e.target.replaceWith(h('p', { class: 'err' }, 'This picture is not available from the Met Office right now.')) });
+// The Met Office pages carry their logo and a quality badge; they are not worth showing again.
+const useful = (list) => (list || []).filter((u) => !/meteo_new|ISO_9001|logo|banner|spacer/i.test(u));
 const imgUrl = (name) => '/api/dom/img?name=' + encodeURIComponent(name);
 
 // Tab buttons. select(id) draws that tab; the first one opens at start.
@@ -203,10 +205,12 @@ async function loadWarnings() {
   try {
     const p = await api('/api/dom/page?name=warnings');
     const text = (p.text || '').trim();
+    // With nothing in force the page shows only its heading ("ISSUED WEATHER WARNINGS").
+    const none = text.replace(/\s+/g, ' ').length < 40;
     box.className = '';
     box.replaceChildren(
-      text ? h('pre', { class: 'txt' }, text) : h('p', { class: 'muted' }, 'The Met Office warnings page has no text right now.'),
-      (p.images || []).slice(0, 4).map((u) => pic('/api/dom/img?u=' + encodeURIComponent(u), 'Picture from the Met Office warnings page')),
+      none ? h('p', null, h('b', null, 'No warnings in force.'), ' The Met Office warnings page lists none right now.') : h('pre', { class: 'txt' }, text),
+      useful(p.images).slice(0, 4).map((u) => pic('/api/dom/img?u=' + encodeURIComponent(u), 'Picture from the Met Office warnings page')),
       h('p', { class: 'muted small' }, 'Read from the Met Office ', h('a', { href: p.url, target: '_blank', rel: 'noopener' }, 'warnings page'), ' ' + ago(Date.parse(p.fetched)) + '. This server keeps a copy whenever the text changes.'));
   } catch (e) { box.replaceChildren(failure('the warnings', e)); }
 }
@@ -242,7 +246,7 @@ tabs($('seaTabs'), SEA, async (id) => {
     box.replaceChildren(
       p.title ? h('h3', { style: 'margin-top:0' }, p.title) : null,
       text ? h('pre', { class: 'txt' }, text) : h('p', { class: 'muted' }, 'This Met Office page has no text right now.'),
-      (p.images || []).slice(0, 3).map((u) => pic('/api/dom/img?u=' + encodeURIComponent(u), 'Picture from the Met Office page')),
+      useful(p.images).slice(0, 3).map((u) => pic('/api/dom/img?u=' + encodeURIComponent(u), 'Picture from the Met Office page')),
       h('p', { class: 'muted small' }, 'Read from ', h('a', { href: p.url, target: '_blank', rel: 'noopener' }, 'the Met Office page'), ' ' + ago(Date.parse(p.fetched)) + '.'));
   } catch (e) { box.className = ''; box.replaceChildren(failure('this page', e)); }
 });
