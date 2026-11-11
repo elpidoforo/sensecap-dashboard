@@ -352,8 +352,9 @@ function createApp(opts = {}) {
   }
 
   // ---- public ----
-  route('GET', /^\/app\/api\/schools$/, 'none', () => ({
+  route('GET', /^\/app\/api\/schools$/, 'none', ({ req }) => ({
     schools: all('SELECT id, name, short FROM schools ORDER BY id'),
+    open_join: Boolean(opts.openJoin && opts.openJoin(req)),
   }));
 
   route('POST', /^\/app\/api\/join$/, 'none', async ({ req, res, body }) => {
@@ -363,9 +364,11 @@ function createApp(opts = {}) {
     const school = schoolOf(Number(body.school_id));
     const role = body.role === 'teacher' ? 'teacher' : 'student';
     if (!school) fail(400, 'Choose your school.', 'school');
+    // With the shared class sign-in on, a student who has signed in to it picks a school, a name and a password: no code.
+    const open = role === 'student' && Boolean(opts.openJoin && opts.openJoin(req));
     const want = role === 'teacher' ? school.teacher_code : school.student_code;
-    if (!same(normCode(body.code), normCode(want))) limiter.take('join-fail:' + clientIp(req), 1000, 15 * 60000);
-    if (!same(normCode(body.code), normCode(want))) fail(403, role === 'teacher' ? 'That teacher code is not right for this school.' : 'That school code is not right. Ask your teacher.', 'code');
+    if (!open && !same(normCode(body.code), normCode(want))) limiter.take('join-fail:' + clientIp(req), 1000, 15 * 60000);
+    if (!open && !same(normCode(body.code), normCode(want))) fail(403, role === 'teacher' ? 'That teacher code is not right for this school.' : 'That school code is not right. Ask your teacher.', 'code');
     if (body.consent !== true) fail(400, 'Please tick the box to confirm you understand how the app works.', 'consent');
     const name = checkName(body.name, role);
     checkPassword(body.password, name);
@@ -374,7 +377,7 @@ function createApp(opts = {}) {
     const id = tx(() => {
       if (get('SELECT 1 AS x FROM users WHERE school_id = ? AND name_key = ? AND status != ?', school.id, key, 'removed')) fail(409, 'Someone at your school already uses that name. Add an initial or a number.', 'name');
       return run('INSERT INTO users(school_id, name, name_key, pw_salt, pw_hash, role, status, created_at, consent_at, last_seen) VALUES (?,?,?,?,?,?,?,?,?,?)',
-        school.id, name, key, salt, hash, role, 'pending', Date.now(), Date.now(), Date.now()).id;
+        school.id, name, key, salt, hash, role, open ? 'active' : 'pending', Date.now(), Date.now(), Date.now()).id;
     });
     const token = createSession(id);
     res.setHeader('Set-Cookie', cookie(req, token, SESSION_DAYS * 86400));

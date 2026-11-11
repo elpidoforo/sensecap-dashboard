@@ -912,7 +912,7 @@ function startApp() {
     apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL,
     data: botData, log: (m) => console.error(m),
   });
-  appCore = createApp({ dataDir: DATA_DIR, bot, log: (m) => console.log(m) });
+  appCore = createApp({ dataDir: DATA_DIR, bot, openJoin: (req) => classLogin.enabled && classLogin.valid(req), log: (m) => console.log(m) });
   if (!appCore.enabled) return console.error('Student app is off: ' + appCore.reason);
   studio = createStudio({ appCore, bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });
   const st = bot.status();

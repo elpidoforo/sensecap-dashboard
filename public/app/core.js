@@ -285,7 +285,7 @@
     if (p === '/staff') return staffView();
     if (!App.state.schools.length && !renderGuest.asked) {
       renderGuest.asked = true;
-      api('/app/api/schools').then((r) => { App.state.schools = r.schools || []; if (!App.state.me && path() === '/') renderGuest(); }).catch(() => {});
+      api('/app/api/schools').then((r) => { App.state.schools = r.schools || []; App.state.openJoin = Boolean(r.open_join); if (!App.state.me && path() === '/') renderGuest(); }).catch(() => {});
     }
     $('#root').replaceChildren(h('div', { class: 'welcome' },
       h('img', { class: 'logo', src: '/app/icons/icon.svg', alt: '' }),
@@ -293,7 +293,7 @@
       h('p', null, 'Sensors on school buses and cars in Cyprus. See the data, share the maps, talk with your team.'),
       h('div', { class: 'schools' }, App.state.schools.map((s) => h('div', null, App.schoolDot(s.short), s.name))),
       h('div', { class: 'actions' },
-        h('a', { class: 'btn primary', href: '#/join' }, 'Join with a school code'),
+        h('a', { class: 'btn primary', href: '#/join' }, (App.state.openJoin ? 'Join' : 'Join with a school code')),
         h('a', { class: 'btn', href: '#/signin' }, 'Sign in')),
       h('p', { class: 'fine' }, 'Teachers and admins: ', h('a', { href: '#/staff' }, 'staff setup'))));
   }
@@ -302,14 +302,14 @@
 
   async function joinView() {
     let schools = App.state.schools;
-    if (!schools.length) { try { schools = App.state.schools = (await api('/app/api/schools')).schools; } catch (e) { schools = []; } }
+    try { const sr = await api('/app/api/schools'); schools = App.state.schools = sr.schools || []; App.state.openJoin = Boolean(sr.open_join); } catch (e) { schools = App.state.schools || []; }
     let school = null, role = 'student';
     const body = h('div', { class: 'page' });
     const draw = () => {
       body.replaceChildren(
         h('h2', { style: 'margin-bottom:10px' }, '1. Choose your school'),
         h('div', { class: 'schoolpick' }, schools.map((s) => h('button', { type: 'button', class: school === s.id ? 'on' : '', 'aria-pressed': String(school === s.id), onclick: () => { school = s.id; draw(); } }, App.schoolDot(s.short), s.name))),
-        school ? joinForm() : h('p', { class: 'muted' }, schools.length ? 'Then you will enter the school code your teacher gave you.' : 'The school list could not load. Check your connection.'));
+        school ? joinForm() : h('p', { class: 'muted' }, schools.length ? (App.state.openJoin ? 'Then you will choose a name and a password.' : 'Then you will enter the school code your teacher gave you.') : 'The school list could not load. Check your connection.'));
     };
     const joinForm = () => {
       const code = h('input', { type: 'text', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', placeholder: 'XXXX-XXXX', 'aria-label': 'School code' });
@@ -320,11 +320,11 @@
         h('h2', { style: 'margin:6px 0 10px' }, '2. Your details'),
         h('div', { class: 'seg' }, ['student', 'teacher'].map((r) => h('button', { type: 'button', class: role === r ? 'on' : '', onclick: () => { role = r; draw(); } }, r === 'student' ? 'I am a student' : 'I am a teacher'))),
         form([
-          field(role === 'teacher' ? 'Teacher code' : 'School code', code, role === 'teacher' ? 'Ask the project admin for the teacher code.' : 'Your teacher gave you this code.'),
+          (role === 'student' && App.state.openJoin) ? null : field(role === 'teacher' ? 'Teacher code' : 'School code', code, role === 'teacher' ? 'Ask the project admin for the teacher code.' : 'Your teacher gave you this code.'),
           field('Display name', name, 'Other people see this. Use your first name and an initial. Do not use your full name.'),
           field('Password', pw, 'At least 8 characters. Do not share it.'),
           h('label', { class: 'check' }, consent, h('span', null, 'I know my teachers can read the chat and my questions to the assistant, and that I must not share private details.')),
-        ], 'Ask to join', async () => {
+        ], (App.state.openJoin ? 'Join' : 'Ask to join'), async () => {
           const r = await api('/app/api/join', { school_id: school, role, code: code.value, name: name.value, password: pw.value, consent: consent.checked });
           App.state.me = r.user; await loadMe(); location.hash = '#/'; render();
         }));
