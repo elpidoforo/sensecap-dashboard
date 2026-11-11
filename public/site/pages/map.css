@@ -1,6 +1,6 @@
 /* Live map and Cyprus 3D (shared by city3d.js). Page-only styles, prefix mp-. Tokens and shell classes come from site.css. */
 .mp-frame { position: relative; background: #0C1626; }
-.mp-frame iframe { min-height: 560px; }
+.frame-card.mp-frame iframe { height: calc(100vh - 300px); min-height: 560px; }
 .mp-load { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; background: #0C1626; color: var(--nm-ink-soft); font: 500 14px/1.5 var(--nm-font); }
 .mp-spin { width: 28px; height: 28px; border-radius: 50%; border: 3px solid rgba(255,255,255,.14); border-top-color: var(--nm-copper-2); animation: mp-spin .9s linear infinite; }
 .mp-fail { color: var(--nm-bad); }
@@ -9,7 +9,7 @@
 .mp-note { margin: 12px 4px 0; font-size: 12.5px; }
 @keyframes mp-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .mp-spin { animation-duration: 3s; } }
-@media (max-width: 640px) { .mp-frame iframe { height: calc(100vh - 170px); min-height: 600px; } }
+@media (max-width: 640px) { .frame-card.mp-frame iframe { height: calc(100vh - 170px); min-height: 620px; } }
 /* freshness pill states (the pill is built by SC.head; the page sets the state from the newest sensor reading) */
 .fresh-pill.stale { border-color: var(--nm-warn-line); background: var(--nm-warn-bg); color: var(--nm-warn); }
 .fresh-pill.stale i { background: #F2B24C; }
