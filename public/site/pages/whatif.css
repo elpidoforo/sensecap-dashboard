@@ -126,7 +126,7 @@ textarea.wf-sum { min-height: 150px; font: 400 13.5px/1.55 var(--nm-font); resiz
 .wf-how ol li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 700 11.5px/1 var(--nm-font); background: var(--nm-info-bg); border: 1px solid var(--nm-info-line); color: var(--nm-info); }
 .wf-how ol b { color: #fff; font-weight: 650; }
 .wf-how .rt { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.wf-formula { margin: 0; padding: 12px 14px; border-radius: 12px; background: #0C1626; border: 1px solid rgba(255, 255, 255, .08); color: #F2CF86; font: 500 12.5px/1.7 ui-monospace, "SF Mono", Menlo, Consolas, monospace; white-space: pre; overflow-x: auto; }
+.wf-formula { margin: 0; padding: 12px 14px; border-radius: 12px; background: #0C1626; border: 1px solid rgba(255, 255, 255, .08); color: #F2CF86; font: 500 12.5px/1.7 ui-monospace, "SF Mono", Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
 .wf-untested { margin: 0; font-size: 13px; line-height: 1.5; color: var(--nm-muted); }
 .wf-untested b { color: var(--nm-ink-soft); }
 .wf-tbl { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; width: 100%; }

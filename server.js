@@ -1000,11 +1000,15 @@ function startMetOffice() {
 const { createApp } = require('./school');
 const { createBot } = require('./bot');
 const { createStudio } = require('./studio');
+const { createCouncil } = require('./council');
+const { createReports } = require('./reports');
 const citiesApi = require('./cities');
 const { createClassLogin } = require('./classlogin');
 const classLogin = createClassLogin();
 let appCore = null;
 let studio = null;
+let council = null;
+let reports = null;
 let assistant = null;   // the Ask assistant (bot.js), for the helper list
 
 /* ---------- who sees what (vehicle positions) ----------
@@ -1115,6 +1119,8 @@ function startApp() {
   if (!appCore.enabled) return console.error('Student app is off: ' + appCore.reason);
   feeds.attach(appCore);   // from now on the on/off switches of the feeds are kept in the student database
   studio = createStudio({ appCore, classValid: (req) => classLogin.enabled && classLogin.valid(req), bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });
+  council = createCouncil({ appCore, bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, viewer: (req) => (studio && studio.viewer ? studio.viewer(req) : null), log: (m) => console.error(m) });
+  reports = createReports({ appCore, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });
   const st = bot.status();
   console.log(`Student app ready (${appCore.info().users} accounts). Assistant ${st.configured ? 'on, model ' + st.model : 'off: set ANTHROPIC_API_KEY'}. Admin sign-up ${process.env.ADMIN_SETUP_CODE ? 'enabled' : 'disabled: set ADMIN_SETUP_CODE'}.`);
 }
@@ -1441,6 +1447,8 @@ const server = http.createServer(async (req, res) => {
     if (appCore && (await appCore.handle(req, res, url))) return;   // /app/api/*: the app does its own sign-in
     if (await classLogin.handle(req, res, url)) return;              // /cities/api/login: the shared class sign-in
     if (studio && (await studio.handle(req, res, url))) return;     // /studio/* and /mcp: the Build studio does its own sign-in
+    if (council && (await council.handle(req, res, url))) return;     // /council/api/*: the Council room
+    if (reports && (await reports.handle(req, res, url))) return;     // /council/api/reports*: weekly reports
     if (url.pathname === '/app') { res.writeHead(302, { Location: '/app/' }); return res.end(); }
     const inApp = url.pathname.startsWith('/app/');
     const openAsset = /^\/cities\/(login\.html|login\.js|cities\.css|logo\.svg)$|^\/teachers\/?$/.test(url.pathname);   // what the class sign-in page needs, and the teachers' way in (it only redirects into the app)
