@@ -37,6 +37,7 @@
   .delayed #controls { max-height: calc(100% - 200px); }
   .rail-h { display: flex; align-items: center; gap: 8px; padding: 14px 12px 8px 16px; }
   .rail-h .eyebrow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 700 11px/1 var(--font); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  :lang(el) .rail-h .eyebrow { letter-spacing: .06em; }
   .live { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--ok-line); background: var(--ok-bg); color: var(--ok); font: 600 11px/1 var(--font); white-space: nowrap; }
   .live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--dot-ok); }
   .live.stale { border-color: var(--warn-line); background: var(--warn-bg); color: var(--warn); }

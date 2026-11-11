@@ -16,7 +16,7 @@
 .ak-chats button.on { background: var(--nm-copper-fill); border-color: var(--nm-copper-ring); color: #fff; }
 .ak-chats .ak-tt { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ak-nochats { margin: 0 4px; font-size: 13px; color: var(--nm-muted); }
-.ak-clear { align-self: flex-start; margin: -6px 0 0 2px; min-height: 34px; padding: 5px 10px; font-size: 13px; font-weight: 600; color: var(--nm-lede); }
+.ak-clear { align-self: flex-start; max-width: 100%; white-space: normal; text-align: left; line-height: 1.25; margin: -6px 0 0 2px; min-height: 34px; padding: 5px 10px; font-size: 13px; font-weight: 600; color: var(--nm-lede); }
 .ak-clear svg { width: 15px; height: 15px; }
 .ak-reads { padding: 12px 12px 12px; border-radius: 16px; background: rgba(255, 255, 255, .04); border: 1px solid rgba(255, 255, 255, .08); }
 .ak-reads ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 11px; }
@@ -137,4 +137,5 @@ a.ak-chip:hover { background: rgba(255, 255, 255, .1); border-color: var(--nm-co
   .ak-guard span { text-align: left; }
   .ak-row .nm-btn .lbl { display: none; }
   .ak-row .nm-btn { padding: 8px 14px; }
+  .ak-row textarea { min-height: 56px; }
 }

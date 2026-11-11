@@ -154,4 +154,6 @@
   .ap-u2 { margin: -14px 18px 0; }
   .ap-decide .nm-btn { flex: 1 1 100%; }
   .ap-trailc { padding: 20px 18px 18px; }
+  .ap-who { gap: 4px 12px; }
+  .ap-who .dim { display: none; }
 }

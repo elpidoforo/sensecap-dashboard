@@ -754,8 +754,8 @@
     if (!sensors.length || !stationsOf().length) {
       slots.hint(T('Put one of our sensors next to a Met Office station and see how far apart they are.', 'Βάλτε έναν από τους αισθητήρες μας δίπλα σε έναν σταθμό της Μετεωρολογικής Υπηρεσίας και δείτε πόσο απέχουν.'));
       slots.main.append(h('div', { class: 'card-h' }, h('span', { class: 'kpi-label' }, T('Sensor vs official', 'Αισθητήρας και επίσημος σταθμός'))),
-        empty(!sensors.length ? 'None of the school sensors reports temperature, humidity, pressure or wind yet, so there is nothing to put next to the Met Office.' : 'The Met Office station list is not available right now, so there is nothing to compare with.',
-          !sensors.length ? 'Κανένας αισθητήρας σχολείου δεν αναφέρει ακόμα θερμοκρασία, υγρασία, πίεση ή άνεμο, οπότε δεν υπάρχει τίποτα να συγκριθεί με τη Μετεωρολογική Υπηρεσία.' : 'Ο κατάλογος σταθμών της Μετεωρολογικής Υπηρεσίας δεν είναι διαθέσιμος τώρα, οπότε δεν υπάρχει με τι να συγκριθεί.'));
+        empty(!sensors.length && E.notes.some((n) => n.en === 'the school sensors') ? 'The school sensors could not be loaded just now, so there is nothing to put next to the Met Office. Use Try again above.' : !sensors.length ? 'None of the school sensors reports temperature, humidity, pressure or wind yet, so there is nothing to put next to the Met Office.' : 'The Met Office station list is not available right now, so there is nothing to compare with.',
+          !sensors.length && E.notes.some((n) => n.en === 'the school sensors') ? 'Οι αισθητήρες των σχολείων δεν φορτώθηκαν τώρα, οπότε δεν υπάρχει τίποτα να συγκριθεί με τη Μετεωρολογική Υπηρεσία. Χρησιμοποιήστε το «Δοκιμάστε ξανά» παραπάνω.' : !sensors.length ? 'Κανένας αισθητήρας σχολείου δεν αναφέρει ακόμα θερμοκρασία, υγρασία, πίεση ή άνεμο, οπότε δεν υπάρχει τίποτα να συγκριθεί με τη Μετεωρολογική Υπηρεσία.' : 'Ο κατάλογος σταθμών της Μετεωρολογικής Υπηρεσίας δεν είναι διαθέσιμος τώρα, οπότε δεν υπάρχει με τι να συγκριθεί.'));
       return () => {};
     }
     if (!E.byId.get(st.sensor) || !sensors.includes(E.byId.get(st.sensor))) st.sensor = (sensors.find((s) => s.online) || sensors[0]).id;
@@ -821,7 +821,7 @@
       if (!a.length) notes.push(T(rs.label + ' sent no readings in the last ' + rangeWord(st.r) + (sensor.lastSeen ? ' (last seen ' + SC.ago(sensor.lastSeen) + ')' : '') + '.', rs.label + ' δεν έστειλε μετρήσεις τις τελευταίες ' + rangeWord(st.r) + (sensor.lastSeen ? ' (τελευταία εμφάνιση ' + SC.ago(sensor.lastSeen) + ')' : '') + '.'));
       if (!b.length) notes.push(T(station.name + ' has no ' + (rb ? rb.name.toLowerCase() : '') + ' readings in the last ' + rangeWord(st.r) + '. Pick another station.', 'Ο σταθμός ' + station.name + ' δεν έχει μετρήσεις (' + (rb ? rb.name.toLowerCase() : '') + ') τις τελευταίες ' + rangeWord(st.r) + '. Επιλέξτε άλλον σταθμό.'));
       if (!a.length || !b.length) { fill(out, notes.map((n) => h('p', { class: 'ex-stale', role: 'status' }, n)), empty('Nothing to compare yet. Pick another sensor, station or a longer period.', 'Δεν υπάρχει ακόμα τίποτα για σύγκριση. Επιλέξτε άλλον αισθητήρα, σταθμό ή μεγαλύτερη περίοδο.'), srcLine([rs, rb])); return; }
-      const pr = pairUp(a, b), hoursSet = new Set(pr.map((p) => Math.floor(p.t / HOUR))).size;
+      const pr = pairUp(a, b), hoursSet = Math.min(st.r, new Set(pr.map((p) => Math.floor(p.t / HOUR))).size);
       const enough = pr.length >= 6 && hoursSet >= 2;
       const u = rs.unit ? ' ' + rs.unit : '', temp = st.fam === 'temp';
       const meanD = enough ? mean(pr.map((p) => p.d)) : null, corr = enough ? pearson(pr) : null;
@@ -1136,6 +1136,8 @@
           if (toolCleanup) { try { toolCleanup(); } catch (e) { /* ignore */ } toolCleanup = null; }
           S.tool = id; mounted = id;
           btns.forEach((b, k) => { b.classList.toggle('on', k === id); b.setAttribute('aria-selected', String(k === id)); b.tabIndex = k === id ? 0 : -1; });
+          const cur = btns.get(id);
+          if (pills.scrollWidth > pills.clientWidth) pills.scrollLeft = cur.offsetLeft - (pills.clientWidth - cur.offsetWidth) / 2;
           main.setAttribute('aria-labelledby', 'ex-tab-' + id);
           fill(top); fill(main);
           toolHint.textContent = '';

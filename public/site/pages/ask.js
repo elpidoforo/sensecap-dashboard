@@ -106,8 +106,10 @@
     return box;
   }
 
-  function whenText(at) {   // "14:32" today, "tomorrow at 02:10" otherwise (Cyprus time)
-    return SC.date(at) === SC.date(Date.now()) ? SC.time(at) : t('tomorrow at ', 'αύριο στις ') + SC.time(at);
+  // "at 14:32" today, "tomorrow at 02:10" otherwise (Cyprus time); the Greek form carries its own preposition too.
+  function whenText(at) {
+    const same = SC.date(at) === SC.date(Date.now());
+    return t(same ? 'at ' : 'tomorrow at ', same ? 'στις ' : 'αύριο στις ') + SC.time(at);
   }
   const stamp = (at) => (SC.date(at) === SC.date(Date.now()) ? t('Today, ', 'Σήμερα, ') + SC.time(at) : SC.date(at) === SC.date(Date.now() - 86400000) ? t('Yesterday, ', 'Χθες, ') + SC.time(at) : SC.date(at) + ', ' + SC.time(at));
   const listWhen = (at) => (SC.date(at) === SC.date(Date.now()) ? t('Today, ', 'Σήμερα, ') + SC.time(at) : SC.date(at) === SC.date(Date.now() - 86400000) ? t('Yesterday', 'Χθες') : SC.date(at));
@@ -117,10 +119,10 @@
     const at = b && b.retry_at ? Number(b.retry_at) : b && b.retry_after ? Date.now() + Number(b.retry_after) * 1000 : 0;
     const when = at ? whenText(at) : '';
     const lim = b && b.limit;
-    if (code === 'rate') return t('You are asking quickly. Please wait a moment' + (when ? ' (until ' + when + ')' : '') + ', then ask again.', 'Ρωτάτε πολύ γρήγορα. Περιμένετε λίγο' + (when ? ' (μέχρι τις ' + when + ')' : '') + ' και ρωτήστε ξανά.');
-    if (code === 'daily') return t('You have used all ' + (lim || 'your') + ' questions for the last 24 hours. ' + (when ? 'You can ask again at ' + when + ' (Cyprus time).' : 'They come back later today.'), 'Χρησιμοποιήσατε ' + (lim ? 'και τις ' + lim : 'όλες τις') + ' ερωτήσεις των τελευταίων 24 ωρών. ' + (when ? 'Μπορείτε να ρωτήσετε ξανά στις ' + when + ' (ώρα Κύπρου).' : 'Επιστρέφουν αργότερα σήμερα.'));
-    if (code === 'ip') return t('Many questions came from this network today. ' + (when ? 'You can ask again at ' + when + ' (Cyprus time).' : 'Please try again later.'), 'Πολλές ερωτήσεις ήρθαν σήμερα από αυτό το δίκτυο. ' + (when ? 'Μπορείτε να ρωτήσετε ξανά στις ' + when + ' (ώρα Κύπρου).' : 'Δοκιμάστε ξανά αργότερα.'));
-    if (code === 'global') return t('The assistant is resting because everyone together used the daily limit. ' + (when ? 'It is free again at ' + when + ' (Cyprus time).' : 'Please try again later.'), 'Ο βοηθός ξεκουράζεται επειδή όλοι μαζί χρησιμοποίησαν το ημερήσιο όριο. ' + (when ? 'Θα είναι ξανά διαθέσιμος στις ' + when + ' (ώρα Κύπρου).' : 'Δοκιμάστε ξανά αργότερα.'));
+    if (code === 'rate') return t('You are asking quickly. Please wait a moment' + (at ? ' (until ' + SC.time(at) + ')' : '') + ', then ask again.', 'Ρωτάτε πολύ γρήγορα. Περιμένετε λίγο' + (at ? ' (μέχρι τις ' + SC.time(at) + ')' : '') + ' και ρωτήστε ξανά.');
+    if (code === 'daily') return t('You have used all ' + (lim || 'your') + ' questions for the last 24 hours. ' + (when ? 'You can ask again ' + when + ' (Cyprus time).' : 'They come back later today.'), 'Χρησιμοποιήσατε ' + (lim ? 'τις ' + lim : 'όλες τις') + ' ερωτήσεις σας των τελευταίων 24 ωρών. ' + (when ? 'Μπορείτε να ρωτήσετε ξανά ' + when + ' (ώρα Κύπρου).' : 'Επιστρέφουν αργότερα σήμερα.'));
+    if (code === 'ip') return t('Many questions came from this network today. ' + (when ? 'You can ask again ' + when + ' (Cyprus time).' : 'Please try again later.'), 'Πολλές ερωτήσεις ήρθαν σήμερα από αυτό το δίκτυο. ' + (when ? 'Μπορείτε να ρωτήσετε ξανά ' + when + ' (ώρα Κύπρου).' : 'Δοκιμάστε ξανά αργότερα.'));
+    if (code === 'global') return t('The assistant is resting because everyone together used the daily limit. ' + (when ? 'It is free again ' + when + ' (Cyprus time).' : 'Please try again later.'), 'Ο βοηθός ξεκουράζεται επειδή όλοι μαζί χρησιμοποίησαν το ημερήσιο όριο. ' + (when ? 'Θα είναι ξανά διαθέσιμος ' + when + ' (ώρα Κύπρου).' : 'Δοκιμάστε ξανά αργότερα.'));
     return (b && b.error) || t('The assistant could not answer just now. Try again in a moment.', 'Ο βοηθός δεν μπόρεσε να απαντήσει τώρα. Δοκιμάστε ξανά σε λίγο.');
   }
 

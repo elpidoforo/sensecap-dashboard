@@ -460,6 +460,7 @@
             const avail = KEYS.filter((k) => pointsOf(s, k[0]).length > 1);
             if (!avail.length) {
               fill(chipsBox);
+              if (!p) { fill(chartBox, h('div', { class: 'empty' }, T('This station is not in the Met Office list and we have no saved readings for it. Pick a station from the table.', 'Αυτός ο σταθμός δεν υπάρχει στη λίστα της Μετεωρολογικής Υπηρεσίας και δεν έχουμε αποθηκευμένες μετρήσεις γι’ αυτόν. Επιλέξτε σταθμό από τον πίνακα.'))); noteBox.textContent = ''; detailCard.querySelector('.wx-chart-title').textContent = ''; return; }
               fill(chartBox, h('div', { class: 'empty' }, T('Not enough readings saved for this period yet. The server saves a reading every 10 minutes, so check back soon.', 'Δεν έχουν αποθηκευτεί αρκετές μετρήσεις για αυτή την περίοδο. Ο διακομιστής αποθηκεύει μία μέτρηση ανά 10 λεπτά, οπότε ελέγξτε ξανά σύντομα.')));
               noteBox.textContent = ''; detailCard.querySelector('.wx-chart-title').textContent = '';
               return;
@@ -509,9 +510,10 @@
       root.append(src);
 
       /* ---------- start ---------- */
+      const deepLink = Boolean(ctx.args && ctx.args[0]);   // only a station address scrolls down; the default station must not
       (async () => {
         await loadStations(false);
-        if (S.sel) {
+        if (deepLink && S.sel) {
           setPill('stations');
           setTimeout(() => { if (alive) secEl.stations.scrollIntoView({ behavior: 'auto', block: 'start' }); }, 60);
         }
