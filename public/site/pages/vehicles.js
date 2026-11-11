@@ -22,6 +22,8 @@
   const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
   const fmt = (v, d) => (v == null || !isFinite(v) ? '–' : Number(v).toFixed(d == null ? 1 : d).replace('-', '−'));
   const enc = encodeURIComponent;
+  // where "follow" leads: the trip page when it exists, else the map opened on that vehicle
+  const followHref = (eui) => (SC.ready.has('trip') ? '#/trip' + (eui ? '/' + enc(eui) : '') : SC.ready.has('map') ? '#/map' + (eui ? '?eui=' + enc(eui) : '') : null);
   const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
   const when = (t) => (SC.date(t) === SC.date(Date.now()) ? SC.time(t) : SC.date(t) + ' ' + SC.time(t));
 
@@ -407,8 +409,6 @@
     root.append(head, cmd, noteBox, tilesBox, secH, gridBox, tripsCard);
     const retry = () => refresh(true);
 
-    // where "follow" leads: the trip page when it exists, else the map opened on that vehicle
-    const followHref = (eui) => (SC.ready.has('trip') ? '#/trip' + (eui ? '/' + enc(eui) : '') : SC.ready.has('map') ? '#/map' + (eui ? '?eui=' + enc(eui) : '') : null);
     function paintCmd(vs) {
       const movers = vs.filter((v) => v.gps && (v.st === 'road' || v.st === 'live' || v.st === 'park'));
       const pick = vs.find((v) => v.gps && v.st === 'road') || movers[0];
@@ -646,7 +646,7 @@
       fill(noteBox, privacyNote(c));
       csvBtn = el('button', { class: 'nm-btn vh-ghost', type: 'button', onclick: downloadCsv }, ico('download'), T('Download CSV', 'Λήψη CSV'));
       fill(cmd, 
-        me.gps && SC.ready.has('map') ? el('a', { class: 'nm-btn nm-btn--primary', href: '#/map?eui=' + enc(d.eui) }, ico('bolt'), T('Follow one trip', 'Ακολουθήστε μια διαδρομή')) : null,
+        me.gps && followHref(d.eui) ? el('a', { class: 'nm-btn nm-btn--primary', href: followHref(d.eui) }, ico('bolt'), T('Follow one trip', 'Ακολουθήστε μια διαδρομή')) : null,
         csvBtn, el('span', { class: 'grow' }));
       fill(heroBox, el('section', { class: 'nm-card nm-card--glow vh-hero' },
         el('div', { class: 'vh-top' }, orb(me.st, me.kind), el('div', { class: 'vh-id' }, el('div', { class: 'r1' }, el('span', { class: 'nm-badge nm-badge--' + BADGE[me.st] }, LBL[me.st])),

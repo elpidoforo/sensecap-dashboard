@@ -240,25 +240,34 @@
   .banner[hidden] { display: none; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
   @media (max-width: 1060px) {
-    .toprow { right: 16px; top: auto; bottom: 16px; left: 16px; }
-    .replaying .toprow { display: none; }
+    .toprow { right: 332px; }
     .rcol { width: 300px; }
   }
   @media (max-width: 760px) {
-    #layers { width: calc(100% - 24px); left: 12px; top: 12px; max-height: 58%; }
-    .rcol { top: auto; bottom: 64px; left: 12px; right: 12px; width: auto; max-height: 46%; flex-direction: column-reverse; }
+    #layers { width: calc(100% - 24px); left: 12px; top: 12px; max-height: calc(100% - 150px); }
+    #fold { display: grid; }
+    .rail-h { padding: 12px 12px 10px 16px; }
+    #layers.closed .rail-h { padding-bottom: 12px; }
+    #replay { left: 12px; right: 12px; bottom: 12px; height: auto; padding: 9px 12px 8px 10px; flex-wrap: wrap; gap: 6px 10px; border-radius: 24px; max-width: none; }
+    #replay .play { width: 40px; height: 40px; }
+    #replay .when { min-width: 0; flex: 1; }
+    #replay .scrub { flex: 1 1 100%; order: 5; padding-top: 0; }
+    .speeds button { padding: 6px 9px; }
+    #rpLive { height: 34px; padding: 0 11px 0 10px; }
+    .toprow { left: 12px; right: 12px; top: auto; bottom: 134px; justify-content: center; align-items: center; gap: 8px; flex-wrap: nowrap; }
+    .tchip { font-size: 11px; padding: 6px 11px 6px 9px; border-radius: 18px; }
+    #baseBtn { height: 36px; padding: 0 10px; }
+    #baseLbl { display: none; }
+    #baseMenu { top: auto; bottom: calc(100% + 8px); left: auto; right: 0; }
+    .rcol { top: auto; bottom: 134px; left: 12px; right: 12px; width: auto; max-height: 46%; flex-direction: column-reverse; }
+    .delayed .rcol { bottom: 184px; }
     #legend { display: none; }
     .delayed #legend { display: block; }
     .detailopen #legend, .detailopen.delayed #legend { display: none; }
     .delayed #legend .lg-row, .delayed #legend .scale { display: none; }
     .delayed #lgPriv { margin: 0; padding: 0; border: 0; }
-    .toprow { left: 12px; right: 12px; bottom: 12px; justify-content: center; }
-    .tchip { font-size: 11px; padding: 5px 10px; }
-    .delayed .rcol { bottom: 112px; }
-    #replay { left: 12px; right: 12px; bottom: 12px; height: auto; padding: 8px 10px; flex-wrap: wrap; border-radius: 22px; max-width: none; }
-    #rpSlider { flex: 1 1 100%; order: 5; }
-    .replaying #layers { max-height: 40%; }
-    .replaying .rcol, .delayed.replaying .rcol { bottom: 150px; max-height: 30%; }
+    #detail { margin-top: 0; }
+    .maplibregl-ctrl-bottom-right { margin-bottom: 120px; }
   }
 </style>
 </head>
@@ -532,8 +541,19 @@ const style = {
 };
 const BASES = ['osm', 'eox', 'esri', 'topo', 'dark'];
 
+// The opening view: the whole island, flat, to the right of the layer rail (as in the design picture).
+// The island is 2.33 degrees wide, so at zoom z it is about 3.314 * 2^z pixels across.
+function homeView() {
+  const W = window.innerWidth || 1000, H = window.innerHeight || 700;
+  const wide = W > 760;
+  const Z = clamp(Math.log2(Math.max(220, W - (wide ? 320 : 32)) / 3.314), 5.5, 7.5);
+  const lngPx = 360 / (512 * Math.pow(2, Z));
+  const x0 = wide ? 296 : Math.max(16, (W - 3.314 * Math.pow(2, Z)) / 2);   // where the island's west tip sits on screen
+  const yMid = H * (wide ? 0.52 : 0.4);
+  return { center: [32.27 + (W / 2 - x0) * lngPx, 35.14 + (yMid - H / 2) * lngPx * Math.cos((35.14 * Math.PI) / 180)], zoom: Z, pitch: 0, bearing: 0 };
+}
 const map = new maplibregl.Map({
-  container: 'map', style, center: [33.25, 35.0], zoom: 8, pitch: 55, bearing: -8, maxPitch: 80, hash: false,
+  container: 'map', style, ...homeView(), maxPitch: 80, hash: false,
   attributionControl: { compact: true },
 });
 // The wind canvas lives inside the map element, under the popups (they are appended to the same element).
@@ -760,30 +780,57 @@ function roundRect(x, X, Y, W, H, R) {
   x.quadraticCurveTo(X, Y + H, X, Y + H - R); x.lineTo(X, Y + R); x.quadraticCurveTo(X, Y, X + R, Y); x.closePath();
 }
 function vehicleIcons() {
-  const wheel = (x, cx, cy, r) => { x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fill(); };
-  const make = (name, type, ring, off) => {
+  // A position is shown as a soft rounded cell (not an exact dot): violet glow, dashed edge, white bus or car, and a small pip
+  // in the colour of the chosen reading. A vehicle that has gone quiet gets an amber edge and a grey pip.
+  const S = 76, C = S / 2;
+  const make = (name, type, tint, off) => {
     const c = document.createElement('canvas');
-    c.width = 52; c.height = 52;
+    c.width = S; c.height = S;
     const x = c.getContext('2d');
-    x.beginPath(); x.arc(26, 26, 21, 0, Math.PI * 2); x.fillStyle = 'rgba(11,21,37,.94)'; x.fill();
-    x.lineWidth = 5; x.strokeStyle = ring; x.stroke();
-    const ink = off ? '#8c97a6' : '#EAF0F7';
-    x.fillStyle = ink;
+    const g = x.createRadialGradient(C, C, 4, C, C, C - 1);
+    g.addColorStop(0, off ? 'rgba(242,207,134,.5)' : 'rgba(169,154,255,.6)');
+    g.addColorStop(0.6, off ? 'rgba(240,185,74,.16)' : 'rgba(143,123,255,.26)');
+    g.addColorStop(1, 'rgba(143,123,255,0)');
+    x.fillStyle = g; x.beginPath(); x.arc(C, C, C - 1, 0, Math.PI * 2); x.fill();
+    roundRect(x, 13, 13, 50, 50, 16);
+    x.fillStyle = 'rgba(28,22,62,.74)'; x.fill();
+    x.lineWidth = 2.2; x.setLineDash([6, 5]); x.strokeStyle = off ? 'rgba(242,207,134,.9)' : 'rgba(196,184,255,.92)'; x.stroke(); x.setLineDash([]);
+    x.save();
+    x.translate(C, C - 1); x.scale(2.3, 2.3);
+    x.strokeStyle = x.fillStyle = off ? 'rgba(255,255,255,.62)' : '#ffffff';
+    x.lineWidth = 1.4; x.lineJoin = 'round'; x.lineCap = 'round';
+    const dot = (cx, cy, r) => { x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fill(); };
     if (type === 'bus') {
-      roundRect(x, 15, 17, 22, 16, 3); x.fill();
-      x.fillStyle = 'rgba(11,21,37,.94)'; x.fillRect(18, 20, 4.5, 6); x.fillRect(23.75, 20, 4.5, 6); x.fillRect(29.5, 20, 4.5, 6);
-      x.fillStyle = ink; wheel(x, 20, 34, 2.8); wheel(x, 32, 34, 2.8);
+      roundRect(x, -5, -5.6, 10, 9.6, 2); x.stroke();
+      x.beginPath(); x.moveTo(-5, -1.2); x.lineTo(5, -1.2); x.stroke();
+      dot(-2.6, 1.9, 0.85); dot(2.6, 1.9, 0.85);
     } else {
-      roundRect(x, 14, 26, 24, 9, 3); x.fill();
-      x.beginPath(); x.moveTo(19, 26); x.lineTo(22, 19); x.lineTo(30, 19); x.lineTo(33, 26); x.closePath(); x.fill();
-      x.fillStyle = ink; wheel(x, 20, 36, 3); wheel(x, 32, 36, 3);
+      x.beginPath(); x.moveTo(-5.6, 2.6); x.lineTo(-5.6, -0.4); x.lineTo(-4.2, -3.6); x.lineTo(4.2, -3.6); x.lineTo(5.6, -0.4); x.lineTo(5.6, 2.6); x.closePath(); x.stroke();
+      x.beginPath(); x.moveTo(-5.6, -0.4); x.lineTo(5.6, -0.4); x.stroke();
+      dot(-3, 2.2, 0.9); dot(3, 2.2, 0.9);
     }
-    map.addImage(name, x.getImageData(0, 0, 52, 52), { pixelRatio: 2 });
+    x.restore();
+    x.beginPath(); x.arc(S - 14, S - 14, 8, 0, Math.PI * 2); x.fillStyle = tint; x.fill();
+    x.lineWidth = 3; x.strokeStyle = 'rgba(11,21,37,.95)'; x.stroke();
+    map.addImage(name, x.getImageData(0, 0, S, S), { pixelRatio: 2 });
   };
   ['bus', 'car'].forEach((type) => {
     for (let i = 0; i <= 24; i++) make(`veh-${type}-${i}`, type, rgb(rampAt(TEMP, i / 24)), false);
     make(`veh-${type}-off`, type, OFF_COLOR, true);
   });
+  // name chips: a dark pill that stretches around the text (used with icon-text-fit)
+  const chip = (name, edge) => {
+    const c = document.createElement('canvas');
+    c.width = 36; c.height = 36;
+    const x = c.getContext('2d');
+    roundRect(x, 1.5, 1.5, 33, 33, 16.5);
+    x.fillStyle = 'rgba(12,22,38,.93)'; x.fill();
+    x.lineWidth = 2; x.strokeStyle = edge; x.stroke();
+    map.addImage(name, x.getImageData(0, 0, 36, 36), { pixelRatio: 2, stretchX: [[16, 20]], stretchY: [[16, 20]], content: [16, 7, 20, 29] });
+  };
+  chip('chip-s', 'rgba(242,165,107,.9)');
+  chip('chip-v', 'rgba(196,184,255,.85)');
+  chip('chip-q', 'rgba(242,207,134,.9)');
   const c = document.createElement('canvas');
   c.width = 64; c.height = 64;
   const x = c.getContext('2d');
@@ -810,7 +857,8 @@ function updateSensors() {
     const icon = `veh-${vehicleType(d)}-${ok ? Math.round(clamp(t, 0, 1) * 24) : 'off'}`;
     const props = {
       eui: d.eui, name: d.name, color, icon, hdg: vw.heading || 0, moving: !state.delayed && vw.speed > 3 && vw.heading != null ? 1 : 0,
-      approx: state.delayed && !vw.gps ? 1 : 0, online: vw.online ? 1 : 0, label: vw.v == null ? d.name : `${r1(vw.v)} ${unitOf(state.mid)}`.trim(),
+      approx: state.delayed && !vw.gps ? 1 : 0, online: vw.online ? 1 : 0, chip: vw.online ? 'chip-v' : 'chip-q',
+      label: !vw.online ? `${d.name} · ${T('quiet', 'χωρίς σήμα')}` : vw.v == null ? d.name : `${d.name} · ${r1(vw.v)} ${unitOf(state.mid)}`.trim(),
     };
     dots.push(pt(lng, lat, props));
     cols.push({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [square(lng, lat)] }, properties: { ...props, h: ok ? 600 + clamp(t, 0, 1) * 9000 : 200 } });
@@ -931,6 +979,8 @@ function updateWeather() {
   if (!w) return;
   w.points.forEach((p) => { const r = ((p.wd || 0) * Math.PI) / 180; p.u = -(p.ws || 0) * Math.sin(r); p.v = -(p.ws || 0) * Math.cos(r); });
   map.getSource('wind').setData({ type: 'FeatureCollection', features: w.points.map((p) => pt(p.lng, p.lat, { ws: p.ws, to: ((p.wd + 180) % 360), t: p.t, label: `${r1(p.t)}°` })) });
+  const sp = w.points.map((p) => p.ws).filter((v) => v != null && isFinite(v));
+  if (sp.length && $('subWind')) $('subWind').textContent = T('Model, ' + Math.round(Math.min(...sp)) + ' to ' + Math.round(Math.max(...sp)) + ' m/s', 'Μοντέλο, ' + Math.round(Math.min(...sp)) + ' έως ' + Math.round(Math.max(...sp)) + ' m/s');
   renderSurface();
   updateAll();
 }
@@ -939,24 +989,25 @@ function updateOpen() {
   map.getSource('open').setData({ type: 'FeatureCollection', features: state.open.points.map((p) => pt(p.lng, p.lat, { ...p, label: p.pm25 != null ? `PM2.5 ${r1(p.pm25)}` : p.temp != null ? `${r1(p.temp)}°` : '' })) });
 }
 function squareIcons() {
+  // The Met Office station diamond: solid cyan with a dark edge (the legend shows the same), dimmer when it has no reading
   const make = (name, fill) => {
     const c = document.createElement('canvas');
-    c.width = 22; c.height = 22;
+    c.width = 40; c.height = 40;
     const x = c.getContext('2d');
-    x.translate(11, 11); x.rotate(Math.PI / 4);
-    x.fillStyle = 'rgba(234,240,247,.95)'; x.fillRect(-7.2, -7.2, 14.4, 14.4);
-    x.fillStyle = fill; x.fillRect(-5.2, -5.2, 10.4, 10.4);
-    map.addImage(name, x.getImageData(0, 0, 22, 22));
+    x.translate(20, 20); x.rotate(Math.PI / 4);
+    x.fillStyle = '#0b1b30'; roundRect(x, -10, -10, 20, 20, 3); x.fill();
+    x.fillStyle = fill; roundRect(x, -8.2, -8.2, 16.4, 16.4, 2); x.fill();
+    map.addImage(name, x.getImageData(0, 0, 40, 40), { pixelRatio: 2 });
   };
-  for (let i = 0; i <= 24; i++) make('sq' + i, rgb(rampAt(TEMP, i / 24)));
-  make('sqnone', 'rgb(150,150,150)');
+  make('sqst', '#4CCBEA');
+  make('sqnone', 'rgba(76,203,234,.45)');
 }
-const sqIcon = (t) => (t == null ? 'sqnone' : 'sq' + Math.round(clamp((t - 10) / 30, 0, 1) * 24));
+const sqIcon = (t) => (t == null ? 'sqnone' : 'sqst');
 function updateCydom() {
   if (!state.cydom) return;
   map.getSource('cydom').setData({ type: 'FeatureCollection', features: state.cydom.points.map((p) => {
     const { obs, ...rest } = p;
-    return pt(p.lng, p.lat, { ...rest, obs: JSON.stringify(obs || []), icon: sqIcon(p.temp), label: p.temp != null ? `${r1(p.temp)}°` : p.name });
+    return pt(p.lng, p.lat, { ...rest, obs: JSON.stringify(obs || []), icon: sqIcon(p.temp), label: p.temp != null ? `${p.name} ${r1(p.temp)}°` : p.name });
   }) });
   const n = state.cydom.points.length, sub = $('subSta');
   if (sub) sub.textContent = n ? T(n + (n === 1 ? ' station' : ' stations'), n + (n === 1 ? ' σταθμός' : ' σταθμοί')) + (state.cydom.feedTime ? ' · ' + ago(state.cydom.feedTime) : '') : T('No stations right now', 'Κανένας σταθμός αυτή τη στιγμή');
@@ -1090,21 +1141,59 @@ async function showDetail(eui, fresh = true) {
 }
 
 /* ---------- animation: time-lapse, gliding vehicles, wind, pulses, camera ---------- */
+// "Today 14:20", "Yesterday 22:05" or "Mon 09:40" for the replay clock
+function whenLabel(ms) {
+  const day = (t) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(t);
+  const d0 = day(ms), now = Date.now();
+  const clock = hm(ms);
+  if (d0 === day(now)) return T('Today', 'Σήμερα') + ' ' + clock;
+  if (d0 === day(now - 86400000)) return T('Yesterday', 'Χθες') + ' ' + clock;
+  return dayHm(ms);
+}
+// hour ticks under the slider for the window it covers (the replay window, or the trail window ending now)
+function drawTicks() {
+  const box = $('rpTicks');
+  if (!box) return;
+  const r = state.replay;
+  const t1 = r ? r.t1 : Date.now(), t0 = r ? r.t0 : t1 - (state.trailWin || 6) * 3600000;
+  const span = t1 - t0;
+  const key = Math.round(t0 / 60000) + ':' + Math.round(t1 / 60000) + ':' + Math.round(box.clientWidth / 20);
+  if (box.dataset.k === key || span <= 0) return;
+  box.dataset.k = key;
+  const hours = span / 3600000;
+  const room = Math.max(2, Math.floor(box.clientWidth / 46));      // how many labels fit
+  const lab = [1, 2, 3, 6, 12, 24, 48, 96].find((k) => Math.ceil(hours / k) <= room) || 96;
+  const minor = hours <= 30 ? 1 : lab;
+  const nodes = [];
+  const first = Math.ceil(t0 / 3600000) * 3600000;
+  for (let t = first; t <= t1 + 1; t += 3600000) {
+    const h = Number(hm(t).slice(0, 2));
+    const day = Math.round(t / 3600000);
+    if (day % minor && day % lab) continue;
+    const x = ((t - t0) / span) * 100;
+    const big = day % lab === 0;
+    const tick = SC_el('i', { class: (big ? 'big ' : '') + (t <= (r ? r.cur : t1) ? 'past' : ''), style: 'left:' + x.toFixed(2) + '%' });
+    nodes.push(tick);
+    if (big && x > 3 && x < 97) nodes.push(SC_el('span', { style: 'left:' + x.toFixed(2) + '%' }, (h < 10 ? '0' : '') + h));
+  }
+  box.replaceChildren(...nodes);
+}
+function SC_el(tag, attrs, text) {
+  const e = document.createElement(tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  return e;
+}
 function syncReplayUi() {
   const r = state.replay;
   const play = $('rpPlay'), html = icon(r && r.playing ? 'pause' : 'play');
   if (play.dataset.k !== html) { play.dataset.k = html; play.innerHTML = html; play.classList.toggle('pause', !!(r && r.playing)); }
-  if (r) {
-    $('rpSlider').value = String(Math.round(((r.cur - r.t0) / (r.t1 - r.t0 || 1)) * 1000));
-    $('rpTime').textContent = dayHm(r.cur);
-  } else {
-    $('rpSlider').value = '1000';
-    $('rpTime').textContent = T('Live', 'Ζωντανά');
-  }
-}
-function setReplayBar(on) {
-  $('replay').style.display = on ? 'flex' : 'none';
-  if (ROOT && ROOT.classList) ROOT.classList.toggle('replaying', on);
+  const pos = r ? Math.round(((r.cur - r.t0) / (r.t1 - r.t0 || 1)) * 1000) : 1000;
+  $('rpSlider').value = String(pos);
+  $('rpSlider').style.setProperty('--p', (pos / 10).toFixed(1) + '%');
+  $('rpTime').textContent = whenLabel(r ? r.cur : Date.now());
+  $('rpLive').classList.toggle('on', !r);
+  drawTicks();
 }
 function replayBounds() {
   let t0 = Infinity, t1 = -Infinity;
@@ -1112,7 +1201,6 @@ function replayBounds() {
   return isFinite(t0) && t1 > t0 ? [t0, t1] : null;
 }
 async function startReplay(followEui) {
-  setReplayBar(true);
   if (!state.trailWin) {
     $('trailWin').value = '6';
     state.trailWin = 6;
@@ -1207,7 +1295,7 @@ function pulseStep(now) {
    Every particle remembers its last positions in longitude/latitude and the whole streak is projected again each frame,
    so the streaks stay correct while the camera turns, tilts or zooms. */
 const WIND_TAIL = 12;
-const WIND_COLOURS = ['190,225,255', '235,245,255', '255,240,170', '255,190,120'];
+const WIND_COLOURS = ['168,206,248', '196,224,255', '222,238,255', '248,244,226'];   // cool blue-white, a touch warmer for stronger wind
 const wind = { cv: null, ctx: null, w: 0, h: 0, parts: [], box: null, boxAt: 0, cleared: false };
 function resizeWind() {
   if (!wind.cv) return;
@@ -1238,7 +1326,7 @@ function initWind() {
   wind.ctx = wind.cv.getContext('2d');
   resizeWind();
   window.addEventListener('resize', resizeWind);
-  const n = window.innerWidth < 700 ? 450 : 900;
+  const n = window.innerWidth < 700 ? 260 : 520;
   for (let i = 0; i < n; i++) wind.parts.push({ lng: 0, lat: 0, age: 1e9, max: 0, h: [] });
 }
 function windStep(dt, now) {
@@ -1267,23 +1355,30 @@ function windStep(dt, now) {
     if (p.h.length < 2) continue;
     const life = Math.min(1, p.age / 10, (p.max - p.age) / 15);
     const lvl = life < 0.35 ? 0 : life < 0.7 ? 1 : 2;
-    const key = Math.min(3, Math.floor(Math.hypot(u, v) / 3)) * 3 + lvl;
     const pts = [];
     for (let i = 0; i < p.h.length; i++) { const q = map.project(p.h[i]); pts.push(q.x, q.y); }
     const q = map.project([p.lng, p.lat]);
     pts.push(q.x, q.y);
-    (batch[key] = batch[key] || []).push(pts);
+    // each streak fades towards its tail: three pieces, the newest one the brightest
+    const n = pts.length / 2, cls = Math.min(3, Math.floor(Math.hypot(u, v) / 3));
+    for (let part = 0; part < 3; part++) {
+      const i0 = Math.floor((n - 1) * part / 3), i1 = Math.floor((n - 1) * (part + 1) / 3) + 1;
+      const seg = pts.slice(i0 * 2, Math.min(n, i1 + 1) * 2);
+      if (seg.length < 4) continue;
+      const key = (cls * 3 + lvl) * 3 + part;
+      (batch[key] = batch[key] || []).push(seg);
+    }
   }
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = 1.3;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   Object.keys(batch).forEach((key) => {
-    const col = WIND_COLOURS[Math.floor(key / 3)], lvl = key % 3;
-    ctx.strokeStyle = `rgba(${col},${[0.3, 0.6, 0.9][lvl]})`;
+    const part = key % 3, lvl = Math.floor(key / 3) % 3, col = WIND_COLOURS[Math.floor(key / 9)];
+    ctx.strokeStyle = `rgba(${col},${(0.3 * [0.4, 0.75, 1][part] * [0.5, 0.8, 1][lvl]).toFixed(3)})`;
     ctx.beginPath();
-    batch[key].forEach((pts) => {
-      ctx.moveTo(pts[0], pts[1]);
-      for (let j = 2; j < pts.length; j += 2) ctx.lineTo(pts[j], pts[j + 1]);
+    batch[key].forEach((seg) => {
+      ctx.moveTo(seg[0], seg[1]);
+      for (let j = 2; j < seg.length; j += 2) ctx.lineTo(seg[j], seg[j + 1]);
     });
     ctx.stroke();
   });
@@ -1380,7 +1475,8 @@ function fillMeasures() {
 /* ---------- controls ---------- */
 function setBase(b) {
   BASES.forEach((k) => map.setLayoutProperty('base-' + k, 'visibility', k === b ? 'visible' : 'none'));
-  document.querySelectorAll('#base button').forEach((x) => x.classList.toggle('on', x.dataset.b === b));
+  document.querySelectorAll('#baseMenu button').forEach((x) => { const on = x.dataset.b === b; x.classList.toggle('on', on); if (on) $('baseLbl').textContent = x.textContent; });
+  $('base').classList.remove('open'); $('baseBtn').setAttribute('aria-expanded', 'false');
   const sat = b === 'eox' || b === 'esri';
   if (sat) { $('lRoads').checked = true; $('lLabels').checked = true; } else if (b === 'dark') { $('lLabels').checked = false; }
   applyToggles();
@@ -1426,26 +1522,28 @@ map.on('load', () => {
 
   const text = { 'text-font': ['Open Sans Regular'], 'text-size': 11, 'text-offset': [0, 1.4], 'text-anchor': 'top', 'text-optional': true };
   const halo = { 'text-color': '#EAF0F7', 'text-halo-color': 'rgba(9,18,32,.92)', 'text-halo-width': 1.6 };
-  const haloCyan = { ...halo, 'text-color': '#8FE3F7' }, haloCopper = { ...halo, 'text-color': '#F7C9A0' };
+  const haloCyan = { ...halo, 'text-color': '#8FE3F7' };
 
   map.addLayer({ id: 'wind-arrows', type: 'symbol', source: 'wind', layout: { 'icon-image': 'arrow', 'icon-rotate': ['get', 'to'], 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-size': ['interpolate', ['linear'], ['get', 'ws'], 0, 0.45, 14, 1.1] }, paint: { 'icon-opacity': 0.85 } });
   map.addLayer({ id: 'sea-dots', type: 'circle', source: 'sea', paint: { 'circle-radius': 7, 'circle-color': ['interpolate', ['linear'], ['get', 'sst'], 16, '#2a78d6', 22, '#1baf7a', 28, '#e34948'], 'circle-stroke-color': 'rgba(255,255,255,.85)', 'circle-stroke-width': 1.5, 'circle-pitch-alignment': 'map' } });
   map.addLayer({ id: 'sea-labels', type: 'symbol', source: 'sea', layout: { 'text-field': ['get', 'label'], ...text }, paint: halo });
   map.addLayer({ id: 'open-dots', type: 'circle', source: 'open', paint: { 'circle-radius': 6, 'circle-color': ['case', ['!=', ['get', 'pm25'], null], ['interpolate', ['linear'], ['get', 'pm25'], 0, '#1baf7a', 15, '#eda100', 35, '#e34948'], '#9aa4b2'], 'circle-stroke-color': '#0C1626', 'circle-stroke-width': 1.5 } });
   map.addLayer({ id: 'open-labels', type: 'symbol', source: 'open', layout: { 'text-field': ['get', 'label'], ...text }, paint: halo });
-  map.addLayer({ id: 'cydom-dots', type: 'symbol', source: 'cydom', layout: { 'icon-image': ['get', 'icon'], 'icon-allow-overlap': true, 'icon-size': 0.85 } });
+  map.addLayer({ id: 'cydom-dots', type: 'symbol', source: 'cydom', layout: { 'icon-image': ['get', 'icon'], 'icon-allow-overlap': true } });
   map.addLayer({ id: 'cydom-labels', type: 'symbol', source: 'cydom', layout: { 'text-field': ['get', 'label'], ...text }, paint: haloCyan });
   map.addLayer({ id: 'schools-halo', type: 'circle', source: 'schools', paint: { 'circle-radius': 15, 'circle-color': 'rgba(224,127,63,.22)', 'circle-pitch-alignment': 'map' } });
   map.addLayer({ id: 'schools-dots', type: 'circle', source: 'schools', paint: { 'circle-radius': 6.5, 'circle-color': '#E07F3F', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2, 'circle-pitch-alignment': 'map' } });
-  map.addLayer({ id: 'schools-labels', type: 'symbol', source: 'schools', layout: { 'text-field': ['get', 'label'], ...text, 'text-size': 12, 'text-offset': [0, 1.2], 'text-optional': false }, paint: haloCopper });
+  const chipLayout = { 'text-field': ['get', 'label'], 'text-font': ['Open Sans Regular'], 'text-size': 12, 'text-anchor': 'top', 'text-optional': false, 'icon-text-fit': 'both', 'icon-text-fit-padding': [0, 0, 0, 0], 'text-padding': 3 };
+  const chipPaint = { 'text-color': '#ffffff', 'text-halo-width': 0 };
+  map.addLayer({ id: 'schools-labels', type: 'symbol', source: 'schools', layout: { ...chipLayout, 'icon-image': 'chip-s', 'text-offset': [0, 1.5] }, paint: chipPaint });
   map.addLayer({ id: 'trails-gap', type: 'line', source: 'trails', filter: ['==', ['get', 'gap'], 1], layout: { 'line-cap': 'butt' }, paint: { 'line-color': ['get', 'color'], 'line-width': 2, 'line-opacity': 0.8, 'line-dasharray': [1.5, 2] } });
   map.addLayer({ id: 'trails', type: 'line', source: 'trails', filter: ['==', ['get', 'gap'], 0], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': ['interpolate', ['linear'], ['zoom'], 7, ['*', 2.5, ['get', 'w']], 12, ['*', 5, ['get', 'w']], 16, ['*', 8, ['get', 'w']]], 'line-opacity': ['get', 'a'] } });
-  map.addLayer({ id: 'vehicles-halo', type: 'circle', source: 'sensors', filter: ['==', ['get', 'approx'], 1], paint: { 'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 8, 2, 16, 512], 'circle-color': 'rgba(143,123,255,.14)', 'circle-stroke-color': 'rgba(196,184,255,.7)', 'circle-stroke-width': 1, 'circle-pitch-alignment': 'map', 'circle-pitch-scale': 'map' } });
+  map.addLayer({ id: 'vehicles-halo', type: 'circle', source: 'sensors', filter: ['==', ['get', 'approx'], 1], paint: { 'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 8, 2, 16, 512], 'circle-color': 'rgba(143,123,255,.09)', 'circle-stroke-color': 'rgba(196,184,255,.45)', 'circle-stroke-width': 1, 'circle-pitch-alignment': 'map', 'circle-pitch-scale': 'map' } });
   map.addLayer({ id: 'pulse', type: 'circle', source: 'sensors', filter: ['==', ['get', 'online'], 1], paint: { 'circle-radius': 10, 'circle-opacity': 0, 'circle-stroke-color': ['get', 'color'], 'circle-stroke-width': 2.5, 'circle-stroke-opacity': 0.6 } });
   map.addLayer({ id: 'columns', type: 'fill-extrusion', source: 'columns', paint: { 'fill-extrusion-color': ['get', 'color'], 'fill-extrusion-height': ['get', 'h'], 'fill-extrusion-opacity': 0.9 } });
   map.addLayer({ id: 'vehicles-heading', type: 'symbol', source: 'sensors', filter: ['==', ['get', 'moving'], 1], layout: { 'icon-image': 'hdg-arrow', 'icon-rotate': ['get', 'hdg'], 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
   map.addLayer({ id: 'vehicles', type: 'symbol', source: 'sensors', layout: { 'icon-image': ['get', 'icon'], 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
-  map.addLayer({ id: 'vehicles-labels', type: 'symbol', source: 'sensors', layout: { 'text-field': ['get', 'label'], ...text, 'text-offset': [0, 1.9], 'text-size': 12 }, paint: halo });
+  map.addLayer({ id: 'vehicles-labels', type: 'symbol', source: 'sensors', layout: { ...chipLayout, 'icon-image': ['get', 'chip'], 'text-offset': [0, 1.9] }, paint: { ...chipPaint, 'text-color': ['case', ['==', ['get', 'chip'], 'chip-q'], '#F2CF86', '#ffffff'] } });
 
   applyToggles();
   initWind();
@@ -1541,7 +1639,10 @@ popupOn('sea-dots', (p) => `<div class="pp"><div class="pp-h"><i class="dia" sty
 popupOn('wind-arrows', (p) => `<div class="pp"><div class="pp-h"><i class="dia" style="background:#8fb8ff;box-shadow:0 0 10px #8fb8ff"></i><div><b>${T('Weather model', 'Μοντέλο καιρού')}</b><small>Open-Meteo</small></div></div>` +
   `<div class="pp-obs"><table>${popRow(T('Temperature (°C)', 'Θερμοκρασία (°C)'), p.t)}${popRow(T('Wind (m/s)', 'Άνεμος (m/s)'), p.ws)}</table></div></div>`);
 
-document.querySelectorAll('#base button').forEach((b) => b.addEventListener('click', () => setBase(b.dataset.b)));
+document.querySelectorAll('#baseMenu button').forEach((b) => b.addEventListener('click', () => setBase(b.dataset.b)));
+$('baseBtn').addEventListener('click', () => { const open = $('base').classList.toggle('open'); $('baseBtn').setAttribute('aria-expanded', open ? 'true' : 'false'); });
+document.addEventListener('pointerdown', (e) => { if (!$('base').contains(e.target)) { $('base').classList.remove('open'); $('baseBtn').setAttribute('aria-expanded', 'false'); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('base').classList.contains('open')) { $('base').classList.remove('open'); $('baseBtn').setAttribute('aria-expanded', 'false'); $('baseBtn').focus(); } });
 ['lDots', 'lCols', 'lSchools', 'lHill', 'lRoads', 'lLabels', 'lWind', 'lOpen', 'lCydom', 'lSea', 'lTerrain'].forEach((id) => $(id).addEventListener('change', applyToggles));
 $('exag').addEventListener('input', applyToggles);
 document.querySelectorAll('input[name=surf]').forEach((r) => r.addEventListener('change', renderSurface));
@@ -1566,9 +1667,6 @@ $('trailWin').addEventListener('change', (e) => { state.trailWin = Number(e.targ
 $('lPulse').addEventListener('change', applyToggles);
 $('lWindAnim').addEventListener('change', () => { wind.box = null; syncCount(); });
 $('btnTour').addEventListener('click', () => (state.tour ? stopTour() : startTour()));
-$('btnLapse').addEventListener('click', () => {
-  if ($('replay').style.display === 'flex') { setReplayBar(false); if (state.replay) stopReplay(); } else setReplayBar(true);
-});
 $('rpPlay').addEventListener('click', async () => {
   if (!state.replay) { await startReplay(null); return; }
   const r = state.replay;
@@ -1587,12 +1685,13 @@ document.querySelectorAll('#rpSpeeds button').forEach((b) => b.addEventListener(
   if (state.replay) state.replay.mult = state.rpMult;
 }));
 $('rpLive').addEventListener('click', () => stopReplay());
-$('rpClose').addEventListener('click', () => { setReplayBar(false); stopReplay(); });
+window.addEventListener('resize', () => { const k = $('rpTicks'); if (k) k.dataset.k = ''; syncReplayUi(); });
+setInterval(syncReplayUi, 60000);   // the idle clock and the ticks move on
 ['mousedown', 'touchstart', 'wheel'].forEach((ev) => map.on(ev, stopAuto));
 $('fold').addEventListener('click', () => { const closed = $('layers').classList.toggle('closed'); $('fold').setAttribute('aria-expanded', closed ? 'false' : 'true'); });
 if (innerWidth < 760) $('layers').classList.add('closed');   // on a phone the layers start folded away
 function syncCount() {
-  const n = [...document.querySelectorAll('.lay > input')].filter((i) => i.checked && i.value !== 'off').length;
+  const n = [...document.querySelectorAll('.lay:not(.opt) > input')].filter((i) => i.checked && i.value !== 'off').length;
   $('onCount').textContent = T(n + ' on', n + ' ενεργά');
 }
 syncCount();

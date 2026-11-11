@@ -1,13 +1,16 @@
 /*
   Council room: six AI role-play seats argue a city decision from our (public) data, a Chair scores the options, a teacher decides what is published.
     #/council            ask a question, watch the seats and the Chair stream in, read published sessions, (teachers) review the queue
-  API (SRV-F, mounted at /council/*):
-    GET  /council/api/status                    { enabled, remaining, limit, seats:[{id,name:[en,el],focus:[en,el]}] }
+  API (council.js on the server, mounted at /council/api/*):
+    GET  /council/api/status                    { enabled, message?, message_el?, remaining, limit, available, retry_at?, staff, demo, seats:[{id,name:[en,el],focus:[en,el]}] }
     POST /council/api/ask {question}            streamed, one JSON object per line:
-                                                  {type:'seat', id, stance:'support'|'oppose'|'mixed', text, dataUsed:[...]}
-                                                  {type:'chair', scores:[{option,score,why}], verdict, risks, needs:[...]}
-                                                  {type:'done', sessionId}      ({type:'error', message} on a failure)
-    GET  /council/api/sessions?scope=public|review|mine
+                                                  {type:'start'}  {type:'data', readings:[{id,label,value,unit,source,sourceLabel,at,note}], gaps:[...], demo}
+                                                  {type:'seat', id, stance, score 1-10, text, dataUsed:[labels], usedIds:[R1..], missing, failed}
+                                                  {type:'chair', scores:[{option,score,why}], verdict, lean, action, risks, needs, failed?}
+                                                  {type:'done', sessionId, status:'draft', remaining, limit}     ({type:'error', code, message} on a failure)
+                                                429 {error, code:'daily'|'ip'|'global'|'busy'|'off', retry_at, remaining, limit}   503 not switched on
+    GET  /council/api/sessions?scope=public|review|mine     { sessions:[ list items: id, question, status, author_label, lean, verdict, seats:[{id,stance,score}] ] }
+    GET  /council/api/sessions/<id>             { session: the full session: seats with text, chair, readings, gaps, canReview }
     POST /council/api/sessions/<id>/review {decision:'publish'|'reject', note}     (teacher or admin)
   Everything on this page is AI role-play and is labelled so. The page only shows what the server sends: no number is made up here.
   The list endpoints are read tolerantly (an array, or {sessions:[...]} or {items:[...]}; a session may carry its seats and chair).
@@ -97,23 +100,42 @@
   const dataText = (i) => (i.value != null ? (i.label ? i.label + ': ' : '') + i.value + (i.unit ? ' ' + i.unit : '') : i.label) + (i.source && i.value != null ? ' (' + i.source + ')' : '');
   function normSeat(x, id) {
     const s = x && x.seat && typeof x.seat === 'object' ? Object.assign({}, x, x.seat) : x || {};
-    return { id: String(id || s.id || s.seat || ''), stance: stanceOf(s.stance), text: String(s.text || s.argument || s.say || ''), dataUsed: asList(s.dataUsed || s.data_used || s.data).map(dataItem).filter(Boolean), score: fin(Number(s.score)) && s.score != null ? Number(s.score) : null };
+    return { id: String(id || s.id || s.seat || ''), stance: stanceOf(s.stance), text: String(s.text || s.argument || s.say || ''), dataUsed: asList(s.dataUsed || s.data_used || s.data).map(dataItem).filter(Boolean),
+      usedIds: asList(s.usedIds).map(String), missing: s.missing ? String(s.missing) : '', failed: s.failed === true, score: s.score != null && fin(Number(s.score)) ? Number(s.score) : null };
+  }
+  // The readings the seats were given (the 'data' event, or a stored session). A seat names the ones it used by id.
+  const SRC = { sensors: ['School sensors (moving)', 'Αισθητήρες σχολείων (κινούμενοι)'], metoffice: ['Met Office', 'Τμήμα Μετεωρολογίας'], model: ['Model estimate', 'Εκτίμηση μοντέλου'] };
+  function normReadings(list) {
+    const m = new Map();
+    asList(list).forEach((r) => { if (r && r.id) { const src = SRC[r.source]; m.set(String(r.id), { label: String(r.label || r.id), value: r.value != null ? r.value : null, unit: String(r.unit || ''), source: src ? T(src[0], src[1]) : String(r.sourceLabel || r.source || ''), at: r.at ? String(r.at) : '' }); } });
+    return m;
+  }
+  function seatData(seat, readings) {
+    const full = readings ? seat.usedIds.map((id) => readings.get(id)).filter(Boolean) : [];
+    return full.length ? full : seat.dataUsed;
   }
   function normChair(x) {
     const c = x && x.chair && typeof x.chair === 'object' ? Object.assign({}, x, x.chair) : x || {};
     let sc = c.scores;
     if (sc && !Array.isArray(sc) && typeof sc === 'object') sc = Object.keys(sc).map((k) => (typeof sc[k] === 'object' ? Object.assign({ option: k }, sc[k]) : { option: k, score: sc[k] }));
     const scores = asList(sc).map((o) => ({ option: String((o && (o.option || o.name || o.label)) || ''), score: Number(o && o.score), why: String((o && (o.why || o.reason)) || '') })).filter((o) => o.option && fin(o.score));
-    return { scores, verdict: String(c.verdict || c.summary || ''), risks: asList(c.risks).map(String).filter(Boolean), needs: asList(c.needs || c.missing).map(String).filter(Boolean) };
+    const lean = ['yes', 'lean_yes', 'unclear', 'lean_no', 'no'].includes(c.lean) ? c.lean : null;
+    return { scores, verdict: String(c.verdict || c.summary || ''), lean, action: String(c.action || ''), risks: asList(c.risks).map(String).filter(Boolean), needs: asList(c.needs || c.missing).map(String).filter(Boolean),
+      failed: c.failed === true || (!scores.length && !c.verdict && !c.summary) };
   }
+  const LEAN = { yes: ['ok', 'Yes', 'Ναι'], lean_yes: ['ok', 'Leans yes', 'Κλίνει προς το ναι'], unclear: ['warn', 'Unclear', 'Ασαφές'], lean_no: ['bad', 'Leans no', 'Κλίνει προς το όχι'], no: ['bad', 'No', 'Όχι'] };
   function normStatus(v) { v = String(v || '').toLowerCase(); return /publish|approved/.test(v) ? 'published' : /reject|declin|send_back/.test(v) ? 'rejected' : 'pending'; }
   function normSession(x) {
     const seats = {};
     if (Array.isArray(x.seats)) x.seats.forEach((s) => { const n = normSeat(s); if (n.id) seats[n.id] = n; });
     else if (x.seats && typeof x.seats === 'object') Object.keys(x.seats).forEach((k) => { seats[k] = normSeat(x.seats[k], k); });
     const hasChair = x.chair || x.verdict || x.scores;
+    let chair = hasChair ? normChair(x.chair ? x : { chair: x }) : null;
+    const chairFailed = Boolean(chair && chair.failed);
+    if (chairFailed) chair = null;
     return { id: x.id != null ? String(x.id) : null, question: String(x.question || ''), at: toMs(x.at || x.created_at || x.createdAt || x.ts), status: normStatus(x.status), seats,
-      chair: hasChair ? normChair(x.chair ? x : { chair: x }) : null, by: x.author_label || x.asked_by || x.by || null, school: x.school || null, note: x.note || x.review_note || '', done: true, live: false };
+      chair, chairFailed, lean: LEAN[x.lean] ? x.lean : null, by: x.author_label || x.asked_by || x.by || null, school: x.school || null, note: x.note || x.review_note || '', demo: x.demo === true,
+      readings: x.readings ? normReadings(x.readings) : null, gaps: asList(x.gaps).map(String).filter(Boolean), canReview: typeof x.canReview === 'boolean' ? x.canReview : null, full: Array.isArray(x.readings) || Boolean(x.aiNote), done: true, live: false };
   }
   const listOf = (r) => (Array.isArray(r) ? r : r && Array.isArray(r.sessions) ? r.sessions : r && Array.isArray(r.items) ? r.items : []);
   const counts = (m) => { const c = { support: 0, mixed: 0, oppose: 0 }; Object.keys(m.seats).forEach((k) => { c[m.seats[k].stance]++; }); return c; };
@@ -123,6 +145,9 @@
     const at = b && b.retry_at ? Number(b.retry_at) : b && b.retry_after ? Date.now() + Number(b.retry_after) * 1000 : 0;
     const when = at ? (SC.date(at) === SC.date(Date.now()) ? T('at ', 'στις ') : T('tomorrow at ', 'αύριο στις ')) + SC.time(at) : '';
     const lim = b && b.limit;
+    if (code === 'busy') return T('The council is busy with other sessions. Try again in a minute.', 'Το συμβούλιο είναι απασχολημένο με άλλες συνεδρίες. Δοκιμάστε ξανά σε ένα λεπτό.');
+    if (code === 'off') return T('The council is not taking new questions right now.', 'Το συμβούλιο δεν δέχεται νέες ερωτήσεις αυτή τη στιγμή.');
+    if (code === 'pause') return T('The council is resting for now because a daily limit has been reached. ' + (when ? 'It is free again ' + when + ' (Cyprus time).' : 'Please try again later.'), 'Το συμβούλιο ξεκουράζεται προς το παρόν επειδή συμπληρώθηκε ένα ημερήσιο όριο. ' + (when ? 'Θα είναι ξανά διαθέσιμο ' + when + ' (ώρα Κύπρου).' : 'Δοκιμάστε ξανά αργότερα.'));
     if (code === 'rate') return T('You are asking quickly. Please wait a moment' + (at ? ' (until ' + SC.time(at) + ')' : '') + ', then ask again.', 'Ρωτάτε πολύ γρήγορα. Περιμένετε λίγο' + (at ? ' (μέχρι τις ' + SC.time(at) + ')' : '') + ' και ρωτήστε ξανά.');
     if (code === 'ip') return T('Many questions came from this network today. ' + (when ? 'You can ask again ' + when + ' (Cyprus time).' : 'Please try again later.'), 'Πολλές ερωτήσεις ήρθαν σήμερα από αυτό το δίκτυο. ' + (when ? 'Μπορείτε να ρωτήσετε ξανά ' + when + ' (ώρα Κύπρου).' : 'Δοκιμάστε ξανά αργότερα.'));
     if (code === 'global') return T('The council is resting because everyone together used the daily limit. ' + (when ? 'It is free again ' + when + ' (Cyprus time).' : 'Please try again later.'), 'Το συμβούλιο ξεκουράζεται επειδή όλοι μαζί χρησιμοποίησαν το ημερήσιο όριο. ' + (when ? 'Θα είναι ξανά διαθέσιμο ' + when + ' (ώρα Κύπρου).' : 'Δοκιμάστε ξανά αργότερα.'));

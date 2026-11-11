@@ -39,6 +39,7 @@
     { k: 'co2', mid: '4100', name: ['CO2', 'CO2'], unit: 'ppm', dec: 0, stops: ['#59d98e', '#F0B94A', '#FF7A6A'] },
   ];
   const rname = (r) => T(r.name[0], r.name[1]);
+  const rlow = (r) => (r.k === 'co2' ? 'CO2' : rname(r).toLowerCase());
   const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   function ramp(stops, u) {   // u 0..1 along the stops
     u = Math.max(0, Math.min(1, u));
@@ -243,8 +244,6 @@
           S.series[r.mid] = res.ok ? { pts: res.v.filter((p) => p.t >= t0 && p.t <= t1) } : { err: res.e };
           if (r.k === S.kind) { colourRoute(); paintReadings(); setP(S.p); }
         }));
-        if (!alive || tok !== S.tok) return;
-        paintReadings();
       }
 
       /* ----- the map ----- */
@@ -254,20 +253,19 @@
         let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
         xy.forEach(([x, y]) => { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; });
         const ASP = 0.62, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-        let vw = Math.max((x1 - x0) * 1.35 + 20, 80), vh = vw * ASP;
+        let vw = Math.max((x1 - x0) * 1.6 + 24, 80), vh = vw * ASP;
         if ((y1 - y0) * 1.35 + 14 > vh) { vh = (y1 - y0) * 1.35 + 14; vw = vh / ASP; }
         const vx = cx - vw / 2, vy = cy - vh / 2, fs = vw / 40, rr = vw / 75;
         const svg = sv('svg', { viewBox: [vx, vy, vw, vh].map((x) => x.toFixed(2)).join(' '), class: 'tr-svg', role: 'img', preserveAspectRatio: 'xMidYMid meet',
           'aria-label': T('Map of the island with the route of the trip', 'Χάρτης του νησιού με τη διαδρομή της διαδρομής') });
         svg.append(sv('g', null, Object.keys(ISLAND.districts).map((k) => sv('path', { d: ISLAND.districts[k], class: 'tr-land' }))));
         if (!S.exact) {   // the grid the public positions are rounded to: every dot sits on a crossing
-          const g = S.grid, lng0 = ISLAND.bbox[0], lat0 = ISLAND.bbox[1];
-          const gx = g * ISLAND.k * ISLAND.sx, gy = g * ISLAND.sx;
+          const g = S.grid, gx = g * ISLAND.k * ISLAND.sx, gy = g * ISLAND.sx;
           if (gx > 0 && gy > 0 && vw / gx < 70) {
+            const offX = -ISLAND.bbox[0] * ISLAND.k * ISLAND.sx, offY = ISLAND.H + ISLAND.bbox[1] * ISLAND.sx;   // x = n*gx + offX, y = offY - m*gy
             let d = '';
-            for (let x = Math.ceil((vx - 0 - (lng0 * 0)) / gx) * gx; x <= vx + vw; x += gx) d += 'M' + x.toFixed(2) + ' ' + vy.toFixed(2) + 'V' + (vy + vh).toFixed(2);
-            const yBase = ISLAND.H - 0;   // y of the southern edge of the picture is ISLAND.H, lat0
-            for (let y = yBase - Math.floor((yBase - vy) / gy) * gy; y <= vy + vh; y += gy) d += 'M' + vx.toFixed(2) + ' ' + y.toFixed(2) + 'H' + (vx + vw).toFixed(2);
+            for (let k = Math.ceil((vx - offX) / gx); offX + k * gx <= vx + vw; k++) d += 'M' + (offX + k * gx).toFixed(2) + ' ' + vy.toFixed(2) + 'V' + (vy + vh).toFixed(2);
+            for (let k = Math.ceil((offY - (vy + vh)) / gy); offY - k * gy >= vy; k++) d += 'M' + vx.toFixed(2) + ' ' + (offY - k * gy).toFixed(2) + 'H' + (vx + vw).toFixed(2);
             svg.append(sv('path', { d, class: 'tr-grid-l' }));
           }
         }
@@ -277,8 +275,9 @@
           const [x, y] = ISLAND.project(s.lng, s.lat);
           if (x < vx + 2 || x > vx + vw - 2 || y < vy + 2 || y > vy + vh - 2) return;
           const nm = SCH.find((q) => q.id === s.id);
+          const left = x > vx + vw * 0.55;
           sg.append(sv('rect', { x: (x - rr * 0.9).toFixed(2), y: (y - rr * 0.9).toFixed(2), width: (rr * 1.8).toFixed(2), height: (rr * 1.8).toFixed(2), rx: (rr * 0.35).toFixed(2), class: 'tr-school' }),
-            sv('text', { x: (x + rr * 1.6).toFixed(2), y: (y + fs * 0.35).toFixed(2), 'font-size': fs.toFixed(2), class: 'tr-lbl tr-lbl-s' }, nm ? T(nm.en, nm.el) : s.name));
+            sv('text', { x: (x + (left ? -rr * 1.6 : rr * 1.6)).toFixed(2), y: (y + fs * 0.35).toFixed(2), 'text-anchor': left ? 'end' : 'start', 'font-size': fs.toFixed(2), class: 'tr-lbl tr-lbl-s' }, nm ? T(nm.en, nm.el) : s.name));
         });
         svg.append(sg);
         // the route: a dark casing, then one short piece per step so each can carry a colour
@@ -287,16 +286,18 @@
         const seg = [], rg = sv('g', { class: 'tr-route' });
         for (let i = 0; i < n - 1; i++) {
           const a = xy[i], b = xy[i + 1];
-          const l = sv('line', { x1: a[0].toFixed(2), y1: a[1].toFixed(2), x2: b[0].toFixed(2), y2: b[1].toFixed(2), class: 'tr-seg' });
+          const l = sv('line', { x1: a[0].toFixed(2), y1: a[1].toFixed(2), x2: b[0].toFixed(2), y2: b[1].toFixed(2), class: 'tr-seg', stroke: '#8CA0B8' });
           seg.push(l); rg.append(l);
         }
         svg.append(rg);
         // start and end
         const st = xy[0], en = xy[n - 1];
+        const lx = (q) => (q[0] > vx + vw * 0.55 ? { x: q[0] - rr * 1.5, a: 'end' } : { x: q[0] + rr * 1.5, a: 'start' });
+        const ls = lx(st), le = lx(en);
         svg.append(sv('circle', { cx: st[0].toFixed(2), cy: st[1].toFixed(2), r: (rr * 0.8).toFixed(2), class: 'tr-start' }),
-          sv('text', { x: (st[0] + rr * 1.5).toFixed(2), y: (st[1] - rr * 1.2).toFixed(2), 'font-size': fs.toFixed(2), class: 'tr-lbl' }, T('Start ', 'Αρχή ') + SC.time(S.times[0])),
+          sv('text', { x: ls.x.toFixed(2), y: (st[1] - rr * 1.2).toFixed(2), 'text-anchor': ls.a, 'font-size': fs.toFixed(2), class: 'tr-lbl' }, T('Start ', 'Αρχή ') + SC.time(S.times[0])),
           sv('circle', { cx: en[0].toFixed(2), cy: en[1].toFixed(2), r: (rr * 0.8).toFixed(2), class: 'tr-end' }),
-          sv('text', { x: (en[0] + rr * 1.5).toFixed(2), y: (en[1] + rr * 2.6).toFixed(2), 'font-size': fs.toFixed(2), class: 'tr-lbl' }, T('End ', 'Τέλος ') + SC.time(S.times[n - 1])));
+          sv('text', { x: le.x.toFixed(2), y: (en[1] + rr * 2.6).toFixed(2), 'text-anchor': le.a, 'font-size': fs.toFixed(2), class: 'tr-lbl' }, T('End ', 'Τέλος ') + SC.time(S.times[n - 1])));
         // the dot
         const halo = sv('circle', { r: (rr * 2.2).toFixed(2), class: 'tr-halo' }), dot = sv('circle', { r: rr.toFixed(2), class: 'tr-dotc' });
         const dg = sv('g', { class: 'tr-dot' }, halo, dot);
@@ -335,7 +336,7 @@
         M.nowT = nowT; M.nowW = nowW; M.scrub = scrub; M.play = play; M.restart = restart; M.speeds = speeds;
         const legend = el('div', { class: 'tr-legend' });
         M.legend = legend;
-        M.meta.replaceChildren(
+        fill(M.meta, 
           el('div', { class: 'tr-now', 'aria-live': 'off' }, nowT, nowW),
           el('div', { class: 'tr-ctl' }, play, restart, el('div', { class: 'tr-speeds', role: 'group', 'aria-label': T('Speed', 'Ταχύτητα') }, el('span', null, T('Speed', 'Ταχύτητα')), speeds), scrub),
           legend,
@@ -402,7 +403,7 @@
         S.bright = bright;
         if (M.scrub) { M.scrub.value = Math.round((p / (n - 1)) * 1000); M.scrub.setAttribute('aria-valuetext', SC.time(t)); }
         M.nowT.textContent = SC.time(t);
-        M.nowW.textContent = ' · ' + wordsAt(Math.round(p)).replace(/^./, (c) => c.toUpperCase()) + ' ' + T('(rounded)', '(στρογγυλοποιημένη)');
+        M.nowW.textContent = ' · ' + wordsAt(Math.round(p)).replace(/^./, (c) => c.toUpperCase());
         if (CH) {
           const v = valueAt(CH.pts, t);
           CH.line.setAttribute('x1', CH.X(t).toFixed(1)); CH.line.setAttribute('x2', CH.X(t).toFixed(1));
@@ -428,12 +429,12 @@
       function paintLegend() {
         if (!M || !M.legend) return;
         const r = R(), id = 'trg-' + r.k, s = S.series[r.mid];
-        if (!s) { M.legend.replaceChildren(el('span', { class: 'tr-leg-n' }, T('Loading the ' + rname(r).toLowerCase() + ' readings…', 'Φόρτωση των μετρήσεων ' + rname(r).toLowerCase() + '…'))); return; }
-        if (!S.range) { M.legend.replaceChildren(el('span', { class: 'tr-leg-n' }, T('No ' + rname(r).toLowerCase() + ' readings during this trip, so the route is not coloured.', 'Δεν υπάρχουν μετρήσεις ' + rname(r).toLowerCase() + ' κατά τη διαδρομή, άρα η διαδρομή δεν χρωματίζεται.'))); return; }
+        if (!s) { fill(M.legend, el('span', { class: 'tr-leg-n' }, T('Loading the ' + rlow(r) + ' readings…', 'Φόρτωση των μετρήσεων ' + rlow(r) + '…'))); return; }
+        if (!S.range) { fill(M.legend, el('span', { class: 'tr-leg-n' }, T('No ' + rlow(r) + ' readings during this trip, so the route is not coloured.', 'Δεν υπάρχουν μετρήσεις ' + rlow(r) + ' κατά τη διαδρομή, άρα η διαδρομή δεν χρωματίζεται.'))); return; }
         const bar = sv('svg', { viewBox: '0 0 120 10', class: 'tr-leg-bar', 'aria-hidden': 'true', preserveAspectRatio: 'none' },
           sv('defs', null, sv('linearGradient', { id, x1: 0, y1: 0, x2: 1, y2: 0 }, r.stops.map((c, i) => sv('stop', { offset: i / (r.stops.length - 1), 'stop-color': c })))),
           sv('rect', { x: 0, y: 0, width: 120, height: 10, rx: 5, fill: 'url(#' + id + ')' }));
-        M.legend.replaceChildren(el('span', { class: 'tr-leg-t' }, T('Route coloured by ' + rname(r).toLowerCase(), 'Η διαδρομή χρωματίζεται με ' + rname(r).toLowerCase())),
+        fill(M.legend, el('span', { class: 'tr-leg-t' }, T('Route coloured by ' + rlow(r), 'Η διαδρομή χρωματίζεται με ' + rlow(r))),
           el('span', { class: 'tr-leg-v' }, A.num(S.range[0], r.dec) + ' ' + r.unit), bar, el('span', { class: 'tr-leg-v' }, A.num(S.range[1], r.dec) + ' ' + r.unit),
           S.noneSegs ? el('span', { class: 'tr-leg-n' }, el('i', { class: 'tr-leg-sw' }), T('grey: no reading', 'γκρι: χωρίς μέτρηση')) : null);
       }
@@ -456,7 +457,7 @@
         const e0 = valueAt(s.pts, t0), e1 = valueAt(s.pts, t1);
         if (e0 != null && (!pts.length || pts[0].t > t0)) pts.unshift({ t: t0, v: e0 });
         if (e1 != null && (!pts.length || pts[pts.length - 1].t < t1)) pts.push({ t: t1, v: e1 });
-        if (pts.length < 2) { fill(readCard, headEl, kinds, el('div', { class: 'tr-empty' }, T('No ' + rname(r).toLowerCase() + ' readings from this vehicle during this trip. The sensor may have been off or out of range.', 'Δεν υπάρχουν μετρήσεις ' + rname(r).toLowerCase() + ' από αυτό το όχημα κατά τη διαδρομή. Ο αισθητήρας μπορεί να ήταν κλειστός ή εκτός εμβέλειας.'))); return; }
+        if (pts.length < 2) { fill(readCard, headEl, kinds, el('div', { class: 'tr-empty' }, T('No ' + rlow(r) + ' readings from this vehicle during this trip. The sensor may have been off or out of range.', 'Δεν υπάρχουν μετρήσεις ' + rlow(r) + ' από αυτό το όχημα κατά τη διαδρομή. Ο αισθητήρας μπορεί να ήταν κλειστός ή εκτός εμβέλειας.'))); return; }
         const big = el('b', null, '–'), bigS = el('small', null, '');
         const box = el('div', { class: 'tr-chart' });
         const facts = el('div', { class: 'tr-facts' });

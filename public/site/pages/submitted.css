@@ -19,8 +19,10 @@
 .sb-kt svg { width: 20px; height: 20px; }
 
 /* who */
-.sb-who { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin: 0; font-size: 14px; color: var(--nm-lede); overflow-wrap: anywhere; }
-.sb-who i, .sb-sch i { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+.sb-who { display: flex; align-items: flex-start; gap: 8px; margin: 0; font-size: 14px; line-height: 1.4; color: var(--nm-lede); overflow-wrap: anywhere; }
+.sb-who > span { flex: 1 1 0; min-width: 0; }
+.sb-who i { width: 9px; height: 9px; border-radius: 3px; flex: none; margin-top: 5px; }
+.sb-sch i { width: 9px; height: 9px; border-radius: 3px; flex: none; }
 .sb-sch { display: inline-flex; align-items: center; gap: 8px; font: 700 11.5px/1.2 var(--nm-font); letter-spacing: .1em; text-transform: uppercase; color: var(--nm-lede); }
 
 /* ================= teachers ================= */

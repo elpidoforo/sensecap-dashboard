@@ -84,6 +84,8 @@
         const n = D.cfg && D.cfg.names && D.cfg.names[m];
         return n ? (SC.lang === 'el' && GREEK_NAMES[n[0]]) || n[0] : T('Measurement ', 'Μέτρηση ') + m;
       };
+      const SHORT = { 4097: ['Temperature', 'Θερμοκρασία'], 4098: ['Humidity', 'Υγρασία'], 4099: ['Light', 'Φως'], 4100: ['CO2', 'CO2'], 4101: ['Pressure', 'Πίεση'] };
+      const shortName = (m) => (SHORT[m] ? T(SHORT[m][0], SHORT[m][1]) : nameOf(m));   // tile labels: short, as in the picture ("Humidity", not "Air humidity")
       const unitOf = (m) => (D.cfg && D.cfg.names && D.cfg.names[m] ? D.cfg.names[m][1] : '');
       const gpsIds = () => (D.cfg && Array.isArray(D.cfg.gps) ? D.cfg.gps.map(String) : ['4197', '4198']);
       const hours = () => (D.cfg && D.cfg.posDelayMin ? Math.max(1, Math.round(D.cfg.posDelayMin / 60)) : 2);
@@ -245,7 +247,7 @@
           ...D.schools.map((s) => el('button', { type: 'button', class: S.filter === s.slug ? 'on' : '', 'data-k': 'pill-' + s.slug, 'aria-pressed': S.filter === s.slug ? 'true' : 'false', onclick: () => setFilter(s.slug) }, s.short, el('em', null, String(s.teams.length)))));
         const withData = allTeams().filter(({ d }) => { const st = d && status(d); return st && st.st === 'ok'; }).length;
         A.badge.replaceChildren();
-        if (n && !D.devErr) A.badge.append(el('span', { class: 'nm-badge nm-badge--info sx-count' }, el('span', { class: 'dot' }), T(withData + ' of ' + n + ' teams with fresh data', withData + ' από ' + n + ' ομάδες με πρόσφατα δεδομένα')));
+        if (n && !D.devErr) A.badge.append(el('span', { class: 'nm-badge nm-badge--info sx-count' }, el('span', { class: 'dot' }), T(withData + ' of ' + n + ' with fresh data', withData + ' από ' + n + ' με πρόσφατα δεδομένα')));
       }
       // Topic: what the team sensors measure. Redrawn only when the list changes, so an open menu is not closed by a refresh.
       function drawTopic() {
@@ -266,7 +268,7 @@
 
       /* ---------- team cards ---------- */
       const dotCls = (st) => 'dot' + (!st ? ' off' : st.st === 'ok' ? '' : st.st === 'stale' ? ' warn' : ' bad');
-      const kindOf = (d) => (isVehicle(d) ? T('vehicle sensor', 'αισθητήρας οχήματος') : T('fixed sensor', 'σταθερός αισθητήρας'));
+      const kindOf = (d) => (isVehicle(d) ? T('vehicle sensor', 'όχημα') : T('fixed sensor', 'σταθερός'));   // short, so it fits next to the school name on a card
       // the little 24 hour line on a card: one /api/series call per sensor, asked after the cards are drawn, a few at a time
       const sparkKey = (d) => { const m = primary(d); return m ? d.eui + ':' + m : null; };
       function paintSpark(slot, d, s) {
@@ -317,7 +319,7 @@
           el('div', { class: 'sx-focus' }, el('div', { class: 'sx-topic-l' }, focusL), el('div', { class: 'sx-topic' + (none ? ' none' : '') }, focus)),
           el('div', { class: 'sx-team-ft' },
             el('span', null, el('i', { class: dotCls(st) }),
-              !t.eui ? T('Waiting for a sensor', 'Αναμονή για αισθητήρα') : st ? T('Last reading ', 'Τελευταία μέτρηση ') + when(st.t) : T('No data', 'Χωρίς δεδομένα')), slot)), s.col);
+              !t.eui ? T('Waiting for a sensor', 'Αναμονή για αισθητήρα') : st ? T('Last reading ', 'Μέτρηση ') + when(st.t) : T('No data', 'Χωρίς δεδομένα')), slot)), s.col);
       }
       function drawTeams(select) {
         const list = visibleTeams();
@@ -399,7 +401,7 @@
           el('div', { class: 'sx-det-head' },
             el('span', { class: 'sx-emb lg' }, el('span', null, icon(devIcon(d), 34))),
             el('div', { class: 'sx-det-t' }, el('div', { class: 'sx-eb2' }, T('Team profile', 'Προφίλ ομάδας')), el('h2', null, t.name),
-              el('div', { class: 'sx-sub' }, s.name + (d ? ' · ' + T('carries ', 'φέρει ') + d.name : ''))),
+              el('div', { class: 'sx-sub' }, s.name + (d ? ' · ' + (isVehicle(d) ? T('vehicle sensor', 'αισθητήρας οχήματος') : T('fixed sensor', 'σταθερός αισθητήρας')) : ''))),
             el('div', { class: 'sx-badges' }, d ? badge(st.st) : null, D.cfg && D.cfg.demo ? el('span', { class: 't demo' }, T('Demo data', 'Δοκιμαστικά δεδομένα')) : null)),
           el('div', { class: 'sx-det-tabs' }, tabs), el('div', { class: 'sx-det-body' }, pane));
         if (S.tab === 'overview') drawOverview(pane, x);
@@ -490,14 +492,14 @@
         const pl = planOf(t, s);
         pane.append(el('div', { class: 'nm-callout sx-q' }, el('span', { class: 'sx-eb2' }, T('Our question', 'Η ερώτησή μας')),
           pl ? el('b', { class: 'sx-q-t' }, pl.question)
-            : el('span', { class: 'sx-q-t none' }, T('This team has not shared a question yet. A team can share one as a plan in the Build studio, and it shows here once a teacher approves it.',
-              'Αυτή η ομάδα δεν έχει μοιραστεί ακόμα ερώτηση. Μια ομάδα μπορεί να τη μοιραστεί ως σχέδιο στο Στούντιο και εμφανίζεται εδώ όταν την εγκρίνει ένας εκπαιδευτικός.')),
+            : el('span', { class: 'sx-q-t none' }, T('This team has not shared a question yet. Teams share one as a plan in the Build studio; a teacher approves it first.',
+              'Αυτή η ομάδα δεν έχει μοιραστεί ακόμα ερώτηση. Οι ομάδες τη μοιράζονται ως σχέδιο στο Στούντιο και πρώτα την εγκρίνει ένας εκπαιδευτικός.')),
           pl ? null : el('a', { class: 'pill-link sx-q-l', href: '#/projects' }, T('See running projects', 'Δείτε τα ενεργά έργα'))));
         if (!d || D.devErr) return noSensor(pane, x);
         const st = status(d);
         const rs = reads(d, 4);
         if (st.st !== 'ok') pane.append(el('div', { class: 'nm-callout nm-callout--warn' }, st.st === 'off' ? T('This sensor is offline. ', 'Αυτός ο αισθητήρας είναι εκτός λειτουργίας. ') : T('The newest reading is old. ', 'Η πιο πρόσφατη μέτρηση είναι παλιά. '), st.t ? T('Last reading ', 'Τελευταία μέτρηση ') + SC.ago(st.t) + '.' : T('No reading yet.', 'Καμία μέτρηση ακόμα.')));
-        if (rs.length) pane.append(el('div', { class: 'sx-mini' }, rs.map((m) => el('div', null, el('div', { class: 'kpi-label' }, nameOf(m)), el('div', { class: 'n' }, SC.num(Number(D.latest[d.eui][m].v), Math.abs(Number(D.latest[d.eui][m].v)) >= 100 ? 0 : 1), el('small', null, ' ' + unitOf(m)))))));
+        if (rs.length) pane.append(el('div', { class: 'sx-mini' }, rs.map((m) => { const num = SC.num(Number(D.latest[d.eui][m].v), Math.abs(Number(D.latest[d.eui][m].v)) >= 100 ? 0 : 1); return el('div', { title: nameOf(m) }, el('div', { class: 'kpi-label' }, shortName(m)), el('div', { class: 'n' + (num.length > 6 ? ' long' : '') }, num, el('small', null, ' ' + unitOf(m)))); })));
         else pane.append(el('div', { class: 'empty' }, T('No reading yet from this sensor.', 'Καμία μέτρηση ακόμα από αυτόν τον αισθητήρα.')));
 
         const m = primary(d);

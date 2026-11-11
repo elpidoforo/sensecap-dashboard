@@ -55,6 +55,23 @@
   const errMsg = (e) => (e && e.message) || t('Something went wrong. Try again.', 'Κάτι πήγε στραβά. Δοκιμάστε ξανά.');
   const toMs = (x) => (typeof x === 'number' ? x : x ? Date.parse(x) || 0 : 0);
   const key = (it) => it.kind + ':' + it.id;
+  // The server writes author labels in English ("Team Hermes, PASCAL Larnaka", "Teacher, ..."): say the role in Greek when needed.
+  function who(label) {
+    const x = String(label || '');
+    if (SC.lang !== 'el') return x;
+    let m;
+    if ((m = /^Team (.+?)(, .+)?$/.exec(x))) return 'Ομάδα ' + m[1] + (m[2] || '');
+    if ((m = /^Teacher(, .+)?$/.exec(x))) return 'Εκπαιδευτικός' + (m[1] || '');
+    if ((m = /^Student(, .+)?$/.exec(x))) return 'Μαθητής ή μαθήτρια' + (m[1] || '');
+    if (x === 'A visitor') return 'Επισκέπτης';
+    if (x === 'Weekly report') return 'Εβδομαδιαία αναφορά';
+    return x;
+  }
+  const NAME_EL = { 'Air temperature': 'Θερμοκρασία αέρα', 'Air humidity': 'Υγρασία αέρα', 'Light intensity': 'Φωτεινότητα', CO2: 'CO₂', 'Barometric pressure': 'Βαρομετρική πίεση' };
+  const NOTE_EL = {
+    'The school vehicle sensor numbers are DEMO data (simulated), not real vehicles.': 'Οι αριθμοί των αισθητήρων των οχημάτων είναι δεδομένα ΕΠΙΔΕΙΞΗΣ (προσομοίωση), όχι πραγματικά οχήματα.',
+    'The sensors are on moving vehicles, not fixed weather stations: averages are for the places the vehicles went.': 'Οι αισθητήρες είναι σε κινούμενα οχήματα, όχι σε σταθερούς μετεωρολογικούς σταθμούς: οι μέσοι όροι αφορούν τα μέρη που πήγαν τα οχήματα.',
+  };
   const ttl = (it) => (SC.lang === 'el' && it.titleEl ? it.titleEl : it.title);
   const plural = (n, one, many, oneEl, manyEl) => (n === 1 ? t(n + ' ' + one, n + ' ' + oneEl) : t(n + ' ' + many, n + ' ' + manyEl));
   function schoolColor(short) {
@@ -114,7 +131,7 @@
     async function loadItems() {
       try {
         const r = await SC.api('/studio/api/submitted');
-        S.items = ((r && (r.items || r.queue)) || []).filter((x) => x && KINDS.includes(x.kind) && x.id != null).map((x) => ({ kind: x.kind, id: x.id, title: String(x.title || ''), titleEl: x.title_el ? String(x.title_el) : '', author: x.author_label || x.author || '', school: x.school || '', at: toMs(x.at || x.updatedAt), status: String(x.status || (staff() ? 'pending' : 'approved')).toLowerCase() }));
+        S.items = ((r && (r.items || r.queue)) || []).filter((x) => x && KINDS.includes(x.kind) && x.id != null).map((x) => ({ kind: x.kind, id: x.id, title: String(x.title || ''), titleEl: x.title_el ? String(x.title_el) : '', author: who(x.author_label || x.author || ''), school: x.school || '', at: toMs(x.at || x.updatedAt), status: String(x.status || (staff() ? 'pending' : 'approved')).toLowerCase() }));
         S.err = null; S.at = Date.now();
       } catch (e) { S.err = e; }
     }
@@ -225,7 +242,7 @@
     }
     async function loadDetail(it, force) {
       const k = key(it), c = S.detail.get(k);
-      if (c && !force && c.state !== 'error') return;
+      if (c && !force) return;
       S.detail.set(k, { state: 'loading' }); if (S.cur === k) drawDetail();
       try { S.detail.set(k, { state: 'ok', data: await fetchDetail(it) }); } catch (e) { S.detail.set(k, { state: 'error', err: e }); }
       if (alive && S.cur === k) drawDetail();
@@ -294,9 +311,9 @@
         ...schools.slice(0, 6).map((sc) => block(String(sc.short || sc.name || ''),
           Array.isArray(sc.measurements) && sc.measurements.length
             ? el('div', { class: 'nm-table-wrap' }, el('table', { class: 'nm-table sb-tab' }, el('thead', null, el('tr', null, [t('Reading', 'Μέτρηση'), t('Average', 'Μέσος όρος'), t('Lowest', 'Χαμηλότερη'), t('Highest', 'Υψηλότερη')].map((h) => el('th', { scope: 'col' }, h)))),
-              el('tbody', null, sc.measurements.slice(0, 8).map((m) => el('tr', null, el('td', null, String(m.name || '')), el('td', { class: 'mono' }, num(m.avg) + (m.unit ? ' ' + m.unit : '')), el('td', { class: 'mono' }, num(m.min)), el('td', { class: 'mono' }, num(m.max)))))))
+              el('tbody', null, sc.measurements.slice(0, 8).map((m) => el('tr', null, el('td', null, SC.lang === 'el' && NAME_EL[m.name] ? NAME_EL[m.name] : String(m.name || '')), el('td', { class: 'mono' }, num(m.avg) + (m.unit ? ' ' + m.unit : '')), el('td', { class: 'mono' }, num(m.min)), el('td', { class: 'mono' }, num(m.max)))))))
             : el('p', { class: 'muted' }, t('No sensor readings for this week.', 'Δεν υπάρχουν μετρήσεις αισθητήρων για αυτή την εβδομάδα.')))),
-        notes.length ? block(t('Notes in the report', 'Σημειώσεις της αναφοράς'), el('ul', { class: 'sb-bul' }, notes.map((n) => el('li', null, String(n))))) : null,
+        notes.length ? block(t('Notes in the report', 'Σημειώσεις της αναφοράς'), el('ul', { class: 'sb-bul' }, notes.map((n) => el('li', null, SC.lang === 'el' && NOTE_EL[n] ? NOTE_EL[n] : String(n))))) : null,
         block(t('Summary', 'Περίληψη'), text ? el('div', { class: 'sb-sum' }, el('span', { class: 't ai' }, t('Assistant text', 'Κείμενο βοηθού')), ...paras(text)) : el('p', { class: 'muted' }, t('No summary was written. The numbers above are the report.', 'Δεν γράφτηκε περίληψη. Οι αριθμοί παραπάνω είναι η αναφορά.'))),
       ];
     }
@@ -365,7 +382,7 @@
       const host = document.getElementById('sb-detail'); if (!host) return;
       const it = curItem();
       if (!it) { host.replaceChildren(el('div', { class: 'sb-none' }, el('span', { class: 'sb-bigtick', 'aria-hidden': 'true' }, ic('inbox')), el('h2', null, S.items.length ? t('Pick something from the queue.', 'Διαλέξτε κάτι από την ουρά.') : t('All clear.', 'Όλα καθαρά.')), el('p', { class: 'muted' }, S.items.length ? t('Its preview and the decision buttons appear here.', 'Η προεπισκόπηση και τα κουμπιά απόφασης εμφανίζονται εδώ.') : t('Nothing is waiting for you right now.', 'Τίποτα δεν περιμένει εσάς αυτή τη στιγμή.')))); return; }
-      loadDetail(it);
+      if (!S.detail.has(key(it))) loadDetail(it);
       const c = S.detail.get(key(it)) || { state: 'loading' };
       const head = el('div', { class: 'sb-dh' }, el('div', { class: 'sb-dtags' }, kindTile(it.kind), el('span', { class: 'sb-eb cu' }, kname(it.kind)), badgeOf(it)),
         el('h2', { id: 'sb-dh' }, ttl(it) || kname(it.kind)),
