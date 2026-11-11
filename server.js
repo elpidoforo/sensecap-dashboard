@@ -31,31 +31,66 @@ const priv = createPrivacy();
 
 // Every cache is bounded. `cached` holds the fixed keys (devices, weather, Met Office pages...). The keys that come from a
 // request have their own caches with a small cap each, so odd query strings cannot make the memory grow.
-const cached = createCache({ max: 100 }).get;
-const seriesCache = createCache({ max: 200 });
-const trailCache = createCache({ max: 60 });                  // a trail answer is large, so fewer of them
+const cached = createCache({ max: 100, staleMs: 30 * 60000 }).get;   // when a refresh fails, the last good answer (up to 30 min old) is served
+const seriesCache = createCache({ max: 200, staleMs: 6 * 3600000 });
+const trailCache = createCache({ max: 60, staleMs: 30 * 60000 });                  // a trail answer is large, so fewer of them
 const imageCache = createCache({ max: 100, maxBytes: 60e6, sizeOf: (v) => v.buf.length });
 const publicViews = createCache({ max: 200 });                // answers for visitors, see "who sees what" below
 
 const whole = (v, dflt, min, max) => Math.min(max, Math.max(min, Math.round(Number(v) || dflt)));   // hours and days are whole numbers
 
+/* The SenseCAP API answers with a web page instead of data when it is asked too often (about ten calls in a second were
+ * enough). So every call goes through a gate: at most UP_PARALLEL at the same time, UP_GAP_MS apart, and after a bad answer
+ * all calls wait UP_COOL_MS before the next try. The caches serve the last good answer in the meantime. */
+const UP_PARALLEL = Number(process.env.SENSECAP_PARALLEL) || 3;
+const UP_GAP_MS = Number(process.env.SENSECAP_GAP_MS) || 150;
+const UP_COOL_MS = Number(process.env.SENSECAP_COOL_MS) || 45000;
+const upstream = { active: 0, queue: [], lastStart: 0, coolUntil: 0 };
+
+function upstreamNext() {
+  while (upstream.active < UP_PARALLEL && upstream.queue.length) {
+    const wait = upstream.lastStart + UP_GAP_MS - Date.now();
+    if (wait > 0) { setTimeout(upstreamNext, wait).unref(); return; }
+    upstream.active++;
+    upstream.lastStart = Date.now();
+    upstream.queue.shift()();
+  }
+}
+function upstreamSlot() {
+  return new Promise((resolve) => { upstream.queue.push(resolve); upstreamNext(); });
+}
+function upstreamDone() { upstream.active--; upstreamNext(); }
+
 async function api(endpoint, { method = 'GET', query = {}, body } = {}) {
+  if (Date.now() < upstream.coolUntil) throw new Error(`SenseCAP is busy, waiting ${Math.ceil((upstream.coolUntil - Date.now()) / 1000)} s before asking again`);
   const url = new URL(HOST + endpoint);
   for (const [k, v] of Object.entries(query)) {
     if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v);
   }
-  const res = await fetch(url, {
-    method,
-    headers: {
-      Authorization: 'Basic ' + Buffer.from(`${ID}:${KEY}`).toString('base64'),
-      'Content-Type': 'application/json; charset=utf-8',
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) throw new Error(`SenseCAP ${endpoint} returned HTTP ${res.status}`);
-  const json = await res.json();
-  if (String(json.code) !== '0') throw new Error(`SenseCAP ${endpoint} error code ${json.code}: ${json.message || ''}`);
-  return json.data;
+  await upstreamSlot();
+  try {
+    if (Date.now() < upstream.coolUntil) throw new Error('SenseCAP is busy, waiting before asking again');
+    const res = await fetch(url, {
+      method,
+      headers: {
+        Authorization: 'Basic ' + Buffer.from(`${ID}:${KEY}`).toString('base64'),
+        'Content-Type': 'application/json; charset=utf-8',
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(30000),
+    });
+    const text = await res.text();
+    let json = null;
+    try { json = JSON.parse(text); } catch { /* a web page, not data */ }
+    if (!res.ok || json === null) {
+      if (res.status === 429 || res.status >= 500 || json === null) upstream.coolUntil = Date.now() + UP_COOL_MS;
+      throw new Error(`SenseCAP ${endpoint} returned ${json === null ? 'a web page instead of data' : 'HTTP ' + res.status} (HTTP ${res.status})`);
+    }
+    if (String(json.code) !== '0') throw new Error(`SenseCAP ${endpoint} error code ${json.code}: ${json.message || ''}`);
+    return json.data;
+  } finally {
+    upstreamDone();
+  }
 }
 
 function chunk(arr, n) {
@@ -102,14 +137,17 @@ function fixLatLng(lat, lng) {
 
 /* ---------- live data ---------- */
 
+// A failed optional call becomes an empty list, unless the API is busy: then the whole refresh fails and the cache serves the last good answer.
+const softFail = (e) => { if (Date.now() < upstream.coolUntil) throw e; return []; };
+
 async function liveDevices() {
   return cached('devices', 60000, async () => {
-    const groups = await api('/list_groups').catch(() => []);
+    const groups = await api('/list_groups').catch(softFail);
     const all = await api('/list_devices', { query: { device_type: 2 } });
     const groupOf = {};
     for (const g of groups) {
       if (!g.group_uuid) continue;
-      const inGroup = await api('/list_devices', { query: { device_type: 2, group_uuid: g.group_uuid } }).catch(() => []);
+      const inGroup = await api('/list_devices', { query: { device_type: 2, group_uuid: g.group_uuid } }).catch(softFail);
       for (const d of inGroup) groupOf[d.device_eui] = g.group_name;
     }
     const euis = all.map((d) => d.device_eui);
@@ -118,9 +156,9 @@ async function liveDevices() {
     const channels = {};
     for (const part of chunk(euis, 50)) {
       const [det, st, ch] = await Promise.all([
-        api('/view_devices', { method: 'POST', body: { device_euis: part, device_type: 2 } }).catch(() => []),
-        api('/view_device_running_status', { method: 'POST', body: { device_euis: part } }).catch(() => []),
-        api('/list_device_channels', { method: 'POST', body: { device_euis: part } }).catch(() => []),
+        api('/view_devices', { method: 'POST', body: { device_euis: part, device_type: 2 } }).catch(softFail),
+        api('/view_device_running_status', { method: 'POST', body: { device_euis: part } }).catch(softFail),
+        api('/list_device_channels', { method: 'POST', body: { device_euis: part } }).catch(softFail),
       ]);
       det.forEach((d) => (details[d.device_eui] = d));
       st.forEach((d) => (status[d.device_eui] = d));
@@ -168,6 +206,7 @@ async function liveLatest() {
       }
       return [d.eui, values];
     });
+    if (rows.some((r) => r && r.error) && Date.now() < upstream.coolUntil) throw new Error('SenseCAP is busy; keeping the last readings');
     const out = {};
     for (const r of rows) if (Array.isArray(r)) out[r[0]] = r[1];
     return out;

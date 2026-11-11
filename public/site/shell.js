@@ -131,7 +131,17 @@
   SC.num = (v, d) => (v == null || !isFinite(v) ? '–' : Number(v).toFixed(d == null ? 1 : d).replace('-', '−'));
 
   /* ---------- fetch ---------- */
+  // History series are asked for in bursts (every card has a sparkline), and the sensor service slows down when it is asked
+  // too much, so they go through a small queue: three at a time.
+  const queue = { active: 0, wait: [] };
+  const slot = () => new Promise((res) => { queue.wait.push(res); pump(); });
+  const pump = () => { while (queue.active < 3 && queue.wait.length) { queue.active++; queue.wait.shift()(); } };
+  const release = () => { queue.active--; pump(); };
   SC.api = async function (url, opts) {
+    if (typeof url === 'string' && url.indexOf('/api/series') === 0 && !(opts && opts.queued)) {
+      await slot();
+      try { return await SC.api(url, Object.assign({}, opts, { queued: true })); } finally { release(); }
+    }
     opts = opts || {};
     const init = { method: opts.method || 'GET', credentials: 'same-origin', headers: {} };
     if (opts.body !== undefined) { init.headers['content-type'] = 'application/json'; init.body = JSON.stringify(opts.body); }
@@ -149,7 +159,8 @@
     if (hit && now - hit.at < (ttl || 30000)) return hit.p;
     const p = SC.api(url);
     memo.set(url, { at: now, p });
-    p.catch(() => memo.delete(url));
+    // A failed call is remembered for 20 s, so a page that repaints does not ask again and again while the service is busy.
+    p.catch(() => { const m = memo.get(url); if (m && m.p === p) m.at = Date.now() - (ttl || 30000) + 20000; });
     return p;
   };
 

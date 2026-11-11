@@ -6,9 +6,10 @@
  *   not make the memory grow without limit.
  * - Two callers asking for the same key at the same time share one call, so an empty cache does not hit the sensor API
  *   once per visitor.
- * - A call that fails is not cached.
+ * - A call that fails is not cached. With `staleMs`, when a refresh fails the last good answer is served instead (up to that
+ *   age) and is kept for another time to live, so a busy or down upstream is asked once per time to live, not once per visitor.
  */
-function createCache({ max = 200, maxBytes = 0, sizeOf = null } = {}) {
+function createCache({ max = 200, maxBytes = 0, sizeOf = null, staleMs = 0 } = {}) {
   const map = new Map();   // key -> { t, done, size, p }; the Map order is the usage order, oldest first
   let bytes = 0;
 
@@ -29,16 +30,25 @@ function createCache({ max = 200, maxBytes = 0, sizeOf = null } = {}) {
       map.set(key, hit);
       return hit.p;
     }
+    const old = hit && hit.done && hit.has ? hit : null;   // the last good answer, kept in case the refresh fails
     if (hit) drop(key);
-    const e = { t: Date.now(), done: false, size: 0, p: null };
-    e.p = (async () => fn())();
+    const e = { t: Date.now(), at: Date.now(), done: false, size: 0, p: null, v: undefined, has: false };
+    e.p = (async () => {
+      try { return await fn(); } catch (err) {
+        if (staleMs && old && Date.now() - old.at < staleMs) { e.at = old.at; return old.v; }
+        throw err;
+      }
+    })();
     map.set(key, e);
     trim();
     e.p.then(
       (v) => {
         if (map.get(key) !== e) return;
         e.done = true;
+        e.has = true;
+        e.v = v;
         e.t = Date.now();
+        if (e.at === undefined) e.at = e.t;
         e.size = sizeOf ? Math.max(0, Number(sizeOf(v)) || 0) : 0;
         bytes += e.size;
         trim();
