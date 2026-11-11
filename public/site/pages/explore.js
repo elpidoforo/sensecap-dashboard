@@ -41,6 +41,8 @@
       T('Could not load ' + whatEn + '. ', 'Δεν ήταν δυνατή η φόρτωση ' + whatEl + '. '), errText(e) ? h('span', { class: 'ex-errmsg' }, errText(e) + ' ') : null,
       h('button', { class: 'nm-btn', type: 'button', onclick: retry }, T('Try again', 'Δοκιμάστε ξανά')));
   }
+  const infoIcon = (n) => SC.svgEl('svg', { viewBox: '0 0 24 24', width: n || 16, height: n || 16, fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' },
+    SC.svgEl('circle', { cx: 12, cy: 12, r: 9.5 }), SC.svgEl('path', { d: 'M12 11v5.5' }), SC.svgEl('path', { d: 'M12 7.6v.1' }));
   const loading = (en, el) => h('div', { class: 'loading', role: 'status' }, T(en || 'Loading', el || 'Φόρτωση'));
   const empty = (en, el) => h('div', { class: 'empty', role: 'status' }, T(en, el));
 
@@ -97,7 +99,7 @@
     return { ticks, lo: a, hi: b, step };
   }
   function timeTicks(t0, t1, wPx) {
-    const want = Math.max(3, Math.floor(wPx / 84)), span = t1 - t0;
+    const want = Math.max(3, Math.floor(wPx / 62)), span = t1 - t0;
     const step = ([1, 2, 3, 4, 6, 12, 24, 48].map((x) => x * HOUR).find((s) => span / s <= want)) || 72 * HOUR;
     const off = cyOff(t0), out = [];
     for (let t = Math.ceil((t0 + off) / step) * step - off; t <= t1; t += step) out.push({ t, day: (((t + off) % DAY) + DAY) % DAY < MIN, step });
@@ -148,8 +150,10 @@
       if (s1 && s1.unit) grid.append(NSV('text', { x: W - M.r + 7, y: 10, 'text-anchor': 'start', class: 'ex-unit', fill: s1.color }, s1.unit));
       timeTicks(t0, t1, pw).forEach((k) => {
         const x = X(k.t);
+        // a midnight line carries its date at the top (as in the picture); the time stays at the bottom. From one tick a day up the date is the label.
         grid.append(NSV('line', { x1: x, x2: x, y1: M.t, y2: M.t + ph, class: k.day ? 'ex-day' : '' }),
-          NSV('text', { x, y: H - 9, 'text-anchor': 'middle', class: k.day || k.step >= DAY ? 'ex-major' : '' }, k.step >= DAY ? dm(k.t) : k.day ? dm(k.t) : hhmm(k.t)));
+          NSV('text', { x, y: H - 9, 'text-anchor': 'middle' }, k.step >= DAY ? dm(k.t) : hhmm(k.t)));
+        if (k.day && k.step < DAY) grid.append(NSV('text', { x, y: M.t - 7, 'text-anchor': 'middle', class: 'ex-major' }, dm(k.t)));
       });
       svg.append(grid);
       // period bands, then gaps
@@ -260,7 +264,10 @@
         tip.style.top = M.t + 4 + 'px';
         readout.textContent = dmhm(tc) + (bits.length ? ' · ' + bits.join(' · ') : ' · ' + T('no reading at this time', 'καμία μέτρηση αυτή την ώρα'));
       }
-      function hide() { hov.setAttribute('visibility', 'hidden'); tip.hidden = true; cursor = null; }
+      function hide() {
+        if (o.pin != null && series.some((s) => s.pts.length)) { show(nearest(series[0].pts, o.pin).t); return; }   // back to the pinned point (the biggest gap)
+        hov.setAttribute('visibility', 'hidden'); tip.hidden = true; cursor = null;
+      }
       function atPointer(e) {
         const r = catcher.getBoundingClientRect(), x = ((e.clientX - r.left) / (r.width || 1)) * pw;
         const t = t0 + (x / pw) * (t1 - t0);
@@ -283,7 +290,7 @@
         show(base[Math.max(0, Math.min(base.length - 1, i))].t);
       });
       wrap.replaceChildren(svg, tip);
-      if (cursor != null) show(cursor);
+      if (cursor != null) show(cursor); else if (o.pin != null) show(nearest(series[0].pts, o.pin).t);
     }
     draw();
     let timer = 0;
@@ -353,7 +360,7 @@
       dev.v.forEach((d) => {
         const mids = (d.measurements || []).map(String).filter((m) => !GPS.has(m));
         if (!mids.length) return;
-        n.sources.push({ id: 'd:' + d.eui, kind: 'sensor', eui: d.eui, name: d.name || d.eui, group: d.group || '', mids, online: !!d.online, lastSeen: d.lastSeen ? Date.parse(d.lastSeen) : null, lat: d.lat, lng: d.lng });
+        n.sources.push({ id: 'd:' + d.eui, kind: 'sensor', eui: d.eui, name: d.name || d.eui, group: d.group || '', moving: (d.measurements || []).some((m) => GPS.has(String(m))), mids, online: !!d.online, lastSeen: d.lastSeen ? Date.parse(d.lastSeen) : null, lat: d.lat, lng: d.lng });
       });
     } else n.notes.push({ en: 'the school sensors', el: 'οι αισθητήρες των σχολείων', e: dev.e });
     if (st.v && Array.isArray(st.v.points)) {
@@ -530,9 +537,11 @@
       set(nid) { id = nid || ''; const r = getReading(id); srcSel.value = r ? r.src.id : ''; drawRd(); },
     };
   }
+  const hasFam = (s, fam) => readingsOf(s).some((r) => r.fam === fam);
   const defaultReading = (fam) => {
-    const sensor = sensorsOf().find((s) => s.online && readingsOf(s).some((r) => r.fam === fam)) || sensorsOf().find((s) => readingsOf(s).some((r) => r.fam === fam));
-    const st = stationsOf().find((s) => /larnaca|larnaka/i.test(s.name) && /airport|ap\b/i.test(s.name)) || stationsOf().find((s) => /larnaca|larnaka/i.test(s.name)) || stationsOf()[0];
+    const sensor = sensorsOf().find((s) => s.online && !s.moving && hasFam(s, fam)) || sensorsOf().find((s) => s.online && hasFam(s, fam)) || sensorsOf().find((s) => hasFam(s, fam));
+    const near = sensor && stationsByDistance(sensor)[0];
+    const st = (near && near.km != null && near.s) || stationsOf().find((s) => /larnaca|larnaka/i.test(s.name) && /airport|ap\b/i.test(s.name)) || stationsOf().find((s) => /larnaca|larnaka/i.test(s.name)) || stationsOf()[0];
     return { sensor: sensor && readingsOf(sensor).find((r) => r.fam === fam), station: st && readingsOf(st).find((r) => r.fam === fam) };
   };
 
@@ -758,7 +767,7 @@
           !sensors.length && E.notes.some((n) => n.en === 'the school sensors') ? 'Οι αισθητήρες των σχολείων δεν φορτώθηκαν τώρα, οπότε δεν υπάρχει τίποτα να συγκριθεί με τη Μετεωρολογική Υπηρεσία. Χρησιμοποιήστε το «Δοκιμάστε ξανά» παραπάνω.' : !sensors.length ? 'Κανένας αισθητήρας σχολείου δεν αναφέρει ακόμα θερμοκρασία, υγρασία, πίεση ή άνεμο, οπότε δεν υπάρχει τίποτα να συγκριθεί με τη Μετεωρολογική Υπηρεσία.' : 'Ο κατάλογος σταθμών της Μετεωρολογικής Υπηρεσίας δεν είναι διαθέσιμος τώρα, οπότε δεν υπάρχει με τι να συγκριθεί.'));
       return () => {};
     }
-    if (!E.byId.get(st.sensor) || !sensors.includes(E.byId.get(st.sensor))) st.sensor = (sensors.find((s) => s.online) || sensors[0]).id;
+    if (!E.byId.get(st.sensor) || !sensors.includes(E.byId.get(st.sensor))) st.sensor = (sensors.find((s) => s.online && !s.moving) || sensors.find((s) => s.online) || sensors[0]).id;
     let manual = Boolean(st.station && E.byId.get(st.station));
     const nearestOf = (sensor) => stationsByDistance(sensor);
     if (!manual) st.station = nearestOf(E.byId.get(st.sensor))[0].s.id;
@@ -796,12 +805,20 @@
       });
       const skipped = readingsOf(sn).filter((r) => !FAMS.some(([f]) => f === r.fam)).map((r) => r.name);
       fill(chipBox, h('span', { class: 'ex-chiplab' }, T('Compare on', 'Σύγκριση σε')), row,
-        skipped.length ? h('span', { class: 'ex-chipnote' }, SC.icon('bell', 15), T('The Met Office does not measure ' + skipped.join(', ') + ', so those cannot be compared here.', 'Η Μετεωρολογική Υπηρεσία δεν μετρά: ' + skipped.join(', ') + '· γι’ αυτό δεν συγκρίνονται εδώ.')) : null);
+        skipped.length ? h('span', { class: 'ex-chipnote' }, infoIcon(15), T('The Met Office does not measure ' + skipped.join(', ') + ', so those cannot be compared here.', 'Η Μετεωρολογική Υπηρεσία δεν μετρά: ' + skipped.join(', ') + '· γι’ αυτό δεν συγκρίνονται εδώ.')) : null);
     }
     slots.hint(T('Put one of our sensors next to a Met Office station and see how far apart they are.', 'Βάλτε έναν από τους αισθητήρες μας δίπλα σε έναν σταθμό της Μετεωρολογικής Υπηρεσίας και δείτε πόσο απέχουν.')); slots.top.append(chipBox);
     drawChips();
     drawStationSel();
-    slots.main.append(h('div', { class: 'card-h' }, title, rng.el), h('div', { class: 'ex-picks' }, pickField(T('Our sensor', 'Ο αισθητήρας μας'), sensorSel), stationWrap), noteBox, out);
+    if (slots.after) slots.after.append(
+h('aside', { class: 'nm-callout nm-callout--info how' }, h('b', { class: 't1' }, T('How to read this chart', 'Πώς διαβάζεται αυτό το διάγραμμα')),
+          T('Do the two lines move together? The orange line is our sensor. The blue line is the Met Office station, outdoors in a standard weather screen. The shaded band between them shows who reads higher.', 'Κινούνται μαζί οι δύο γραμμές; Η πορτοκαλί γραμμή είναι ο αισθητήρας μας. Η μπλε είναι ο σταθμός της Μετεωρολογικής Υπηρεσίας, σε ανοιχτό χώρο, σε τυπικό κιβώτιο μετρήσεων. Η σκιασμένη ζώνη ανάμεσά τους δείχνει ποιος δείχνει υψηλότερα.'),
+          h('ul', null,
+            h('li', null, T('A steady gap is normal: a room is warmer than the street at night and cooler than a sunny airport at noon; a vehicle is in the sun or the shade.', 'Μια σταθερή διαφορά είναι φυσιολογική: ένα δωμάτιο είναι θερμότερο από τον δρόμο τη νύχτα και δροσερότερο από ένα ηλιόλουστο αεροδρόμιο το μεσημέρι· ένα όχημα βρίσκεται στον ήλιο ή στη σκιά.')),
+            h('li', null, T('A gap that jumps can mean a window was opened, the sun reached the sensor or the sensor needs checking.', 'Μια διαφορά που αλλάζει απότομα μπορεί να σημαίνει ότι άνοιξε ένα παράθυρο, ότι ο ήλιος έπεσε πάνω στον αισθητήρα ή ότι ο αισθητήρας χρειάζεται έλεγχο.')),
+            h('li', null, T('The correlation tells you whether the shapes match, even when the levels do not.', 'Η συσχέτιση δείχνει αν τα σχήματα ταιριάζουν, ακόμα κι όταν τα επίπεδα δεν ταιριάζουν.')),
+            h('li', null, T('The line first shows the moment the two differ most. Move over the chart, or press the arrow keys, to read any other moment.', 'Η γραμμή δείχνει πρώτα τη στιγμή με τη μεγαλύτερη διαφορά. Μετακινήστε τον δείκτη πάνω στο διάγραμμα ή πατήστε τα βέλη για να δείτε οποιαδήποτε άλλη στιγμή.')))));
+    slots.main.append(h('div', { class: 'card-h' }, title, rng.el), h('div', { class: 'ex-picks' }, pickField(T('Our sensor', 'Ο αισθητήρας μας'), sensorSel), stationWrap), out);
 
     async function run() {
       const my = ++tok;
@@ -852,18 +869,15 @@
         box, notes.map((n) => h('p', { class: 'ex-stale', role: 'status' }, n)), staleNote(rs, a), staleNote(rb, b),
         enough ? null : h('div', { class: 'nm-callout nm-callout--warn ex-overlap', role: 'status' }, h('b', null, big), ' ', sub),
         enough ? [bigNode, h('p', { class: 'cap-sub' }, sub)] : null, tiles,
-        h('p', { class: 'ex-note' }, rb.key === 'pstn' ? T('The sensor’s pressure is compared with the station’s own (not sea-level) pressure.', 'Η πίεση του αισθητήρα συγκρίνεται με την πίεση του ίδιου του σταθμού (όχι στη στάθμη της θάλασσας).') : rb.key === 'pmsl' ? T('The station publishes pressure reduced to sea level, so a steady gap can come from the sensor’s height.', 'Ο σταθμός δημοσιεύει πίεση αναγμένη στη στάθμη της θάλασσας, οπότε μια σταθερή διαφορά μπορεί να οφείλεται στο ύψος του αισθητήρα.') : T('Readings are paired when they are less than about ' + Math.round(Math.max(5, Math.min(15, Math.max(stepOf(a), stepOf(b)) / 2 / MIN + 0.5))) + ' minutes apart.', 'Οι μετρήσεις ζευγαρώνουν όταν απέχουν λιγότερο από περίπου ' + Math.round(Math.max(5, Math.min(15, Math.max(stepOf(a), stepOf(b)) / 2 / MIN + 0.5))) + ' λεπτά.')),
-        srcLine([rs, rb]),
         h('div', { class: 'ex-btnrow' }, h('button', { class: 'nm-btn nm-btn--primary', type: 'button', disabled: pr.length ? null : true, onclick: () => saveCsv('sensor-vs-official-' + slug(sensor.name) + '-' + slug(station.name) + '-' + st.fam + '-' + rangeWord(st.r).replace(/\s/g, '') + '.csv',
           [[T('time (Cyprus)', 'ώρα (Κύπρος)'), 'time_utc', sName + (rs.unit ? ' (' + rs.unit + ')' : ''), T('Station', 'Σταθμός') + ' · ' + station.name + ' ' + rb.name + (rb.unit ? ' (' + rb.unit + ')' : ''), T('difference', 'διαφορά') + (rs.unit ? ' (' + rs.unit + ')' : '')]].concat(pr.map((p) => [cyStamp(p.t), new Date(p.t).toISOString(), +p.a.toFixed(2), +p.b.toFixed(2), +p.d.toFixed(2)]))) }, SC.icon('download', 17), T('Download CSV', 'Λήψη CSV')),
           h('span', { class: 'ex-note' }, T('Paired readings with their difference, in Cyprus time and UTC.', 'Ζευγαρωμένες μετρήσεις με τη διαφορά τους, σε ώρα Κύπρου και UTC.'))),
-        h('aside', { class: 'nm-callout nm-callout--info how' }, h('b', { class: 't1' }, T('How to read this chart', 'Πώς διαβάζεται αυτό το διάγραμμα')),
-          T('Do the two lines move together? The orange line is our sensor. The blue line is the Met Office station, outdoors in a standard weather screen. The shaded band between them shows who reads higher.', 'Κινούνται μαζί οι δύο γραμμές; Η πορτοκαλί γραμμή είναι ο αισθητήρας μας. Η μπλε είναι ο σταθμός της Μετεωρολογικής Υπηρεσίας, σε ανοιχτό χώρο, σε τυπικό κιβώτιο μετρήσεων. Η σκιασμένη ζώνη ανάμεσά τους δείχνει ποιος δείχνει υψηλότερα.'),
-          h('ul', null,
-            h('li', null, T('A steady gap is normal: a room is warmer than the street at night and cooler than a sunny airport at noon; a vehicle is in the sun or the shade.', 'Μια σταθερή διαφορά είναι φυσιολογική: ένα δωμάτιο είναι θερμότερο από τον δρόμο τη νύχτα και δροσερότερο από ένα ηλιόλουστο αεροδρόμιο το μεσημέρι· ένα όχημα βρίσκεται στον ήλιο ή στη σκιά.')),
-            h('li', null, T('A gap that jumps can mean a window was opened, the sun reached the sensor or the sensor needs checking.', 'Μια διαφορά που αλλάζει απότομα μπορεί να σημαίνει ότι άνοιξε ένα παράθυρο, ότι ο ήλιος έπεσε πάνω στον αισθητήρα ή ότι ο αισθητήρας χρειάζεται έλεγχο.')),
-            h('li', null, T('The correlation tells you whether the shapes match, even when the levels do not.', 'Η συσχέτιση δείχνει αν τα σχήματα ταιριάζουν, ακόμα κι όταν τα επίπεδα δεν ταιριάζουν.')))));
-      chart = exChart(box, { series: [{ name: sName, color: COL.a, pts: a, unit: rs.unit, dec: rs.dec, gapLabel: T('Sensor offline', 'Αισθητήρας εκτός σύνδεσης') }, { name: T('Station', 'Σταθμός') + ' · ' + station.name, color: COL.b, pts: b, unit: rs.unit, dec: rs.dec, gapLabel: T('No station data', 'Χωρίς δεδομένα σταθμού') }],
+        h('div', { class: 'ex-foot' }, noteBox, h('p', { class: 'ex-note' }, rb.key === 'pstn' ? T('The sensor’s pressure is compared with the station’s own (not sea-level) pressure.', 'Η πίεση του αισθητήρα συγκρίνεται με την πίεση του ίδιου του σταθμού (όχι στη στάθμη της θάλασσας).') : rb.key === 'pmsl' ? T('The station publishes pressure reduced to sea level, so a steady gap can come from the sensor’s height.', 'Ο σταθμός δημοσιεύει πίεση αναγμένη στη στάθμη της θάλασσας, οπότε μια σταθερή διαφορά μπορεί να οφείλεται στο ύψος του αισθητήρα.') : T('Readings are paired when they are less than about ' + Math.round(Math.max(5, Math.min(15, Math.max(stepOf(a), stepOf(b)) / 2 / MIN + 0.5))) + ' minutes apart.', 'Οι μετρήσεις ζευγαρώνουν όταν απέχουν λιγότερο από περίπου ' + Math.round(Math.max(5, Math.min(15, Math.max(stepOf(a), stepOf(b)) / 2 / MIN + 0.5))) + ' λεπτά.')),
+        srcLine([rs, rb])));
+      // the line the reader sees first: the moment the two differ most (as in the picture); moving the pointer shows any other moment
+      const biggest = enough ? pr.reduce((m, p) => (Math.abs(p.d) > Math.abs(m.d) ? p : m), pr[0]) : null;
+      chart = exChart(box, { series: [{ name: T('Sensor', 'Αισθητήρας'), color: COL.a, pts: a, unit: rs.unit, dec: rs.dec, gapLabel: T('Sensor offline', 'Αισθητήρας εκτός σύνδεσης') }, { name: T('Station', 'Σταθμός'), color: COL.b, pts: b, unit: rs.unit, dec: rs.dec, gapLabel: T('No station data', 'Χωρίς δεδομένα σταθμού') }],
+        pin: biggest ? biggest.t : null,
         t0: Date.now() - st.r * HOUR, t1: Date.now(), diff: enough ? { a: 0, b: 1, pos: COL.a, neg: COL.b, posLabel: T('Sensor higher by', 'Ο αισθητήρας υψηλότερα κατά'), negLabel: T('Station higher by', 'Ο σταθμός υψηλότερα κατά') } : null, label: aria });
     }
     run();
@@ -991,25 +1005,26 @@
     items.sort((a, b) => rankOf(b) - rankOf(a));
     return { items, looked, notes };
   }
-  function rankCard(onOpen, getSel) {
+  function rankCard(onOpen, isSel) {
     const list = h('ol', { class: 'ex-rk' });
     const body = h('div');
     const key = h('div', { class: 'ex-rkkey' }, Object.keys(FAM_NAME).map((k) => cv(h('span', null, h('i'), T(FAM_NAME[k][0], FAM_NAME[k][1])), FAM_COLOR[k])));
     const card = h('section', { class: 'nm-card ex-br ex-rkcard', 'aria-labelledby': 'ex-rkh' },
       h('div', { class: 'card-h' }, h('span', { class: 'kpi-label', id: 'ex-rkh' }, T('Readings that changed most today', 'Μετρήσεις που άλλαξαν περισσότερο σήμερα'))),
-      h('p', { class: 'card-sub' }, T('Change over the last 6 hours. The bar compares it with the biggest 6-hour change that same reading made in the last 24 hours. Click a row to explore it.', 'Μεταβολή τις τελευταίες 6 ώρες. Η μπάρα τη συγκρίνει με τη μεγαλύτερη μεταβολή 6 ωρών που έκανε η ίδια μέτρηση το τελευταίο 24ωρο. Πατήστε μια γραμμή για να την εξερευνήσετε.')),
+      h('p', { class: 'card-sub' }, T('Change over the last 6 hours. The bar shows how big it is next to the biggest 6-hour change that reading made in the last 24 hours. Click a row to explore it.', 'Μεταβολή τις τελευταίες 6 ώρες. Η μπάρα δείχνει πόσο μεγάλη είναι σε σχέση με τη μεγαλύτερη μεταβολή 6 ωρών που έκανε η μέτρηση το τελευταίο 24ωρο. Πατήστε μια γραμμή για να την εξερευνήσετε.')),
       body);
     let data = null, all = false, tok = 0, first = true;
     const tri = (up) => SC.svgEl('svg', { viewBox: '0 0 10 10', fill: 'currentColor', 'aria-hidden': 'true' }, SC.svgEl('path', { d: up ? 'M5 1l4.5 8h-9z' : 'M5 9L.5 1h9z' }));
     function draw() {
       const seen = new Map(), spread = data.items.filter((c) => { const k = c.r.kind + c.r.fam, n = seen.get(k) || 0; seen.set(k, n + 1); return n < 3; });
-      const rows = all ? data.items.slice(0, 60) : spread.slice(0, 14), sel = getSel();
+      const rows = all ? data.items.slice(0, 60) : spread.slice(0, 14);
       list.replaceChildren(...rows.map((c, i) => {
         const r = c.r, color = FAM_COLOR[r.fam] || FAM_COLOR.other, up = c.d >= 0, u = r.unit ? ' ' + r.unit : '';
-        const nameBits = [h('b', null, r.name), ' · ', r.src.name];
+        // short names, as in the picture ("Pressure", not "Barometric pressure"); the full reading name is in the tooltip
+        const nameBits = [h('b', null, r.kind === 'sensor' && FAM_NAME[r.fam] ? T(FAM_NAME[r.fam][0], FAM_NAME[r.fam][1]) : r.name), ' · ', r.src.name];
         if (r.kind === 'station') nameBits.push(h('i', { class: 'ex-mo' }, ' (' + T('Met Office', 'Μετ. Υπηρεσία') + ')'));
-        return cv(h('li', { class: sel === r.id ? 'sel' : '' },
-          h('button', { type: 'button', class: 'ex-rkbtn', onclick: () => onOpen(r), title: sourceText(r), 'aria-label': r.label + ': ' + num(c.last.v, r.dec) + u + ', ' + T('changed by ' + sgn(c.d, r.dec) + u + ' in 6 hours. Open in Compare.', 'μεταβολή ' + sgn(c.d, r.dec) + u + ' σε 6 ώρες. Άνοιγμα στη Σύγκριση.') },
+        return cv(h('li', { class: isSel(r) ? 'sel' : '' },
+          h('button', { type: 'button', class: 'ex-rkbtn', onclick: () => onOpen(r), title: r.name + ' · ' + sourceText(r), 'aria-label': r.label + ': ' + num(c.last.v, r.dec) + u + ', ' + T('changed by ' + sgn(c.d, r.dec) + u + ' in 6 hours. Open in Compare.', 'μεταβολή ' + sgn(c.d, r.dec) + u + ' σε 6 ώρες. Άνοιγμα στη Σύγκριση.') },
             h('span', { class: 'n' }, String(i + 1)),
             h('div', null,
               h('div', { class: 'l1' }, h('i', { class: 'mk' }), h('span', { class: 'nm' }, nameBits)),
@@ -1018,9 +1033,10 @@
       }));
       const shown = rows.length;
       fill(body, list, key,
-        h('div', { class: 'ex-rkfoot' }, h('span', null, T('Showing ' + shown + ' of ' + data.items.length + ' readings that changed', 'Εμφανίζονται ' + shown + ' από ' + data.items.length + ' μετρήσεις που άλλαξαν')),
+        h('div', { class: 'ex-rkfoot' }, h('span', null, T('Showing ' + shown + ' of ' + data.items.length + ' changed readings', 'Εμφανίζονται ' + shown + ' από ' + data.items.length + ' μετρήσεις που άλλαξαν')),
           data.items.length > rows.length || all ? h('button', { class: 'ex-lnk', type: 'button', onclick: () => { all = !all; draw(); } }, all ? T('Show fewer', 'Λιγότερες') : T('Show more', 'Περισσότερες')) : null),
-        h('p', { class: 'ex-note' }, T('Looked at ' + data.looked + ' readings with data in the last 24 hours. Changes smaller than a noticeable step (for example 0.5 °C or 3 %) are left out. Sources: school sensors (our server) and Met Office stations (dom.org.cy, as published).', 'Εξετάστηκαν ' + data.looked + ' μετρήσεις με δεδομένα το τελευταίο 24ωρο. Μεταβολές μικρότερες από ένα αισθητό βήμα (π.χ. 0,5 °C ή 3 %) παραλείπονται. Πηγές: αισθητήρες σχολείων (ο διακομιστής μας) και σταθμοί της Μετεωρολογικής Υπηρεσίας (dom.org.cy, όπως δημοσιεύονται).')),
+        h('details', { class: 'ex-how' }, h('summary', null, T('How this list is made', 'Πώς φτιάχνεται η λίστα')),
+          h('p', { class: 'ex-note' }, T('Looked at ' + data.looked + ' readings with data in the last 24 hours. Changes smaller than a noticeable step (for example 0.5 °C or 3 %) are left out. Sources: school sensors (our server) and Met Office stations (dom.org.cy, as published).', 'Εξετάστηκαν ' + data.looked + ' μετρήσεις με δεδομένα το τελευταίο 24ωρο. Μεταβολές μικρότερες από ένα αισθητό βήμα (π.χ. 0,5 °C ή 3 %) παραλείπονται. Πηγές: αισθητήρες σχολείων (ο διακομιστής μας) και σταθμοί της Μετεωρολογικής Υπηρεσίας (dom.org.cy, όπως δημοσιεύονται).'))),
         data.notes.map((n) => h('p', { class: 'ex-stale', role: 'status' }, n)));
     }
     async function load(silent) {
@@ -1051,8 +1067,8 @@
       const q = (k) => (ctx.query && typeof ctx.query.get === 'function' ? ctx.query.get(k) : ctx.query && ctx.query[k]) || '';
       const head = SC.head({
         title: T('Explore the data', 'Εξερευνήστε τα δεδομένα'),
-        lede: T('Five tools over the readings from the school sensors and the Met Office. Pick a tool, change the place or the dates, and download exactly what you see. Every reading keeps its source.',
-          'Πέντε εργαλεία πάνω στις μετρήσεις των αισθητήρων των σχολείων και της Μετεωρολογικής Υπηρεσίας. Επιλέξτε εργαλείο, αλλάξτε τόπο ή ημερομηνίες και κατεβάστε ακριβώς αυτό που βλέπετε. Κάθε μέτρηση κρατά την πηγή της.'),
+        lede: T('Five tools over the readings from our schools and the Met Office. Pick a tool, change the place or the dates, and download exactly what you see. Every reading keeps its source.',
+          'Πέντε εργαλεία πάνω στις μετρήσεις των σχολείων μας και της Μετεωρολογικής Υπηρεσίας. Επιλέξτε εργαλείο, αλλάξτε τόπο ή ημερομηνίες και κατεβάστε ακριβώς αυτό που βλέπετε. Κάθε μέτρηση κρατά την πηγή της.'),
         help: ['Compare puts two readings on one chart. Timeline shows one reading for every school over a week. Number finder lists when a reading was above or below a number you choose. Sensor vs official sets one of our sensors beside a Met Office station and works out the difference, the correlation and how many hours both had a reading. Download builds a CSV file in your browser. The list on the left shows which readings changed most in the last 6 hours; click one to open it in Compare.',
           'Η Σύγκριση βάζει δύο μετρήσεις στο ίδιο διάγραμμα. Το Χρονολόγιο δείχνει μία μέτρηση για κάθε σχολείο σε μία εβδομάδα. Η Αναζήτηση τιμής παραθέτει πότε μια μέτρηση ήταν πάνω ή κάτω από έναν αριθμό της επιλογής σας. Το «Αισθητήρας και επίσημος» βάζει έναν αισθητήρα μας δίπλα σε έναν σταθμό της Μετεωρολογικής Υπηρεσίας και υπολογίζει τη διαφορά, τη συσχέτιση και πόσες ώρες είχαν μέτρηση και οι δύο. Η Λήψη φτιάχνει αρχείο CSV στον περιηγητή σας. Η λίστα αριστερά δείχνει ποιες μετρήσεις άλλαξαν περισσότερο τις τελευταίες 6 ώρες· πατήστε μία για να ανοίξει στη Σύγκριση.'],
       });
@@ -1085,7 +1101,13 @@
         build();
       }
       function build() {
-        if (E.demo) { const ph = head.querySelector('.page-head'), lede = head.querySelector('.lede'); if (ph) ph.insertBefore(h('span', { class: 't demo' }, T('Demo data', 'Δοκιμαστικά δεδομένα')), lede); }
+        {
+          const ph = head.querySelector('.page-head'), lede = head.querySelector('.lede');
+          const seen = Math.max(0, ...sensorsOf().map((s) => s.lastSeen || 0));
+          const fresh = !seen ? null : Date.now() - seen < 3 * HOUR ? { txt: T('Live · ' + SC.ago(seen), 'Ζωντανά · ' + SC.ago(seen)), cls: '' } : { txt: T('Last sensor reading ' + SC.ago(seen), 'Τελευταία μέτρηση αισθητήρα ' + SC.ago(seen)), cls: ' stale' };
+          if (ph && lede && fresh) ph.insertBefore(h('span', { class: 'fresh-pill' + fresh.cls }, h('i'), fresh.txt), lede);
+          if (E.demo && ph && lede) ph.insertBefore(h('span', { class: 't demo' }, T('Demo data', 'Δοκιμαστικά δεδομένα')), lede);
+        }
         if (!E.sources.length) { fill(body, empty('No school sensor or Met Office station has reported yet. Come back in a few minutes, or open the live map to see what is connected.', 'Κανένας αισθητήρας σχολείου ή σταθμός της Μετεωρολογικής Υπηρεσίας δεν έχει αναφέρει ακόμα. Ελέγξτε ξανά σε λίγα λεπτά ή ανοίξτε τον ζωντανό χάρτη για να δείτε τι είναι συνδεδεμένο.')); return; }
         // starting readings, from the address when valid
         const dc = defaultReading('temp');
@@ -1123,13 +1145,22 @@
         const toolHint = h('span', { class: 'ex-toolhint' });
         const top = h('div', { class: 'ex-top' });
         const main = h('section', { class: 'nm-card ex-br ex-main', id: 'ex-panel', role: 'tabpanel', tabindex: '-1' });
+        const after = h('div', { class: 'ex-after' });   // a tool may put a note under its card (the reading guide of Sensor vs official)
         const notes = E.notes.length ? h('div', { class: 'nm-callout nm-callout--warn ex-note-box', role: 'status' }, T('Not loaded just now: ' + E.notes.map((n) => n.en).join(' and ') + '. The other readings still work. ', 'Δεν φορτώθηκαν τώρα: ' + E.notes.map((n) => n.el).join(' και ') + '. Οι υπόλοιπες μετρήσεις λειτουργούν κανονικά. '),
           h('button', { class: 'nm-btn', type: 'button', onclick: async () => { try { await loadEnv(); } catch (e) { return; } if (alive) { toolCleanup && toolCleanup(); toolCleanup = null; if (rank) rank.destroy(); build(); } } }, T('Try again', 'Δοκιμάστε ξανά'))) : null;
-        rank = rankCard((r) => { S.cmp.a = r.id; openTool('compare', true); }, () => (S.tool === 'compare' ? S.cmp.a : ''));
+        rank = rankCard((r) => { S.cmp.a = r.id; openTool('compare', true); }, (r) => {
+          // the readings the open tool is showing are outlined in the list
+          if (S.tool === 'compare') return r.id === S.cmp.a || r.id === S.cmp.b;
+          if (S.tool === 'finder') return r.id === S.fd.id;
+          if (S.tool === 'download') return r.id === S.dl.a;
+          if (S.tool === 'official') return r.fam === S.of.fam && (r.src.id === S.of.sensor || r.src.id === S.of.station);
+          return false;
+        });
         fill(body,
           h('div', { class: 'ex-tabs-row' }, pills, toolHint),
-          h('p', { class: 'ex-meta' }, metaBits.join(' · ')), notes, top,
-          h('div', { class: 'ex-grid' }, rank.el, h('div', { class: 'ex-col' }, main)));
+          notes, top,
+          h('div', { class: 'ex-grid' }, rank.el, h('div', { class: 'ex-col' }, main, after)),
+          h('p', { class: 'ex-meta' }, metaBits.join(' · ')));
 
         function openTool(id, fromRank) {
           if (!MOUNT[id]) id = 'compare';
@@ -1139,9 +1170,9 @@
           const cur = btns.get(id);
           if (pills.scrollWidth > pills.clientWidth) pills.scrollLeft = cur.offsetLeft - (pills.clientWidth - cur.offsetWidth) / 2;
           main.setAttribute('aria-labelledby', 'ex-tab-' + id);
-          fill(top); fill(main);
+          fill(top); fill(main); fill(after);
           toolHint.textContent = '';
-          toolCleanup = MOUNT[id](S, { top, main, hint: (t) => { toolHint.textContent = t; }, alive: () => alive && mounted === id }) || null;
+          toolCleanup = MOUNT[id](S, { top, main, after, hint: (t) => { toolHint.textContent = t; }, alive: () => alive && mounted === id }) || null;
           S.sync();
           if (rank) rank.restyle();
           if (fromRank && window.innerWidth < 1180) main.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });

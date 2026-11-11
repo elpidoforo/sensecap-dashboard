@@ -100,6 +100,15 @@
 .rp-sh-foot p { margin: 0 0 4px; font-size: 11.5px; line-height: 1.45; color: var(--mute); }
 
 @media (max-width: 1100px) { .rp-cols { grid-template-columns: 1fr; } .rp-side { position: static; } }
+@media screen and (max-width: 700px) {
+  .rp-stack caption { display: block; }
+  .rp-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .rp-stack, .rp-stack tbody, .rp-stack tr, .rp-stack tbody th, .rp-stack td { display: block; width: 100%; }
+  .rp-stack tbody tr { border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; margin-bottom: 8px; }
+  .rp-stack tbody th { border: 0; padding: 4px 0 6px; white-space: normal; }
+  .rp-stack td { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border: 0; border-top: 1px solid var(--line); padding: 5px 0; white-space: normal; text-align: right; }
+  .rp-stack td::before { content: attr(data-label); color: var(--mute); font-size: 12px; text-align: left; }
+}
 @media (max-width: 700px) {
   .rp-sheet { padding: 22px 16px 20px; border-radius: 8px; }
   .rp-sh-title { font-size: 26px; }

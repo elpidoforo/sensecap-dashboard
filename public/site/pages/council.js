@@ -151,7 +151,8 @@
     if (code === 'rate') return T('You are asking quickly. Please wait a moment' + (at ? ' (until ' + SC.time(at) + ')' : '') + ', then ask again.', 'Ρωτάτε πολύ γρήγορα. Περιμένετε λίγο' + (at ? ' (μέχρι τις ' + SC.time(at) + ')' : '') + ' και ρωτήστε ξανά.');
     if (code === 'ip') return T('Many questions came from this network today. ' + (when ? 'You can ask again ' + when + ' (Cyprus time).' : 'Please try again later.'), 'Πολλές ερωτήσεις ήρθαν σήμερα από αυτό το δίκτυο. ' + (when ? 'Μπορείτε να ρωτήσετε ξανά ' + when + ' (ώρα Κύπρου).' : 'Δοκιμάστε ξανά αργότερα.'));
     if (code === 'global') return T('The council is resting because everyone together used the daily limit. ' + (when ? 'It is free again ' + when + ' (Cyprus time).' : 'Please try again later.'), 'Το συμβούλιο ξεκουράζεται επειδή όλοι μαζί χρησιμοποίησαν το ημερήσιο όριο. ' + (when ? 'Θα είναι ξανά διαθέσιμο ' + when + ' (ώρα Κύπρου).' : 'Δοκιμάστε ξανά αργότερα.'));
-    return T('You have used all ' + (lim || 'your') + ' questions for today. ' + (when ? 'You can ask again ' + when + ' (Cyprus time).' : 'They come back later today.'), 'Χρησιμοποιήσατε ' + (lim ? 'τις ' + lim : 'όλες τις') + ' ερωτήσεις σας για σήμερα. ' + (when ? 'Μπορείτε να ρωτήσετε ξανά ' + when + ' (ώρα Κύπρου).' : 'Επιστρέφουν αργότερα σήμερα.'));
+    return T('You have used ' + (lim === 1 ? 'your question' : lim ? 'all ' + lim + ' questions' : 'all your questions') + ' for today. ' + (when ? 'You can ask again ' + when + ' (Cyprus time).' : 'They come back later today.'),
+      'Χρησιμοποιήσατε ' + (lim === 1 ? 'την ερώτησή σας' : lim ? 'και τις ' + lim + ' ερωτήσεις σας' : 'όλες τις ερωτήσεις σας') + ' για σήμερα. ' + (when ? 'Μπορείτε να ρωτήσετε ξανά ' + when + ' (ώρα Κύπρου).' : 'Επιστρέφουν αργότερα σήμερα.'));
   }
 
   SC.register('council', {
@@ -207,7 +208,7 @@
       }
       function usagePill() {
         const rem = left(), lim = S.status && S.status.limit;
-        if (rem == null) return null;
+        if (rem == null || off()) return null;
         const used = lim ? Math.max(0, lim - rem) : null, pct = used != null && lim ? Math.min(100, (used / lim) * 100) : 0;
         const meter = el('span', { class: 'cn-meter' + (pct >= 80 ? ' hot' : ''), role: 'img', 'aria-label': T(rem + ' questions left today', 'Απομένουν ' + rem + ' ερωτήσεις σήμερα') }, el('b'));
         meter.firstChild.style.width = pct + '%';
@@ -223,7 +224,7 @@
           kids.push(el('div', { class: 'err', role: 'alert' }, T('The council room could not be reached. ', 'Η αίθουσα συμβουλίου δεν είναι προσβάσιμη. ') + (S.statusErr.message || '')),
             el('div', null, el('button', { type: 'button', class: 'nm-btn', onclick: () => start() }, T('Try again', 'Δοκιμάστε ξανά'))));
         }
-        if (S.status && off()) kids.push(el('div', { class: 'nm-callout nm-callout--info cn-callout' }, el('b', null, T('The council is resting for now.', 'Το συμβούλιο ξεκουράζεται προς το παρόν.')), ' ',
+        if (S.status && off()) kids.push(el('div', { class: 'nm-callout nm-callout--info cn-callout' }, S.status.message && S.status.message_el ? null : el('b', null, T('The council is resting for now. ', 'Το συμβούλιο ξεκουράζεται προς το παρόν. ')),
           S.status.message && S.status.message_el ? T(S.status.message, S.status.message_el) : T('The AI assistant is not switched on yet. You can still read the sessions a teacher has published below. Please try again later, or ask a teacher.', 'Ο βοηθός ΤΝ δεν έχει ενεργοποιηθεί ακόμη. Μπορείτε ακόμα να διαβάσετε παρακάτω τις συνεδρίες που έχει δημοσιεύσει ένας εκπαιδευτικός. Δοκιμάστε ξανά αργότερα ή ρωτήστε έναν εκπαιδευτικό.')));
         else if (S.status && (left() === 0 || paused())) kids.push(el('div', { class: 'nm-callout nm-callout--info cn-callout', role: 'status' }, S.note && S.note.kind === 'limit' ? S.note.text : limitText(left() === 0 ? 'daily' : 'pause', { limit: S.status.limit, retry_at: S.status.retry_at })));
         else if (S.note) kids.push(el('div', { class: 'nm-callout ' + (S.note.kind === 'stopped' || S.note.kind === 'limit' || S.note.kind === 'busy' ? 'nm-callout--info' : 'nm-callout--warn') + ' cn-callout', role: 'status' }, S.note.text));

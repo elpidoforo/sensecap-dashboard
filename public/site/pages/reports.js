@@ -127,13 +127,13 @@
 
   function numbersTable(r) {
     const ms = mids(r), anyOnline = r.schools.some((s) => fin(s.onlineNow));
-    return el('div', { class: 'rp-tw' }, el('table', { class: 'rp-table' },
+    const L = { s: anyOnline ? T('Sensors online now', 'Αισθητήρες σε λειτουργία τώρα') : T('Sensors', 'Αισθητήρες'), t: T('Time with readings', 'Χρόνος με μετρήσεις') };
+    return el('div', { class: 'rp-tw' }, el('table', { class: 'rp-table rp-stack' },
       el('caption', { class: 'rp-cap' }, T('Weekly averages per school. In brackets: the lowest and the highest reading of the week.', 'Εβδομαδιαίοι μέσοι όροι ανά σχολείο. Σε παρένθεση: η χαμηλότερη και η υψηλότερη μέτρηση της εβδομάδας.')),
-      el('thead', null, el('tr', null, el('th', { scope: 'col' }, T('School', 'Σχολείο')), el('th', { scope: 'col' }, anyOnline ? T('Sensors online now', 'Αισθητήρες σε λειτουργία τώρα') : T('Sensors', 'Αισθητήρες')),
-        el('th', { scope: 'col' }, T('Time with readings', 'Χρόνος με μετρήσεις')), ms.map((m) => el('th', { scope: 'col' }, mname(m) + (m.unit ? ' ' + m.unit : ''))))),
+      el('thead', null, el('tr', null, el('th', { scope: 'col' }, T('School', 'Σχολείο')), el('th', { scope: 'col' }, L.s), el('th', { scope: 'col' }, L.t), ms.map((m) => el('th', { scope: 'col' }, mname(m) + (m.unit ? ' ' + m.unit : ''))))),
       el('tbody', null, r.schools.map((s) => el('tr', null, schoolCell(s),
-        el('td', null, fin(s.onlineNow) && fin(s.sensors) ? s.onlineNow + ' / ' + s.sensors : fin(s.sensors) ? String(s.sensors) : '–'), el('td', null, pct(s.reportingShare)),
-        ms.map((m) => { const x = measOf(s, m.mid); return el('td', null, x ? num(x.avg, decOf(x)) : '–', x && fin(x.min) && fin(x.max) ? el('small', null, ' (' + SC.num(x.min, decOf(x)) + ' – ' + SC.num(x.max, decOf(x)) + ')') : null); }))))));
+        el('td', { 'data-label': L.s }, fin(s.onlineNow) && fin(s.sensors) ? s.onlineNow + ' / ' + s.sensors : fin(s.sensors) ? String(s.sensors) : '–'), el('td', { 'data-label': L.t }, pct(s.reportingShare)),
+        ms.map((m) => { const x = measOf(s, m.mid); return el('td', { 'data-label': mname(m) + (m.unit ? ' ' + m.unit : '') }, el('span', null, x ? num(x.avg, decOf(x)) : '–', x && fin(x.min) && fin(x.max) ? el('small', null, ' (' + SC.num(x.min, decOf(x)) + ' – ' + SC.num(x.max, decOf(x)) + ')') : null)); }))))));
   }
   function dailyTables(r) {
     const days = r.days.length === 7 ? r.days : [];
@@ -378,9 +378,10 @@
         const cells = []; schools.forEach((s) => (Array.isArray(s.cells) ? s.cells : []).forEach((c) => { if (Array.isArray(c) && fin(c[0]) && fin(c[1])) cells.push({ la: c[0], ln: c[1], n: fin(c[2]) ? c[2] : 1, d: distOf(s.id, s.name) }); }));
         const upd = dateOf(ov.updated), hours = Math.round((ov.delayMinutes || 120) / 60);
         const noReadings = !rows.some((r) => fin(r.temp) || fin(r.humidity) || fin(r.co2));
-        const table = el('div', { class: 'rp-tw' }, el('table', { class: 'rp-table' },
-          el('thead', null, el('tr', null, el('th', { scope: 'col' }, T('School', 'Σχολείο')), el('th', { scope: 'col' }, T('Air temperature °C', 'Θερμοκρασία αέρα °C')), el('th', { scope: 'col' }, T('Humidity %', 'Υγρασία %')), el('th', { scope: 'col' }, 'CO2 ppm'), el('th', { scope: 'col' }, T('Sensors online', 'Αισθητήρες σε λειτουργία')))),
-          el('tbody', null, rows.map((r) => el('tr', null, schoolCell({ d: r.d, name: r.name }), el('td', null, num(r.temp, 1)), el('td', null, num(r.humidity, 0)), el('td', null, num(r.co2, 0)), el('td', null, fin(r.online) && fin(r.sensors) ? r.online + ' / ' + r.sensors : '–'))))));
+        const SL = [T('Air temperature °C', 'Θερμοκρασία αέρα °C'), T('Humidity %', 'Υγρασία %'), 'CO2 ppm', T('Sensors online', 'Αισθητήρες σε λειτουργία')];
+        const table = el('div', { class: 'rp-tw' }, el('table', { class: 'rp-table rp-stack' },
+          el('thead', null, el('tr', null, el('th', { scope: 'col' }, T('School', 'Σχολείο')), SL.map((l) => el('th', { scope: 'col' }, l)))),
+          el('tbody', null, rows.map((r) => el('tr', null, schoolCell({ d: r.d, name: r.name }), el('td', { 'data-label': SL[0] }, num(r.temp, 1)), el('td', { 'data-label': SL[1] }, num(r.humidity, 0)), el('td', { 'data-label': SL[2] }, num(r.co2, 0)), el('td', { 'data-label': SL[3] }, fin(r.online) && fin(r.sensors) ? r.online + ' / ' + r.sensors : '–'))))));
         const kids = [
           el('section', { class: 'rp-sec' }, el('h3', null, T('Four schools. One living data classroom.', 'Τέσσερα σχολεία. Μία ζωντανή τάξη δεδομένων.')),
             el('p', { class: 'rp-summary' }, T('Sensors on school buses and cars help students in Larnaka, Lefkosia, Lemesos and Pafos understand heat and air in their own cities. The table shows the newest readings; the picture shows where the vehicles drove in the last 24 hours.', 'Αισθητήρες σε σχολικά λεωφορεία και αυτοκίνητα βοηθούν τους μαθητές σε Λάρνακα, Λευκωσία, Λεμεσό και Πάφο να καταλάβουν τη θερμότητα και τον αέρα της πόλης τους. Ο πίνακας δείχνει τις νεότερες μετρήσεις· η εικόνα δείχνει πού κινήθηκαν τα οχήματα τις τελευταίες 24 ώρες.'))),
