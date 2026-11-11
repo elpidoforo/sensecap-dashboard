@@ -38,6 +38,7 @@ Open http://localhost:3000.
 | `SENSECAP_API_KEY` | yes | Access API Key from the same page |
 | `DASHBOARD_PASSWORD` | no | Locks the whole site behind this password (any username). Whoever has it also sees exact vehicle positions. Leave it empty for the open site |
 | `SENSECAP_HOST` | no | Defaults to `https://sensecap.seeed.cc/openapi` |
+| `SENSECAP_PARALLEL`, `SENSECAP_GAP_MS`, `SENSECAP_COOL_MS` | no | How the server paces its calls to SenseCAP (which answers with a web page when asked too often): at most 3 at a time (`SENSECAP_PARALLEL`), at least 250 ms apart (`SENSECAP_GAP_MS`), and 45 s of rest after a bad answer (`SENSECAP_COOL_MS`). The gap doubles (up to 2 s) after every "busy" answer and slowly comes back after 60 good ones. What SenseCAP said is kept in the Feeds list as the last error |
 | `DEMO` | no | `1` forces demo data |
 | `DATA_DIR` | no | Where the Met Office history is saved. Defaults to the Railway volume (`RAILWAY_VOLUME_MOUNT_PATH`), otherwise `./data` |
 | `HISTORY_DAYS` | no | How many days of history to keep (default 400) |

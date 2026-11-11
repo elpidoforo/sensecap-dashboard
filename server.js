@@ -52,13 +52,28 @@ const whole = (v, dflt, min, max) => Math.min(max, Math.max(min, Math.round(Numb
  * enough). So every call goes through a gate: at most UP_PARALLEL at the same time, UP_GAP_MS apart, and after a bad answer
  * all calls wait UP_COOL_MS before the next try. The caches serve the last good answer in the meantime. */
 const UP_PARALLEL = Number(process.env.SENSECAP_PARALLEL) || 3;
-const UP_GAP_MS = Number(process.env.SENSECAP_GAP_MS) || 150;
+const UP_GAP_MS = Number(process.env.SENSECAP_GAP_MS) || 250;
 const UP_COOL_MS = Number(process.env.SENSECAP_COOL_MS) || 45000;
-const upstream = { active: 0, queue: [], lastStart: 0, coolUntil: 0 };
+const UP_GAP_MAX = 2000;
+const upstream = { active: 0, queue: [], lastStart: 0, coolUntil: 0, gap: UP_GAP_MS, good: 0 };
+/* How fast SenseCAP lets us ask is not published. So the gap between calls adapts: a "busy" answer doubles it (up to 2 s)
+ * and every 60 good answers in a row bring it back a quarter of the way to UP_GAP_MS. */
+function upstreamBad() {
+  upstream.good = 0;
+  const g = Math.min(UP_GAP_MAX, Math.max(UP_GAP_MS * 2, upstream.gap * 2));
+  if (g !== upstream.gap) { upstream.gap = g; console.log(`SenseCAP said busy: calls are now ${g} ms apart`); }
+}
+function upstreamGood() {
+  if (++upstream.good >= 60 && upstream.gap > UP_GAP_MS) {
+    upstream.good = 0;
+    upstream.gap = Math.max(UP_GAP_MS, Math.round(upstream.gap * 0.75));
+    console.log(`SenseCAP is answering well: calls are now ${upstream.gap} ms apart`);
+  }
+}
 
 function upstreamNext() {
   while (upstream.active < UP_PARALLEL && upstream.queue.length) {
-    const wait = upstream.lastStart + UP_GAP_MS - Date.now();
+    const wait = upstream.lastStart + upstream.gap - Date.now();
     if (wait > 0) { setTimeout(upstreamNext, wait).unref(); return; }
     upstream.active++;
     upstream.lastStart = Date.now();
@@ -96,11 +111,14 @@ async function api(endpoint, { method = 'GET', query = {}, body } = {}) {
       let json = null;
       try { json = JSON.parse(text); } catch { /* a web page, not data */ }
       if (!res.ok || json === null) {
-        if (res.status === 429 || res.status >= 500 || json === null) upstream.coolUntil = Date.now() + UP_COOL_MS;
-        throw new Error(`SenseCAP ${endpoint} returned ${json === null ? 'a web page instead of data' : 'HTTP ' + res.status} (HTTP ${res.status})`);
+        if (res.status === 429 || res.status >= 500 || json === null) { upstream.coolUntil = Date.now() + UP_COOL_MS; upstreamBad(); }
+        // what SenseCAP said, without tags, so the Feeds page shows the real reason
+        const said = json === null ? text.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100) : '';
+        throw new Error(`SenseCAP ${endpoint} returned ${json === null ? 'a web page instead of data' : 'HTTP ' + res.status} (HTTP ${res.status})${said ? ': "' + said + '"' : ''}`);
       }
       if (String(json.code) !== '0') throw new Error(`SenseCAP ${endpoint} error code ${json.code}: ${json.message || ''}`);
       feeds.record('sensecap', true);
+      upstreamGood();
       return json.data;
     } catch (e) {
       feeds.record('sensecap', false, e);
