@@ -25,9 +25,9 @@ const MAX_STEPS = 8;
 const CLASS_HOURS = 8;
 const CLASS_TEAM_PENDING = 3;       // pages one team may have waiting for review
 const CLASS_SCHOOL_SUBMITS_PER_DAY = 40;
-const PLAN_LIMITS = { title: 80, question: 400, notes: 1000, sensors: 8, data: 12, schoolMax: 150, staffMax: 60, perHour: 12, writesPerHour: 240 };
+const PLAN_LIMITS = { title: 80, question: 400, notes: 1000, sensors: 8, data: 12, schoolMax: 150, staffMax: 60, perHour: 12, ipPerHour: 40, writesPerHour: 240 };
 const PLAN_SET_BY_TEAM = ['draft', 'running', 'done', 'submitted'];   // what a team (or a teacher) may set; approval only comes from a review
-const PLAN_SOURCES = ['sensecap', 'dom', 'metoffice', 'openmeteo', 'sensorcommunity', 'metar'];
+const PLAN_SOURCES = ['sensecap', 'dom', 'metoffice', 'air', 'openmeteo', 'sensorcommunity', 'metar'];
 const GPS_IDS = ['4197', '4198'];
 const PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 const BRIDGE = '<script>window.cities=(function(){var n=0,p={};addEventListener("message",function(e){var d=e.data;if(d&&d.type==="cities-result"&&p[d.id]){var f=p[d.id];delete p[d.id];f(d)}});function ask(w){return new Promise(function(ok,no){var id=++n;p[id]=function(d){d.error?no(new Error(d.error)):ok(d.data)};parent.postMessage({type:"cities-get",id:id,what:w},"*");setTimeout(function(){if(p[id]){delete p[id];no(new Error("No live data here. Open the page inside the AI Sustainable Cities site."))}},8000)})}return{overview:function(){return ask("overview")}}})();</script>';
@@ -512,7 +512,7 @@ function createStudio(opts) {
     hits.add(key, 3600000);
   };
 
-  async function createPlan(v, body) {
+  async function createPlan(v, body, req) {
     needViewer(v);
     const f = {
       title: planText(body.title, PLAN_LIMITS.title, 'title'), question: planText(body.question, PLAN_LIMITS.question, 'question'),
@@ -523,10 +523,11 @@ function createStudio(opts) {
     const now = Date.now();
     let schoolId, teamId = null, userId = 0, kind, label = null;
     if (v.kind === 'class') {
-      if (body.team != null && body.team !== '' && nameKey(cleanTeam(body.team)) !== v.teamKey) fail(400, 'A class team can only make plans for its own team.', 'team');
-      schoolId = v.school.id; kind = 'class'; label = v.team;
+      schoolId = v.school.id; kind = 'class'; label = v.team;   // always the team of the cookie: a different name in the body is ignored, so nobody can write as another team
       const wait = hits.wait(`plan-new:${schoolId}:${v.teamKey}`, PLAN_LIMITS.perHour, 3600000);
       if (wait) fail(429, 'Your team made many plans in the last hour. Wait a little.', 'rate', { retryAfter: wait });
+      const ipWait = hits.wait('plan-ip:' + ipKey(req), PLAN_LIMITS.ipPerHour, 3600000);   // teams cannot be invented without end behind one address
+      if (ipWait) fail(429, 'Many plans were made from this network in the last hour. Wait a little.', 'rate', { retryAfter: ipWait });
     } else {
       const u = v.user;
       userId = u.id; kind = 'user'; teamId = u.team_id || null;
@@ -544,7 +545,7 @@ function createStudio(opts) {
     planCaps(v, schoolId);
     const id = db.run('INSERT INTO studio_plans(school_id, team_id, user_id, author_kind, team_label, title, question, sensors_json, data_json, notes, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
       schoolId, teamId, userId, kind, label, f.title, f.question, JSON.stringify(f.sensors), JSON.stringify(f.data), f.notes, 'draft', now, now).id;
-    if (v.kind === 'class') hits.add(`plan-new:${schoolId}:${v.teamKey}`, 3600000);
+    if (v.kind === 'class') { hits.add(`plan-new:${schoolId}:${v.teamKey}`, 3600000); hits.add('plan-ip:' + ipKey(req), 3600000); }
     audit(v.kind === 'user' ? v.user : null, 'studio.plan.create', id, v.kind === 'class' ? `${v.school.slug}/${v.team}` : '');
     return planRow(id);
   }
@@ -557,11 +558,7 @@ function createStudio(opts) {
     if (has('notes')) sets.notes = planText(body.notes, PLAN_LIMITS.notes, 'notes', true);
     if (has('sensors')) sets.sensors_json = JSON.stringify(await planSensors(body.sensors));
     if (has('data')) sets.data_json = JSON.stringify(planData(body.data));
-    if (has('team') && body.team != null && body.team !== '') {
-      const label = cleanTeam(body.team);
-      if (v.kind === 'class') { if (nameKey(label) !== v.teamKey) fail(400, 'A class team can only make plans for its own team.', 'team'); }
-      else if (v.kind === 'user' && isStaff(v.user)) sets.team_label = label;
-    } else if (has('team') && v.kind === 'user' && isStaff(v.user)) sets.team_label = null;
+    if (has('team') && v.kind === 'user' && isStaff(v.user)) sets.team_label = body.team != null && body.team !== '' ? cleanTeam(body.team) : null;   // only a teacher can rename the team of a plan
     const changed = Object.keys(sets).some((k) => sets[k] !== p[k]);
     const hasStatus = has('status');
     if (!Object.keys(sets).length && !hasStatus) fail(400, 'Send the fields to change, or a status.', 'empty');
@@ -602,7 +599,7 @@ function createStudio(opts) {
     if (!['approve', 'send_back'].includes(body.decision)) fail(400, 'Choose approve or send_back.', 'decision');
     if (body.decision === 'approve' && p.status !== 'submitted') fail(409, 'This plan is not waiting for review.', 'not_submitted');
     if (body.decision === 'send_back' && p.status !== 'submitted' && p.status !== 'approved') fail(409, 'Only a plan that was sent in can be sent back.', 'not_submitted');
-    const note = planText(body.note, 300, 'note', true, false);
+    const note = [...planText(body.note, 4000, 'note', true, false)].slice(0, 300).join('');   // a long note is cut, like on tools
     const status = body.decision === 'approve' ? 'approved' : 'sent_back';
     const now = Date.now();
     db.run('UPDATE studio_plans SET status = ?, reviewed_by = ?, reviewed_at = ?, review_note = ?, updated_at = ? WHERE id = ?', status, user.id, now, note || null, now, p.id);
@@ -628,7 +625,8 @@ function createStudio(opts) {
       ? (wide ? db.all("SELECT * FROM studio_plans WHERE status = 'submitted' ORDER BY submitted_at LIMIT 100") : db.all("SELECT * FROM studio_plans WHERE status = 'submitted' AND school_id = ? ORDER BY submitted_at LIMIT 100", u.school_id))
       : db.all("SELECT * FROM studio_plans WHERE status = 'approved' ORDER BY updated_at DESC LIMIT 100");
     for (const p of planRows) items.push({ kind: 'plan', id: p.id, title: p.title, author_label: planLabel(p), school: (schoolOf(p.school_id) || {}).short || null, at: (pending ? p.submitted_at : p.updated_at) || p.updated_at, status: pending ? 'pending' : 'approved' });
-    for (const src of queueSources) {
+    const outside = typeof appCore.provided === 'function' ? appCore.provided('queue:') : [];
+    for (const src of [...queueSources, ...outside]) {
       try { for (const it of (await src({ staff, pending, user: u })) || []) items.push(it); } catch (e) { log('Queue source failed: ' + e.message); }
     }
     items.sort((a, b) => (pending ? a.at - b.at : b.at - a.at));   // waiting the longest first; approved newest first
@@ -1050,7 +1048,7 @@ function createStudio(opts) {
     if (req.method === 'POST' && url.pathname === '/studio/api/plans') {
       needViewer(v);
       const body = objectBody(await readJson(req, 16384));
-      return sendJson(res, 200, { plan: planOut(await createPlan(v, body), v) });
+      return sendJson(res, 200, { plan: planOut(await createPlan(v, body, req), v) });
     }
     if ((req.method === 'GET' || req.method === 'PATCH') && (r = m(/^\/studio\/api\/plans\/(\d+)$/))) {
       const p = planRow(Number(r[1]));
@@ -1244,7 +1242,7 @@ function createStudio(opts) {
       }
       for (const r of db.all("SELECT school_id, COUNT(*) AS n FROM studio_projects WHERE status = 'approved' AND school_id IS NOT NULL GROUP BY school_id")) row(r.school_id).tools = r.n;
       for (const r of db.all("SELECT school_id, COUNT(*) AS n FROM studio_plans WHERE status IN ('done', 'submitted', 'approved') GROUP BY school_id")) row(r.school_id).plans = r.n;
-      return { schools: out, partial };
+      return { schools: out, partial, demo: Boolean(data.demo) };
     });
   }
 

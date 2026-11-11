@@ -158,11 +158,9 @@
       const card = el('div', { class: 'nm-card ak' }, listBox, main);
 
       const live = el('div', { class: 'sr-only', role: 'status', 'aria-live': 'polite' });
-      root.append(SC.head({
-        title: t('Ask about our cities', 'Ρωτήστε για τις πόλεις μας'),
-        help: ['Type a question in plain words. The assistant looks at the live sensors, the Cyprus Met Office and the class handbook, then answers and shows what it looked at. It can be wrong, so use the Report button on an answer that is. Your chats stay in this browser: nothing is stored under your name, and nobody needs to sign in.',
-          'Γράψτε μια ερώτηση με απλά λόγια. Ο βοηθός κοιτάζει τους ζωντανούς αισθητήρες, τη Μετεωρολογική Υπηρεσία Κύπρου και το εγχειρίδιο της τάξης, και μετά απαντά και δείχνει τι κοίταξε. Μπορεί να κάνει λάθος, γι’ αυτό χρησιμοποιήστε το κουμπί αναφοράς σε μια λανθασμένη απάντηση. Οι συνομιλίες μένουν σε αυτό το πρόγραμμα περιήγησης: τίποτα δεν αποθηκεύεται με το όνομά σας και κανείς δεν χρειάζεται να συνδεθεί.'],
-      }), card, live);
+      const helpText = t('Type a question in plain words. The assistant looks at the live sensors, the Cyprus Met Office and the class handbook, then answers and shows what it looked at. It can be wrong, so use the Report button on an answer that is. Your chats stay in this browser: nothing is stored under your name, and nobody needs to sign in.',
+        'Γράψτε μια ερώτηση με απλά λόγια. Ο βοηθός κοιτάζει τους ζωντανούς αισθητήρες, τη Μετεωρολογική Υπηρεσία Κύπρου και το εγχειρίδιο της τάξης, και μετά απαντά και δείχνει τι κοίταξε. Μπορεί να κάνει λάθος, γι’ αυτό χρησιμοποιήστε το κουμπί αναφοράς σε μια λανθασμένη απάντηση. Οι συνομιλίες μένουν σε αυτό το πρόγραμμα περιήγησης: τίποτα δεν αποθηκεύεται με το όνομά σας και κανείς δεν χρειάζεται να συνδεθεί.');
+      root.append(el('h1', { class: 'sr-only' }, t('Ask about our cities', 'Ρωτήστε για τις πόλεις μας')), card, live);
 
       /* ---- usage and availability ---- */
       function left() { return status && status.limit != null && status.remaining != null ? status.remaining : null; }
@@ -173,7 +171,9 @@
         const pct = used != null && lim ? Math.min(100, (used / lim) * 100) : 0;
         bar.replaceChildren(
           el('button', { type: 'button', class: 'nm-btn ak-toggle', 'aria-expanded': listOpen ? 'true' : 'false', onclick: () => { listOpen = !listOpen; card.classList.toggle('list-open', listOpen); } }, ic('chats'), t('Chats', 'Συνομιλίες')),
-          el('div', { class: 'ak-ttl' }, el('span', { class: 'tx' }, c && c.title ? c.title : t('New chat', 'Νέα συνομιλία'))),
+          el('div', { class: 'ak-ttl' }, el('span', { class: 'tx' }, c && c.title ? c.title : t('New chat', 'Νέα συνομιλία')),
+            cfg && cfg.demo ? el('span', { class: 't demo' }, t('Demo data', 'Δεδομένα επίδειξης')) : null),
+          el('button', { type: 'button', class: 'ak-help', 'aria-label': t('How this page works', 'Πώς λειτουργεί αυτή η σελίδα'), title: t('How this page works', 'Πώς λειτουργεί αυτή η σελίδα'), onclick: () => SC.modal({ title: t('How this page works', 'Πώς λειτουργεί αυτή η σελίδα'), body: el('p', null, helpText) }) }, '?'),
           el('span', { class: 'ak-pill', title: t('Each visitor can ask this many questions in 24 hours', 'Κάθε επισκέπτης μπορεί να κάνει τόσες ερωτήσεις σε 24 ώρες') },
             el('span', null, t('Questions today: ', 'Ερωτήσεις σήμερα: '), el('b', null, used != null ? used + t(' of ', ' από ') + lim : '–')),
             el('span', { class: 'ak-meter' + (pct >= 80 ? ' hot' : ''), role: 'img', 'aria-label': used != null ? t(rem + ' questions left', 'Απομένουν ' + rem + ' ερωτήσεις') : '' }, el('b', { style: { width: pct + '%' } }))));
@@ -269,7 +269,7 @@
           kids.push(el('div', { class: 'nm-callout nm-callout--info ak-callout' }, el('b', null, t('The assistant is switched off for now.', 'Ο βοηθός είναι προσωρινά απενεργοποιημένος.')), ' ', t('Please try again later, or ask a teacher.', 'Δοκιμάστε ξανά αργότερα ή ρωτήστε έναν εκπαιδευτικό.')));
         }
         if (!msgs.length) {
-          kids.push(el('div', { class: 'ak-hero' }, el('span', { class: 'ak-mark' }, SC.icon('sparkle')), el('h2', null, t('What would you like to know?', 'Τι θα θέλατε να μάθετε;')),
+          kids.push(el('div', { class: 'ak-hero' }, el('span', { class: 'ak-mark' }, SC.icon('sparkle')), el('h2', null, t('Ask about our cities', 'Ρωτήστε για τις πόλεις μας')),
             el('p', null, t('Plain answers from live sensors, the Met Office and the class handbook.', 'Απλές απαντήσεις από ζωντανούς αισθητήρες, τη Μετεωρολογική Υπηρεσία και το εγχειρίδιο της τάξης.'))));
           kids.push(el('div', { class: 'ak-sug' }, SUGGEST.map(([icon, q]) => el('button', { type: 'button', disabled: busy || blocked() ? true : null, onclick: () => send(t(q[0], q[1])) }, el('span', { class: 'ak-ic' }, ic(icon)), t(q[0], q[1])))));
         } else {
@@ -386,7 +386,7 @@
       drawReads(null);
       drawAll();
       if (ctx.query && ctx.query.get('q')) { ta.value = ctx.query.get('q').slice(0, 600); grow(); drawInput(); }
-      SC.cached('/api/config', 600000).then((c) => { cfg = c; if (c && c.demo) { const h = root.querySelector('.page-head'); if (h && alive) h.append(el('span', { class: 't demo' }, t('Demo data', 'Δεδομένα επίδειξης'))); } if (alive) drawFeed(false); }).catch(() => {});
+      SC.cached('/api/config', 600000).then((c) => { cfg = c; if (alive) { drawBar(); drawFeed(false); } }).catch(() => {});
       SC.cached('/api/devices', 60000).then((d) => { if (alive && Array.isArray(d)) { drawReads(d); } }).catch(() => { if (alive) drawReads(null); });
       loadStatus();
 

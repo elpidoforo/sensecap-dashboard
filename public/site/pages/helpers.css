@@ -1,0 +1,53 @@
+/* Helpers page (public/site/pages/helpers.js). Classes are prefixed hp-. */
+.hp { display: flex; flex-direction: column; gap: var(--nm-gap-s); min-width: 0; }
+.hp :is(h1, h2, h3) { color: #fff; }
+.hp-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
+.hp-sum { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hp-total { margin-right: 4px; color: var(--nm-lede); font-size: 15px; }
+.hp-flow { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 13.5px; color: var(--nm-muted); }
+.hp-flow li { display: inline-flex; align-items: center; gap: 8px; }
+.hp-flow svg { width: 14px; height: 14px; color: var(--nm-side-icon); }
+.hp-flow a { color: var(--nm-ink-soft); text-decoration: none; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--nm-edge-2); background: rgba(255, 255, 255, .05); }
+.hp-flow a:hover { background: rgba(255, 255, 255, .1); border-color: var(--nm-copper-line); color: #fff; }
+.hp-flow span { padding: 5px 12px; border-radius: 999px; border: 1px dashed var(--nm-edge-2); }
+
+.hp-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--nm-gap-s); align-items: stretch; }
+.hp-card { display: flex; flex-direction: column; gap: 12px; padding: 20px 22px 18px; min-width: 0; position: relative; overflow: hidden; }
+.hp-card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: linear-gradient(90deg, var(--hp-c, #9BD88F), transparent 80%); opacity: .8; }
+.hp-card.hp-ok { --hp-c: #59d98e; }
+.hp-card.hp-late { --hp-c: #F2B24C; }
+.hp-card.hp-error { --hp-c: #FF5C6C; border-color: var(--nm-bad-line); }
+.hp-card.hp-off { --hp-c: #5d6b7d; }
+.hp-card.hp-off .hp-name, .hp-card.hp-off .hp-what { color: var(--nm-muted); }
+.hp-top { display: flex; align-items: center; gap: 14px; }
+.hp-ic { position: relative; flex: none; width: 46px; height: 46px; border-radius: 14px; }
+.hp-ic svg { width: 22px; height: 22px; }
+.hp-dot { position: absolute; right: -4px; top: -4px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #1b2f4b; background: #6b7d94; }
+.hp-dot.ok { background: var(--nm-dot-ok); box-shadow: 0 0 8px var(--nm-dot-ok); }
+.hp-dot.late { background: #F2B24C; box-shadow: 0 0 8px rgba(242, 178, 76, .6); }
+.hp-dot.bad { background: var(--nm-dot-bad); box-shadow: 0 0 8px rgba(255, 92, 108, .6); }
+.hp-dot.off { background: #5d6b7d; }
+.hp-tt { flex: 1; min-width: 0; }
+.hp-name { margin: 0; font: 600 18px/1.25 var(--nm-font-display); overflow-wrap: anywhere; }
+.hp-kind { margin: 2px 0 0; font-size: 12.5px; color: var(--nm-muted); }
+.hp-top .nm-badge { flex: none; align-self: flex-start; }
+.hp-what { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--nm-text); }
+.hp-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 2px 0 0; }
+.hp-facts > div { padding: 10px 12px; border-radius: 14px; background: var(--nm-well); border: 1px solid var(--nm-edge); min-width: 0; }
+.hp-facts dt { font: 700 10.5px/1.3 var(--nm-font); letter-spacing: .12em; text-transform: uppercase; color: var(--nm-muted); }
+.hp-facts dd { margin: 4px 0 0; font: 600 17px/1.25 var(--nm-font-display); color: #fff; }
+.hp-none { color: var(--nm-muted); font-weight: 500; font-size: 15px; }
+.hp-detail { margin: 0; padding: 10px 14px; border-radius: 12px; border-left: 3px solid var(--hp-c, #9BD88F); background: rgba(255, 255, 255, .04); font-size: 13.5px; line-height: 1.5; color: var(--nm-lede); overflow-wrap: anywhere; }
+.hp-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 4px; }
+.hp-link { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; color: var(--nm-copper-2); font: 600 13.5px/1.2 var(--nm-font); text-decoration: none; }
+.hp-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.hp-link svg { width: 14px; height: 14px; }
+.hp-retry { margin-left: 8px; min-height: 36px; padding: 4px 14px; font-size: 14px; }
+.hp a:focus-visible, .hp button:focus-visible { outline: 3px solid var(--nm-copper-2); outline-offset: 2px; }
+
+@media (max-width: 1180px) { .hp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) {
+  .hp-grid { grid-template-columns: 1fr; }
+  .hp-card { padding: 18px 16px 16px; }
+  .hp-flow { gap: 8px; }
+}

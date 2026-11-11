@@ -58,6 +58,7 @@
   };
   const dur = (ms, long) => {   // 25 min / 3 h 05 min / 2 days   (long: 25 minutes / 3 hours / 2 days)
     const m = Math.max(1, Math.round(ms / MIN));
+    if (m === 1) return long ? T('1 minute', '1 λεπτό') : T('1 min', '1 λεπτό');
     if (m < 90) return long ? T(m + ' minutes', m + ' λεπτά') : T(m + ' min', m + ' λεπτά');
     if (m < 2 * 1440) {
       const h = Math.floor(m / 60), mm = m % 60, p = (mm < 10 ? '0' : '') + mm;

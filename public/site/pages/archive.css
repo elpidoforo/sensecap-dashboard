@@ -48,13 +48,22 @@ button.ar-cell:hover { transform: scale(1.2); position: relative; z-index: 2; }
 
 /* downloads */
 .ar-dl { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0 0; }
-.ar-dlbtn svg, .ar-csv svg { width: 18px; height: 18px; }
-.ar-csvbox { margin-top: 14px; padding: 16px 16px 14px; border-radius: 16px; background: var(--nm-well); border: 1px solid var(--nm-edge); display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
-.ar-dl + .ar-csvbox { margin-top: 16px; }
-.ar-csvbox b { color: #fff; font-size: 15.5px; }
-.ar-csvbox .card-sub { margin: 0; }
+.ar-dl { flex-direction: column; align-items: stretch; }
+.ar-dlbtn { white-space: normal; justify-content: flex-start; text-align: left; line-height: 1.3; min-width: 0; }
+.ar-dlbtn svg, .ar-csv svg { flex: none; width: 18px; height: 18px; }
+.ar-csv { white-space: normal; text-align: left; }
+.ar-sub { margin: 18px 0 6px; }
+.ar-dllist { list-style: none; margin: 0; padding: 0 0 10px; display: flex; flex-direction: column; gap: 2px; }
+.ar-csvbox + .ar-csvbox { margin-top: 10px; }
+.ar-dla { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; color: var(--nm-copper-2); font: 500 13.5px/1.35 var(--nm-font); text-decoration: none; }
+.ar-dla:hover { text-decoration: underline; text-underline-offset: 3px; }
+.ar-dla svg { flex: none; width: 15px; height: 15px; }
+.ar-csvbox { margin-top: 16px; padding: 4px 16px; border-radius: 16px; background: var(--nm-well); border: 1px solid var(--nm-edge); }
+.ar-csvbox summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: #fff; font: 600 15px/1.3 var(--nm-font); }
+.ar-csvbox .card-sub { margin: 0 0 10px; }
+.ar-csvrow { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-bottom: 12px; }
+.ar-csv svg { width: 18px; height: 18px; }
 .ar-pick { max-width: 100%; overflow-x: auto; }
-.ar-fine { margin: 0; font-size: 12.5px; color: var(--nm-muted); }
 
 /* page copies */
 .ar-vers { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }

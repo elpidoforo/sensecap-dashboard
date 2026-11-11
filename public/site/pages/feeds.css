@@ -16,6 +16,8 @@
 .fd-dot.late { background: #F2B24C; box-shadow: 0 0 10px rgba(242, 178, 76, .6); }
 .fd-dot.bad { background: var(--nm-dot-bad); box-shadow: 0 0 10px rgba(255, 92, 108, .6); }
 .fd-dot.off { background: #5d6b7d; }
+.fd-dot.idle { background: #4CCBEA; opacity: .7; }
+.fd-dot.demo { background: #C4B8FF; box-shadow: 0 0 10px rgba(196, 184, 255, .5); }
 .fd-eye { margin: 14px 0 3px; font: 700 10.5px/1.3 var(--nm-font); letter-spacing: .12em; text-transform: uppercase; color: var(--nm-muted); }
 .fd-col .fd-eye { margin-top: 2px; }
 .fd-what { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--nm-text); max-width: 60ch; overflow-wrap: anywhere; }
@@ -32,6 +34,7 @@
 .fd-err.old { border-left-color: #F0B94A; background: var(--nm-warn-bg); color: var(--nm-warn); }
 
 .fd-24 p { margin: 7px 0 0; font-size: 13.5px; color: var(--nm-muted); }
+.fd-24 .fd-since { margin-top: 4px; font-size: 12px; }
 .fd-24 b { color: #fff; font-weight: 600; }
 .fd-24 b.ok { color: var(--nm-ok); }
 .fd-24 b.bad { color: var(--nm-bad); }

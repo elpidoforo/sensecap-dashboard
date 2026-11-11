@@ -135,7 +135,7 @@ button.al-sev[aria-pressed="true"] { box-shadow: 0 0 0 2px rgba(var(--tint), .75
   .al-top { flex-wrap: wrap; gap: 12px; }
   .al-ic { width: 38px; height: 38px; font-size: 19px; }
   .al-tt { flex-basis: calc(100% - 52px); }
-  .al-cd { padding-left: 50px; margin-top: -4px; }
+  .al-cd { display: none; }
   .al-card h3 { font-size: 18px; }
   .al-facts { grid-template-columns: 1fr; }
   .al-foot { flex-wrap: wrap; }

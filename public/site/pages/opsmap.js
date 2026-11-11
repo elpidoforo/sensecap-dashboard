@@ -37,7 +37,8 @@
   const stOf = (s) => (STATUS[s] ? s : 'unknown');
   const stWord = (s) => t(STATUS[stOf(s)][0], STATUS[stOf(s)][1]);
   const kindOf = (k) => KIND[k] || ['Part', 'Μέρος', 'layers'];
-  const labelOf = (n) => (SC.lang === 'el' && EL_LABEL[n.id]) || n.label;
+  const labelOf = (n) => (SC.lang === 'el' && (n.labelEl || EL_LABEL[n.id])) || n.label;
+  const detailOf = (n) => (SC.lang === 'el' && n.detailEl) || n.detail;
   const layerOf = (kind) => { const i = LAYERS.findIndex((l) => l.kinds.includes(kind)); return i < 0 ? 1 : i; };
   const errText = (e) => (e && e.message) || t('Something went wrong. Try again.', 'Κάτι πήγε στραβά. Δοκιμάστε ξανά.');
   const badge = (s) => el('span', { class: 'om-badge s-' + stOf(s) }, el('i', { 'aria-hidden': 'true' }), stWord(s));
@@ -49,14 +50,14 @@
     d.nodes.forEach((n) => {
       if (!n || typeof n.id !== 'string' || seen.has(n.id)) return;
       seen.add(n.id);
-      nodes.push({ id: n.id, label: String(n.label || n.id), kind: String(n.kind || ''), status: stOf(n.status), detail: n.detail == null ? '' : String(n.detail) });
+      nodes.push({ id: n.id, label: String(n.label || n.id), labelEl: n.labelEl ? String(n.labelEl) : '', kind: String(n.kind || ''), status: stOf(n.status), detail: n.detail == null ? '' : String(n.detail), detailEl: n.detailEl ? String(n.detailEl) : '' });
     });
     const edges = (Array.isArray(d.edges) ? d.edges : []).filter((e) => e && seen.has(e.from) && seen.has(e.to) && e.from !== e.to).map((e) => ({ from: e.from, to: e.to }));
     return { at: Number(d.at) || Date.now(), nodes, edges };
   }
 
   /* ---------- default places: layers stacked top to bottom, nodes in rows inside each layer ---------- */
-  const H = 78, HEAD = 32, GAPY = 20, BANDGAP = 30, PADB = 14, EDGE = 4;
+  const H = 84, HEAD = 32, GAPY = 20, BANDGAP = 30, PADB = 14, EDGE = 4;
   function plan(W, nodes) {
     const narrow = W < 520;
     const padX = narrow ? 12 : 18, gapX = narrow ? 12 : 18;
@@ -124,7 +125,7 @@
       const rec = { id: n.id, el: null };
       const node = el('div', { class: 'om-n', tabindex: '0', role: 'button', 'aria-pressed': 'false' },
         el('span', { class: 'om-bar', 'aria-hidden': 'true' }),
-        el('div', { class: 'om-top' }, el('span', { class: 'om-ic', 'aria-hidden': 'true' }), el('div', { class: 'om-tx' }, el('b', { class: 'om-lb' }), el('small', { class: 'om-kd' }))),
+        el('div', { class: 'om-top' }, el('span', { class: 'om-ic', 'aria-hidden': 'true' }), el('b', { class: 'om-lb' })),
         el('div', { class: 'om-bt' }),
         el('span', { class: 'om-grip', 'aria-hidden': 'true' }, dots()));
       rec.el = node;
@@ -175,8 +176,7 @@
       const e = rec.el;
       e.dataset.status = n.status;
       e.querySelector('.om-lb').textContent = rec.name;
-      const kd = e.querySelector('.om-kd'); kd.textContent = t(k[0], k[1]); kd.hidden = kd.textContent.toLowerCase() === rec.name.toLowerCase();
-      const ic = e.querySelector('.om-ic'); ic.replaceChildren(SC.icon(k[2], 18));
+            const ic = e.querySelector('.om-ic'); ic.replaceChildren(SC.icon(k[2], 18));
       e.querySelector('.om-bt').replaceChildren(badge(n.status));
       e.setAttribute('aria-label', rec.name + ', ' + t(k[0], k[1]) + ', ' + stWord(n.status));
       e.title = rec.name;
@@ -272,7 +272,7 @@
         el('p', { class: 'card-eye' }, t(k[0], k[1])),
         el('h2', { class: 'card-h om-dh' }, labelOf(n)),
         el('div', { class: 'om-ds' }, badge(n.status)),
-        el('p', { class: 'om-dt' }, n.detail || t('No further detail for this part.', 'Δεν υπάρχουν περισσότερες λεπτομέρειες για αυτό το μέρος.')),
+        el('p', { class: 'om-dt' }, detailOf(n) || t('No further detail for this part.', 'Δεν υπάρχουν περισσότερες λεπτομέρειες για αυτό το μέρος.')),
         fedBy.length ? el('div', { class: 'om-cg' }, el('h3', null, t('Gets data from', 'Παίρνει δεδομένα από')), chips(fedBy)) : null,
         feeds.length ? el('div', { class: 'om-cg' }, el('h3', null, t('Passes data to', 'Δίνει δεδομένα σε')), chips(feeds)) : null,
         !fedBy.length && !feeds.length ? el('p', { class: 'muted om-dn' }, t('This part is not linked to another one on the map.', 'Αυτό το μέρος δεν συνδέεται με άλλο στον χάρτη.')) : null,

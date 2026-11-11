@@ -31,41 +31,36 @@ const REPORT_REASONS = { unkind: 'Unkind or bullying', inappropriate: 'Inappropr
    switch a rule on or off, move its limit inside the range, and pick how serious it looks. Those three live in the table alert_rules. */
 const SEVERITIES = ['info', 'watch', 'warn'];
 const ALERT_RULES = [
+  // The words match what the Alerts page does with each rule (see public/site/alerts-core.js), so the text never promises more than the page checks.
   {
-    key: 'co2_high', unit: 'ppm', threshold: 1000, min: 400, max: 5000, severity: 'watch',
-    name: ['High CO2', 'Υψηλό CO2'],
-    text: ['Raise an alert when a sensor reads CO2 above the limit. Above about 1000 ppm the air feels stuffy, which usually means little fresh air.',
-      'Ειδοποίηση όταν ένας αισθητήρας μετρά CO2 πάνω από το όριο. Πάνω από περίπου 1000 ppm ο αέρας γίνεται αποπνικτικός, κάτι που συνήθως σημαίνει ότι μπαίνει λίγος καθαρός αέρας.'],
+    key: 'co2_high', unit: 'ppm', threshold: 1000, min: 400, max: 5000, severity: 'warn',
+    name: ['CO2 high', 'Υψηλό CO2'],
+    text: ['A sensor reads more than the limit of CO2.', 'Ένας αισθητήρας μετρά περισσότερο CO2 από το όριο.'],
   },
   {
-    key: 'pm25_spike', unit: 'µg/m³', threshold: 35, min: 5, max: 500, severity: 'watch',
-    name: ['PM2.5 spike', 'Απότομη αύξηση PM2.5'],
-    text: ['Raise an alert when fine particles (PM2.5) jump above the limit, for example in a dust event or near smoke. Only sensors that measure particles can set it off.',
-      'Ειδοποίηση όταν τα λεπτά σωματίδια (PM2.5) ξεπερνούν το όριο, για παράδειγμα σε επεισόδιο σκόνης ή κοντά σε καπνό. Την ενεργοποιούν μόνο αισθητήρες που μετρούν σωματίδια.'],
+    key: 'pm25_spike', unit: 'µg/m³', threshold: 25, min: 5, max: 500, severity: 'watch',
+    name: ['PM2.5 spike', 'Αιχμή PM2.5'],
+    text: ['A school sensor, or a public sensor within 5 km of a school, reads more than the limit of PM2.5.', 'Ένας αισθητήρας σχολείου, ή δημόσιος αισθητήρας σε απόσταση έως 5 χλμ. από σχολείο, μετρά περισσότερο PM2.5 από το όριο.'],
   },
   {
-    key: 'met_warning', unit: '', threshold: null, min: null, max: null, severity: 'warn',
-    name: ['Met Office warning', 'Προειδοποίηση Τμήματος Μετεωρολογίας'],
-    text: ['Raise an alert when the Cyprus Department of Meteorology (Met Office) publishes a weather warning.',
-      'Ειδοποίηση όταν το Τμήμα Μετεωρολογίας Κύπρου εκδίδει προειδοποίηση καιρού.'],
+    key: 'met_warning', unit: '', threshold: null, min: null, max: null, severity: 'watch',
+    name: ['Met Office warning', 'Προειδοποίηση Μετεωρολογικής'],
+    text: ['The Met Office warnings page lists a warning in force.', 'Η σελίδα προειδοποιήσεων της Μετεωρολογικής αναφέρει προειδοποίηση σε ισχύ.'],
   },
   {
-    key: 'sensor_quiet', unit: 'min', threshold: 60, min: 10, max: 1440, severity: 'info',
-    name: ['Sensor gone quiet', 'Αισθητήρας χωρίς σήμα'],
-    text: ['Raise an alert when a sensor has sent nothing for longer than the limit. It may be switched off, out of battery or out of range.',
-      'Ειδοποίηση όταν ένας αισθητήρας δεν έχει στείλει τίποτα για περισσότερο από το όριο. Μπορεί να είναι κλειστός, χωρίς μπαταρία ή εκτός εμβέλειας.'],
+    key: 'sensor_quiet', unit: 'min', threshold: 60, min: 10, max: 1440, severity: 'watch',
+    name: ['Sensor quiet', 'Αισθητήρας σιωπηλός'],
+    text: ['A sensor has sent no reading for longer than the limit.', 'Ένας αισθητήρας δεν έχει στείλει μέτρηση για περισσότερο από το όριο.'],
   },
   {
-    key: 'battery_low', unit: '%', threshold: 20, min: 5, max: 50, severity: 'watch',
-    name: ['Low battery', 'Χαμηλή μπαταρία'],
-    text: ['Raise an alert when the battery of a sensor falls below the limit, so that someone can charge or replace it.',
-      'Ειδοποίηση όταν η μπαταρία ενός αισθητήρα πέφτει κάτω από το όριο, ώστε κάποιος να τη φορτίσει ή να την αντικαταστήσει.'],
+    key: 'battery_low', unit: '%', threshold: 20, min: 5, max: 50, severity: 'info',
+    name: ['Battery low', 'Χαμηλή μπαταρία'],
+    text: ['A sensor battery is under the limit.', 'Η μπαταρία ενός αισθητήρα είναι κάτω από το όριο.'],
   },
   {
-    key: 'temp_high', unit: '°C', threshold: 35, min: 25, max: 60, severity: 'warn',
+    key: 'temp_high', unit: '°C', threshold: 35, min: 25, max: 60, severity: 'info',
     name: ['High temperature', 'Υψηλή θερμοκρασία'],
-    text: ['Raise an alert when the air temperature at a sensor goes above the limit. A parked vehicle in the sun can pass it on an ordinary warm day.',
-      'Ειδοποίηση όταν η θερμοκρασία του αέρα σε έναν αισθητήρα ξεπερνά το όριο. Ένα σταθμευμένο όχημα στον ήλιο μπορεί να το ξεπεράσει και μια συνηθισμένη ζεστή μέρα.'],
+    text: ['A school sensor or a Met Office station reads more than the limit.', 'Ένας αισθητήρας σχολείου ή σταθμός της Μετεωρολογικής μετρά περισσότερο από το όριο.'],
   },
 ];
 // The raw GPS measurement numbers are never shown to visitors, not even inside a handbook page (the assistant's tools do the same).
@@ -918,8 +913,8 @@ function createApp(opts = {}) {
   const leagueOn = () => { const r = get("SELECT value FROM meta WHERE key = 'league_enabled'"); return Boolean(r) && r.value === '1'; };
   async function leagueOut() {
     if (!leagueOn()) return { enabled: false };
-    let counts = null, partial = false;
-    if (providers.league) { try { const got = (await providers.league()) || {}; counts = got.schools || {}; partial = got.partial === true; } catch (e) { log('League: ' + e.message); } }
+    let counts = null, partial = false, demo = false;
+    if (providers.league) { try { const got = (await providers.league()) || {}; counts = got.schools || {}; partial = got.partial === true; demo = got.demo === true; } catch (e) { log('League: ' + e.message); } }
     const n = (v) => Math.max(0, Math.floor(Number(v) || 0));
     const schools = all('SELECT id, slug, short FROM schools ORDER BY id').map((s) => {
       const c = (counts && counts[s.id]) || {};
@@ -932,7 +927,7 @@ function createApp(opts = {}) {
       ] };
     });
     schools.sort((a, b) => b.points - a.points || a.school.localeCompare(b.school));
-    return { enabled: true, basis: LEAGUE_BASIS.join(' '), basis_el: LEAGUE_BASIS_EL.join(' '), schools, ...(counts && !partial ? {} : { partial: true }) };
+    return { enabled: true, basis: LEAGUE_BASIS.join(' '), basis_el: LEAGUE_BASIS_EL.join(' '), schools, ...(counts && !partial ? {} : { partial: true }), ...(demo ? { demo: true } : {}) };
   }
   route('GET', /^\/app\/api\/league$/, 'none', () => leagueOut());
   route('PUT', /^\/app\/api\/league$/, 'staff', ({ user, body }) => {
@@ -1198,8 +1193,11 @@ function createApp(opts = {}) {
     authorise: (req) => { const u = sessionUser(req); return u && u.status === 'active' ? u : null; },
     info: () => ({ users: get('SELECT COUNT(*) AS n FROM users').n, schools: get('SELECT COUNT(*) AS n FROM schools').n, db: dbFile }),
     db: { get, all, run },
-    // provide('league', async () => ({ schools: { [schoolId]: { online, tools, plans } }, partial })): the figures the League is built from.
+    // provide('league', async () => ({ schools: { [schoolId]: { online, tools, plans } }, partial, demo })): the figures the League is built from.
     provide: (name, fn) => { if (typeof fn === 'function') providers[name] = fn; },
+    // The functions handed over under a name that starts with prefix. The Build studio asks for 'queue:' ones, for example
+    // provide('queue:council', async ({ staff, pending, user }) => [{ kind: 'council', id, title, author_label, school, at, status }]).
+    provided: (prefix) => Object.keys(providers).filter((k) => k.startsWith(prefix)).map((k) => providers[k]),
     close() { clearInterval(heartbeat); clearInterval(sweeper); clearInterval(askSweeper); clearInterval(purger); for (const set of streams.values()) for (const r of set) r.end(); try { db.close(); } catch (e) { /* closed */ } },
   };
 }

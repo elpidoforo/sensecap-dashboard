@@ -693,6 +693,7 @@ function createCouncil(opts) {
 
   const BAD_Q = 'Please leave out phone numbers, e-mail addresses, links and social media names.';
   function cleanQuestion(raw) {
+    if (typeof raw !== 'string') fail(400, 'Type your question as text.', 'question');
     const q = plain(raw, MAX_QUESTION);
     if (!/\p{L}{2,}/u.test(q) || [...q].length < MIN_QUESTION) fail(400, 'Type a question about a city or school decision, for example "Should the school bus avoid the city centre in the morning?"', 'question');
     if (unsafeText(q)) fail(400, BAD_Q, 'question');

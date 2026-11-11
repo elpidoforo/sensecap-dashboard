@@ -46,6 +46,7 @@
     bell: '<path d="M6 8a6 6 0 0112 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 004 0"/>',
     bus: '<rect x="4" y="3" width="16" height="15" rx="3"/><path d="M4 11h16M8 21v-3M16 21v-3"/><circle cx="8" cy="15" r=".8"/><circle cx="16" cy="15" r=".8"/>',
     sensor: '<circle cx="12" cy="12" r="2.2"/><path d="M7.8 7.8a6 6 0 000 8.4M16.2 7.8a6 6 0 010 8.4M4.9 4.9a10 10 0 000 14.2M19.1 4.9a10 10 0 010 14.2"/>',
+    gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
     refresh: '<path d="M20 11a8 8 0 00-14-4L4 9M4 4v5h5M4 13a8 8 0 0014 4l2-2M20 20v-5h-5"/>',
   };
   function ico(name) {
@@ -91,7 +92,7 @@
     if (o.mark && o.mark.t > o.from && o.mark.t < o.to) {
       const mx = X(o.mark.t);
       kids.push(sv('line', { x1: f1(mx), y1: TP, x2: f1(mx), y2: TP + h, stroke: 'rgba(255,255,255,.35)', 'stroke-dasharray': '2 3' }),
-        sv('text', Object.assign({ x: f1(mx + 4), y: TP + h - 4 }, TXT), o.mark.label));
+        sv('text', Object.assign({ x: f1(mx > L + w * 0.65 ? mx - 4 : mx + 4), y: TP + h - 4, 'text-anchor': mx > L + w * 0.65 ? 'end' : 'start' }, TXT), o.mark.label));
     }
     segs.forEach((sg) => {
       if (sg.length > 1) kids.push(sv('path', { d: sg.map((p, i) => (i ? 'L' : 'M') + f1(X(p.t)) + ' ' + f1(Y(p.v))).join(''), fill: 'none', stroke: o.color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
@@ -292,7 +293,7 @@
           el('div', { class: 'al-rules-foot' },
             el('span', { class: 'grow' }, T('Last check: ' + ck.sensors + ' sensors, ' + ck.stations + ' Met Office stations, ' + ck.publicSensors + ' public air sensors, warnings page ' + (ck.warnings ? 'read' : 'not read') + '.', 'Τελευταίος έλεγχος: ' + ck.sensors + ' αισθητήρες, ' + ck.stations + ' σταθμοί Μετεωρολογικής, ' + ck.publicSensors + ' δημόσιοι αισθητήρες αέρα, σελίδα προειδοποιήσεων ' + (ck.warnings ? 'διαβάστηκε' : 'δεν διαβάστηκε') + '.'),
               res.rulesFrom === 'default' ? ' ' + T('The rules list could not be read from the server, so the standard lines are used.', 'Η λίστα κανόνων δεν διαβάστηκε από τον διακομιστή, γι’ αυτό χρησιμοποιούνται τα στάνταρ όρια.') : ''),
-            teacher ? el('a', { class: 'nm-btn', href: '#/settings' }, ico('refresh'), T('Change the lines in Settings', 'Αλλαγή ορίων στις Ρυθμίσεις'))
+            teacher ? el('a', { class: 'nm-btn', href: '#/settings' }, ico('gear'), T('Change the lines in Settings', 'Αλλαγή ορίων στις Ρυθμίσεις'))
               : el('span', null, T('Teachers can change the lines after signing in.', 'Οι εκπαιδευτικοί μπορούν να αλλάξουν τα όρια μετά τη σύνδεση.'))));
       }
 
@@ -320,7 +321,7 @@
         // level tiles
         const tile = (lv, cls, icon, label, sub) => el('button', { class: 'al-sev ' + cls, type: 'button', 'aria-pressed': S.level === lv ? 'true' : 'false', 'aria-label': T('Show only ' + label.toLowerCase() + ' alerts: ' + n(lv), 'Μόνο ειδοποιήσεις: ' + label.toLowerCase() + ': ' + n(lv)),
           onclick: () => { S.level = S.level === lv ? 'all' : lv; paint(); } },
-        el('span', { class: 'ic' }, ico(icon)), el('div', { class: 'n' }, el('b', null, String(n(lv))), label), el('small', null, sub));
+        el('span', { class: 'ic' }, ico(icon)), el('div', { class: 'n' }, el('b', null, coreFail ? '–' : String(n(lv))), label), el('small', null, sub));
         fill(sevBox,
           tile('high', 'hi', 'warn', LVL.high, T('Look today. Health or safety could be affected.', 'Δείτε το σήμερα. Μπορεί να επηρεάζεται η υγεία ή η ασφάλεια.')),
           tile('medium', 'md', 'bell', LVL.medium, T('Check within the school day.', 'Ελέγξτε μέσα στη σχολική ημέρα.')),

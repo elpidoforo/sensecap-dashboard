@@ -139,7 +139,7 @@
         const vs = fresh.map((r) => r.v);
         return { n: fresh.length, silent: rows.length - fresh.length, rows: rows.sort((a, b) => a.name.localeCompare(b.name)), mid, min: vs.length ? Math.min(...vs) : null, max: vs.length ? Math.max(...vs) : null, newest: newest || null, unit: unitOfMid(mid) };
       }
-      const dec = (mid, v) => (Math.abs(v) >= 1000 ? 0 : mid === '4099' ? 0 : 1);
+      const dec = (mid, v) => (Math.abs(v) >= 1000 || mid === '4099' || mid === '4100' ? 0 : 1);
       const fmt = (mid, v) => SC.num(v, dec(mid, v)) + (unitOfMid(mid) ? ' ' + unitOfMid(mid) : '');
 
       async function loadDocs() {

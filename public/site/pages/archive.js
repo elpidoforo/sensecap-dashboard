@@ -28,9 +28,9 @@
   }
   const errMsg = (e) => (e && e.message) || T('Something went wrong.', 'Κάτι πήγε στραβά.');
   const PAGE_NAMES = {
-    warnings: [T('Warnings', 'Προειδοποιήσεις')], sea_a: [T('Sea forecast A', 'Πρόγνωση θάλασσας Α')], sea_b: [T('Sea forecast B', 'Πρόγνωση θάλασσας Β')],
-    sea_c: [T('Sea forecast C', 'Πρόγνωση θάλασσας Γ')], sea_d: [T('Sea forecast D', 'Πρόγνωση θάλασσας Δ')], navtex: ['NAVTEX'],
-    fir: [T('Flight information region', 'Περιοχή πληροφοριών πτήσεων')], laf: [T('Aviation forecast (LAF)', 'Αεροπορική πρόγνωση (LAF)')], net: [T('Discomfort index', 'Δείκτης δυσφορίας')],
+    warnings: [T('Weather warnings', 'Προειδοποιήσεις καιρού')], sea_a: [T('Sea forecast, area A', 'Πρόγνωση θάλασσας, περιοχή Α')], sea_b: [T('Sea forecast, area B', 'Πρόγνωση θάλασσας, περιοχή Β')],
+    sea_c: [T('Sea forecast, area C', 'Πρόγνωση θάλασσας, περιοχή Γ')], sea_d: [T('Sea forecast, area D', 'Πρόγνωση θάλασσας, περιοχή Δ')], navtex: ['NAVTEX'],
+    fir: [T('Aviation, FIR forecast', 'Αεροπλοΐα, πρόγνωση FIR')], laf: [T('Local area forecast', 'Πρόγνωση τοπικής περιοχής')], net: [T('Discomfort index', 'Δείκτης δυσφορίας')],
   };
   const pageName = (k) => (PAGE_NAMES[k] ? PAGE_NAMES[k][0] : String(k).replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase()));
   const warnId = () => 'warnings';
@@ -193,31 +193,39 @@
     const card = h('section', { class: 'nm-card ar-card', 'aria-labelledby': 'ar-dl-h' });
     card.append(h('p', { class: 'card-eye' }, T('Downloads', 'Λήψεις')), h('h2', { class: 'card-h', id: 'ar-dl-h' }, T('Take the data with you', 'Πάρτε τα δεδομένα μαζί σας')));
     const listed = (a.downloads || []).filter((d) => d && d.url && d.label);
-    if (listed.length) {
-      card.append(h('div', { class: 'ar-dl' }, listed.map((d) => h('a', { class: 'nm-btn ar-dlbtn', href: d.url, download: '' }, SC.icon('download', 18), d.label))));
+    const text = (d) => (SC.lang === 'el' && d.labelEl ? d.labelEl : d.label);
+    const csv = listed.filter((d) => /\.csv(\?|$)/.test(d.url)), other = listed.filter((d) => !csv.includes(d));
+    if (csv.length) card.append(h('div', { class: 'ar-dl' }, csv.map((d) => h('a', { class: 'nm-btn ar-dlbtn', href: d.url, download: '' }, SC.icon('download', 18), text(d)))));
+    if (other.length) {
+      card.append(h('details', { class: 'ar-csvbox' },
+        h('summary', null, T('Saved versions of Met Office pages (JSON, ' + other.length + ' files)', 'Αποθηκευμένες εκδόσεις σελίδων της Υπηρεσίας (JSON, ' + other.length + ' αρχεία)')),
+        h('ul', { class: 'ar-dllist' }, other.map((d) => h('li', null, h('a', { class: 'ar-dla', href: d.url, download: '' }, SC.icon('download', 15), text(d)))))));
     }
-    // CSV of the station readings: pick the days
+    if (!listed.length) card.append(h('div', { class: 'empty' }, T('Nothing to download yet: no readings or page copies are saved.', 'Δεν υπάρχει τίποτα για λήψη ακόμη: δεν έχουν αποθηκευτεί μετρήσεις ή αντίγραφα σελίδων.')));
+    // CSV of the station readings for a number of days of your choice
     const opts = [1, 7, 30, 90].filter((n) => n <= Math.max(1, days));
-    if (days > 90) opts.push(Math.min(days, (info && info.retentionDays) || days));
     let pick = opts.includes(7) ? 7 : opts[opts.length - 1] || 1;
-    const link = h('a', { class: 'nm-btn nm-btn--primary ar-csv', href: '/api/cydom/history.csv?days=' + pick, download: '' });
-    const paintLink = () => { link.replaceChildren(SC.icon('download', 18), T('Download CSV, ' + pick + (pick === 1 ? ' day' : ' days'), 'Λήψη CSV, ' + pick + (pick === 1 ? ' ημέρα' : ' ημέρες'))); link.setAttribute('href', '/api/cydom/history.csv?days=' + pick); };
-    const bar = h('div', { class: 'nm-pillbar ar-pick', role: 'group', 'aria-label': T('Days to download', 'Ημέρες για λήψη') }, opts.map((n) => h('button', { type: 'button', class: n === pick ? 'on' : '', 'aria-pressed': n === pick ? 'true' : 'false', onclick: (e) => { pick = n; bar.querySelectorAll('button').forEach((b) => { b.classList.remove('on'); b.setAttribute('aria-pressed', 'false'); }); e.currentTarget.classList.add('on'); e.currentTarget.setAttribute('aria-pressed', 'true'); paintLink(); } }, n === opts[opts.length - 1] && n > 90 ? T('All', 'Όλες') : String(n))));
-    paintLink();
-    card.append(h('div', { class: 'ar-csvbox' },
-      h('b', null, T('Met Office stations, all readings', 'Σταθμοί Υπηρεσίας, όλες οι μετρήσεις')),
-      h('p', { class: 'card-sub' }, T('One row per station and 10 minutes, with temperature, humidity, wind, pressure and rain. Choose how many recent days.', 'Μία γραμμή ανά σταθμό και 10 λεπτά, με θερμοκρασία, υγρασία, άνεμο, πίεση και βροχή. Επιλέξτε πόσες πρόσφατες ημέρες.')),
-      opts.length ? bar : null, link,
-      h('p', { class: 'ar-fine' }, T('A long period can be a large file.', 'Μια μεγάλη περίοδος μπορεί να δώσει μεγάλο αρχείο.'))));
+    if (days > 0) {
+      const link = h('a', { class: 'nm-btn ar-csv', href: '/api/cydom/history.csv?days=' + pick, download: '' });
+      const paintLink = () => { link.replaceChildren(SC.icon('download', 18), T('Download CSV, ' + pick + (pick === 1 ? ' day' : ' days'), 'Λήψη CSV, ' + pick + (pick === 1 ? ' ημέρα' : ' ημέρες'))); link.setAttribute('href', '/api/cydom/history.csv?days=' + pick); };
+      const bar = h('div', { class: 'nm-pillbar ar-pick', role: 'group', 'aria-label': T('Days to download', 'Ημέρες για λήψη') }, opts.map((n) => h('button', { type: 'button', class: n === pick ? 'on' : '', 'aria-pressed': n === pick ? 'true' : 'false', onclick: (e) => { pick = n; bar.querySelectorAll('button').forEach((b) => { b.classList.remove('on'); b.setAttribute('aria-pressed', 'false'); }); e.currentTarget.classList.add('on'); e.currentTarget.setAttribute('aria-pressed', 'true'); paintLink(); } }, String(n))));
+      paintLink();
+      card.append(h('details', { class: 'ar-csvbox' },
+        h('summary', null, T('Another number of days', 'Άλλος αριθμός ημερών')),
+        h('p', { class: 'card-sub' }, T('One row per station and 10 minutes, with temperature, humidity, wind, pressure and rain. A long period can be a large file.', 'Μία γραμμή ανά σταθμό και 10 λεπτά, με θερμοκρασία, υγρασία, άνεμο, πίεση και βροχή. Μια μεγάλη περίοδος μπορεί να δώσει μεγάλο αρχείο.')),
+        h('div', { class: 'ar-csvrow' }, bar, link)));
+    }
     return card;
   }
 
-  function noteCard(info) {
+  function noteCard(info, a) {
     const wrap = h('div', { class: 'ar-notes' });
     wrap.append(h('div', { class: 'nm-callout nm-callout--info ar-note' },
       h('b', null, T('What this archive is, and is not. ', 'Τι είναι και τι δεν είναι αυτό το αρχείο. ')),
       T('We keep two things ourselves: the Cyprus Met Office station readings (every 10 minutes) and a copy of each Met Office page when its text changes. The history of the school sensors lives at SenseCAP, in their service: this site shows it live and does not copy it here, so those readings are not counted on this page.', 'Κρατάμε οι ίδιοι δύο πράγματα: τις μετρήσεις των σταθμών της Μετεωρολογικής Υπηρεσίας (κάθε 10 λεπτά) και ένα αντίγραφο κάθε σελίδας της Υπηρεσίας όταν αλλάζει το κείμενό της. Το ιστορικό των αισθητήρων των σχολείων βρίσκεται στο SenseCAP, στην υπηρεσία τους: ο ιστότοπος το δείχνει ζωντανά και δεν το αντιγράφει εδώ, γι’ αυτό αυτές οι μετρήσεις δεν υπολογίζονται σε αυτή τη σελίδα.')));
     if (info && info.persistent === false) wrap.append(h('div', { class: 'nm-callout nm-callout--warn ar-note' }, h('b', null, T('No storage volume is attached. ', 'Δεν έχει συνδεθεί χώρος αποθήκευσης. ')), T('Everything on this page is lost the next time the server is updated. Ask whoever runs the server to attach a volume.', 'Ό,τι υπάρχει σε αυτή τη σελίδα χάνεται την επόμενη φορά που θα ενημερωθεί ο διακομιστής. Ζητήστε από όποιον διαχειρίζεται τον διακομιστή να συνδέσει χώρο αποθήκευσης.')));
+    if (a && a.cydom && a.cydom.error) wrap.append(h('div', { class: 'nm-callout nm-callout--bad ar-note' }, h('b', null, T('The readings store reports a problem. ', 'Ο χώρος μετρήσεων αναφέρει πρόβλημα. ')), String(a.cydom.error)));
+    if (a && a.pages && a.pages.error) wrap.append(h('div', { class: 'nm-callout nm-callout--bad ar-note' }, h('b', null, T('The page copies store reports a problem. ', 'Ο χώρος αντιγράφων σελίδων αναφέρει πρόβλημα. ')), String(a.pages.error)));
     if (info && info.error) wrap.append(h('div', { class: 'nm-callout nm-callout--bad ar-note' }, h('b', null, T('The history store reports a problem. ', 'Ο χώρος ιστορικού αναφέρει πρόβλημα. ')), String(info.error)));
     return wrap;
   }
@@ -236,7 +244,7 @@
       root.append(headHost, body);
 
       function head(a, stale) {
-        const upd = a && a.updated ? Number(a.updated) : null;
+        const upd = a ? Number(a.updatedAt) || (isFinite(Date.parse(a.updated)) ? Date.parse(a.updated) : Number(a.updated)) || null : null;
         headHost.replaceChildren(SC.head({
           title: T('The history we keep.', 'Το ιστορικό που κρατάμε.'),
           lede: T('Met Office readings and page copies saved by this site: how many days, where the gaps are, and how to download them. School sensor history stays at SenseCAP.', 'Μετρήσεις και αντίγραφα σελίδων της Μετεωρολογικής Υπηρεσίας που αποθηκεύει ο ιστότοπος: πόσες ημέρες, πού υπάρχουν κενά και πώς να τα κατεβάσετε. Το ιστορικό των αισθητήρων των σχολείων μένει στο SenseCAP.'),
@@ -267,7 +275,7 @@
             tile(T('Readings saved', 'Μετρήσεις αποθηκευμένες'), fmtInt(cy.readings), T('one per station every 10 minutes, all readings counted once', 'μία ανά σταθμό ανά 10 λεπτά')),
             tile(T('Stations', 'Σταθμοί'), fmtInt(cy.stations), T('Met Office automatic stations in the saved files', 'αυτόματοι σταθμοί της Υπηρεσίας στα αποθηκευμένα αρχεία')),
             tile(T('Size on disk', 'Μέγεθος στο δίσκο'), bytesText(cy.bytes), info && info.retentionDays ? T('kept up to ' + info.retentionDays + ' days, then deleted', 'διατηρούνται έως ' + info.retentionDays + ' ημέρες και μετά διαγράφονται') : T('Met Office readings only', 'μόνο μετρήσεις της Υπηρεσίας')));
-          body.replaceChildren(tiles, cal.card, h('div', { class: 'cols-2 ar-two' }, downloadsCard(a, info, spanDays || daysStored), pagesCard(a)), noteCard(info));
+          body.replaceChildren(tiles, cal.card, h('div', { class: 'cols-2 ar-two' }, downloadsCard(a, info, spanDays || daysStored), pagesCard(a)), noteCard(info, a));
           fit = cal.fit;
           fit();
         } catch (e) {

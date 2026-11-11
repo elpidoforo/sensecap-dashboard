@@ -60,6 +60,8 @@
     return '… ' + piece + (start + len < src.length ? ' …' : '');
   }
 
+  // The server names a page in both languages (label/labelEl); the page's own title is the fallback.
+  const titleOf = (r) => (SC.lang === 'el' && r.labelEl ? r.labelEl : r.label) || r.title || '';
   const plain = (s) => String(s || '').replace(/<\/?mark>/gi, '').replace(/\s+/g, ' ').trim();
   const when = (ms) => (ms && isFinite(ms) ? SC.dateTime(ms) : '');
   const warnId = () => 'warnings';
@@ -71,10 +73,12 @@
     if (/^https?:\/\//i.test(u)) external = u;
     else if (u.startsWith('#/')) href = u;
     else if (u.startsWith('/#/')) href = u.slice(1);
+    // Saved copies of the warnings page are read in the Warnings watch; other saved pages are counted in the Data archive.
+    if (group === 'archive' && (r.page === 'warnings' || /warning/i.test(r.title || ''))) href = '#/' + warnId();
     if (!href) {
       if (group === 'handbook') href = '#/library?doc=' + encodeURIComponent(r.title);
       else if (group === 'metoffice') href = '#/weather';
-      else href = /warning/i.test(r.title + ' ' + u) ? '#/' + warnId() : '#/archive';
+      else href = '#/archive';
     }
     let label;
     if (/^#\/weather/.test(href)) label = T('Open in Met Office record', 'Άνοιγμα στο μετεωρολογικό αρχείο');
@@ -82,7 +86,7 @@
     else if (/^#\/archive/.test(href)) label = T('Open in Data archive', 'Άνοιγμα στο αρχείο δεδομένων');
     else if (/^#\/warn/.test(href)) label = T('Open in Warnings watch', 'Άνοιγμα στην Παρακολούθηση προειδοποιήσεων');
     else label = T('Open', 'Άνοιγμα');
-    return { href, label, external };
+    return { href, label, external, saved: group === 'archive' && /^\/api\/dom\/pages\/history/.test(String(r.api || '')) ? r.api : null };
   }
 
   const GROUPS = [
@@ -166,11 +170,12 @@
         li.append(
           h('div', { class: 'rs-item-top' },
             h('span', { class: 't ' + group.tag[0] }, group.tag[1]),
-            h('b', { class: 'rs-item-t' }, marked(r.title, S.terms)),
-            r.at ? h('time', { class: 'rs-item-at mono', datetime: new Date(r.at).toISOString(), title: when(r.at) }, SC.ago(r.at)) : null),
+            h('b', { class: 'rs-item-t' }, marked(titleOf(r), S.terms)),
+            r.at ? h('time', { class: 'rs-item-at mono', datetime: new Date(r.at).toISOString(), title: when(r.at) }, group.id === 'metoffice' ? T('read ', 'διαβάστηκε ') + SC.ago(r.at) : group.id === 'archive' ? T('saved ', 'αποθηκεύτηκε ') + SC.ago(r.at) : SC.ago(r.at)) : null),
           r.snippet ? h('p', { class: 'rs-snip' }, marked(plain(r.snippet), S.terms)) : null,
           h('div', { class: 'rs-item-go' },
             h('a', { class: 'rs-open', href: dest.href }, dest.label, SC.icon('arrow', 15)),
+            dest.saved ? h('a', { class: 'rs-ext', href: dest.saved, target: '_blank', rel: 'noopener' }, T('Saved versions (JSON)', 'Αποθηκευμένες εκδόσεις (JSON)'), SC.icon('external', 13)) : null,
             dest.external ? h('a', { class: 'rs-ext', href: dest.external, target: '_blank', rel: 'noopener' }, T('Met Office original', 'Πρωτότυπο της Υπηρεσίας'), SC.icon('external', 13)) : null,
             r.at ? h('span', { class: 'rs-item-when' }, when(r.at)) : null));
         return li;

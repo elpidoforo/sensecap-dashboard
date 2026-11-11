@@ -47,9 +47,9 @@
   const working = (name) => (WORK[name] ? t(WORK[name][0], WORK[name][1]) : t('Working on it', 'Δουλεύω πάνω σε αυτό'));
 
   const TRIES = [
-    ['Show how CO2 changes in our classroom through the school day', 'Δείξε πώς αλλάζει το CO2 στην τάξη μας μέσα στη σχολική μέρα'],
-    ['Compare my school with the nearest Met Office station', 'Σύγκρινε το σχολείο μου με τον πλησιέστερο σταθμό της Μετεωρολογικής Υπηρεσίας'],
-    ['Which school is warmest right now?', 'Ποιο σχολείο είναι το πιο ζεστό αυτή τη στιγμή;'],
+    ['Compare my school with the airport station', 'Σύγκρινε το σχολείο μου με τον σταθμό του αεροδρομίου'],
+    ['Is the bus air worse than the air outside?', 'Είναι χειρότερος ο αέρας στο λεωφορείο από τον αέρα έξω;'],
+    ['Map of the windiest hour', 'Χάρτης της πιο θυελλώδους ώρας'],
   ];
 
   /* ---------- helpers ---------- */
@@ -335,7 +335,7 @@
       }
       const tries = !D && !S.building ? el('div', { class: 'sd-tries' }, el('b', null, t('Try one', 'Δοκιμάστε ένα')), ...TRIES.map(([en, el2]) => el('button', { class: 'sd-try', type: 'button', onclick: () => { ta.value = t(en, el2); upd(); drawMaker(); ta.focus(); } }, t(en, el2).replace(/\.$/, '')))) : null;
       return el('div', null,
-        el('label', { class: 'sd-lab', for: 'sd-ta' }, label), ta,
+        el('label', { class: 'sd-lab' + (D ? '' : ' sr-only'), for: 'sd-ta' }, label), ta,
         el('div', { class: 'sd-below' }, el('span', null, t('Write it like you would tell a classmate. No names or personal details.', 'Γράψτε το όπως θα το λέγατε σε έναν συμμαθητή. Χωρίς ονόματα ή προσωπικά στοιχεία.')), counter),
         tries, row, statusBlock(), usageBlock(lim, out));
     }
@@ -580,8 +580,10 @@
         thumb(o.seed, o.color),
         el('div', { class: 'sd-kx' }, el('h3', null, o.title), el('div', { class: 'sd-who' }, el('i', { style: { background: o.color } }), el('span', null, o.who))),
         o.note ? el('div', { class: 'sd-note' }, o.note) : null,
-        el('div', { class: 'sd-ft' }, el('span', { class: 'nm-badge' + (o.badge[0] ? ' nm-badge--' + o.badge[0] : '') }, o.badge[1]), o.meta ? el('span', { class: 'sd-fm' }, o.meta) : null,
-          el('span', { class: 'sd-fb' }, o.buttons.map((b) => el('button', { class: 'nm-btn nm-btn--sm' + (b.ghost ? ' nm-btn--ghost' : ''), type: 'button', 'aria-label': b.label + ': ' + o.title, onclick: b.run }, b.label)))));
+        el('div', { class: 'sd-ft' }, el('span', { class: 'nm-badge' + (o.badge[0] ? ' nm-badge--' + o.badge[0] : '') }, o.badge[1]),
+          (o.meta || o.buttons.some((b) => b.link)) ? el('span', { class: 'sd-fm' }, el('span', null, o.meta || ''),
+            o.buttons.filter((b) => b.link).map((b) => el('button', { class: 'sd-link', type: 'button', 'aria-label': b.label + ': ' + o.title, onclick: b.run }, b.label))) : null,
+          el('span', { class: 'sd-fb' }, o.buttons.filter((b) => !b.link).map((b) => el('button', { class: 'nm-btn nm-btn--sm' + (b.ghost ? ' nm-btn--ghost' : ''), type: 'button', 'aria-label': b.label + ': ' + o.title, onclick: b.run }, b.label)))));
     }
     const galCard = (p) => card({ title: p.title, who: galleryLabel(p), color: schoolColor(p.school), seed: p.id, badge: ['ok', t('Public', 'Δημόσιο')], meta: t('Published ', 'Δημοσιεύτηκε ') + SC.date(p.updatedAt), buttons: [{ label: t('Open', 'Άνοιγμα'), run: () => openViewer(p, galleryLabel(p), el('span', { class: 'nm-badge nm-badge--ok' }, t('Public', 'Δημόσιο'))) }] });
 
@@ -625,7 +627,7 @@
         ...serverDrafts().map((p) => card({ title: p.title, who, color, seed: p.id, sel: S.cur && S.cur.serverId === p.id, badge: ['', t('Draft', 'Προσχέδιο')], meta: t('Edited ' + ago(p.updatedAt), 'Επεξεργάστηκε ' + ago(p.updatedAt)), buttons: [{ label: t('Edit', 'Επεξεργασία'), run: () => editServer(p) }] })),
       ];
       const review = pendingMine().map((p) => card({ title: p.title, who, color, seed: p.id, badge: ['warn', t('Waiting for a teacher', 'Περιμένει εκπαιδευτικό')], meta: t('Sent ' + ago(p.updatedAt), 'Στάλθηκε ' + ago(p.updatedAt)),
-        buttons: [{ label: t('View', 'Προβολή'), run: () => openViewer(p, who, el('span', { class: 'nm-badge nm-badge--warn' }, t('Not public yet', 'Δεν είναι δημόσιο ακόμη'))) }, { label: t('Withdraw', 'Απόσυρση'), ghost: true, run: () => withdraw(p) }] }));
+        buttons: [{ label: t('View', 'Προβολή'), run: () => openViewer(p, who, el('span', { class: 'nm-badge nm-badge--warn' }, t('Not public yet', 'Δεν είναι δημόσιο ακόμη'))) }, { label: t('Withdraw', 'Απόσυρση'), link: true, run: () => withdraw(p) }] }));
       return { draft, review };
     }
     function col(icon, title, n, sub, cards, slot) {

@@ -366,7 +366,7 @@
         A.draw = () => { const W = Math.max(300, Math.min(620, Math.round(chart.clientWidth || 560))); fill(chart, histogram(W, est, base)); };
         const seg = (v, c) => el('i', { style: { flex: String(Math.max(0.0001, v)), background: c } });
         const node = el('section', { class: 'wf-card', 'aria-label': 'PM2.5' },
-          el('div', { class: 'wf-k lab' }, T('PM2.5 at ' + nameOf(school), 'PM2.5 · ' + nameOf(school))),
+          el('div', { class: 'wf-k wf-cap' }, T('PM2.5 at ' + nameOf(school), 'PM2.5 · ' + nameOf(school))),
           el('div', { class: 'wf-stats' },
             el('div', { class: 'wf-stat st-base' }, el('span', { class: 'k' }, T('Measured now', 'Μετρήθηκε τώρα')),
               el('strong', null, f1(B), el('small', null, 'µg/m³')),
@@ -381,28 +381,28 @@
                 : el('span', null, el('b', { class: dp < 0 ? 'dn' : '' }, (dp > 0 ? '+' : '−') + Math.abs(dp) + T(' points', ' μονάδες')), T(' vs as measured (' + Math.round(under0 * 100) + ' %)', ' έναντι της μέτρησης (' + Math.round(under0 * 100) + ' %)'))),
               el('small', null, T('WHO\'s ' + WHO + ' is a 24-hour average. One reading is not, so take this as a guide only.', 'Το ' + WHO + ' του ΠΟΥ είναι μέσος όρος 24 ωρών. Μία μέτρηση δεν είναι, γι’ αυτό δείτε το μόνο ως οδηγό.')))),
           el('figure', { class: 'wf-fig' },
-            el('div', { class: 'wf-fig-h' }, el('span', { class: 'lab' }, T('2,000 possible readings', '2.000 πιθανές τιμές')),
+            el('div', { class: 'wf-fig-h' }, el('span', { class: 'wf-cap' }, T('2,000 possible readings', '2.000 πιθανές τιμές')),
               el('div', { class: 'lg' }, kspan('#E8963F', el('i'), T('Middle 80 %', 'Κεντρικό 80 %')), kspan('#6f93c4', el('i'), T('Rest', 'Υπόλοιπο')),
                 el('span', null, el('i', { class: 'ln' }), T('As measured', 'Όπως μετρήθηκε')), kspan('#4CCBEA', el('i'), T('WHO guide', 'Οδηγός ΠΟΥ')))),
             chart,
             el('figcaption', null, el('span', { class: 'sim' }, T('Simulation', 'Προσομοίωση')), el('span', null, T('A taller bar means more of the 2,000 possible readings. Values in µg/m³.', 'Μεγαλύτερη μπάρα σημαίνει περισσότερες από τις 2.000 πιθανές τιμές. Τιμές σε µg/m³.')))),
-          el('div', { class: 'wf-split' }, el('span', { class: 'lab' }, T('Where the dust comes from, with your settings', 'Από πού προέρχεται η σκόνη, με τις ρυθμίσεις σας')),
-            el('div', { class: 'seg', role: 'img', 'aria-label': T('Split of PM2.5 by source', 'Κατανομή του PM2.5 ανά πηγή') }, seg(r.out, '#8CA0B8'), seg(r.cars, '#E07F3F'), seg(r.bus, '#4CCBEA')),
-            el('div', { class: 'seg-l' }, kspan('#8CA0B8', T('Outside ', 'Εξωτερικό '), el('b', null, f1(r.out))), kspan('#E07F3F', T('Cars ', 'Αυτοκίνητα '), el('b', null, f1(r.cars))),
+          el('div', { class: 'wf-split' }, el('span', { class: 'wf-cap' }, T('Where the dust comes from, with your settings', 'Από πού προέρχεται η σκόνη, με τις ρυθμίσεις σας')),
+            el('div', { class: 'wf-seg', role: 'img', 'aria-label': T('Split of PM2.5 by source', 'Κατανομή του PM2.5 ανά πηγή') }, seg(r.out, '#8CA0B8'), seg(r.cars, '#E07F3F'), seg(r.bus, '#4CCBEA')),
+            el('div', { class: 'wf-seg-l' }, kspan('#8CA0B8', T('Outside ', 'Εξωτερικό '), el('b', null, f1(r.out))), kspan('#E07F3F', T('Cars ', 'Αυτοκίνητα '), el('b', null, f1(r.cars))),
               kspan('#4CCBEA', T('Buses ', 'Λεωφορεία '), el('b', null, f1(r.bus))), kspan('transparent', T('Total ', 'Σύνολο '), el('b', null, f1(tot)), ' µg/m³'))));
         A.pmData = { B, est, p10, p90, under, under0, r };
         return node;
       }
       function miniBlock(title, b, fn, partsOf, varShare, unit, dec, extra, absSd) {
         if (!b) {
-          return el('section', { class: 'wf-card wf-mini' }, el('div', { class: 'wf-k lab' }, title),
+          return el('section', { class: 'wf-card wf-mini' }, el('div', { class: 'wf-k wf-cap' }, title),
             el('div', { class: 'empty' }, T('No recent reading from this school\'s sensors (none in the last 24 hours). No estimate is shown.', 'Καμία πρόσφατη μέτρηση από τους αισθητήρες του σχολείου (καμία τις τελευταίες 24 ώρες). Δεν εμφανίζεται εκτίμηση.')));
         }
         const s = { cars: S.cars, ev: S.ev, trees: S.trees, heat: S.heat }, K = S.K;
         const r = fn(b.v, s, K), effs = oneAtATime(fn, b.v, s, K), d = dist(r.mean, varShare, effs, K.unc, absSd);
         const p10 = d.q(0.1), p90 = d.q(0.9);
         return el('section', { class: 'wf-card wf-mini', 'aria-label': title },
-          el('div', { class: 'wf-k lab' }, title),
+          el('div', { class: 'wf-k wf-cap' }, title),
           el('div', { class: 'wf-mini-g' },
             el('div', null, el('span', { class: 'k' }, T('Measured now', 'Μετρήθηκε τώρα')), el('strong', null, SC.num(b.v, dec), el('small', null, unit)), el('span', { class: 'sub' }, sensorText(b) + ', ' + agoText(b.t)), staleBadge(b.t)),
             el('div', null, el('span', { class: 'k' }, T('Estimate', 'Εκτίμηση')), el('strong', null, SC.num(r.mean, dec), el('small', null, unit)), delta(r.mean - b.v, unit, dec)),

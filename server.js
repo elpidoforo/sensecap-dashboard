@@ -1350,6 +1350,7 @@ async function sourceRoutes(req, res, url) {
     try { body = await readJsonBody(req); } catch (e) { return reply(res, e.status || 400, { error: e.message }); }
     if (!body || typeof body.enabled !== 'boolean') return reply(res, 400, { error: 'enabled must be true or false.' });
     const feed = feeds.setEnabled(id, body.enabled);
+    publicViews.clear();   // the answers kept for visitors are rebuilt, so the switch shows at once
     try { appCore.db.run('INSERT INTO audit(at, actor_id, action, target, detail) VALUES (?,?,?,?,?)', Date.now(), user.id, 'feed_switch', id, body.enabled ? 'on' : 'off'); } catch (e) { /* the audit is best effort */ }
     console.log(`Feed ${id} switched ${body.enabled ? 'on' : 'off'} by a teacher`);
     return reply(res, 200, { ok: true, feed });

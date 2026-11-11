@@ -45,6 +45,7 @@ body.gd-lock { overflow: hidden; }
 .gd-x svg { width: 20px; height: 20px; }
 .gd-sh-body { padding: 18px 22px 28px; display: flex; flex-direction: column; gap: 18px; }
 .gd-sh-live .card-eye { margin-bottom: 8px; }
+.gd-sh-live .gd-live-k { display: none; }
 .gd-rows { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; }
 .gd-rows li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 4px 12px; align-items: baseline; padding: 8px 2px; border-bottom: 1px solid rgba(255, 255, 255, .07); font-size: 14px; }
 .gd-rows li:last-child { border-bottom: 0; }

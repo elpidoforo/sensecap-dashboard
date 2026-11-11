@@ -29,6 +29,7 @@
   const PATHS = {
     car: '<path d="M4 18v-5.4l1.7-4.5A2 2 0 017.6 6.8h8.8a2 2 0 011.9 1.3L20 12.6V18"/><path d="M3 18h18M4 12.6h16M6.5 18v2M17.5 18v2"/><circle cx="7.8" cy="15.3" r=".9" fill="currentColor"/><circle cx="16.2" cy="15.3" r=".9" fill="currentColor"/>',
     chev: '<path d="M9 6l6 6-6 6"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/>',
   };
   function ico(name, size) {
     if (SC.icons && SC.icons[name]) return SC.icon(name, size);
@@ -106,7 +107,14 @@
     if (d.online !== false && m && now - m <= HOUR) return 'on';
     return m && now - m <= DAY ? 'quiet' : 'off';
   }
-  const LBL = { road: T('Moving', 'Σε κίνηση'), park: T('Stopped', 'Σταματημένο'), live: T('Reporting', 'Αναφέρει'), quiet: T('Quiet over 1 h', 'Σιωπηλό πάνω από 1 ώρα'), off: T('Offline', 'Εκτός λειτουργίας') };
+  const LBL = { road: T('On the road', 'Στον δρόμο'), park: T('Parked', 'Σταθμευμένο'), live: T('Reporting', 'Αναφέρει'), quiet: T('Quiet over 1 h', 'Σιωπηλό > 1 ώρα'), off: T('Offline', 'Εκτός λειτουργίας') };
+  // "PASCAL Larnaka bus 12" -> "Bus 12" (the school is printed on its own line); any other name stays as it is
+  function shortName(d) {
+    const m = /\b(bus|minibus|coach|shuttle|car|van|taxi|vehicle)\s*#?\s*(\d+)\b/i.exec(d.name || '');
+    if (!m) return d.name || '';
+    const w = m[1].toLowerCase(), bus = /bus|coach|shuttle/.test(w);
+    return T((bus ? 'Bus' : cap(w)) + ' ' + m[2], (bus ? 'Λεωφορείο' : w === 'car' ? 'Αυτοκίνητο' : w === 'van' ? 'Βαν' : w === 'taxi' ? 'Ταξί' : 'Όχημα') + ' ' + m[2]);
+  }
   const BADGE = { road: 'ok', park: 'info', live: 'info', quiet: 'warn', off: 'bad' };
   const COL = { road: '#59d98e', park: '#6ea0f0', live: '#4CCBEA', quiet: '#F0B94A', off: '#FF7A6A' };
   const ORD = { road: 0, park: 1, live: 2, quiet: 3, off: 4 };
@@ -203,6 +211,19 @@
     return out;
   }
   const tripKm = (k) => (k < 10 ? Math.round(k) : Math.round(k / 5) * 5);
+  // what is measured along a trip: the first two of these that some vehicle sensor reports (PM2.5 and noise when they exist, like the picture)
+  const TRIPCOLS = [
+    { k: 'pm25', agg: 'mean', en: 'Mean PM2.5', el: 'Μέσο PM2.5', max: 25 },
+    { k: 'noise', agg: 'max', en: 'Peak noise', el: 'Μέγιστος θόρυβος', max: 80 },
+    { k: 'temp', agg: 'mean', en: 'Mean temp.', el: 'Μέση θερμ.', max: 45 },
+    { k: 'hum', agg: 'mean', en: 'Mean humidity', el: 'Μέση υγρασία', max: 100 },
+    { k: 'co2', agg: 'mean', en: 'Mean CO2', el: 'Μέσο CO2', max: 1200 },
+  ];
+  function colColor(x, v) {
+    if (x.k === 'pm25') return v <= 15 ? '#59d98e' : v <= 35 ? '#F2B24C' : '#E07F3F';
+    if (x.k === 'noise') return v <= 60 ? '#59d98e' : v <= 68 ? '#F2B24C' : '#E07F3F';
+    return x.color;
+  }
   const span = (ms) => { const m = Math.max(1, Math.round(ms / 60000)); return m < 90 ? T(m + ' min', m + ' λεπτά') : T(Math.round(m / 6) / 10 + ' h', Math.round(m / 6) / 10 + ' ώρες'); };
 
   /* =============================================================================================================== */
@@ -265,22 +286,38 @@
       }
       const desc = describe(d.lat, d.lng, v.st === 'park');
       const quiet = v.st === 'quiet' || v.st === 'off';
-      const main = quiet ? T('Last seen ' + desc.en, 'Τελευταία θέση: ' + desc.el) : T(cap(desc.en), cap(desc.el));
+      const main = v.st === 'park' ? T('Parked ' + desc.en, 'Σταθμευμένο ' + desc.el) : T('Last seen ' + desc.en, 'Τελευταία θέση: ' + desc.el);
       let sub;
       if (quiet) sub = v.seen ? T('Last signal ' + when(v.seen) + ' · ' + SC.ago(v.seen), 'Τελευταίο σήμα ' + when(v.seen) + ' · ' + SC.ago(v.seen)) : T('Never reported', 'Δεν έχει στείλει ποτέ');
       else if (exact()) sub = T('Exact position (teacher view)', 'Ακριβής θέση (προβολή εκπαιδευτικού)');
-      else if (d.posAt) sub = T('Public position from ' + SC.time(d.posAt) + ', ' + SC.ago(d.posAt) + ' · rounded to 1 km', 'Δημόσια θέση από ' + SC.time(d.posAt) + ', ' + SC.ago(d.posAt) + ' · στρογγυλοποιημένη στο 1 χλμ.');
+      else if (d.posAt) sub = T('Position from ' + SC.time(d.posAt) + ', ' + SC.ago(d.posAt) + ' · rounded to 1 km', 'Θέση από ' + SC.time(d.posAt) + ', ' + SC.ago(d.posAt) + ' · στρογγυλοποιημένη στο 1 χλμ.');
       else sub = T('Position is delayed and rounded to 1 km', 'Η θέση έχει καθυστέρηση και στρογγυλοποίηση στο 1 χλμ.');
       void now;
       return { main, sub };
+    }
+    function tripCols() {
+      const out = [], vs = devices().filter(isVehicle);
+      TRIPCOLS.forEach((def) => {
+        for (const d of vs) { const m = readingsOf(d).find((x) => x.k === def.k); if (m) { out.push({ ...def, mid: String(m.mid), unit: m.unit, dec: m.dec, color: m.color, label: T(def.en, def.el) }); break; } }
+      });
+      return out.slice(0, 2);
+    }
+    const colTrails = (x) => (x.mid === '4097' ? val('trails') : val('tr' + x.mid));
+    function tripVal(x, eui, tr) {   // mean or peak of one reading along a trip (the raw public trail of that reading), or null
+      const t = colTrails(x), raw = t && t.trails && t.trails[eui] || [];
+      const vs = raw.filter((p) => Array.isArray(p) && fin(p[0]) && p[0] >= tr.t0 - 300000 && p[0] <= tr.t1 + 300000 && fin(p[3])).map((p) => p[3]);
+      return !vs.length ? null : x.agg === 'max' ? Math.max(...vs) : mean(vs);
     }
     async function load() {
       const [cfgR, devR, latR, trR] = await Promise.all([
         settle(SC.cached('/api/config', 300000)), settle(SC.cached('/api/devices', 20000)), settle(SC.cached('/api/latest', 20000)),
         settle(SC.cached('/api/trails?hours=24&mid=4097', 120000))]);
       R.cfg = cfgR; R.devices = devR; R.latest = latR; R.trails = trR;
+      R.cols = tripCols();
+      await Promise.all(R.cols.filter((x) => x.mid !== '4097').map(async (x) => { R['tr' + x.mid] = await settle(SC.cached('/api/trails?hours=24&mid=' + enc(x.mid), 120000)); }));
     }
-    return { R, val, cfg, devices, latest, exact, delayMin, hasGps, isVehicle, meta, readingsOf, lastRead, trailOf, motion, vehicles, where, load };
+    const cols = () => R.cols || [];
+    return { R, val, cfg, devices, latest, exact, delayMin, hasGps, isVehicle, meta, readingsOf, lastRead, trailOf, motion, vehicles, where, load, cols, tripVal };
   }
 
   // the freshness pill, the demo tag and the privacy note, shared by both views
@@ -296,7 +333,7 @@
         else if (now - last > HOUR) { pill.className = 'fresh-pill stale'; pill.lastChild.textContent = T('Last reading ' + SC.ago(last), 'Τελευταία μέτρηση ' + SC.ago(last)); }
         else pill.lastChild.textContent = T('Live · ' + SC.ago(last), 'Ζωντανά · ' + SC.ago(last));
         const demo = c.val('cfg') && c.val('cfg').demo, has = pageHead.querySelector('.t.demo');
-        if (demo && !has) pageHead.insertBefore(el('span', { class: 't demo' }, T('Demo data', 'Δεδομένα επίδειξης')), lede);
+        if (demo && !has) pageHead.insertBefore(el('span', { class: 't demo' }, T('Sample numbers', 'Δειγματικοί αριθμοί')), lede);
         if (!demo && has) has.remove();
       },
       lede(text) { lede.textContent = text; },
@@ -311,27 +348,41 @@
   const errBox = (msg, retry) => el('div', { class: 'vh-err' }, el('div', { class: 'err', role: 'alert' }, msg), el('button', { class: 'nm-btn', type: 'button', onclick: retry }, T('Try again', 'Δοκιμάστε ξανά')));
   const eMsg = (r) => (r && r.e && r.e.message ? ' ' + r.e.message : '');
 
+  const measureCell = (x, v) => (v == null ? el('td', { class: 'num mut' }, '–')
+    : el('td', { class: 'num' }, el('span', { class: 'mt' }, el('i', { style: '--w:' + Math.round(Math.max(4, Math.min(100, v / x.max * 100))) + '%;--c:' + colColor(x, v) }, el('b')), el('span', null, fmt(v, x.dec), el('u', null, x.unit)))));
   const tripRows = (c, trips, withVehicle) => trips.map((tr) => {
     const v = tr.v, a = nearestTown(tr.a[1], tr.a[2]), b = nearestTown(tr.b[1], tr.b[2]);
     const href = v ? '#/vehicles/' + enc(v.d.eui) : null;
-    const mt = tr.vals.length ? mean(tr.vals) : null;
     return el('tr', { onclick: href ? (e) => { if (!e.target.closest('a')) location.hash = href; } : null },
-      withVehicle ? el('td', null, el('a', { class: 'vh-veh', href, style: '--o:' + COL[v.st] }, el('i'), v.d.name)) : null,
+      withVehicle ? el('td', null, el('a', { class: 'vh-veh', href, title: v.d.name, style: '--o:' + COL[v.st] }, el('i'), shortName(v.d))) : null,
       withVehicle ? el('td', { class: 'mut hs' }, v.school ? v.school.n : v.d.group || '') : null,
       el('td', { class: 'tm' }, when(tr.t0)),
       el('td', { class: 'num tm' }, T('about ', 'περίπου '), String(tripKm(tr.km)), el('u', null, ' ' + T('km', 'χλμ.'))),
-      el('td', { class: 'num tm' }, span(tr.t1 - tr.t0)),
-      el('td', { class: 'num tm' }, mt == null ? '–' : fmt(mt, 1), mt == null ? null : el('u', null, '°C')),
-      el('td', { class: 'mut' }, a && b && a !== b ? a + ' → ' + b : T('around ' + (a || '?'), 'γύρω από ' + (a || '?'))),
+      withVehicle ? null : el('td', { class: 'num tm' }, span(tr.t1 - tr.t0)),
+      c.cols().map((x) => measureCell(x, c.tripVal(x, v.d.eui, tr))),
+      withVehicle ? null : el('td', { class: 'mut' }, a && b && a !== b ? a + ' → ' + b : T('around ' + (a || '?'), 'γύρω από ' + (a || '?'))),
       withVehicle ? el('td', null, el('span', { class: 'nm-badge nm-badge--' + BADGE[v.st] }, LBL[v.st])) : null,
       withVehicle ? el('td', { class: 'go' }, ico('chev')) : null);
   });
   const tripsFine = T('Worked out in your browser from the delayed, rounded public positions, so they are rough: a trip is a run of positions less than 30 minutes apart that covers at least 2 km and lasts under 6 hours, distances are to the nearest 5 km above 10 km, and the start is the first position that changed.',
     'Υπολογίζονται στον περιηγητή σας από τις καθυστερημένες, στρογγυλοποιημένες δημόσιες θέσεις, άρα είναι χονδρικές: μια διαδρομή είναι μια σειρά θέσεων με διαφορά μικρότερη των 30 λεπτών που καλύπτει τουλάχιστον 2 χλμ. και διαρκεί λιγότερο από 6 ώρες, οι αποστάσεις στρογγυλοποιούνται στα 5 χλμ. πάνω από 10 χλμ. και η αρχή είναι η πρώτη θέση που άλλαξε.');
-  const tripsHead = (withVehicle) => el('tr', null,
+  const tripsHead = (c, withVehicle) => el('tr', null,
     withVehicle ? el('th', null, T('Vehicle', 'Όχημα')) : null, withVehicle ? el('th', { class: 'hs' }, T('School', 'Σχολείο')) : null,
-    el('th', null, T('Started', 'Έναρξη')), el('th', { class: 'num' }, T('Distance', 'Απόσταση')), el('th', { class: 'num' }, T('Time', 'Διάρκεια')), el('th', { class: 'num' }, T('Mean temp.', 'Μέση θερμ.')),
-    el('th', null, T('Nearest towns', 'Κοντινότερες πόλεις')), withVehicle ? el('th', null, T('Now', 'Τώρα')) : null, withVehicle ? el('th', { class: 'go', 'aria-label': T('Open', 'Άνοιγμα') }) : null);
+    el('th', null, T('Start', 'Έναρξη')), el('th', { class: 'num' }, T('Distance', 'Απόσταση')), withVehicle ? null : el('th', { class: 'num' }, T('Time', 'Διάρκεια')),
+    c.cols().map((x) => el('th', { class: 'num' }, x.label)),
+    withVehicle ? null : el('th', null, T('Nearest towns', 'Κοντινότερες πόλεις')), withVehicle ? el('th', null, T('Now', 'Τώρα')) : null, withVehicle ? el('th', { class: 'go', 'aria-label': T('Open', 'Άνοιγμα') }) : null);
+
+  // the trips as a spreadsheet file: no positions, only what the table shows (distances rounded like the table)
+  function tripsCsv(c, trips, name) {
+    const cols = c.cols(), q = (x) => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"';
+    const rows = [['vehicle', 'school', 'started', 'minutes', 'distance_km_rounded'].concat(cols.map((x) => x.en + ' (' + x.unit + ')'))];
+    trips.forEach((tr) => rows.push([tr.v.d.name, tr.v.school ? tr.v.school.n : tr.v.d.group || '', new Date(tr.t0).toISOString(), Math.round((tr.t1 - tr.t0) / 60000), tripKm(tr.km)]
+      .concat(cols.map((x) => { const v = c.tripVal(x, tr.v.d.eui, tr); return v == null ? '' : Number(v).toFixed(x.dec); }))));
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\ufeff' + rows.map((r) => r.map(q).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' }));
+    a.download = name; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
 
   /* =============================================================================================================== */
   function renderList(root, ctx) {
@@ -340,14 +391,14 @@
     const timers = [], sparks = {};   // sparks['eui|mid'] = 24 hourly values
     const head = SC.head({
       title: T('Vehicles', 'Οχήματα'),
-      lede: T('Buses and cars that carry a sensor. Readings are live; positions are delayed and rounded.', 'Λεωφορεία και αυτοκίνητα που φέρουν αισθητήρα. Οι μετρήσεις είναι ζωντανές· οι θέσεις έχουν καθυστέρηση και στρογγυλοποίηση.'),
+      lede: T('Buses and cars that carry a sensor. Readings are live; positions are about 2 hours late and rounded to 1 km.', 'Λεωφορεία και αυτοκίνητα που φέρουν αισθητήρα. Οι μετρήσεις είναι ζωντανές· οι θέσεις έχουν καθυστέρηση περίπου 2 ωρών και στρογγυλοποίηση στο 1 χλμ.'),
       fresh: T('Checking…', 'Έλεγχος…'),
       help: ['The Vehicles page lists the buses and cars that carry a sensor. Each card shows the vehicle’s state, where it was last seen in words, its latest readings with a 24-hour sparkline each, its battery and when it last sent a reading. Moving or stopped is worked out from the public positions, which are published about 2 hours late and rounded to about 1 km to protect the students on board, so it describes where the vehicle was then, not now. Quiet means nothing for over an hour, offline nothing for over a day. Open a vehicle to see a history chart for each reading and to download its readings as a CSV file. Teachers who sign in see exact positions.',
         'Η σελίδα Οχήματα εμφανίζει τα λεωφορεία και τα αυτοκίνητα που φέρουν αισθητήρα. Κάθε κάρτα δείχνει την κατάσταση του οχήματος, πού εθεάθη τελευταία με λόγια, τις τελευταίες μετρήσεις με ένα γράφημα 24 ωρών η καθεμία, την μπαταρία και πότε έστειλε τελευταία μέτρηση. Το αν κινείται ή είναι σταματημένο προκύπτει από τις δημόσιες θέσεις, που δημοσιεύονται με καθυστέρηση περίπου 2 ωρών και στρογγυλοποίηση περίπου 1 χλμ. για την προστασία των μαθητών, άρα περιγράφει πού ήταν το όχημα τότε και όχι τώρα. Σιωπηλό σημαίνει τίποτα για πάνω από μία ώρα, εκτός λειτουργίας τίποτα για πάνω από μία ημέρα. Ανοίξτε ένα όχημα για να δείτε γράφημα ιστορικού για κάθε μέτρηση και να κατεβάσετε τις μετρήσεις του σε αρχείο CSV. Οι εκπαιδευτικοί που συνδέονται βλέπουν ακριβείς θέσεις.'],
     });
     const ch = chrome(c, head);
-    const cmd = el('div', { class: 'vh-cmd' }, el('span', { class: 'grow' }),
-      ctx && SC.ready.has('map') ? el('a', { class: 'nm-btn vh-ghost', href: '#/map' }, ico('map'), T('Open the live map', 'Άνοιγμα ζωντανού χάρτη')) : null);
+    root.classList.add('pg-vehicles');
+    const cmd = el('div', { class: 'vh-cmd' });
     const noteBox = el('div'), tilesBox = el('div', { class: 'vh-tiles' }, loadingBox());
     const secH = el('div', { class: 'vh-sech' });
     const gridBox = el('div', { class: 'vh-grid' });
@@ -355,6 +406,19 @@
     const tripsCard = el('section', { class: 'nm-card vh-trips', 'aria-label': T('Trips in the last 24 hours', 'Διαδρομές τις τελευταίες 24 ώρες') }, tripsBody);
     root.append(head, cmd, noteBox, tilesBox, secH, gridBox, tripsCard);
     const retry = () => refresh(true);
+
+    // where "follow" leads: the trip page when it exists, else the map opened on that vehicle
+    const followHref = (eui) => (SC.ready.has('trip') ? '#/trip' + (eui ? '/' + enc(eui) : '') : SC.ready.has('map') ? '#/map' + (eui ? '?eui=' + enc(eui) : '') : null);
+    function paintCmd(vs) {
+      const movers = vs.filter((v) => v.gps && (v.st === 'road' || v.st === 'live' || v.st === 'park'));
+      const pick = vs.find((v) => v.gps && v.st === 'road') || movers[0];
+      const fh = movers.length ? (SC.ready.has('trip') ? followHref(null) : followHref(pick && pick.d.eui)) : null;
+      fill(cmd,
+        fh ? el('a', { class: 'nm-btn nm-btn--primary', href: fh }, ico('bolt'), T('Follow one trip', 'Ακολουθήστε μια διαδρομή')) : null,
+        vs.some((v) => v.gps) && SC.ready.has('map') ? el('a', { class: 'nm-btn vh-ghost', href: '#/map', title: T('Opens the map: press Time-lapse there to replay the last hours', 'Ανοίγει τον χάρτη: πατήστε εκεί «Χρονική επανάληψη» για να ξαναδείτε τις τελευταίες ώρες') }, ico('clock'), T('Replay today', 'Επανάληψη σήμερα')) : null,
+        el('span', { class: 'grow' }),
+        SC.ready.has('map') ? el('a', { class: 'nm-btn vh-ghost', href: '#/map' }, ico('map'), T('Open the live map', 'Άνοιγμα ζωντανού χάρτη')) : null);
+    }
 
     function tile(cls, st, kind, label, n, total, sub) {
       return el('div', { class: 'nm-card nm-card--glow vh-tile' + (cls || '') },
@@ -373,14 +437,14 @@
     function paintTiles(vs) {
       const now = Date.now(), h = Math.max(1, Math.round(c.delayMin() / 60)), ago = c.exact() ? T('now', 'τώρα') : T('about ' + h + ' h ago', 'πριν από περίπου ' + h + ' ώρες');
       const road = vs.filter((v) => v.st === 'road'), park = vs.filter((v) => v.st === 'park'), live = vs.filter((v) => v.st === 'live'), q = vs.filter((v) => v.st === 'quiet' || v.st === 'off');
-      const sub1 = road.length ? kinds(road) + ' · ' + T('moving ' + ago, 'σε κίνηση ' + ago) : T('None was moving ' + ago + ' at its public position.', 'Κανένα δεν κινούνταν ' + ago + ' στη δημόσια θέση του.');
-      const sub2 = (park.length ? kinds(park) + ' · ' + T('stopped ' + ago, 'σταματημένα ' + ago) : T('None was stopped ' + ago + '.', 'Κανένα δεν ήταν σταματημένο ' + ago + '.'))
+      const sub1 = road.length ? kinds(road) + ', ' + T('moving ' + ago, 'σε κίνηση ' + ago) : T('None was moving ' + ago + ' at its public position.', 'Κανένα δεν κινούνταν ' + ago + ' στη δημόσια θέση του.');
+      const sub2 = (park.length ? T('Stopped ' + ago + ', sensors still reading', 'Σταματημένα ' + ago + ', οι αισθητήρες συνεχίζουν να μετρούν') : T('None was stopped ' + ago + '.', 'Κανένα δεν ήταν σταματημένο ' + ago + '.'))
         + (live.length ? ' ' + T('+' + live.length + ' with no public position yet.', '+' + live.length + ' χωρίς ακόμα δημόσια θέση.') : '');
       const oldest = q.slice().sort((a, b) => a.seen - b.seen)[0];
       const sub3 = !q.length ? T('Every vehicle sensor reported in the last hour.', 'Όλοι οι αισθητήρες οχημάτων έστειλαν μέτρηση την τελευταία ώρα.')
-        : (q.length > 1 ? T(oldest.d.name + ' and ' + (q.length - 1) + ' more', oldest.d.name + ' και ' + (q.length - 1) + ' ακόμα') : oldest.d.name) + ', ' + (oldest.seen ? T('no reading since ' + when(oldest.seen), 'καμία μέτρηση από ' + when(oldest.seen)) : T('never reported', 'δεν έχει στείλει ποτέ'));
+        : (q.length > 1 ? T(shortName(oldest.d) + ' and ' + (q.length - 1) + ' more', shortName(oldest.d) + ' και ' + (q.length - 1) + ' ακόμα') : shortName(oldest.d)) + ', ' + (oldest.seen ? T('no signal since ' + when(oldest.seen), 'κανένα σήμα από ' + when(oldest.seen)) : T('never reported', 'δεν έχει στείλει ποτέ'));
       void now;
-      fill(tilesBox, tile('', 'road', 'bus', T('Moving', 'Σε κίνηση'), road.length, vs.length, sub1), tile('', 'park', 'pin', T('Stopped', 'Σταματημένα'), park.length, vs.length, sub2),
+      fill(tilesBox, tile('', 'road', 'bus', T('On the road', 'Στον δρόμο'), road.length, vs.length, sub1), tile('', 'park', 'pin', T('Parked', 'Σταθμευμένα'), park.length, vs.length, sub2),
         tile(' q', 'quiet', 'sensor', T('Quiet over 1 h', 'Σιωπηλά πάνω από 1 ώρα'), q.length, vs.length, sub3));
     }
 
@@ -394,28 +458,33 @@
         old && r ? el('span', { class: 'age' }, SC.ago(r.t)) : null), slot, key, m };
     }
 
+    // four bars: how fresh the last reading is (the sensor's own signal strength is not sent to the site)
+    function freshBars(ms, now) {
+      const age = now - ms, n = !ms ? 0 : age <= 30 * 60000 ? 4 : age <= HOUR ? 3 : age <= 3 * HOUR ? 2 : age <= DAY ? 1 : 0;
+      const col = n >= 3 ? '#59d98e' : n === 2 ? '#F2CF86' : n === 1 ? '#F0B94A' : '#FF7A6A';
+      return el('i', { class: 'vh-sig', style: '--c:' + col, 'aria-hidden': 'true' }, [1, 2, 3, 4].map((i) => el('i', { class: i <= n ? 'on' : '' })));
+    }
+
     function card(v, pending) {
-      const d = v.d, w = c.where(v), reads = c.readingsOf(d), show = reads.slice(0, 3);
+      const d = v.d, w = c.where(v), reads = c.readingsOf(d), show = reads.slice(0, 3), now = Date.now();
       const tiles = show.map((m) => readTile(v, m));
       tiles.forEach((t) => { if (!sparks[t.key]) pending.push(t); });
       const bat = fin(d.battery) ? Math.max(0, Math.min(100, Math.round(d.battery))) : null;
+      const quiet = v.st === 'quiet' || v.st === 'off', fh = v.gps ? followHref(d.eui) : null;
+      const btnTxt = v.st === 'park' ? T('Replay today’s trip', 'Επανάληψη της σημερινής διαδρομής') : T('Follow this trip', 'Ακολουθήστε τη διαδρομή');
       return el('article', { class: 'nm-card nm-card--glow nm-lift vh-card is-' + v.st },
         el('div', { class: 'vh-top' }, orb(v.st, v.kind), el('div', { class: 'vh-id' },
-          el('div', { class: 'r1' }, el('h3', null, el('a', { href: '#/vehicles/' + enc(d.eui) }, d.name)), el('span', { class: 'nm-badge nm-badge--' + BADGE[v.st] }, LBL[v.st])),
+          el('div', { class: 'r1' }, el('h3', null, el('a', { href: '#/vehicles/' + enc(d.eui), title: d.name }, shortName(d))), el('span', { class: 'nm-badge nm-badge--' + BADGE[v.st] }, LBL[v.st])),
           el('p', null, v.school ? v.school.n : d.group || ''))),
         el('div', { class: 'vh-loc' }, ico('pin'), el('div', null, el('b', null, w.main), el('small', null, w.sub))),
-        show.length ? el('div', { class: 'vh-reads' + (show.length === 2 ? ' two' : show.length === 1 ? ' one' : '') }, tiles.map((t) => t.node))
+        show.length ? el('div', { class: 'vh-reads' + (show.length === 2 ? ' two' : show.length === 1 ? ' one' : ''), title: reads.length > 3 ? T('+ ' + (reads.length - 3) + ' more readings on the vehicle page', '+ ' + (reads.length - 3) + ' ακόμα μετρήσεις στη σελίδα του οχήματος') : null }, tiles.map((t) => t.node))
           : el('div', { class: 'empty' }, T('This sensor reports no readings yet.', 'Ο αισθητήρας δεν στέλνει ακόμα μετρήσεις.')),
-        reads.length > 3 ? el('p', { class: 'vh-more' }, T('+ ' + (reads.length - 3) + ' more readings on the vehicle page', '+ ' + (reads.length - 3) + ' ακόμα μετρήσεις στη σελίδα του οχήματος')) : null,
         el('div', { class: 'vh-foot' },
           el('div', { class: 'vh-meta' },
             bat != null ? el('span', { title: T('Battery', 'Μπαταρία') }, el('i', { class: 'vh-bat', style: '--p:' + bat + '%;--c:' + (bat < 20 ? '#FF7A6A' : bat < 50 ? '#F0B94A' : '#59d98e') }, el('i')), bat + ' %') : null,
-            el('span', null, v.seen ? T('Last reading ' + SC.ago(v.seen), 'Τελευταία μέτρηση ' + SC.ago(v.seen)) : T('No reading yet', 'Καμία μέτρηση ακόμα'))),
-          el('div', { class: 'vh-actions' },
-            el('a', { class: 'nm-btn vh-ghost', href: '#/vehicles/' + enc(d.eui), 'aria-label': T('Open ' + d.name, 'Άνοιγμα ' + d.name) }, T('Details', 'Λεπτομέρειες')),
-            v.gps && SC.ready.has('map')
-              ? (v.st === 'off' ? el('button', { class: 'nm-btn vh-ghost', type: 'button', disabled: 'disabled', title: T('No signal, so there is nothing to follow', 'Χωρίς σήμα, άρα δεν υπάρχει τίποτα για παρακολούθηση') }, T('Follow this trip', 'Ακολουθήστε τη διαδρομή'), arrow())
-                : el('a', { class: 'nm-btn vh-ghost', href: '#/map?eui=' + enc(d.eui) }, T('Follow this trip', 'Ακολουθήστε τη διαδρομή'), arrow())) : null)));
+            el('span', { title: v.seen ? T('Last reading ' + when(v.seen), 'Τελευταία μέτρηση ' + when(v.seen)) : null }, freshBars(v.seen, now), v.seen ? SC.ago(v.seen) : T('No reading yet', 'Καμία μέτρηση ακόμα'))),
+          fh ? (quiet ? el('button', { class: 'nm-btn vh-ghost', type: 'button', disabled: 'disabled', title: T('No signal, so there is nothing to follow', 'Χωρίς σήμα, άρα δεν υπάρχει τίποτα για παρακολούθηση') }, btnTxt, arrow())
+            : el('a', { class: 'nm-btn vh-ghost', href: fh }, btnTxt, arrow())) : null));
     }
 
     function paintGrid(vs) {
@@ -425,6 +494,7 @@
       fill(secH, el('span', { class: 'eyebrow' }, T('All vehicles · ' + vs.length, 'Όλα τα οχήματα · ' + vs.length)), el('span', { class: 'ln' }),
         defs.length > 2 ? el('div', { class: 'nm-pillbar', role: 'group', 'aria-label': T('Show', 'Εμφάνιση') }, defs.map(([k, l]) => el('button', { type: 'button', class: filter === k ? 'on' : '', 'aria-pressed': filter === k ? 'true' : 'false',
           onclick: () => { filter = k; paintGrid(vs); const on = secH.querySelector('.on'); if (on) on.focus(); } }, l + ' ' + counts[k]))) : null);
+      if (sparkAt && Date.now() - sparkAt > 600000) Object.keys(sparks).forEach((k) => delete sparks[k]);   // the 24 h lines move on
       const list = vs.filter((v) => filter === 'all' || v.kind === filter), pending = [];
       fill(gridBox, ...list.map((v) => card(v, pending)));
       loadSparks(pending);
@@ -433,14 +503,14 @@
     async function loadSparks(pending) {
       if (!pending.length) return;
       const now = Date.now();
+      sparkAt = now;
       await pool(pending, 6, async (t) => {
         const [eui, mid] = t.key.split('|');
         const rows = toRows(await SC.cached('/api/series?eui=' + enc(eui) + '&mid=' + enc(mid) + '&days=1', 300000), t.m.scale);
         if (!alive) return;
         sparks[t.key] = hourly(rows, now);
-        if (t.slot.isConnected) t.fill(slot, spark(sparks[t.key], t.m.color));
+        if (t.slot.isConnected) fill(t.slot, spark(sparks[t.key], t.m.color));
       });
-      sparkAt = Date.now();
     }
 
     function paintTrips(vs) {
@@ -448,14 +518,17 @@
       vs.forEach((v) => tripsOf(v.d && c.val('trails') && c.val('trails').trails ? c.val('trails').trails[v.d.eui] : []).forEach((tr) => all.push({ ...tr, v })));
       all.sort((a, b) => b.t0 - a.t0);
       const shown = all.slice(0, 40);
-      const trOk = c.R.trails && c.R.trails.ok;
-      fill(tripsBody, 
+      const trOk = c.R.trails && c.R.trails.ok, since = all.length ? Math.min(...all.map((t) => t.t0)) : 0;
+      fill(tripsBody,
         el('div', { class: 'vh-trips-h' }, el('span', { class: 'nm-icon-tile', 'aria-hidden': 'true' }, ico('route')),
-          el('div', null, el('h2', null, T('Trips in the last 24 hours', 'Διαδρομές τις τελευταίες 24 ώρες')),
-            el('p', null, !trOk ? T('The positions could not be loaded.', 'Δεν φορτώθηκαν οι θέσεις.') : T(all.length + (all.length === 1 ? ' trip' : ' trips') + ' found in the public positions', 'Βρέθηκαν ' + all.length + (all.length === 1 ? ' διαδρομή' : ' διαδρομές') + ' στις δημόσιες θέσεις')))),
+          el('div', { class: 'grow' }, el('h2', null, T('Trips in the last 24 hours', 'Διαδρομές τις τελευταίες 24 ώρες')),
+            el('p', null, !trOk ? T('The positions could not be loaded.', 'Δεν φορτώθηκαν οι θέσεις.')
+              : all.length ? T(all.length + (all.length === 1 ? ' trip' : ' trips') + ' since ' + when(since) + ' · distances are rough', all.length + (all.length === 1 ? ' διαδρομή' : ' διαδρομές') + ' από ' + when(since) + ' · οι αποστάσεις είναι χονδρικές')
+                : T('No trips found in the public positions', 'Δεν βρέθηκαν διαδρομές στις δημόσιες θέσεις'))),
+          shown.length ? el('button', { class: 'nm-btn vh-ghost', type: 'button', onclick: () => tripsCsv(c, shown, 'vehicle-trips.csv') }, ico('download'), T('Download CSV', 'Λήψη CSV')) : null),
         !trOk ? errBox(T('The vehicle positions could not be loaded, so there are no trips to list.', 'Δεν φορτώθηκαν οι θέσεις των οχημάτων, άρα δεν υπάρχουν διαδρομές για προβολή.') + eMsg(c.R.trails), retry)
           : !shown.length ? el('div', { class: 'empty' }, T('No trips found yet. Positions are published late, so a trip shows up here a couple of hours after it starts.', 'Δεν βρέθηκαν ακόμα διαδρομές. Οι θέσεις δημοσιεύονται με καθυστέρηση, οπότε μια διαδρομή εμφανίζεται εδώ λίγες ώρες μετά την έναρξή της.'))
-            : el('div', { class: 'nm-table-wrap', role: 'region', tabindex: '0', 'aria-label': T('Trips table, scrolls sideways', 'Πίνακας διαδρομών, κυλίεται πλευρικά') }, el('table', { class: 'nm-table' }, el('thead', null, tripsHead(true)), el('tbody', null, tripRows(c, shown, true)))),
+            : el('div', { class: 'nm-table-wrap', role: 'region', tabindex: '0', 'aria-label': T('Trips table, scrolls sideways', 'Πίνακας διαδρομών, κυλίεται πλευρικά') }, el('table', { class: 'nm-table' }, el('thead', null, tripsHead(c, true)), el('tbody', null, tripRows(c, shown, true)))),
         shown.length ? el('p', { class: 'vh-fine' }, tripsFine) : null);
     }
 
@@ -466,19 +539,22 @@
       if (!c.R.devices) return;
       if (!c.R.devices.ok) {
         const e = errBox(T('The vehicles could not be loaded.', 'Δεν φορτώθηκαν τα οχήματα.') + eMsg(c.R.devices), retry);
-        fill(tilesBox, el('div', { style: 'grid-column:1/-1' }, e)); fill(secH, ); fill(gridBox, ); tripsCard.hidden = true;
+        fill(tilesBox, el('div', { style: 'grid-column:1/-1' }, e)); fill(secH, ); fill(gridBox, ); fill(cmd, ); paintCmd([]); tripsCard.hidden = true;
         return;
       }
       tripsCard.hidden = false;
       if (!vs.length) {
-        fill(tilesBox, ); fill(secH, );
+        fill(tilesBox, ); fill(secH, ); paintCmd([]);
         fill(gridBox, el('div', { class: 'empty', style: 'grid-column:1/-1' }, c.devices().length
           ? T('None of the listed sensors is a bus or car with a GPS yet. When one is added, its card appears here.', 'Κανένας από τους καταχωρισμένους αισθητήρες δεν είναι λεωφορείο ή αυτοκίνητο με GPS ακόμα. Όταν προστεθεί, η κάρτα του θα εμφανιστεί εδώ.')
           : T('No sensors are listed yet. When the sensor feed is connected, the vehicles appear here.', 'Δεν έχουν καταχωριστεί ακόμα αισθητήρες. Όταν συνδεθεί η τροφοδοσία αισθητήρων, τα οχήματα θα εμφανιστούν εδώ.')));
         tripsCard.hidden = true;
         return;
       }
-      ch.lede(T('Buses and cars that carry a sensor: ' + vs.length + ' in all. Readings are live; positions are about ' + Math.max(1, Math.round(c.delayMin() / 60)) + ' hours late and rounded.', 'Λεωφορεία και αυτοκίνητα που φέρουν αισθητήρα: ' + vs.length + ' συνολικά. Οι μετρήσεις είναι ζωντανές· οι θέσεις έχουν καθυστέρηση περίπου ' + Math.max(1, Math.round(c.delayMin() / 60)) + ' ωρών και στρογγυλοποίηση.'));
+      const hh = Math.max(1, Math.round(c.delayMin() / 60));
+      ch.lede(c.exact() ? T('Buses and cars that carry a sensor. Readings are live; you see exact positions because you are signed in as a teacher.', 'Λεωφορεία και αυτοκίνητα που φέρουν αισθητήρα. Οι μετρήσεις είναι ζωντανές· βλέπετε ακριβείς θέσεις επειδή έχετε συνδεθεί ως εκπαιδευτικός.')
+        : T('Buses and cars that carry a sensor. Readings are live; positions are about ' + hh + ' hours late and rounded to 1 km.', 'Λεωφορεία και αυτοκίνητα που φέρουν αισθητήρα. Οι μετρήσεις είναι ζωντανές· οι θέσεις έχουν καθυστέρηση περίπου ' + hh + ' ωρών και στρογγυλοποίηση στο 1 χλμ.'));
+      paintCmd(vs);
       paintTiles(vs); paintGrid(vs); paintTrips(vs);
     }
 
@@ -635,7 +711,7 @@
       fill(tripsBody, 
         el('div', { class: 'vh-trips-h' }, el('span', { class: 'nm-icon-tile', 'aria-hidden': 'true' }, ico('route')),
           el('div', null, el('h2', null, T('Trips in the last 24 hours', 'Διαδρομές τις τελευταίες 24 ώρες')), el('p', null, T(trips.length + (trips.length === 1 ? ' trip' : ' trips') + ' found in the public positions', 'Βρέθηκαν ' + trips.length + (trips.length === 1 ? ' διαδρομή' : ' διαδρομές') + ' στις δημόσιες θέσεις')))),
-        trips.length ? el('div', { class: 'nm-table-wrap', role: 'region', tabindex: '0', 'aria-label': T('Trips table, scrolls sideways', 'Πίνακας διαδρομών, κυλίεται πλευρικά') }, el('table', { class: 'nm-table' }, el('thead', null, tripsHead(false)), el('tbody', null, tripRows(c, trips, false))))
+        trips.length ? el('div', { class: 'nm-table-wrap', role: 'region', tabindex: '0', 'aria-label': T('Trips table, scrolls sideways', 'Πίνακας διαδρομών, κυλίεται πλευρικά') }, el('table', { class: 'nm-table' }, el('thead', null, tripsHead(c, false)), el('tbody', null, tripRows(c, trips, false))))
           : el('div', { class: 'empty' }, T('No trips found yet. Positions are published late, so a trip shows up here a couple of hours after it starts.', 'Δεν βρέθηκαν ακόμα διαδρομές. Οι θέσεις δημοσιεύονται με καθυστέρηση, οπότε μια διαδρομή εμφανίζεται εδώ λίγες ώρες μετά την έναρξή της.')),
         trips.length ? el('p', { class: 'vh-fine' }, tripsFine) : null);
     }

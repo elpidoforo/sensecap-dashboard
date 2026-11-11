@@ -333,7 +333,7 @@ function createArchive({ getHistory, getPageStore, getLive, pageNames = [], rete
       const l = labelOf(name);
       downloads.push({ label: `${l[0]}: saved versions of the page (JSON)`, labelEl: `${l[1]}: αποθηκευμένες εκδόσεις της σελίδας (JSON)`, url: `/api/dom/pages/history?name=${name}&days=${retentionDays}` });
     }
-    return { updated: new Date().toISOString(), updatedAt: Date.now(), cydom, pages, downloads: downloads.slice(0, 30) };
+    return { updated: Date.now(), updatedIso: new Date().toISOString(), cydom, pages, downloads: downloads.slice(0, 30) };
   }
   // Counting every saved file can take a moment the first time; it happens once and is shared, then it is kept for 5 minutes.
   const summary = () => summaryCache.get('s', 5 * MIN, build);
@@ -399,7 +399,7 @@ function createArchive({ getHistory, getPageStore, getLive, pageNames = [], rete
           if ((perPage.get(v.name) || 0) >= 5) continue;
           perPage.set(v.name, (perPage.get(v.name) || 0) + 1);
           const l = labelOf(v.name);
-          results.push({ source: 'archive', title: v.title || l[0], label: l[0], labelEl: l[1], snippet: snippetOf(orig, v.nt, tokens), at: v.t, url: '/#/archive', page: v.name, api: `/api/dom/pages/history?name=${encodeURIComponent(v.name)}&days=${Math.min(retentionDays, Math.ceil((Date.now() - v.t) / DAY) + 1)}` });
+          results.push({ source: 'archive', title: v.title || l[0], label: l[0], labelEl: l[1], snippet: snippetOf(orig, v.nt, tokens), at: v.t, url: v.name === 'warnings' ? '/#/warnings' : '/#/archive', page: v.name, api: `/api/dom/pages/history?name=${encodeURIComponent(v.name)}&days=${Math.min(retentionDays, Math.ceil((Date.now() - v.t) / DAY) + 1)}` });
           if (results.length >= limit) return { q: query, results };
         }
         await tick();

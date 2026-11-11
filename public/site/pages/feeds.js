@@ -54,13 +54,16 @@
     },
   };
   const GENERIC_STOPS = () => T('Pages that read this source stop getting new data.', 'Οι σελίδες που διαβάζουν αυτή την πηγή σταματούν να παίρνουν νέα δεδομένα.');
-  const nameOf = (f) => (SC.lang === 'el' && KNOWN[f.id] ? KNOWN[f.id].name : f.name || (KNOWN[f.id] && KNOWN[f.id].name) || f.id);
-  const whatOf = (f) => (SC.lang === 'el' && KNOWN[f.id] ? KNOWN[f.id].what : f.what || (KNOWN[f.id] && KNOWN[f.id].what) || '');
+  // The server sends both languages (name/nameEl, what/whatEl); my own text is the fallback for an older server.
+  const nameOf = (f) => (SC.lang === 'el' && f.nameEl ? f.nameEl : f.name) || (KNOWN[f.id] && KNOWN[f.id].name) || f.id;
+  const whatOf = (f) => (SC.lang === 'el' && f.whatEl ? f.whatEl : f.what) || (KNOWN[f.id] && KNOWN[f.id].what) || '';
   const stopsOf = (f) => (KNOWN[f.id] ? KNOWN[f.id].stops : GENERIC_STOPS());
   const hostOf = (u) => { try { return new URL(u).host.replace(/^www\./, ''); } catch (e) { return ''; } };
 
   /* ---------- status from the numbers the server gives ---------- */
   function statusOf(f) {
+    // The server already weighs how often each source is asked (some are only asked when a page needs them): trust its word.
+    if (f.status) return { ok: 'ok', late: 'late', error: 'failing', off: 'off', idle: 'idle', demo: 'demo' }[f.status] || 'ok';
     if (!f.enabled) return 'off';
     const limit = Math.max(15 * MIN, 3 * (f.everyMin || 10) * MIN);
     const newerErr = f.lastError && (!f.lastOk || f.lastError.at > f.lastOk);
@@ -73,17 +76,21 @@
     late: { cls: 'nm-badge--warn', dot: 'late', label: () => T('Late', 'Καθυστερεί') },
     failing: { cls: 'nm-badge--bad', dot: 'bad', label: () => T('Failing', 'Αποτυχία') },
     none: { cls: 'nm-badge--warn', dot: 'late', label: () => T('No success yet', 'Καμία επιτυχία ακόμη') },
+    idle: { cls: 'nm-badge--info', dot: 'idle', label: () => T('On demand', 'Κατά ζήτηση') },
+    demo: { cls: 'nm-badge--violet', dot: 'demo', label: () => T('Demo data', 'Δεδομένα επίδειξης') },
     off: { cls: '', dot: 'off', label: () => T('Switched off', 'Απενεργοποιημένη') },
   };
 
   function bar24(f) {
+    if (f.status === 'demo' || f.mode === 'demo') return h('div', { class: 'fd-24' }, h('div', { class: 'fd-bar none', role: 'img', 'aria-label': T('Demo mode, no real checks', 'Λειτουργία επίδειξης, χωρίς πραγματικούς ελέγχους') }), h('p', null, T('Demo mode: no real calls are made.', 'Λειτουργία επίδειξης: δεν γίνονται πραγματικές κλήσεις.')));
     const ok = Math.max(0, f.ok24h || 0), bad = Math.max(0, f.fail24h || 0), n = ok + bad;
     if (!n) return h('div', { class: 'fd-24' }, h('div', { class: 'fd-bar none', role: 'img', 'aria-label': T('No checks in the last 24 hours', 'Κανένας έλεγχος τις τελευταίες 24 ώρες') }), h('p', null, f.enabled ? T('No checks in the last 24 hours', 'Κανένας έλεγχος τις τελευταίες 24 ώρες') : T('Switched off, so no checks', 'Απενεργοποιημένη, άρα χωρίς ελέγχους')));
     const pct = Math.round((bad / n) * 1000) / 10;
     const okW = Math.max(0, (ok / n) * 100), badW = bad ? Math.max(3, (bad / n) * 100) : 0;
     const bar = h('div', { class: 'fd-bar', role: 'img', 'aria-label': T(ok + ' checks worked and ' + bad + ' failed in the last 24 hours', ok + ' έλεγχοι πέτυχαν και ' + bad + ' απέτυχαν τις τελευταίες 24 ώρες') },
       h('i', { class: 'ok', style: { width: okW + '%' } }), badW ? h('i', { class: 'bad', style: { width: badW + '%' } }) : null);
-    return h('div', { class: 'fd-24' }, bar, h('p', null, h('b', { class: 'ok' }, ok), T(' worked · ', ' πέτυχαν · '), h('b', { class: bad ? 'bad' : '' }, bad), T(' failed', ' απέτυχαν'), bad ? ' (' + pct + '%)' : ''));
+    const since = f.countsSince && Date.now() - f.countsSince < 23 * 3600000 ? h('p', { class: 'fd-since' }, T('Counted since ' + SC.time(f.countsSince) + ' (the server started or was updated then).', 'Μετρά από τις ' + SC.time(f.countsSince) + ' (τότε ξεκίνησε ή ενημερώθηκε ο διακομιστής).')) : null;
+    return h('div', { class: 'fd-24' }, bar, h('p', null, h('b', { class: 'ok' }, ok), T(' worked · ', ' πέτυχαν · '), h('b', { class: bad ? 'bad' : '' }, bad), T(' failed', ' απέτυχαν'), bad ? ' (' + pct + '%)' : ''), since);
   }
 
   SC.register('feeds', {
@@ -103,7 +110,7 @@
           title: T('Where our numbers come from.', 'Από πού προέρχονται οι αριθμοί μας.'),
           lede: T('Five outside sources feed this site. Each card says when it last worked, how many of its checks worked in the last 24 hours, and which pages depend on it.', 'Πέντε εξωτερικές πηγές τροφοδοτούν τον ιστότοπο. Κάθε κάρτα λέει πότε λειτούργησε τελευταία φορά, πόσοι έλεγχοί της πέτυχαν τις τελευταίες 24 ώρες και ποιες σελίδες εξαρτώνται από αυτήν.'),
           fresh: data ? T('Checked ' + SC.ago(data.at), 'Ελέγχθηκε ' + SC.ago(data.at)) : null,
-          tags: demo ? [{ text: T('Demo data', 'Δεδομένα επίδειξης'), cls: 'demo' }] : [],
+          tags: (demo || (data && data.demo)) ? [{ text: T('Demo data', 'Δεδομένα επίδειξης'), cls: 'demo' }] : [],
           help: [
             'Each row is one outside source. The dot shows whether it is working: green is fine, amber is late, red is failing, grey is switched off by a teacher. "Last success" is the last time the server got good data from it. The bar shows how many of the checks in the last 24 hours worked. Signed-in teachers can switch a source on or off; the page tells you what stops updating before you confirm.',
             'Κάθε γραμμή είναι μία εξωτερική πηγή. Η κουκκίδα δείχνει αν λειτουργεί: πράσινο είναι καλά, κεχριμπαρί καθυστερεί, κόκκινο αποτυγχάνει, γκρι την έχει απενεργοποιήσει εκπαιδευτικός. Η «Τελευταία επιτυχία» είναι η τελευταία φορά που ο διακομιστής πήρε σωστά δεδομένα από αυτήν. Η μπάρα δείχνει πόσοι από τους ελέγχους των τελευταίων 24 ωρών πέτυχαν. Οι εκπαιδευτικοί που έχουν συνδεθεί μπορούν να ενεργοποιήσουν ή να απενεργοποιήσουν μια πηγή· η σελίδα λέει τι σταματά να ενημερώνεται πριν επιβεβαιώσετε.',
@@ -156,8 +163,10 @@
         }
         const last = h('div', { class: 'fd-col' },
           h('p', { class: 'fd-eye' }, T('Last success', 'Τελευταία επιτυχία')),
-          f.lastOk ? h('div', { class: 'fd-big', title: SC.dateTime(f.lastOk) }, SC.ago(f.lastOk)) : h('div', { class: 'fd-big none' }, T('never', 'ποτέ')),
-          f.everyMin ? h('p', { class: 'fd-sub' }, T('Checked every ' + f.everyMin + ' min', 'Έλεγχος κάθε ' + f.everyMin + ' λεπτά')) : null);
+          st === 'demo' ? h('div', { class: 'fd-big none' }, T('simulated', 'προσομοίωση')) : f.lastOk ? h('div', { class: 'fd-big', title: SC.dateTime(f.lastOk) }, SC.ago(f.lastOk)) : h('div', { class: 'fd-big none' }, st === 'idle' ? '–' : T('never', 'ποτέ')),
+          h('p', { class: 'fd-sub' }, st === 'demo' ? T('Demo mode: nothing is fetched from this source.', 'Λειτουργία επίδειξης: δεν γίνεται λήψη από αυτή την πηγή.')
+            : st === 'idle' ? (f.lastOk ? T('Asked only when a page needs it.', 'Ρωτιέται μόνο όταν το χρειάζεται μια σελίδα.') : T('Not asked yet since the server started; it is asked when a page needs it.', 'Δεν έχει ρωτηθεί ακόμη από την εκκίνηση του διακομιστή· ρωτιέται όταν το χρειάζεται μια σελίδα.'))
+              : f.everyMin ? T('Asked about every ' + f.everyMin + ' min', 'Ρωτιέται περίπου κάθε ' + f.everyMin + ' λεπτά') : ''));
         if (f.lastError && f.lastError.message) {
           last.append(h('p', { class: 'fd-err' + (st === 'ok' ? ' old' : '') }, h('b', null, T('Last problem ', 'Τελευταίο πρόβλημα ') + (f.lastError.at ? SC.ago(f.lastError.at) : '') + ': '), String(f.lastError.message).slice(0, 160)));
         }
@@ -186,12 +195,14 @@
           body.replaceChildren(h('div', { class: 'empty' }, T('The server reports no sources. This is not normal: ask whoever runs the server to check it.', 'Ο διακομιστής δεν αναφέρει καμία πηγή. Αυτό δεν είναι φυσιολογικό: ζητήστε από όποιον διαχειρίζεται τον διακομιστή να το ελέγξει.')));
           return;
         }
-        const count = { ok: 0, late: 0, failing: 0, none: 0, off: 0 };
+        const count = { ok: 0, late: 0, failing: 0, none: 0, off: 0, idle: 0, demo: 0 };
         feeds.forEach((f) => { count[statusOf(f)]++; });
         const sum = h('div', { class: 'fd-sum', role: 'status' },
-          h('span', { class: 'nm-badge nm-badge--ok' }, T(count.ok + ' working', count.ok + ' λειτουργούν')),
+          count.ok ? h('span', { class: 'nm-badge nm-badge--ok' }, T(count.ok + ' working', count.ok + ' λειτουργούν')) : null,
           count.late + count.none ? h('span', { class: 'nm-badge nm-badge--warn' }, T((count.late + count.none) + ' late or waiting', (count.late + count.none) + ' καθυστερούν ή περιμένουν')) : null,
           count.failing ? h('span', { class: 'nm-badge nm-badge--bad' }, T(count.failing + ' failing', count.failing + ' αποτυγχάνουν')) : null,
+          count.idle ? h('span', { class: 'nm-badge nm-badge--info' }, T(count.idle + ' asked on demand', count.idle + ' ρωτιούνται κατά ζήτηση')) : null,
+          count.demo ? h('span', { class: 'nm-badge nm-badge--violet' }, T(count.demo + ' simulated (demo)', count.demo + ' προσομοιώνονται (επίδειξη)')) : null,
           count.off ? h('span', { class: 'nm-badge' }, T(count.off + ' switched off', count.off + ' απενεργοποιημένες')) : null);
         const list = h('div', { class: 'fd-list' }, feeds.map(row));
         const foot = teacher
@@ -206,7 +217,7 @@
         try {
           const r = await SC.api('/api/feeds');
           if (!alive) return;
-          data = { feeds: (r && r.feeds) || [], at: Date.now() };
+          data = { feeds: (r && r.feeds) || [], at: Date.now(), demo: Boolean(r && r.demo) };
           first = false;
           paint();
         } catch (e) {
