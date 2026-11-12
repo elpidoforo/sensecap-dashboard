@@ -242,9 +242,12 @@ function once(step, addresses, cfg, signal) {
     const { url: u, host, port } = step;
     const isHttps = u.protocol === 'https:';
     const lib = isHttps ? https : http;
-    const pinned = (hostname, o, cb) => {   // the socket must use exactly the addresses that were checked
-      if (o && o.all) cb(null, addresses.map((a) => ({ address: a.address, family: a.family })));
-      else cb(null, addresses[0].address, addresses[0].family);
+    // The socket must use exactly the addresses that were checked. The answer is given on the next tick, like the real dns.lookup does:
+    // answered at once, a connect that fails on the spot (an IPv6 address on a machine without IPv6) emits its error before the request
+    // has attached its listener, and an unhandled 'error' event ends the whole process.
+    const pinned = (hostname, o, cb) => {
+      if (o && o.all) process.nextTick(cb, null, addresses.map((a) => ({ address: a.address, family: a.family })));
+      else process.nextTick(cb, null, addresses[0].address, addresses[0].family);
     };
     let done = false;
     const fail = (err) => {
@@ -254,11 +257,12 @@ function once(step, addresses, cfg, signal) {
       reject(signal.aborted ? new SafeFetchError('timeout', 'The time limit ran out.') : new SafeFetchError('network', 'The connection failed.', { cause: err && err.code }));
     };
     const finish = (v) => { if (done) return; done = true; resolve(v); };
-    const req = lib.request({
+    let req;
+    try { req = lib.request({
       protocol: u.protocol, hostname: host, port, path: u.pathname + u.search, method: 'GET', agent: false, lookup: pinned, signal, maxHeaderSize: 16384,
       servername: net.isIP(host) ? undefined : host, ca: cfg.ca,
       headers: { Host: u.host, 'User-Agent': cfg.userAgent, Accept: cfg.accept, 'Accept-Encoding': 'gzip, deflate, br', Connection: 'close' },
-    });
+    }); } catch (e) { return reject(new SafeFetchError('network', 'The request could not be started.')); }
     req.setTimeout(Math.min(cfg.timeoutMs, 8000), () => fail(new SafeFetchError('timeout', 'The server stopped answering.')));
     req.on('socket', (sock) => {   // the address really connected to is checked once more
       sock.once('connect', () => { if (sock.remoteAddress && classifyIp(sock.remoteAddress, cfg.exceptions).blocked) fail(new SafeFetchError('blocked_ip', 'The connection went to an address that is not public.')); });
