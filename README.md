@@ -409,6 +409,52 @@ never a name or anything personal. Used by: Share panel of an approved tool (`/s
 report (`/#/reports/<id>`) and of the print summary (`/#/reports?tab=summary`). If the generator cannot load, the link text still works.
 
 
+### Build studio: Build with blocks (`blocks.js`, `public/site/blocks.js`)
+
+A second way to make a tool, next to "Describe it". A signed-in student (or teacher) picks a few choices from menus: **Show**
+(a measurement at a school), **for the last** (1, 3, 6, 12, 24, 72 or 168 hours), **as a** (line chart, bars, big number, small table),
+0 to 3 **When it goes above / drops below N, colour it red / orange / green / blue and say "..."** blocks, and 0 or 1
+**Compare with** another school. Nothing a student types is ever run: the choices are a JSON **recipe**, and the page is drawn
+from it by the server as plain HTML and SVG with no script at all.
+
+- Routes (all need a signed-in account, same as the studio): `GET /studio/api/blocks/options` (what can be chosen, from the real
+  data: schools, measurements with their units and which schools have a sensor), `POST /studio/api/blocks/preview`
+  (`{ recipe, title?, lang }` gives a preview token like `/studio/api/preview`, plus the plain-words `sentence`, the sensor and
+  reading counts), `POST /studio/api/blocks/save` (`{ id?, recipe, title?, lang, submit?, show_name? }`). Rates: 120 previews and
+  40 saves per 10 minutes per person.
+- Storage: it is a normal `studio_projects` row with `via = 'blocks'` and the recipe in `recipe_json`. `html` is a snapshot, so the
+  Code tab, the teacher's review, approval and the public gallery all work unchanged. Every save resets the status to draft, so an
+  approved tool cannot be swapped for something else. The teacher reads `idea`, which is the recipe said back in one plain sentence
+  (English or Greek, the language the student was using; both are in `project.sentence`).
+- The live page: `/studio/p/:id` draws an approved or draft block tool again from its recipe every time it is opened (fresh numbers,
+  the school's own sensors, 60 s cache so the shared SenseCAP limit is never hit by page views). The page is drawn live when the safe-box
+  frame asks for it (`sec-fetch-dest` other than `document`); the top-level request for the wrapper page, and any failure while
+  drawing, get the stored snapshot.
+  If a student changes the code by hand (`via = 'student-edit'`) or asks the studio for a change (`via = 'studio'`) the tool is no longer
+  a block tool and the stored page is served, as it always was.
+- What it reads: only the studio's public data (`botData`: devices, names, series), pooled per school into an average per time
+  bucket. **Never GPS**: the GPS measurements (4197, 4198) are not offered and are refused. Exact vehicle positions are never
+  involved. A school with no sensor for a measurement is not offered for it.
+- Privacy: the alert message (60 characters at most) and the title go through the same private-text rules as the studio (no names,
+  links, e-mail addresses) plus `phoneLike()` in `blocks.js`, which also catches phone numbers written with spaces, dots or dashes.
+  Text is escaped everywhere it is drawn.
+- Words: every sentence, label and message exists in English and Greek (informal singular). The sentence is built in one place,
+  `sentence()` in `blocks.js`. Greek names for schools and measurements are in `SCHOOL_EL` and `MEAS_EL`; a measurement that is
+  not in `MEAS_EL` is shown with its English name.
+- Front end: `public/site/blocks.js` (`SC.blocks.mount(host, opts)`) and `blocks.css`, loaded lazily by `pages/studio.js` when the
+  "Build with blocks" tab opens. Native `<select>` and `<input>` fields, so it works with a keyboard, a screen reader and a phone.
+  Optional blocks are added with the buttons on the left (press or Enter), not by dragging. The preview is in the same safe box
+  (`sandbox="allow-scripts"` iframe) as any draft.
+- Limits on purpose (a fixed stack): the order of blocks does not change; when several alerts are true the first one in the stack
+  wins; "Compare with" is another school (not outside air or a model); one measurement per tool.
+- To add a choice: a new measurement needs nothing (it appears when a school has a sensor for it; add its Greek name to `MEAS_EL`).
+  A new chart type or colour needs changes in `blocks.js` (`CHARTS`, `COLOURS`, `render`), the Greek words, the menus in
+  `public/site/blocks.js` and a test case.
+- Tests in `tests/blocks/` (no dependencies except the last): `node tests/blocks/unit_test.js` (choosing, checking, the sentence,
+  drawing), `node tests/blocks/api_test.js` (a real server in demo mode with a student, a teacher and a visitor), and
+  `node tests/blocks/browser_test.js` (Chromium through Playwright, which is not a dependency of the site: English, Greek and a
+  phone width; it prints where it saved the screenshots).
+
 ### Guide search in Greek, and safe fetching
 
 **Greek search.** The AI guide's handbook, data-layer and gallery lookups (`search_handbook`, `list_data_layers`, `gallery_ideas`, `sensor_guides` in

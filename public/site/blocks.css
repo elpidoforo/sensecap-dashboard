@@ -1,0 +1,99 @@
+/* Build studio: "Build with blocks" (public/site/blocks.js) and the tab strip above the maker (public/site/pages/studio.js).
+   Classes start with bk- (the block builder) and sd-bt (the tab strip). Colours come from the site's --nm-* tokens in site.css;
+   the block colours (--c, --bg) are set by blocks.js on each block and are never the only sign of what a block is: every block also says it in words. */
+
+.sd-bt { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 var(--nm-gap-s, 14px); }
+.sd-bt[hidden], .sd-maker[hidden], .sd-bk-host[hidden], .bk [hidden] { display: none !important; }
+.sd-bt button { min-height: 44px; padding: 9px 18px; border-radius: 999px; border: 1px solid var(--nm-edge-2); background: rgba(255, 255, 255, .05); color: var(--nm-lede); font: 600 15px/1.2 var(--nm-font); cursor: pointer; }
+.sd-bt button:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+.sd-bt button[aria-selected="true"] { background: var(--nm-gold-grad); color: var(--nm-gold-ink); border-color: transparent; }
+.sd-bt button:focus-visible { outline: 3px solid var(--nm-copper-ring); outline-offset: 2px; }
+
+.bk { color: var(--nm-text); container: bk / inline-size; }
+/* One column by default. The wider the room, the more sits side by side (container queries: the room is the page next to the menu, not the screen). */
+.bk-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.bk-card { min-width: 0; padding: 18px 18px 20px; border-radius: var(--nm-r-card, 22px); background: var(--nm-panel); border: 1px solid var(--nm-edge); border-top-color: var(--nm-edge-top); box-shadow: var(--nm-shadow); }
+.bk-card h2 { margin: 0 0 4px; font: 600 17px/1.25 var(--nm-font); color: #fff; }
+.bk-card h3 { margin: 0 0 6px; font: 600 13.5px/1.3 var(--nm-font); color: var(--nm-copper-2); }
+.bk-hint { margin: 0 0 14px; font: 400 13.5px/1.45 var(--nm-font); color: var(--nm-muted); max-width: 62ch; }
+
+/* the palette: buttons that add the optional blocks */
+.bk-pal { display: grid; gap: 10px; min-width: 0; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.bk-pb small { display: none; }
+.bk-pb--fixed { display: none; }   /* the three blocks every tool has are already in the stack; a narrow screen lists only the ones to add */
+.bk-pb { --c: #4CCBEA; position: relative; display: block; width: 100%; text-align: left; padding: 11px 12px 11px 18px; border-radius: 10px; background: rgba(255, 255, 255, .05); border: 1px solid var(--nm-edge); color: var(--nm-text); cursor: pointer; font: inherit; }
+.bk-pb::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--c); border-radius: 10px 0 0 10px; }
+.bk-pb strong, .bk-pb small { display: block; white-space: normal; overflow-wrap: anywhere; }
+.bk-pb strong { font: 600 14px/1.3 var(--nm-font); color: #fff; }
+.bk-pb small { margin-top: 2px; font: 400 12.5px/1.35 var(--nm-font); color: var(--nm-muted); }
+.bk-n { float: right; margin-left: 8px; font: 600 11.5px/1.6 var(--nm-font); color: var(--nm-mute); }
+.bk-st { display: block; margin-top: 6px; font: 600 12px/1.3 var(--nm-font); color: var(--nm-copper-2); }
+.bk-pb:disabled { cursor: default; opacity: .78; }
+.bk-pb:disabled .bk-st { color: var(--nm-mute); }
+.bk-pb:not(:disabled):hover { background: rgba(255, 255, 255, .1); border-color: var(--nm-edge-2); }
+.bk-pb:focus-visible { outline: 3px solid var(--nm-copper-ring); outline-offset: 2px; }
+
+/* the stack: one block per row, read top to bottom like a sentence */
+.bk-stack { display: grid; gap: 0; }
+.bk-blk { --c: #4CCBEA; --bg: #15263D; position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-height: 64px; margin-bottom: 8px; padding: 12px 14px 12px 26px; border-radius: 12px; background: var(--bg); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); font: 500 17px/1.3 var(--nm-font); color: #fff; }
+.bk-blk::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 10px; background: var(--c); border-radius: 12px 0 0 12px; }
+.bk-w { color: var(--nm-lede); font-weight: 400; }
+.bk-sel, .bk-in { min-height: 44px; max-width: 100%; padding: 6px 12px; border-radius: 10px; background-color: #0C1626; border: 1px solid rgba(255, 255, 255, .28); color: #fff; font: 600 16px/1.2 var(--nm-font); }
+.bk-sel { appearance: none; -webkit-appearance: none; padding-right: 34px; cursor: pointer; text-overflow: ellipsis;
+  background-image: linear-gradient(45deg, transparent 50%, var(--nm-copper-2) 50%), linear-gradient(135deg, var(--nm-copper-2) 50%, transparent 50%);
+  background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+.bk-sel option { background: #0C1626; color: #fff; }
+.bk-in { font-weight: 500; }
+.bk-in::placeholder { color: var(--nm-placeholder); }
+.bk-num { width: 104px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.bk-say { flex: 1 1 190px; min-width: 150px; }
+.bk-sel:hover, .bk-in:hover { border-color: rgba(255, 255, 255, .5); }
+.bk-sel:focus-visible, .bk-in:focus-visible { outline: none; border-color: var(--nm-copper-2); box-shadow: 0 0 0 3px var(--nm-copper-ring); }
+.bk-x { flex: none; margin-left: auto; width: 44px; height: 44px; border-radius: 10px; background: rgba(255, 255, 255, .06); border: 1px solid var(--nm-edge-2); color: #fff; font: 400 24px/1 var(--nm-font); cursor: pointer; }
+.bk-x:hover { background: rgba(255, 122, 107, .2); border-color: rgba(255, 122, 107, .6); }
+.bk-x:focus-visible { outline: 3px solid var(--nm-copper-ring); outline-offset: 2px; }
+
+.bk-lab { display: block; margin: 14px 0 6px; font: 600 13.5px/1.2 var(--nm-font); color: var(--nm-ink-soft); }
+.bk-words { margin-top: 16px; padding: 14px 16px; border-radius: 14px; background: var(--nm-well); border: 1px solid var(--nm-edge); }
+.bk-words p { margin: 0; font: 400 15.5px/1.55 var(--nm-font); color: #fff; max-width: 70ch; }
+.bk-err { margin-top: 12px; }
+.bk-done { margin: 0; }
+.bk-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.bk-acts .nm-btn { min-height: 44px; padding: 8px 14px; font-size: 14.5px; }
+.bk-acts .nm-btn.nm-btn--primary { animation: none; }
+.bk-acts .nm-btn svg { width: 18px; height: 18px; }
+
+/* the preview */
+.bk-frame { border-radius: 14px; background: #0c1a2e; border: 1px solid var(--nm-edge); overflow: hidden; }
+.bk-pvbar { display: flex; align-items: center; gap: 8px; padding: 9px 12px; font: 500 12.5px/1.3 var(--nm-font); color: var(--nm-muted); border-bottom: 1px solid var(--nm-edge); }
+.bk-pvbar svg { flex: none; width: 15px; height: 15px; }
+.bk-iframe { display: block; width: 100%; height: 420px; border: 0; background: #0c1a2e; transition: opacity .15s; }
+.bk-frame.is-loading .bk-iframe { opacity: .55; }
+.bk-meta { margin: 10px 2px 0; min-height: 1.3em; font: 400 12.5px/1.4 var(--nm-font); color: var(--nm-muted); }
+.bk-safe { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.bk-safe li { position: relative; padding-left: 20px; font: 400 13.5px/1.4 var(--nm-font); color: var(--nm-text); }
+.bk-safe li::before { content: ""; position: absolute; left: 2px; top: .5em; width: 8px; height: 8px; border-radius: 50%; background: var(--nm-copper-2); }
+
+/* More room: the blocks to add go in a row on top, the stack beside the picture */
+@container bk (min-width: 760px) {
+  .bk-grid { grid-template-columns: minmax(0, 1.1fr) minmax(300px, 1fr); }
+  .bk-c1 { grid-column: 1 / -1; }
+  .bk-pal { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .bk-pb small { display: block; }
+  .bk-pb--fixed { display: block; }
+}
+/* A wide screen: the blocks to add in a column on the left */
+@container bk (min-width: 1240px) {
+  .bk-grid { grid-template-columns: 236px minmax(0, 1fr) minmax(320px, 400px); }
+  .bk-c1 { grid-column: auto; }
+  .bk-pal { grid-template-columns: minmax(0, 1fr); }
+}
+@media (min-height: 760px) { @container bk (min-width: 760px) { .bk-c3 { position: sticky; top: 12px; } } }
+@media (max-width: 560px) {
+  .bk-card { padding: 16px 14px 18px; }
+  .bk-blk { padding-left: 22px; font-size: 16px; }
+  .bk-sel { max-width: 100%; }
+  .bk-pal { grid-template-columns: minmax(0, 1fr); }
+  .bk-acts .nm-btn { flex: 1 1 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .bk-iframe { transition: none; } }

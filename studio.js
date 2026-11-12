@@ -20,6 +20,7 @@ const { unsafeText, normCode, nameKey } = require('./school');
 const knowledge = require('./knowledge');
 const safebox = require('./safebox');   // headers and the first-in-page script that make a student page a "safe box"
 const guideSearch = require('./guidesearch');   // the guide's search in Greek, Greeklish and English (see guidesearch.js)
+const blocks = require('./blocks');   // "Build with blocks": a recipe of choices, checked here, drawn as a plain chart page (see blocks.js)
 
 const DAY = 86400000;
 const MAX_HTML = 120000;
@@ -158,6 +159,8 @@ function createStudio(opts) {
   addCol('studio_projects', 'show_name', 'INTEGER');
   // The version the studio last built, kept while a student changes the code by hand (see POST /studio/api/projects/:id/code), so "Undo my edits" can go back to it.
   addCol('studio_projects', 'html_guide', 'TEXT');
+  // The recipe of a page made with blocks (via = 'blocks'): a list of choices, never code. The page is drawn from it each time it is opened.
+  addCol('studio_projects', 'recipe_json', 'TEXT');
   // A class build is a studio_use row with user_id 0, the school, and a keyed hash of the network address (never the address itself).
   addCol('studio_use', 'school_id', 'INTEGER');
   addCol('studio_use', 'ip', 'TEXT');
@@ -306,6 +309,7 @@ function createStudio(opts) {
     };
     if (v && v.kind === 'user' && isStaff(v.user)) out.flags = (looksLikeCoordinates(p.html) ? ['coordinates'] : []).concat(p.via === 'student-edit' ? ['edited'] : []);   // 'edited': a student changed the code by hand
     if (withHtml) { out.html = p.html; if (p.data_json) { try { out.data = JSON.parse(p.data_json); } catch (e) { /* stored text only */ } } }
+    if (withHtml && p.via === 'blocks' && p.recipe_json) { try { out.recipe = JSON.parse(p.recipe_json); } catch (e) { /* stored text only */ } }
     return out;
   }
 
@@ -1116,6 +1120,34 @@ function createStudio(opts) {
   const previewSweeper = setInterval(sweepPreviews, 300000);
   previewSweeper.unref();
 
+  // What a student may pick in the block builder: real schools and the measurements their sensors report (never GPS).
+  async function blocksOptions() { return blocks.buildOptions(await data.devices(), data.names()); }
+  async function blocksRecipe(body) {
+    const o = await blocksOptions();
+    try { return { o, recipe: blocks.validate(body.recipe, o, unsafeText) }; }
+    catch (e) { if (e instanceof blocks.BlockError) fail(400, e.message, e.code); throw e; }
+  }
+  function blocksTitle(body, recipe, o, lang) {
+    const t = String(body.title == null ? '' : body.title).replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, blocks.TITLE_MAX);
+    if (!t) return blocks.defaultTitle(recipe, o, lang);
+    const badTitle = unsafeText(t) || (blocks.phoneLike(t) ? 'Phone numbers are not allowed here.' : null);
+    if (badTitle) fail(400, `The title has something that should stay private. ${badTitle.replace('in chat', 'here')}`, 'title_private');
+    return t;
+  }
+  // A page made with blocks is drawn again each time it is opened, so today's numbers show. Any problem: serve the stored snapshot instead.
+  async function liveBlocksHtml(p, lang) {
+    try {
+      const o = await blocksOptions();
+      const recipe = blocks.validate(JSON.parse(p.recipe_json), o);
+      return blocks.render(recipe, o, await blocks.gather(recipe, o, data, Date.now()), { lang, title: p.title });
+    } catch (e) { return null; }
+  }
+  const pageLang = (req, url) => {
+    const q = url.searchParams.get('lang');
+    if (q === 'el' || q === 'en') return q;
+    return /^\s*el\b/i.test(String(req.headers['accept-language'] || '')) ? 'el' : 'en';
+  };
+
   async function handleApi(req, res, url) {
     const m = (re) => re.exec(url.pathname);
     if (req.method !== 'GET' && !sameOrigin(req)) fail(403, 'Blocked: the request came from another site.');
@@ -1222,6 +1254,52 @@ function createStudio(opts) {
       db.run('DELETE FROM studio_projects WHERE id = ?', p.id);
       audit(user, user ? 'studio.delete' : 'studio.class.withdraw', p.id);
       return sendJson(res, 200, { deleted: true });
+    }
+    /* ---------- Build with blocks: the choices, a preview and saving. No code from a student ever runs: the recipe is only data. ---------- */
+    if (req.method === 'GET' && url.pathname === '/studio/api/blocks/options') {
+      needUser(v);
+      return sendJson(res, 200, await blocksOptions());
+    }
+    if (req.method === 'POST' && url.pathname === '/studio/api/blocks/preview') {
+      needUser(v);
+      const body = objectBody(await readJson(req, 16384));
+      const { o, recipe } = await blocksRecipe(body);
+      const wait = hits.wait('bpreview:' + user.id, 120, 10 * 60000);
+      if (wait) fail(429, 'Too many previews. Wait a moment.', 'rate', { retryAfter: wait });
+      hits.add('bpreview:' + user.id, 10 * 60000);
+      const lang = body.lang === 'el' ? 'el' : 'en';
+      const title = blocksTitle(body, recipe, o, lang);
+      const got = await blocks.gather(recipe, o, data, Date.now());
+      const html = blocks.render(recipe, o, got, { lang, title });
+      sweepPreviews();
+      while (previews.size >= PREVIEW_MAX) previews.delete(previews.keys().next().value);
+      const token = crypto.randomBytes(16).toString('hex');
+      previews.set(token, { html, title, owner: ownerOf(v), exp: Date.now() + PREVIEW_MS });
+      return sendJson(res, 200, { url: '/studio/preview/' + token, expiresAt: Date.now() + PREVIEW_MS, title, sentence: blocks.sentence(recipe, o, lang), sensors: got.main.sensors, readings: got.main.points.length });
+    }
+    if (req.method === 'POST' && url.pathname === '/studio/api/blocks/save') {
+      needUser(v);
+      const body = objectBody(await readJson(req, 16384));
+      const { o, recipe } = await blocksRecipe(body);
+      const wait = hits.wait('bsave:' + user.id, 40, 10 * 60000);
+      if (wait) fail(429, 'You are saving very fast. Wait a moment.', 'rate', { retryAfter: wait });
+      hits.add('bsave:' + user.id, 10 * 60000);
+      const lang = body.lang === 'el' ? 'el' : 'en';
+      const title = blocksTitle(body, recipe, o, lang);
+      let id;
+      if (body.id != null) {
+        const q = db.get('SELECT * FROM studio_projects WHERE id = ?', Number(body.id));
+        if (!q || !canEdit(user, q)) fail(404, 'No such project.');
+        if (q.via !== 'blocks') fail(400, 'This tool was not made with blocks.', 'blocks');
+        id = q.id;
+      }
+      const html = blocks.render(recipe, o, await blocks.gather(recipe, o, data, Date.now()), { lang, title });   // the stored page is a snapshot; it is drawn again, live, when it is opened
+      const saved = saveProject(user, { id, title, idea: blocks.sentence(recipe, o, lang), html }, 'blocks');
+      db.run('UPDATE studio_projects SET recipe_json = ? WHERE id = ?', JSON.stringify(recipe), saved.id);
+      if (body.submit === true) submitProject(user, saved.id, typeof body.show_name === 'boolean' ? body.show_name : undefined);
+      const out = publicProject(db.get('SELECT * FROM studio_projects WHERE id = ?', saved.id), v, true);
+      out.sentence = { en: blocks.sentence(recipe, o, 'en'), el: blocks.sentence(recipe, o, 'el') };
+      return sendJson(res, 200, { project: out });
     }
     if (req.method === 'POST' && url.pathname === '/studio/api/preview') {
       needViewer(v);
@@ -1370,12 +1448,13 @@ function createStudio(opts) {
   const notFound = (res) => { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...NOSNIFF }); res.end('Not found'); };
 
   // Approved pages are public. Anything else is for its author and the reviewers (and a class team's own pending pages).
-  function handleProjectPage(req, res, url) {
+  async function handleProjectPage(req, res, url) {
     const v = viewerOf(req);
     const id = Number(/^\/studio\/p\/(\d+)$/.exec(url.pathname)[1]);
     const p = db.get('SELECT * FROM studio_projects WHERE id = ?', id);
     if (!p || !canViewProject(v, p)) return notFound(res);
-    return pageResponse(req, res, p.html, { title: p.title, label: p.status === 'approved' ? `${creatorOf(p) ? 'by ' + creatorOf(p) + ' · ' : ''}${authorLabel(p, null)} · student tool, approved by a teacher` : `${authorLabel(p, v)} · not public yet`, path: url.pathname });
+    const html = p.via === 'blocks' && p.recipe_json && String(req.headers['sec-fetch-dest'] || '').toLowerCase() !== 'document' ? (await liveBlocksHtml(p, pageLang(req, url))) || p.html : p.html;
+    return pageResponse(req, res, html, { title: p.title, label: p.status === 'approved' ? `${creatorOf(p) ? 'by ' + creatorOf(p) + ' · ' : ''}${authorLabel(p, null)} · student tool, approved by a teacher` : `${authorLabel(p, v)} · not public yet`, path: url.pathname });
   }
   function handlePreviewPage(req, res, url) {
     const v = viewerOf(req);
@@ -1452,7 +1531,7 @@ function createStudio(opts) {
     if (p !== '/mcp' && !p.startsWith('/studio/')) return false;
     try {
       if (p === '/mcp') await handleMcp(req, res);
-      else if (/^\/studio\/p\/\d+$/.test(p)) handleProjectPage(req, res, url);
+      else if (/^\/studio\/p\/\d+$/.test(p)) await handleProjectPage(req, res, url);
       else if (/^\/studio\/preview\/[a-f0-9]{32}$/.test(p)) handlePreviewPage(req, res, url);
       else if (p.startsWith('/studio/api/')) await handleApi(req, res, url);
       else return false;

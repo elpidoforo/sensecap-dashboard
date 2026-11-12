@@ -147,6 +147,19 @@
     }));
   }
 
+  // The block builder is in /site/blocks.js. It loads the first time a signed-in student opens the "Build with blocks" tab.
+  let blocksLib = null;
+  function loadBlocksLib() {
+    if (SC.blocks) return Promise.resolve(true);
+    return blocksLib || (blocksLib = new Promise((done) => {
+      const s = document.createElement('script');
+      s.src = '/site/blocks.js?v=1';
+      s.onload = () => done(Boolean(SC.blocks));
+      s.onerror = () => { blocksLib = null; s.remove(); done(false); };
+      document.head.append(s);
+    }));
+  }
+
   /* ---------- a published tool in a big sandboxed window ---------- */
   // canShare: an approved tool, so the window gets a Share button (link and QR code, to this site only).
   function openViewer(p, label, badge, canShare) {
@@ -208,7 +221,7 @@
     const S = {
       status: null, statusErr: null, gallery: [], galErr: null, mine: [], mineErr: null, loaded: false,
       drafts: readDrafts(), cur: null, convo: [], mode: 'update', building: false, work: '', reply: null, buildErr: null, ctrl: null,
-      preview: { state: 'none' }, tick: 0,
+      preview: { state: 'none' }, tick: 0, tab: 'words',
     };
     let alive = true, timer = 0;
     const stopBridge = bridge();
@@ -228,9 +241,12 @@
     const live = el('div', { class: 'sr-only', role: 'status', 'aria-live': 'polite' });
     const headHost = el('div'), statsHost = el('div'), makerHost = el('section', { class: 'nm-card nm-card--glow sd-maker', 'aria-labelledby': 'sd-maker-h' });
     const workHost = el('div'), boardHost = el('div', { id: 'sd-board' });
+    const tabsHost = el('div', { class: 'sd-bt', role: 'tablist', 'aria-label': t('How to build', 'Πώς να φτιάξεις'), hidden: true });
+    const blocksHost = el('div', { class: 'sd-bk-host', id: 'sd-p-blocks', hidden: true });
+    makerHost.id = 'sd-p-words';
     const ta = el('textarea', { class: 'nm-input sd-ta', id: 'sd-ta', maxlength: MAX_TEXT, rows: 4 });
     const counter = el('span', { class: 'sd-cc' });
-    root.append(headHost, makerHost, workHost, statsHost, boardHost, live);
+    root.append(headHost, tabsHost, makerHost, blocksHost, workHost, statsHost, boardHost, live);
 
     /* ----- what the viewer owns ----- */
     const myLocal = () => S.drafts.filter((d) => isClass() && V().school && d.school === V().school.slug && sameTeam(d.team, V().team)).sort((a, b) => b.at - a.at);
@@ -432,10 +448,68 @@
       makerHost.replaceChildren(start ? startLeft() : el('div', { class: 'sd-maker-l' }, el('div', { class: 'sd-eb cu' }, t('New tool', 'Νέο εργαλείο')), el('h2', { id: 'sd-maker-h' }, t('Describe a tool', 'Περιγράψτε ένα εργαλείο')),
         el('p', { class: 'sd-lede2' }, t('Say what you want to show and who it is for. The studio builds a draft from the same live readings you see on the City board. You can change it before you send it.', 'Πείτε τι θέλετε να δείξετε και για ποιον είναι. Το στούντιο φτιάχνει ένα προσχέδιο από τις ίδιες ζωντανές μετρήσεις που βλέπετε στον Πίνακα πόλης. Μπορείτε να το αλλάξετε πριν το στείλετε.')), who), stepsPanel());
       upd();
+      applyTab();
     }
     function upd() { counter.textContent = t(ta.value.length + ' of ' + MAX_TEXT, ta.value.length + ' από ' + MAX_TEXT); const g = document.getElementById('sd-go'); if (g) g.disabled = S.building || !configured() || !ta.value.trim() || (limitInfo() ? limitInfo().left <= 0 : false); }
     ta.addEventListener('input', upd);
     ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); build(); } });
+
+    /* ----- Describe it | Build with blocks (a signed-in student) -----
+       The block builder keeps its own state in /site/blocks.js and stays mounted while the student looks at the other tab.
+       A tool made with blocks is a normal draft: it is saved, sent to the teacher, approved and shown in the gallery like any other. */
+    const B = { api: null, loading: null };
+    const blocksOk = () => isUser() && S.loaded;   // the blocks need no AI, so they stay open even when the describe-it studio is switched off
+    const TABS = [['words', ['Describe it', 'Περιγράψτε το'], 'sd-p-words'], ['blocks', ['Build with blocks', 'Φτιάξτε με μπλοκ'], 'sd-p-blocks']];
+    const tabBtns = TABS.map(([id, label, panel]) => el('button', {
+      type: 'button', role: 'tab', id: 'sd-tab-' + id, 'aria-controls': panel, onclick: () => setTab(id),
+      onkeydown: (e) => {
+        if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) return;
+        e.preventDefault();
+        const i = TABS.findIndex((x) => x[0] === id);
+        const j = e.key === 'Home' ? 0 : e.key === 'End' ? TABS.length - 1 : (i + (e.key === 'ArrowRight' ? 1 : -1) + TABS.length) % TABS.length;
+        setTab(TABS[j][0]); tabBtns[j].focus();
+      },
+    }, t(label[0], label[1])));
+    tabsHost.append(...tabBtns);
+    function setTab(id) { S.tab = id; applyTab(); }
+    function applyTab() {
+      const on = blocksOk();
+      if (!on) S.tab = 'words';
+      const inBlocks = on && S.tab === 'blocks';
+      tabsHost.hidden = !on;
+      tabBtns.forEach((b, i) => { const sel = TABS[i][0] === (inBlocks ? 'blocks' : 'words'); b.setAttribute('aria-selected', sel ? 'true' : 'false'); b.tabIndex = sel ? 0 : -1; });
+      makerHost.hidden = inBlocks; workHost.hidden = inBlocks; blocksHost.hidden = !inBlocks;
+      if (inBlocks) ensureBlocks();
+    }
+    function ensureBlocks() {
+      if (B.api) return Promise.resolve(B.api);
+      if (B.loading) return B.loading;
+      blocksHost.replaceChildren(el('div', { class: 'loading' }, t('Loading', 'Φόρτωση')));
+      B.loading = loadBlocksLib().then((ready) => {
+        B.loading = null;
+        if (!alive) return null;
+        if (!ready || !SC.blocks) {
+          blocksHost.replaceChildren(el('div', { class: 'err', role: 'alert' }, t('The block builder could not be loaded. Check your connection and try again.', 'Ο δημιουργός μπλοκ δεν φορτώθηκε. Έλεγξε τη σύνδεσή σου και δοκίμασε ξανά.')),
+            el('div', { class: 'sd-actions' }, el('button', { class: 'nm-btn', type: 'button', onclick: ensureBlocks }, t('Try again', 'Δοκιμάστε ξανά'))));
+          return null;
+        }
+        blocksHost.replaceChildren();
+        B.api = SC.blocks.mount(blocksHost, { onSaved: blocksSaved, onWords: (p) => { S.tab = 'words'; editServer(p, true); } });
+        return B.api;
+      });
+      return B.loading;
+    }
+    // The server saved (or sent) a block tool: the lists and the numbers catch up.
+    async function blocksSaved(p, o) {
+      await Promise.all([loadMine(), loadStatus()]);
+      if (!alive) return;
+      drawStats(); drawBoard();
+      if (o && o.submitted) { SC.toast(t('Sent. A teacher will check it.', 'Στάλθηκε. Ένας εκπαιδευτικός θα το ελέγξει.')); const b = document.getElementById('sd-board'); if (b) b.scrollIntoView({ behavior: 'auto', block: 'start' }); }
+    }
+    function openBlocks(q) {
+      S.tab = 'blocks'; applyTab();
+      ensureBlocks().then((api) => { if (api && alive) { api.load(q); blocksHost.scrollIntoView({ block: 'start', behavior: 'auto' }); } });
+    }
 
 
     /* ----- the guide: talks an idea through before building. It never builds or saves (POST /studio/api/guide, streamed) ----- */
@@ -855,15 +929,17 @@
     const plural1 = (n) => (n === 1 ? t('1 tool', '1 εργαλείο') : t(n + ' tools', n + ' εργαλεία'));
     const isStaff = () => V().kind === 'user' && (V().role === 'teacher' || V().role === 'admin');
 
-    async function editServer(p) {
+    // forceWords: open a block tool in the normal workspace ("Change it with words") instead of in the block builder.
+    async function editServer(p, forceWords) {
       try {
         const r = await SC.api('/studio/api/projects/' + p.id);
         const q = r.project;
+        if (!forceWords && isUser() && q.via === 'blocks' && q.recipe) { openBlocks(q); return; }
         if (isClass()) {
           const d = { id: 'd' + Date.now().toString(36) + rid(), school: V().school.slug, team: V().team, title: q.title, prompt: q.idea || '', html: q.html || '', msgs: [], at: Date.now(), fromId: q.status === 'rejected' ? q.id : null };
           S.drafts.unshift(d); persist(); S.cur = d;
         } else S.cur = { id: 's' + q.id, serverId: q.id, title: q.title, prompt: q.idea || '', html: q.html || '', guide: r.guideHtml || null, msgs: [], at: Date.now() };
-        S.convo = []; S.reply = null; S.buildErr = null; S.mode = 'update';
+        S.convo = []; S.reply = null; S.buildErr = null; S.mode = 'update'; S.tab = 'words';
         drawAll(); makePreview(); const h = workHost.querySelector('h2'); if (h) { h.tabIndex = -1; h.focus(); }
       } catch (e) { SC.toast(why(e)); }
     }
@@ -886,13 +962,14 @@
       });
     }
 
+    const editLabel = (p) => (p.via === 'blocks' ? t('Edit blocks', 'Επεξεργασία μπλοκ') : t('Edit', 'Επεξεργασία'));
     function ownCards() {
       const color = schoolColor(schoolName());
       const who = isClass() ? asTeam() : t('You', 'Εσείς');
       const draft = [
-        ...rejectedMine().map((p) => card({ title: p.title, who, color, seed: p.id, badge: ['warn', t('Needs changes', 'Χρειάζεται αλλαγές')], meta: t('Sent back ' + ago(p.updatedAt), 'Επιστράφηκε ' + ago(p.updatedAt)), note: p.reviewNote ? t('Teacher note: ', 'Σημείωμα εκπαιδευτικού: ') + p.reviewNote : t('A teacher sent it back.', 'Ένας εκπαιδευτικός το έστειλε πίσω.'), buttons: [{ label: t('Edit', 'Επεξεργασία'), run: () => editServer(p) }] })),
+        ...rejectedMine().map((p) => card({ title: p.title, who, color, seed: p.id, badge: ['warn', t('Needs changes', 'Χρειάζεται αλλαγές')], meta: t('Sent back ' + ago(p.updatedAt), 'Επιστράφηκε ' + ago(p.updatedAt)), note: p.reviewNote ? t('Teacher note: ', 'Σημείωμα εκπαιδευτικού: ') + p.reviewNote : t('A teacher sent it back.', 'Ένας εκπαιδευτικός το έστειλε πίσω.'), buttons: [{ label: editLabel(p), run: () => editServer(p) }] })),
         ...myLocal().map((d) => card({ title: d.title, who, color, seed: d.id, sel: S.cur && S.cur.id === d.id, badge: ['', t('Draft', 'Προσχέδιο')], meta: t('Edited ' + ago(d.at), 'Επεξεργάστηκε ' + ago(d.at)), buttons: [{ label: t('Open', 'Άνοιγμα'), run: () => openLocal(d) }, { label: t('Delete', 'Διαγραφή'), ghost: true, run: () => confirmDiscard(d) }] })),
-        ...serverDrafts().map((p) => card({ title: p.title, who, color, seed: p.id, sel: S.cur && S.cur.serverId === p.id, badge: ['', t('Draft', 'Προσχέδιο')], meta: t('Edited ' + ago(p.updatedAt), 'Επεξεργάστηκε ' + ago(p.updatedAt)), buttons: [{ label: t('Edit', 'Επεξεργασία'), run: () => editServer(p) }] })),
+        ...serverDrafts().map((p) => card({ title: p.title, who, color, seed: p.id, sel: S.cur && S.cur.serverId === p.id, badge: ['', t('Draft', 'Προσχέδιο')], meta: t('Edited ' + ago(p.updatedAt), 'Επεξεργάστηκε ' + ago(p.updatedAt)), buttons: [{ label: editLabel(p), run: () => editServer(p) }] })),
       ];
       const review = pendingMine().map((p) => card({ title: p.title, who, color, seed: p.id, badge: ['warn', t('Waiting for a teacher', 'Περιμένει εκπαιδευτικό')], meta: t('Sent ' + ago(p.updatedAt), 'Στάλθηκε ' + ago(p.updatedAt)),
         buttons: [{ label: t('View', 'Προβολή'), run: () => openViewer(p, who, el('span', { class: 'nm-badge nm-badge--warn' }, t('Not public yet', 'Δεν είναι δημόσιο ακόμη'))) }, { label: t('Withdraw', 'Απόσυρση'), link: true, run: () => withdraw(p) }] }));
@@ -948,7 +1025,7 @@
       if (!alive) return () => {};
       drawHead(); drawAll();
       timer = setInterval(tickRefresh, 60000);
-      return () => { alive = false; clearInterval(timer); stopBridge(); document.removeEventListener('click', onDoc); if (S.ctrl) S.ctrl.abort(); };
+      return () => { alive = false; clearInterval(timer); stopBridge(); document.removeEventListener('click', onDoc); if (S.ctrl) S.ctrl.abort(); if (B.api) B.api.destroy(); };
     })();
   }
 
@@ -957,6 +1034,7 @@
     render(root) {
       SC.css('/site/pages/studio.css');
       SC.css('/site/studio-code.css');
+      SC.css('/site/blocks.css');
       loadCodeLib();
       return studio(root);
     },
