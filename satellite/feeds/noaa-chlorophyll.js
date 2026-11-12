@@ -2,7 +2,7 @@
 /* satellite/feeds/noaa-chlorophyll.js: chlorophyll-a (algae in the sea, from the colour of the water) near the coastal cities.
  * Lefkosia is inland: no sea, nothing asked, read('lefkosia') is always [].
  *
- * Source: NOAA CoastWatch ERDDAP (keyless), https://coastwatch.pfeg.noaa.gov/erddap/griddap/nesdisVHNSQchlaDaily
+ * Source: NOAA CoastWatch ERDDAP (keyless), https://coastwatch.noaa.gov/erddap/griddap/nesdisVHNSQchlaDaily
  *   "Chlorophyll, NOAA S-NPP VIIRS, Science Quality, Global 4km, Level 3, 2012 to <latest>, Daily" (NOAA/NESDIS STAR ocean colour team).
  *   Variable chlor_a, mg m^-3, _FillValue -999 (ERDDAP shows it as null), valid range 0.001 to 100. dims: time, altitude (one value, 0), latitude
  *   (stored high to low: we write the pair high:low like the dataset; the griddap documentation says ERDDAP swaps a wrong pair, and if it refuses with 400/404/416 anyway lib/erddap.js getBox tries the other order once and remembers it), longitude. 0.0375 degree pixels (about 4 km). Science quality, nominal latency
@@ -18,7 +18,9 @@
 const E = require('../lib/erddap');
 const { makeGridFeed } = require('../lib/gridfeed');
 
-const HOST = 'coastwatch.pfeg.noaa.gov';
+// The pfeg server answers this dataset with a redirect to the main CoastWatch ERDDAP, so ask that one directly (and still allow pfeg).
+const HOST = 'coastwatch.noaa.gov';
+const OLD_HOST = 'coastwatch.pfeg.noaa.gov';
 const DAY = 86400000;
 const DS = { dataset: 'nesdisVHNSQchlaDaily', value: 'chlor_a', pre: ['last-6:last', '0'], order: { latDesc: true }, halfLat: 0.3, halfLng: 0.3, maxKm: 25, windowMs: 8 * DAY, min: 0.001, max: 100 };
 
@@ -61,7 +63,7 @@ module.exports = function create(ctx) {
   }
 
   return makeGridFeed(ctx, {
-    id: 'noaa-chlorophyll', hosts: [HOST], label: 'Sea colour (NOAA ERDDAP)', cacheFile: 'chl.json',
+    id: 'noaa-chlorophyll', hosts: [HOST, OLD_HOST], label: 'Sea colour (NOAA ERDDAP)', cacheFile: 'chl.json',
     intervalMs: 12 * 3600000, firstDelayMs: 40000, keepMs: 60 * DAY, inland: ['lefkosia'],
     fetchCity: (id, place, get) => readOne(place, get), toReading, probeText,
   });

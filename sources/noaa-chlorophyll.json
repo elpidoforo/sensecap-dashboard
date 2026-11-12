@@ -38,8 +38,8 @@
   ],
   "access": {
     "type": "rest-json",
-    "url": "https://coastwatch.pfeg.noaa.gov/erddap/griddap/nesdisVHNSQchlaDaily.json",
-    "docs_url": "https://coastwatch.pfeg.noaa.gov/erddap/griddap/documentation.html",
+    "url": "https://coastwatch.noaa.gov/erddap/griddap/nesdisVHNSQchlaDaily.json",
+    "docs_url": "https://coastwatch.noaa.gov/erddap/griddap/documentation.html",
     "auth": {
       "type": "none"
     }
