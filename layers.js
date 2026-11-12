@@ -778,7 +778,7 @@ const lc = (s) => String(s).replace(/^\S+/, (w) => (/[A-Z0-9]/.test(w.slice(1)) 
     }
   }
 
-  return { enabled: true, configured: !!apiKey, handle, reload, _t: { schemaCheck, checkSource, loadRegister, evidenceFor, candidates, numbersOk, allowedNumbers, template, registerView, brain, fmt, independent } };
+  return { enabled: true, configured: !!apiKey, handle, reload, register: registerView, _t: { schemaCheck, checkSource, loadRegister, evidenceFor, candidates, numbersOk, allowedNumbers, template, registerView, brain, fmt, independent } };
 }
 
 module.exports = { createLayers, loadRegister, checkSource, schemaCheck, DEFAULT_MISSION };

@@ -172,3 +172,50 @@
   .sd-preview { height: 62vh; }
   .sd-col-sub { margin-left: 4px; }
 }
+
+/* the guide: a chat that talks an idea through before anything is built */
+.sd-maker.has-guide { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+.sd-guide { display: flex; flex-direction: column; min-width: 0; }
+.sd-guide .sd-eb { color: var(--nm-violet); }
+.sd-gh { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 6px 0 14px; }
+.sd-gh b { font: 600 24px/1.15 var(--nm-font-display); letter-spacing: -.02em; color: #fff; }
+.sd-gbadge { padding: 4px 10px; border-radius: 999px; background: var(--nm-violet-bg); border: 1px solid var(--nm-violet-line); color: var(--nm-violet); font: 600 12px/1.2 var(--nm-font); }
+.sd-gfeed { display: flex; flex-direction: column; gap: 10px; min-height: 210px; max-height: 430px; overflow-y: auto; overscroll-behavior: contain; padding: 2px 6px 4px 0; scrollbar-width: thin; }
+.sd-gm { max-width: 94%; padding: 10px 14px; border-radius: 18px; font: 400 15px/1.5 var(--nm-font); color: var(--nm-text); overflow-wrap: anywhere; }
+.sd-gm p { margin: 0; }
+.sd-gm p + p { margin-top: 8px; }
+.sd-gm.g { align-self: flex-start; border-bottom-left-radius: 6px; background: rgba(255, 255, 255, .06); border: 1px solid var(--nm-edge); }
+.sd-gm.s { align-self: flex-end; border-bottom-right-radius: 6px; background: var(--nm-copper-fill); border: 1px solid var(--nm-copper-ring); color: #fff; }
+.sd-gchips { display: flex; flex-wrap: wrap; gap: 8px; }
+.sd-gchip { min-height: 38px; padding: 8px 14px; border-radius: 999px; background: rgba(255, 255, 255, .06); border: 1px solid var(--nm-violet-line); color: var(--nm-ink-soft); font: 500 14px/1.25 var(--nm-font); cursor: pointer; text-align: left; }
+.sd-gchip:hover { background: var(--nm-violet-bg); color: #fff; }
+.sd-gchip:focus-visible, .sd-glink:focus-visible, .sd-stepsd summary:focus-visible { outline: 2px solid var(--nm-copper-2); outline-offset: 2px; }
+.sd-gbrief { align-self: stretch; display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-radius: 16px; background: rgba(255, 255, 255, .045); border: 1px solid var(--nm-copper-line); color: var(--nm-text); font-size: 14.5px; line-height: 1.45; }
+.sd-gbrief b { color: #fff; font: 600 15px/1.2 var(--nm-font); }
+.sd-gbrief p { margin: 0; }
+.sd-gbrief i { font-style: normal; font-weight: 700; color: var(--nm-muted); }
+.sd-gbrief .nm-btn { align-self: flex-start; margin-top: 6px; }
+.sd-gbrief .nm-btn svg { width: 17px; height: 17px; }
+.sd-gfeed .sd-working { align-self: flex-start; }
+.sd-gform { display: flex; align-items: flex-end; gap: 10px; margin-top: 12px; }
+.sd-gin.nm-input { flex: 1 1 auto; min-width: 0; min-height: 46px; max-height: 120px; padding: 11px 14px; border-radius: 16px; font-size: 16px; line-height: 1.4; resize: none; }
+.sd-gform .nm-btn { flex: none; min-height: 46px; }
+.sd-gfoot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 14px; margin-top: 12px; font-size: 12.5px; line-height: 1.45; color: var(--nm-muted); }
+.sd-gfoot > span { flex: 1 1 260px; }
+.sd-glink { background: none; border: 0; padding: 4px 0; color: var(--nm-copper-2); font: 600 12.5px/1.2 var(--nm-font); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.sd-stepsd { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, .1); }
+.sd-stepsd summary { cursor: pointer; font: 700 11.5px/1.2 var(--nm-font); letter-spacing: .14em; text-transform: uppercase; color: var(--nm-muted); list-style: none; display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.sd-stepsd summary::-webkit-details-marker { display: none; }
+.sd-stepsd summary::before { content: ""; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform .15s; }
+.sd-stepsd[open] summary::before { transform: rotate(45deg); }
+@media (prefers-reduced-motion: reduce) { .sd-stepsd summary::before { transition: none; } }
+@media (max-width: 899px) {
+  .sd-maker.has-guide { grid-template-columns: 1fr; }
+  .sd-maker.has-guide .sd-maker-r { order: -1; border-top: 0; border-bottom: 1px solid rgba(255, 255, 255, .1); }
+  .sd-gfeed { max-height: 360px; }
+}
+@media (max-width: 700px) {
+  .sd-gh b { font-size: 21px; }
+  .sd-gm { max-width: 100%; }
+  .sd-gform { flex-direction: column; align-items: stretch; }
+}

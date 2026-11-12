@@ -79,7 +79,7 @@ const LEGACY = {
       'Met Office lists the official automatic weather stations of the Cyprus Department of Meteorology and their last readings.',
       'Chat has three kinds of channel: All schools, your school, and your team. There are no private messages between students. Anyone can report a message, and teachers can delete messages and mute people.',
       'Ask is the assistant. It can look up live readings and history, explain science ideas and help you plan how to analyse data. It is an AI, it can make mistakes, and your teachers can read what you ask it.',
-      'To join, a student needs the school code from their teacher and then waits for a teacher to approve the account. If you forget your password, a teacher can reset it.',
+      'To join, a student makes their own account on the Join page: they pick their city and team, choose a name and a password, and wait for a teacher or an admin to approve the account. There is no school code and no email. If you forget your password, a teacher can reset it.',
     ].join('\n'),
   'Chat rules': [
       'Be kind and keep it about the project. No bullying, no rude or unkind comments about anyone.',
@@ -95,7 +95,7 @@ const SITE_GUIDE = [
     body: [
       'Anyone can open the website without signing in. It shows the Smart Cities sensor data (the dashboard), the map, a 3D view of Cyprus, the Met Office weather stations, announcements from the teachers and the Ask assistant.',
       'Vehicle positions are never live. Visitors see positions with a delay of at least two hours and rounded to about one kilometre (0.01 degree) so that nobody can follow a school bus or car. Only signed-in teachers see exact positions.',
-      'Students do not need an account. In the Build studio a student enters the class code from the teacher and a team name, describes a tool, and Claude builds it. A teacher must approve a tool before anyone else can see it. Approved tools are public.',
+      'Students make their own account on the Join page (city, team, name and password; no email and no class code) and a teacher or an admin approves it. Approved students can use the Build studio: they talk the idea through with the guide, describe a tool, and Claude builds a draft. A teacher must approve a tool before anyone else can see it. Approved tools are public.',
       'Teachers sign in with their own account to see exact positions, approve tools, manage teams, read the questions that visitors asked the assistant and post announcements.',
       'Students cannot post messages. Teachers post announcements, and everyone can read them.',
       'Ask is an AI assistant. It reads the live data, the Met Office pages, the history and this handbook. It can make mistakes. Each visitor can ask a limited number of questions per day, and the whole site has a daily limit.',

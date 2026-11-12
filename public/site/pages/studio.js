@@ -41,6 +41,8 @@
     get_vehicle_trip: ['Checking the route', 'Ελέγχω τη διαδρομή'], get_vehicle_series: ['Reading a sensor series', 'Διαβάζω μια σειρά μετρήσεων'],
     get_forecast_model_now: ['Checking the weather model', 'Ελέγχω το μοντέλο καιρού'], get_met_office_now: ['Checking Met Office stations', 'Ελέγχω τους σταθμούς της Μετεωρολογικής Υπηρεσίας'],
     get_met_office_history: ['Reading Met Office history', 'Διαβάζω το ιστορικό της Μετεωρολογικής Υπηρεσίας'], get_met_office_text: ['Reading the Met Office pages', 'Διαβάζω τις σελίδες της Μετεωρολογικής Υπηρεσίας'],
+    list_data_layers: ['Looking at the data layers', 'Κοιτάζω τα στρώματα δεδομένων'], site_map: ['Checking the website map', 'Ελέγχω τον χάρτη του ιστότοπου'], sensor_guides: ['Reading the sensor guides', 'Διαβάζω τους οδηγούς αισθητήρων'],
+    gallery_ideas: ['Looking at approved tools', 'Κοιτάζω τα εγκεκριμένα εργαλεία'], offer_choices: ['Thinking of choices', 'Σκέφτομαι επιλογές'], write_brief: ['Writing your brief', 'Γράφω τη σύνοψή σου'],
     search_handbook: ['Searching the handbook', 'Ψάχνω στο εγχειρίδιο'], save_project: ['Writing the page', 'Γράφω τη σελίδα'],
     list_my_projects: ['Looking at your pages', 'Κοιτάζω τις σελίδες σας'], get_project: ['Reading your page', 'Διαβάζω τη σελίδα σας'], submit_project: ['Sending the page', 'Στέλνω τη σελίδα'],
   };
@@ -328,10 +330,19 @@
       const stage = S.cur ? 2 : 1;
       const steps = [[t('Describe it', 'Περιγράψτε το'), t('You write what you want to see.', 'Γράφετε τι θέλετε να δείτε.')], [t('A draft is built', 'Φτιάχνεται προσχέδιο'), t('It runs in a safe box with no internet.', 'Τρέχει σε ασφαλές κουτί χωρίς internet.')],
         [t('A teacher approves', 'Εγκρίνει ένας εκπαιδευτικός'), t('Or sends it back with a note.', 'Ή το στέλνει πίσω με σημείωμα.')], [t('It joins the gallery', 'Μπαίνει στη συλλογή'), t('Anyone can open it, no sign-in.', 'Οποιοσδήποτε μπορεί να το ανοίξει, χωρίς σύνδεση.')]];
-      return el('div', { class: 'sd-maker-r' },
-        el('div', { class: 'sd-eb' }, t('How a tool goes public', 'Πώς γίνεται ένα εργαλείο δημόσιο')),
+      const withGuide = guideOn();
+      const stepsHead = el('div', { class: 'sd-eb' }, t('How a tool goes public', 'Πώς γίνεται ένα εργαλείο δημόσιο'));
+      if (withGuide) {
+        drawGuide();
+        const d = el('details', { class: 'sd-stepsd' }, el('summary', null, t('How a tool goes public', 'Πώς γίνεται ένα εργαλείο δημόσιο')), stepsBody());
+        return el('div', { class: 'sd-maker-r' }, guideHost, d);
+      }
+      return el('div', { class: 'sd-maker-r' }, stepsHead, stepsBody());
+      function stepsBody() {
+        return el('div', null,
         el('ol', { class: 'sd-steps' }, steps.map(([h, s], i) => el('li', { class: 'sd-step' + (i + 1 === stage ? ' on' : ''), 'aria-current': i + 1 === stage ? 'step' : null }, el('span', { class: 'num' }, String(i + 1)), el('div', null, el('b', null, h), el('small', null, s))))),
         el('div', { class: 'nm-callout sd-safe' }, el('b', null, t('Every draft runs in a safe box.', 'Κάθε προσχέδιο τρέχει σε ασφαλές κουτί.')), ' ' + t('No internet, no cookies, ' + kb(maxHtml()) + ' KB at most. It can only read the delayed, rounded overview of the data.', 'Χωρίς internet, χωρίς cookies, έως ' + kb(maxHtml()) + ' KB. Μπορεί να διαβάσει μόνο τη συνολική εικόνα των δεδομένων, με καθυστέρηση και στρογγυλοποίηση.')));
+      }
     }
 
     function drawMaker() {
@@ -344,6 +355,7 @@
       else {
         who = el('div', null, !configured() ? el('div', { class: 'nm-callout nm-callout--warn', style: { margin: '0 0 14px' } }, t('The Build studio is not switched on yet. You can still open the public gallery below. Ask your teacher or an admin to switch it on.', 'Το στούντιο δεν έχει ενεργοποιηθεί ακόμη. Μπορείτε να ανοίξετε τη δημόσια συλλογή παρακάτω. Ζητήστε από τον εκπαιδευτικό σας ή έναν διαχειριστή να το ενεργοποιήσει.')) : null, buildForm());
       }
+      makerHost.classList.toggle('has-guide', guideOn() && v.kind === 'user');
       makerHost.replaceChildren(el('div', { class: 'sd-maker-l' }, el('div', { class: 'sd-eb cu' }, t('New tool', 'Νέο εργαλείο')), el('h2', { id: 'sd-maker-h' }, t('Describe a tool', 'Περιγράψτε ένα εργαλείο')),
         el('p', { class: 'sd-lede2' }, t('Say what you want to show and who it is for. The studio builds a draft from the same live readings you see on the City board. You can change it before you send it.', 'Πείτε τι θέλετε να δείξετε και για ποιον είναι. Το στούντιο φτιάχνει ένα προσχέδιο από τις ίδιες ζωντανές μετρήσεις που βλέπετε στον Πίνακα πόλης. Μπορείτε να το αλλάξετε πριν το στείλετε.')), who), stepsPanel());
       upd();
@@ -351,6 +363,143 @@
     function upd() { counter.textContent = t(ta.value.length + ' of ' + MAX_TEXT, ta.value.length + ' από ' + MAX_TEXT); const g = document.getElementById('sd-go'); if (g) g.disabled = S.building || !configured() || !ta.value.trim() || (limitInfo() ? limitInfo().left <= 0 : false); }
     ta.addEventListener('input', upd);
     ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); build(); } });
+
+
+    /* ----- the guide: talks an idea through before building. It never builds or saves (POST /studio/api/guide, streamed) ----- */
+    const GKEY = 'sc.studio.guide.v1';
+    const G = { uid: null, msgs: [], busy: false, work: '', err: '', ctrl: null };
+    const guideHost = el('section', { class: 'sd-guide', 'aria-labelledby': 'sd-guide-h' });
+    const gIn = el('textarea', { class: 'nm-input sd-gin', id: 'sd-gin', rows: 2, maxlength: 500 });
+    const guideOn = () => isUser() && configured();
+    function gLoad() {
+      const uid = (SC.account && SC.account.id) || 'me';
+      if (G.uid === uid) return;
+      G.uid = uid; G.msgs = [];
+      try {
+        const j = JSON.parse(SC.store.get(GKEY + ':' + uid) || '[]');
+        if (Array.isArray(j)) G.msgs = j.filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string').slice(-30).map((m) => ({
+          role: m.role, text: m.text.slice(0, 4000),
+          choices: Array.isArray(m.choices) ? m.choices.filter((c) => typeof c === 'string').map((c) => c.slice(0, 50)).slice(0, 4) : null,
+          brief: m.brief && typeof m.brief.description === 'string' ? { question: String(m.brief.question || '').slice(0, 160), data: (Array.isArray(m.brief.data) ? m.brief.data : []).map((d) => String(d).slice(0, 80)).slice(0, 6), audience: String(m.brief.audience || '').slice(0, 80), description: m.brief.description.slice(0, 600) } : null,
+        }));
+      } catch (e) { /* a new chat */ }
+    }
+    function gSave() { try { SC.store.set(GKEY + ':' + G.uid, JSON.stringify(G.msgs.slice(-30))); } catch (e) { /* no storage */ } }
+    function gWhy(e) {
+      const code = e && e.body && e.body.code, st = e && e.status;
+      if (st === 0) return e.message;
+      if (st === 401 || (st === 403 && code === 'pending')) return why(e);
+      if (st === 429) return ({
+        rate: t('You are going fast. Wait a minute, then try again.', 'Πάτε πολύ γρήγορα. Περιμένετε ένα λεπτό και δοκιμάστε ξανά.'),
+        daily: t('You used your guide messages for today. They come back tomorrow.', 'Χρησιμοποιήσατε τα μηνύματα του οδηγού για σήμερα. Επιστρέφουν αύριο.'),
+        global: t('The guide is resting because the whole project used its daily limit. Try again later.', 'Ο οδηγός ξεκουράζεται επειδή όλο το έργο χρησιμοποίησε το ημερήσιο όριό του. Δοκιμάστε αργότερα.'),
+      })[code] || errMsg(e);
+      if (st === 503) return t('The guide is not switched on yet. Ask your teacher or an admin.', 'Ο οδηγός δεν έχει ενεργοποιηθεί ακόμη. Ρωτήστε τον εκπαιδευτικό σας ή τον διαχειριστή.');
+      return t('The guide could not answer just now. Try again in a moment.', 'Ο οδηγός δεν μπόρεσε να απαντήσει τώρα. Δοκιμάστε ξανά σε λίγο.');
+    }
+    function useBrief(b) {
+      if (S.cur) { S.mode = 'rebuild'; drawMaker(); }   // a brief starts a new tool, it does not change the open draft
+      ta.value = String(b.description || '').slice(0, MAX_TEXT);
+      upd();
+      ta.focus();
+      try { ta.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); } catch (e) { /* old browser */ }
+      SC.toast(t('Your brief is in the box. Check it, then press Build a draft.', 'Η σύνοψή σου μπήκε στο πλαίσιο. Έλεγξέ την και πάτησε Δημιουργία προσχεδίου.'));
+    }
+    function briefCard(b) {
+      const row = (k, v) => (v ? el('p', null, el('i', null, k + ' '), v) : null);
+      return el('div', { class: 'sd-gbrief' }, el('b', null, t('Your brief so far', 'Η σύνοψή σου μέχρι τώρα')),
+        row(t('Question', 'Ερώτημα'), b.question), row(t('Data', 'Δεδομένα'), (b.data || []).join(' · ')), row(t('For', 'Για'), b.audience),
+        el('button', { class: 'nm-btn nm-btn--primary', type: 'button', onclick: () => useBrief(b) }, ic('sparkle'), t('Use this brief in the box', 'Χρήση της σύνοψης στο πλαίσιο')));
+    }
+    function gScroll() { const f = guideHost.querySelector('.sd-gfeed'); if (f) f.scrollTop = f.scrollHeight; }
+    function drawGuide() {
+      if (!guideOn()) { guideHost.replaceChildren(); return; }
+      gLoad();
+      const lim = S.status && S.status.limits && S.status.limits.guide;
+      const out = Boolean(lim && lim.left <= 0);
+      const first = String((SC.account && SC.account.name) || '').trim().split(/\s+/)[0];
+      const bub = (kind, text) => el('div', { class: 'sd-gm ' + kind }, ...paras(text));
+      const feed = el('div', { class: 'sd-gfeed', role: 'log', 'aria-live': 'polite', 'aria-label': t('Conversation with the guide', 'Συνομιλία με τον οδηγό') },
+        bub('g', t('Hi' + (first ? ' ' + first : '') + '. What would you like people to understand better? Start with something you noticed at school or on the bus.', 'Γεια σου' + (first ? ' ' + first : '') + '. Τι θα ήθελες να καταλαβαίνουν καλύτερα οι άνθρωποι; Ξεκίνα από κάτι που πρόσεξες στο σχολείο ή στο λεωφορείο.')));
+      const lastIdx = G.msgs.length - 1;
+      G.msgs.forEach((m, i) => {
+        feed.append(bub(m.role === 'user' ? 's' : 'g', m.text));
+        if (m.role === 'assistant' && m.choices && m.choices.length && i === lastIdx && !G.busy) feed.append(el('div', { class: 'sd-gchips' }, m.choices.map((c) => el('button', { class: 'sd-gchip', type: 'button', onclick: () => gSend(c) }, c))));
+        if (m.role === 'assistant' && m.brief) feed.append(briefCard(m.brief));
+      });
+      if (!G.msgs.length) feed.append(el('div', { class: 'sd-gchips' }, TRIES.map(([en, el2]) => el('button', { class: 'sd-gchip', type: 'button', onclick: () => gSend(t(en, el2)) }, t(en, el2)))));
+      if (G.busy) feed.append(el('div', { class: 'sd-working' }, el('span', { class: 'sd-dots', 'aria-hidden': 'true' }, el('i'), el('i'), el('i')), el('span', null, G.work ? working(G.work) : t('Thinking about your idea', 'Σκέφτομαι την ιδέα σου'))));
+      if (G.err) feed.append(el('div', { class: 'err', role: 'alert' }, G.err));
+      gIn.placeholder = t('Answer the guide or type an idea', 'Απάντησε στον οδηγό ή γράψε μια ιδέα');
+      gIn.setAttribute('aria-label', t('Your message to the guide', 'Το μήνυμά σου προς τον οδηγό'));
+      gIn.disabled = G.busy || out;
+      const send = el('button', { class: 'nm-btn', type: 'submit', disabled: G.busy || out }, t('Send', 'Αποστολή'));
+      const form = el('form', { class: 'sd-gform', novalidate: true }, gIn, send);
+      form.addEventListener('submit', (ev) => { ev.preventDefault(); gSend(gIn.value); });
+      guideHost.replaceChildren(...[
+        el('div', { class: 'sd-eb' }, t('Your guide', 'Ο οδηγός σου')),
+        el('div', { class: 'sd-gh' }, el('b', { id: 'sd-guide-h' }, t('Talk it through first', 'Συζήτησέ το πρώτα')), el('span', { class: 'sd-gbadge' }, t('Reads the platform’s data', 'Διαβάζει τα δεδομένα της πλατφόρμας'))),
+        feed, form,
+        out ? el('div', { class: 'nm-callout nm-callout--info', style: { margin: '10px 0 0' } }, t('You used your guide messages for today. They come back tomorrow. You can still describe a tool yourself.', 'Χρησιμοποίησες τα μηνύματα του οδηγού για σήμερα. Επιστρέφουν αύριο. Μπορείς να περιγράψεις ένα εργαλείο μόνος/η σου.')) : null,
+        el('div', { class: 'sd-gfoot' },
+          el('span', null, t('The guide helps you think. It never builds or sends anything for you, and it never shows exact vehicle positions or names.', 'Ο οδηγός σε βοηθά να σκεφτείς. Δεν φτιάχνει ούτε στέλνει τίποτα για σένα και δεν δείχνει ακριβείς θέσεις οχημάτων ή ονόματα.') + (lim ? ' ' + t('Guide messages left today: ' + lim.left + ' of ' + lim.perDay + '.', 'Μηνύματα οδηγού που απομένουν σήμερα: ' + lim.left + ' από ' + lim.perDay + '.') : '')),
+          G.msgs.length ? el('button', { class: 'sd-glink', type: 'button', onclick: () => { if (G.ctrl) G.ctrl.abort(); G.msgs = []; G.err = ''; gSave(); drawGuide(); } }, t('Start over', 'Ξεκίνα από την αρχή')) : null),
+      ].filter(Boolean));
+      gScroll();
+    }
+    gIn.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); gSend(gIn.value); } });
+    async function gSend(text) {
+      text = String(text || '').trim().slice(0, 500);
+      if (!text || G.busy || !guideOn()) return;
+      const hadFocus = document.activeElement === gIn;
+      G.err = ''; G.msgs.push({ role: 'user', text }); G.busy = true; G.work = ''; gIn.value = ''; G.ctrl = new AbortController();
+      gSave(); drawGuide();
+      const body = { messages: G.msgs.slice(-10).map((m) => ({ role: m.role, text: m.text })) };
+      let ans = null, errText = '', httpErr = null, aborted = false;
+      try {
+        const r = await fetch('/studio/api/guide', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: G.ctrl.signal });
+        if (!r.ok) {
+          let b = null; try { b = await r.json(); } catch (e) { /* not JSON */ }
+          httpErr = { status: r.status, body: b, message: (b && b.error) || 'HTTP ' + r.status };
+        } else {
+          const reader = r.body.getReader(), dec = new TextDecoder();
+          let buf = '', finished = false;
+          const handle = (line) => {
+            let ev; try { ev = JSON.parse(line); } catch (e) { return; }
+            if (ev.type === 'tool') { G.work = ev.name; if (alive) { const w = guideHost.querySelector('.sd-working span:last-child'); if (w) w.textContent = working(ev.name); } }
+            else if (ev.type === 'answer') ans = ev;
+            else if (ev.type === 'error') errText = ev.message || '';
+          };
+          while (!finished) {
+            const { value, done } = await reader.read();
+            if (value) buf += dec.decode(value, { stream: true });
+            finished = done;
+            let i;
+            while ((i = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1); if (line) handle(line); }
+          }
+          if (buf.trim()) handle(buf.trim());
+        }
+      } catch (e) {
+        if (e && e.name === 'AbortError') aborted = true; else httpErr = { status: 0, message: t('No connection. Check your network and try again.', 'Δεν υπάρχει σύνδεση. Ελέγξτε το δίκτυό σας και δοκιμάστε ξανά.') };
+      }
+      G.busy = false; G.ctrl = null; G.work = '';
+      if (aborted) return;
+      if (ans) {
+        const cl = Array.isArray(ans.choices) ? ans.choices.filter((c) => typeof c === 'string').map((c) => c.slice(0, 50)).slice(0, 4) : null;
+        const b = ans.brief && typeof ans.brief.description === 'string' ? { question: String(ans.brief.question || '').slice(0, 160), data: (Array.isArray(ans.brief.data) ? ans.brief.data : []).map((d) => String(d).slice(0, 80)).slice(0, 6), audience: String(ans.brief.audience || '').slice(0, 80), description: ans.brief.description.slice(0, 600) } : null;
+        G.msgs.push({ role: 'assistant', text: String(ans.text || '').slice(0, 4000), choices: cl && cl.length ? cl : null, brief: b });
+      } else {
+        G.msgs.pop(); gIn.value = text;   // nothing was answered: give the message back so it can be sent again
+        G.err = httpErr ? gWhy(httpErr) : (errText || t('The guide could not answer just now. Try again in a moment.', 'Ο οδηγός δεν μπόρεσε να απαντήσει τώρα. Δοκιμάστε ξανά σε λίγο.'));
+        if (httpErr && httpErr.status === 401) { await loadStatus().catch(() => {}); if (alive) drawAll(); return; }
+      }
+      gSave();
+      if (!alive) return;
+      try { await loadStatus(); } catch (e) { /* the meter refreshes next time */ }
+      if (!alive) return;
+      drawGuide();
+      if (hadFocus) gIn.focus();
+    }
 
     /* ----- building ----- */
     async function build() {
