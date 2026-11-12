@@ -266,7 +266,7 @@ function createEea(opts = {}) {
     if (!file) return;
     try {
       const j = JSON.parse(fs.readFileSync(file, 'utf8'));
-      if (j && j.v === 2 && j.series && typeof j.series === 'object') { S = { v: 2, savedAt: j.savedAt || null, meta: j.meta || null, series: j.series, etags: j.etags || {} }; st.loaded = true; }
+      if (j && j.v === 2 && j.series && typeof j.series === 'object') { S = { v: 2, savedAt: j.savedAt || null, meta: j.meta || null, series: j.series, etags: Object.keys(j.series).length ? (j.etags || {}) : {} }; st.loaded = true; }   // no values saved: forget the ETags too, or an unchanged file would never be read again
     } catch (e) { /* nothing saved yet, or damaged: start empty */ }
   }
   function save() {
@@ -564,7 +564,7 @@ function createEea(opts = {}) {
                 for (const [h, a] of m.hours) { const c = have.hours.get(h); if (c) { c[0] += a[0]; c[1] += a[1]; } else have.hours.set(h, [a[0], a[1]]); }
               }
               const et = got.headers.get('etag');
-              if (et) S.etags[ekey(url)] = et;
+              if (et && !(f.info.noStation && !f.info.kept)) S.etags[ekey(url)] = et;   // a file we could not use is not remembered as done
               info.ok++;
             } catch (e) {
               info.failed++;
