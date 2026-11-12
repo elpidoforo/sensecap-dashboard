@@ -254,7 +254,7 @@
       const idea = d.idea && String(d.idea).trim();
       return [
         (d.flags || []).includes('coordinates') ? el('div', { class: 'nm-callout nm-callout--warn' }, ic('lock'), el('span', null, t('This page may contain an exact position. Look before you approve.', 'Αυτή η σελίδα ίσως περιέχει ακριβή θέση. Κοιτάξτε προτού εγκρίνετε.'))) : null,
-        el('div', { class: 'sb-pvbar' }, el('span', { class: 'sb-pvtag' }, ic('lock'), t('Preview in a safe box, no internet', 'Προεπισκόπηση σε ασφαλές κουτί, χωρίς internet')), el('span', { class: 'sb-sp' }), el('a', { class: 'nm-btn nm-btn--sm', href: '/studio/p/' + d.id, target: '_blank', rel: 'noopener' }, ic('ext'), t('Open in a new tab', 'Άνοιγμα σε νέα καρτέλα'))),
+        el('div', { class: 'sb-pvbar' }, el('span', { class: 'sb-pvtag' }, ic('lock'), t('Preview in a safe box, built to block the internet', 'Προεπισκόπηση σε ασφαλές κουτί, φτιαγμένο να μπλοκάρει το internet')), el('span', { class: 'sb-sp' }), el('a', { class: 'nm-btn nm-btn--sm', href: '/studio/p/' + d.id, target: '_blank', rel: 'noopener' }, ic('ext'), t('Open in a new tab', 'Άνοιγμα σε νέα καρτέλα'))),
         el('div', { class: 'sb-preview' }, el('iframe', { class: 'sb-frame', sandbox: 'allow-scripts', src: '/studio/p/' + d.id, title: t('Preview of ' + d.title, 'Προεπισκόπηση: ' + d.title), referrerpolicy: 'no-referrer' })),
         block(t('What the team asked for', 'Τι ζήτησε η ομάδα'), idea ? el('p', null, idea) : el('p', { class: 'muted' }, t('No description was saved.', 'Δεν αποθηκεύτηκε περιγραφή.'))),
       ];
@@ -421,7 +421,7 @@
         el('div', { class: 'sb-view-h' }, el('div', { class: 'sb-view-t' }, el('h2', null, ttl(it)), el('div', { class: 'sb-who' }, el('i', { style: { background: schoolColor(it.school) } }), el('span', null, it.author || it.school))),
           el('a', { class: 'nm-btn nm-btn--sm', href: '/studio/p/' + it.id, target: '_blank', rel: 'noopener' }, ic('ext'), t('Open in a new tab', 'Άνοιγμα σε νέα καρτέλα')), x),
         el('div', { class: 'sb-view-f' }, el('iframe', { class: 'sb-frame', sandbox: 'allow-scripts', src: '/studio/p/' + it.id, title: ttl(it), referrerpolicy: 'no-referrer' })),
-        el('p', { class: 'sb-view-n' }, ic('lock'), t('Runs in a safe box: no internet, no cookies. It can only read the delayed, rounded overview of the data.', 'Τρέχει σε ασφαλές κουτί: χωρίς internet, χωρίς cookies. Μπορεί να διαβάσει μόνο τη συνολική εικόνα των δεδομένων, με καθυστέρηση και στρογγυλοποίηση.')));
+        el('p', { class: 'sb-view-n' }, ic('lock'), t('Runs in a safe box: no cookies, and it is built to block the internet. It can only read the delayed, rounded overview of the data.', 'Τρέχει σε ασφαλές κουτί: χωρίς cookies και φτιαγμένο να μπλοκάρει το internet. Μπορεί να διαβάσει μόνο τη συνολική εικόνα των δεδομένων, με καθυστέρηση και στρογγυλοποίηση.')));
       const scrim = el('div', { class: 'sb-scrim', onclick: (e) => { if (e.target === scrim) close(); } }, box);
       document.body.append(scrim); document.addEventListener('keydown', onKey); x.focus();
     }

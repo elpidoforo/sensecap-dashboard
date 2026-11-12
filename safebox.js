@@ -44,13 +44,16 @@ const PROJECT_CSP = [
 const WRAPPER_CSP = "default-src 'none'; style-src 'unsafe-inline'; frame-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 
 const PERMISSIONS = [
-  'accelerometer', 'ambient-light-sensor', 'bluetooth', 'camera', 'clipboard-read', 'clipboard-write', 'display-capture', 'geolocation',
+  'accelerometer', 'camera', 'clipboard-read', 'clipboard-write', 'display-capture', 'geolocation',
   'gyroscope', 'hid', 'identity-credentials-get', 'idle-detection', 'local-fonts', 'magnetometer', 'microphone', 'midi', 'otp-credentials',
-  'payment', 'publickey-credentials-create', 'publickey-credentials-get', 'screen-wake-lock', 'serial', 'storage-access', 'usb', 'web-share',
+  'payment', 'publickey-credentials-create', 'publickey-credentials-get', 'screen-wake-lock', 'serial', 'storage-access', 'usb',
   'window-management', 'xr-spatial-tracking',
 ].map((f) => f + '=()').join(', ');
 
-// Chromium 152+: no outbound connection at all (fetch, sockets, WebRTC, WebTransport, navigation, preconnect, redirects). Other browsers ignore it.
+// Chromium 152+: no outbound connection at all (fetch, sockets, WebRTC, WebTransport, navigation, preconnect, prerender, redirects). Nested frames
+// of the page (about:blank, srcdoc, javascript:) inherit it. Other browsers ignore the header.
+// Known side effect (Chromium 153.0.8010.12, measured): script inside a nested srcdoc/javascript: frame that constructs an RTCPeerConnection
+// does not leak anything but crashes the tab that shows the page. Nothing in this file can prevent a hostile page from trying that.
 const CONNECTION_ALLOWLIST = '()';
 
 function projectHeaders() {

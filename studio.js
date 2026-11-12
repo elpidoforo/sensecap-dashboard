@@ -4,7 +4,7 @@
  * - Visitors need no account. A student types the school's class code and a team name (no password, no personal name): that sets a
  *   signed cookie (sc_class, 8 hours) and lets the team build pages with Claude and SUBMIT them. Drafts live in the student's browser;
  *   the server keeps only submitted pages. Teachers (student-app accounts with role teacher or admin) review them.
- * - Pages are shown only inside a sandbox with no network (see PROJECT_CSP). Nothing is public until a teacher approves it; approved
+ * - Pages are shown only inside a sandbox built to have no network (headers and shim: see safebox.js). Nothing is public until a teacher approves it; approved
  *   pages and the gallery are public to everybody.
  * - Signed-in student-app members (old accounts, teachers, admins) keep the server-side drafts flow they had before.
  * - Team plans (studio_plans) are the other thing a team can share: a question, the sensors and data it will use, and notes. Text only,

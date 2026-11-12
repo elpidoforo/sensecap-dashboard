@@ -18,7 +18,7 @@
       h_ai: '4 AI insight', p_ai: 'Ask the assistant about the data, and build your own idea with Claude.', ai1: 'Ask assistant (needs your own student account)', ai2: 'Build studio: describe an idea, Claude writes a small page, a teacher approves it before others see it.',
       h_present: '5 Present', p_present: 'A one page summary for mayors, media and parents. Use Print or save as PDF.', print: 'Print',
       h_people: 'People', p_people: 'Four schools working together.', h_portfolio: 'Student tools', p_portfolio: 'Tools made by students and approved by a teacher. Open one to use it.', open_app: 'Open student app',
-      h_build: 'Build studio', p_build: 'Program your ideas with Claude.', b1: 'Sign in to the student app with your own account.', b2: 'Open Build studio and describe your idea.', b3: 'Claude writes a small sandboxed page with no internet access.', b4: 'Submit it. A teacher reviews it before it is shown.',
+      h_build: 'Build studio', p_build: 'Program your ideas with Claude.', b1: 'Sign in to the student app with your own account.', b2: 'Open Build studio and describe your idea.', b3: 'Claude writes a small page that runs in a safe box, built to block the internet.', b4: 'Submit it. A teacher reviews it before it is shown.',
       mcp: 'Teachers can also connect Claude Code to the /mcp address with a personal token made in the Build studio.',
       loading: 'Loading…', fail: 'Could not load data. Try again in a minute.', nodata: 'no data'
     },
@@ -39,7 +39,7 @@
       h_ai: '4 Τεχνητή νοημοσύνη', p_ai: 'Ρώτα τον βοηθό για τα δεδομένα και φτιάξε τη δική σου ιδέα με το Claude.', ai1: 'Βοηθός Ask (θέλει δικό σου λογαριασμό μαθητή)', ai2: 'Build studio: περιέγραψε μια ιδέα, το Claude γράφει μια μικρή σελίδα και ένας εκπαιδευτικός την εγκρίνει πριν τη δουν άλλοι.',
       h_present: '5 Παρουσίαση', p_present: 'Σύνοψη μίας σελίδας για δημάρχους, μέσα ενημέρωσης και γονείς. Χρησιμοποίησε Εκτύπωση ή αποθήκευση PDF.', print: 'Εκτύπωση',
       h_people: 'Άνθρωποι', p_people: 'Τέσσερα σχολεία συνεργάζονται.', h_portfolio: 'Εργαλεία μαθητών', p_portfolio: 'Εργαλεία φτιαγμένα από μαθητές και εγκεκριμένα από εκπαιδευτικό. Άνοιξε ένα για να το χρησιμοποιήσεις.', open_app: 'Άνοιγμα εφαρμογής μαθητών',
-      h_build: 'Build studio', p_build: 'Προγραμμάτισε τις ιδέες σου με το Claude.', b1: 'Συνδέσου στην εφαρμογή μαθητών με τον δικό σου λογαριασμό.', b2: 'Άνοιξε το Build studio και περιέγραψε την ιδέα σου.', b3: 'Το Claude γράφει μια μικρή απομονωμένη σελίδα χωρίς πρόσβαση στο διαδίκτυο.', b4: 'Υπέβαλέ την. Ένας εκπαιδευτικός την ελέγχει πριν εμφανιστεί.',
+      h_build: 'Build studio', p_build: 'Προγραμμάτισε τις ιδέες σου με το Claude.', b1: 'Συνδέσου στην εφαρμογή μαθητών με τον δικό σου λογαριασμό.', b2: 'Άνοιξε το Build studio και περιέγραψε την ιδέα σου.', b3: 'Το Claude γράφει μια μικρή σελίδα που τρέχει σε ασφαλές κουτί, φτιαγμένο να μπλοκάρει το διαδίκτυο.', b4: 'Υπέβαλέ την. Ένας εκπαιδευτικός την ελέγχει πριν εμφανιστεί.',
       mcp: 'Οι εκπαιδευτικοί μπορούν επίσης να συνδέσουν το Claude Code στη διεύθυνση /mcp με προσωπικό διακριτικό από το Build studio.',
       loading: 'Φόρτωση…', fail: 'Δεν φορτώθηκαν τα δεδομένα. Δοκίμασε ξανά σε λίγο.', nodata: 'χωρίς δεδομένα'
     }

@@ -171,7 +171,7 @@
         el('div', { class: 'sd-view-t' }, el('h2', null, p.title), el('div', { class: 'sd-who' }, el('i', { style: { background: schoolColor(p.school) } }), el('span', null, label), badge || null)),
         shareBtn, el('a', { class: 'nm-btn nm-btn--sm', href: '/studio/p/' + p.id, target: '_blank', rel: 'noopener' }, ic('ext'), t('Open in a new tab', 'Άνοιγμα σε νέα καρτέλα')), x),
       shareHost, el('div', { class: 'sd-view-f' }, el('iframe', { class: 'sd-frame', sandbox: 'allow-scripts', src: '/studio/p/' + p.id, title: p.title, referrerpolicy: 'no-referrer' })),
-      el('p', { class: 'sd-view-n' }, ic('lock'), t('Runs in a safe box: no internet, no cookies. It can only read the delayed, rounded overview of the data.', 'Τρέχει σε ασφαλές κουτί: χωρίς internet, χωρίς cookies. Μπορεί να διαβάσει μόνο τη συνολική εικόνα των δεδομένων, με καθυστέρηση και στρογγυλοποίηση.')));
+      el('p', { class: 'sd-view-n' }, ic('lock'), t('Runs in a safe box: no cookies, and it is built to block the internet. It can only read the delayed, rounded overview of the data.', 'Τρέχει σε ασφαλές κουτί: χωρίς cookies και φτιαγμένο να μπλοκάρει το internet. Μπορεί να διαβάσει μόνο τη συνολική εικόνα των δεδομένων, με καθυστέρηση και στρογγυλοποίηση.')));
     const scrim = el('div', { class: 'sd-scrim', onclick: (e) => { if (e.target === scrim) close(); } }, box);
     document.body.append(scrim);
     document.addEventListener('keydown', onKey);
@@ -377,7 +377,7 @@
 
     function stepsPanel() {
       const stage = S.cur ? 2 : 1;
-      const steps = [[t('Describe it', 'Περιγράψτε το'), t('You write what you want to see.', 'Γράφετε τι θέλετε να δείτε.')], [t('A draft is built', 'Φτιάχνεται προσχέδιο'), t('It runs in a safe box with no internet.', 'Τρέχει σε ασφαλές κουτί χωρίς internet.')],
+      const steps = [[t('Describe it', 'Περιγράψτε το'), t('You write what you want to see.', 'Γράφετε τι θέλετε να δείτε.')], [t('A draft is built', 'Φτιάχνεται προσχέδιο'), t('It runs in a safe box built to block the internet.', 'Τρέχει σε ασφαλές κουτί φτιαγμένο να μπλοκάρει το internet.')],
         [t('A teacher approves', 'Εγκρίνει ένας εκπαιδευτικός'), t('Or sends it back with a note.', 'Ή το στέλνει πίσω με σημείωμα.')], [t('It joins the gallery', 'Μπαίνει στη συλλογή'), t('Anyone can open it, no sign-in.', 'Οποιοσδήποτε μπορεί να το ανοίξει, χωρίς σύνδεση.')]];
       const withGuide = guideOn();
       const stepsHead = el('div', { class: 'sd-eb' }, t('How a tool goes public', 'Πώς γίνεται ένα εργαλείο δημόσιο'));
@@ -390,7 +390,7 @@
       function stepsBody() {
         return el('div', null,
         el('ol', { class: 'sd-steps' }, steps.map(([h, s], i) => el('li', { class: 'sd-step' + (i + 1 === stage ? ' on' : ''), 'aria-current': i + 1 === stage ? 'step' : null }, el('span', { class: 'num' }, String(i + 1)), el('div', null, el('b', null, h), el('small', null, s))))),
-        el('div', { class: 'nm-callout sd-safe' }, el('b', null, t('Every draft runs in a safe box.', 'Κάθε προσχέδιο τρέχει σε ασφαλές κουτί.')), ' ' + t('No internet, no cookies, ' + kb(maxHtml()) + ' KB at most. It can only read the delayed, rounded overview of the data.', 'Χωρίς internet, χωρίς cookies, έως ' + kb(maxHtml()) + ' KB. Μπορεί να διαβάσει μόνο τη συνολική εικόνα των δεδομένων, με καθυστέρηση και στρογγυλοποίηση.')));
+        el('div', { class: 'nm-callout sd-safe' }, el('b', null, t('Every draft runs in a safe box.', 'Κάθε προσχέδιο τρέχει σε ασφαλές κουτί.')), ' ' + t('Built to block the internet, no cookies, ' + kb(maxHtml()) + ' KB at most. It can only read the delayed, rounded overview of the data.', 'Φτιαγμένο να μπλοκάρει το internet, χωρίς cookies, έως ' + kb(maxHtml()) + ' KB. Μπορεί να διαβάσει μόνο τη συνολική εικόνα των δεδομένων, με καθυστέρηση και στρογγυλοποίηση.')));
       }
     }
 
@@ -696,7 +696,7 @@
         W.full = el('a', { class: 'nm-btn nm-btn--sm', target: '_blank', rel: 'noopener', hidden: true }, ic('ext'), t('Open full screen', 'Άνοιγμα σε πλήρη οθόνη'));
         W.meta = el('p', { class: 'sd-meta' });
         const disc = el('button', { class: 'nm-btn nm-btn--danger-outline', type: 'button', onclick: () => confirmDiscard(D) }, ic('trash'), t('Discard this draft', 'Απόρριψη προσχεδίου'));
-        const pvbar = el('div', { class: 'sd-pvbar' }, el('span', { class: 'sd-pvtag' }, ic('lock'), t('Preview in a safe box, no internet', 'Προεπισκόπηση σε ασφαλές κουτί, χωρίς internet')), el('span', { class: 'sd-sp' }), W.refresh, W.full);
+        const pvbar = el('div', { class: 'sd-pvbar' }, el('span', { class: 'sd-pvtag' }, ic('lock'), t('Preview in a safe box, built to block the internet', 'Προεπισκόπηση σε ασφαλές κουτί, φτιαγμένο να μπλοκάρει το internet')), el('span', { class: 'sd-sp' }), W.refresh, W.full);
         const pvbox = el('div', { class: 'sd-preview' }, W.frame, W.state);
         // Preview | Code tabs (the code view is in /site/studio-code.js; without it the draft shows the preview alone, as before).
         W.wb = SC.studioCode ? SC.studioCode.workbench({ key: String(D.id), max: maxHtml(), preview: el('div', null, pvbar, pvbox), text: () => (S.cur && S.cur.html) || '', guide: () => (S.cur && S.cur.guide != null ? S.cur.guide : null), save: saveCode, refresh: () => makePreview(), why }) : null;
