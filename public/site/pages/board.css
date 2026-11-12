@@ -132,8 +132,9 @@
 .bd-kpi .aqi-legend-box { margin-top: 10px; }
 .bd-kpi .aqi-legend { gap: 3px 12px; font-size: 12px; }
 .bd-kpi .aqi-note { font-size: 11px; }
-.bd-kpi .aqi-model { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
-.bd-kpi .aqi-model .nm-badge { font-size: 12px; padding: 1px 9px; }
+.bd-kpi .aqi-fold { margin-top: 2px; }
+.bd-kpi .aqi-model { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin-top: 6px; font-size: 12px; line-height: 1.3; }
+.bd-kpi .aqi-model .nm-badge { font-size: 12px; padding: 0 8px; }
 .bd-aqi { padding: 4px 0 8px; }
 .bd-aqi .aqi-legend { gap: 3px 11px; font-size: 12px; }
 .bd-aqi[hidden] { display: none; }

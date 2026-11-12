@@ -519,11 +519,13 @@
         // the Open-Meteo European index (all five pollutants, model) is shown only where the PM2.5 itself comes from the model
         const eaqiPts = a.src === 'model' && st.airApi && st.airApi.points ? st.airApi.points.map((p) => p.european_aqi).filter(fin) : [];
         const eres = eaqiPts.length ? AQ.fromOpenMeteoIndex(mean(eaqiPts)) : null;
+        // one short line: the model's index as a number in its band colour; the band name stays in the tooltip and the accessible name
+        const modelChip = (r) => { const c = AQ.chip(r); c.setAttribute('aria-label', AQ.nameOf(r) + ' ' + r.index); c.title = AQ.nameOf(r); c.textContent = String(r.index); return c; };
         const srcText = a.src === 'dev' ? T('Mean of ' + a.n + ' school sensors. ', 'Μέσος όρος ' + a.n + ' αισθητήρων σχολείων. ') : a.src === 'model' ? T('Open-Meteo model, ' + a.n + ' points over Cyprus; our sensors do not report PM2.5. ', 'Μοντέλο Open-Meteo, ' + a.n + ' σημεία στην Κύπρο· οι αισθητήρες μας δεν στέλνουν PM2.5. ') : T('Mean of ' + a.n + ' public Sensor.Community sensors; ours do not report PM2.5. ', 'Μέσος όρος ' + a.n + ' δημόσιων αισθητήρων Sensor.Community· οι δικοί μας δεν στέλνουν PM2.5. ');
         fill(kAir, lab,
           el('div', { class: 'val' }, el('span', { class: 'num aqi-num', style: '--c:' + res.color }, fmt(a.v, a.v < 10 ? 1 : 0), el('small', null, 'µg/m³')), AQ.chip(res)),
           el('p', { class: 'sub' }, a.v <= 15 ? T('Under the WHO daily guide of 15. ', 'Κάτω από το ημερήσιο όριο των 15 του ΠΟΥ. ') : T('Above the WHO daily guide of 15. ', 'Πάνω από το ημερήσιο όριο των 15 του ΠΟΥ. '), srcText, T('Indicative. ', 'Ενδεικτικό. '), ready('explore') ? inl('explore', T('Explore data', 'Εξερεύνηση')) : null),
-          eres ? el('p', { class: 'sub aqi-model', title: T('Open-Meteo model, all five pollutants, mean of ' + eaqiPts.length + ' points. Indicative.', 'Μοντέλο Open-Meteo, και οι πέντε ρύποι, μέσος όρος ' + eaqiPts.length + ' σημείων. Ενδεικτικό.') }, T('European index (model): ', 'Ευρωπαϊκός δείκτης (μοντέλο): '), AQ.chip(eres, String(eres.index))) : null,
+          eres ? el('p', { class: 'sub aqi-model', title: T('Open-Meteo model, all five pollutants, mean of ' + eaqiPts.length + ' points. Indicative.', 'Ευρωπαϊκός δείκτης ποιότητας αέρα, μοντέλο Open-Meteo, και οι πέντε ρύποι, μέσος όρος ' + eaqiPts.length + ' σημείων. Ενδεικτικό.') }, T('European index (model): ', 'Ευρ. δείκτης (μοντέλο): '), modelChip(eres)) : null,
           el('div', { class: 'gfx' }, gauge(a.v)), AQ.legend({ level: res.level, fold: true }));
       }
 

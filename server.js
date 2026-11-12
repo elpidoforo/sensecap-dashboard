@@ -1156,8 +1156,8 @@ async function latestFor(level) {
 const qcWatch = createQcWatch({ root: __dirname, names: () => measurementNames, devices: () => rawDevices(), log: (m) => console.log(m), pauseMs: DEMO ? 0 : undefined,
   series: async (eui, mid, ch) => (DEMO ? (demoGuard(), demoSeries(eui, mid, 1)) : liveSeries(eui, mid, ch, 1)) });
 // Trails are simplified (trailsimplify.js) only on their way out and only AFTER privacy.js has delayed, rounded and de-duplicated them:
-// simplification just drops rows, it never moves or adds one, so it cannot weaken a privacy rule. Public: tolerance of one grid cell
-// (about 1.1 km) and the 45 min silence the map draws dashed. Exact (teachers): a trail up to the old ceiling of 1500 rows is sent as it is,
+// simplification just drops rows, it never moves or adds one, so it cannot weaken a privacy rule. Public: tolerance of half a grid cell
+// (about 556 m) and the 45 min silence the map draws dashed. Exact (teachers): a trail up to the old ceiling of 1500 rows is sent as it is,
 // a longer one is simplified at 5 m (GPS noise), with a larger tolerance if it is still above 1500 rows.
 const EXACT_TRAIL_MAX = 1500;
 function trailsFor(level, hours, mid) {

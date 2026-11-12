@@ -47,12 +47,13 @@ const GAP_PUBLIC_MS = 45 * MIN;
 const isNum = (v) => typeof v === 'number' && isFinite(v);
 const usable = (p) => Array.isArray(p) && isNum(p[0]) && isNum(p[1]) && isNum(p[2]);
 
-/** The tolerance in metres for a public trail rounded to `grid` degrees: one cell. Rounding moves a point by up to 0.7 cell (half a cell
- *  on each axis) and its neighbours likewise, so a wobble of up to about one cell off the line is rounding noise, not route. About 1.1 km
- *  for the 0.01 degree grid (the default, about 1 km). Kept between 5 m and 5 km. */
+/** The tolerance in metres for a public trail rounded to `grid` degrees: half a cell. Rounding alone moves a point by up to that much on
+ *  each axis, so a point that is off the line by less than that cannot be told apart from rounding noise. About 556 m for the 0.01 degree
+ *  grid (the default, about 1 km). Kept between 5 m and 5 km. (A full cell would also smooth the one-cell staircase that rounding makes on
+ *  a diagonal road, but it flattens loops of a few km into triangles, so the smaller value is used.) */
 function publicToleranceM(grid) {
   const g = isNum(grid) && grid > 0 ? grid : 0.01;
-  return Math.min(5000, Math.max(5, Math.round(g * M_PER_DEG)));
+  return Math.min(5000, Math.max(5, Math.round(0.5 * g * M_PER_DEG)));
 }
 
 /** Distance in metres between two rows (flat local approximation, good for short distances; used for the jump test). */
