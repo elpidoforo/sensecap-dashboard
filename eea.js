@@ -86,12 +86,12 @@ function pollutantKey(v) {
 
 // Station code from a sampling point id: "SPO-CY0001A_06001_100" -> "CY0001A" (the pattern of the EEA metadata sample).
 function stationOfSpo(spo) {
-  const m = /^SPO-([A-Z0-9]+?)_/i.exec(String(spo || '').trim());
+  const m = /(?:^|\/)SPO-([A-Z0-9]+?)_/i.exec(String(spo || '').trim());   // also "CY/SPO-...": the download files may carry the country in front
   return m ? m[1].toUpperCase() : null;
 }
 // ...and its pollutant: the middle number "06001" is PM2.5, "00005" is PM10.
 function pollutantOfSpo(spo) {
-  const m = /^SPO-[A-Z0-9]+?_0*(\d+)_/i.exec(String(spo || '').trim());
+  const m = /(?:^|\/)SPO-[A-Z0-9]+?_0*(\d+)_/i.exec(String(spo || '').trim());
   return m ? pollutantKey(m[1]) : null;
 }
 
@@ -534,7 +534,7 @@ function createEea(opts = {}) {
         if (!urls.length) throw Object.assign(new Error('the download service listed no files for Cyprus PM2.5 / PM10'), { code: 'empty' });
         const folded = new Map();
         const errs = [];
-        let next = 0;
+        let next = 0, diagDone = false;
         const fromMs = Math.floor((nowMs - days * DAY) / HOUR) * HOUR;
         const worker = async () => {
           while (next < urls.length) {
@@ -548,6 +548,10 @@ function createEea(opts = {}) {
               const rows = await readParquet(got.buf);
               const spoHint = (/\/(SPO-[^/]+?)\.parquet/i.exec(url) || [])[1] || null;
               const f = foldRows(rows, { offsetOf: offsetOfStation, fromMs, nowMs, spoHint });
+              if (f.info.noStation && !diagDone) {   // once per update: what a file really looks like, so a wrong guess about its columns can be read from the log
+                diagDone = true;
+                try { log(`EEA air quality: ${f.info.noStation} of ${rows.length} rows matched no station; file ...${ekey(url).slice(-60)}; spoHint ${spoHint}; columns ${Object.keys(rows[0] || {}).slice(0, 24).join(',')}; first row ${JSON.stringify(rows[0] || {}, (k, v) => (typeof v === 'bigint' ? String(v) : v)).slice(0, 400)}`); } catch (e) { /* diagnostic only */ }
+              }
               info.rows += f.info.rows; info.kept += f.info.kept;
               for (const k of ['invalid', 'notHourly', 'unit', 'range', 'future', 'noStation']) if (f.info[k]) info.skipped[k] = (info.skipped[k] || 0) + f.info[k];
               if (f.info.firstStart != null && info.firstStart == null) info.firstStart = f.info.firstStart;
