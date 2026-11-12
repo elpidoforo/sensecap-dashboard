@@ -226,7 +226,7 @@
     { k: 'co2', agg: 'mean', en: 'Mean CO2', el: 'Μέσο CO2', max: 1200 },
   ];
   function colColor(x, v) {
-    if (x.k === 'pm25') return v <= 15 ? '#59d98e' : v <= 35 ? '#F2B24C' : '#E07F3F';
+    if (x.k === 'pm25') { const r = SC.aqi.classify(v, { pollutant: 'pm25' }); return r ? r.color : x.color; }   // the one shared PM2.5 colour scale of the site (SC.aqi, /site/aqi.js)
     if (x.k === 'noise') return v <= 60 ? '#59d98e' : v <= 68 ? '#F2B24C' : '#E07F3F';
     return x.color;
   }
@@ -370,6 +370,7 @@
       withVehicle ? el('td', null, el('span', { class: 'nm-badge nm-badge--' + BADGE[v.st] }, LBL[v.st])) : null,
       withVehicle ? el('td', { class: 'go' }, ico('chev')) : null);
   });
+  const pmLegend = (c) => (c.cols().some((x) => x.k === 'pm25') ? SC.aqi.legend() : null);   // same legend as the board and the mirror
   const tripsFine = T('Worked out in your browser from the delayed, rounded public positions, so they are rough: a trip is a run of positions less than 30 minutes apart that covers at least 2 km and lasts under 6 hours, distances are to the nearest 5 km above 10 km, and the start is the first position that changed.',
     'Υπολογίζονται στον περιηγητή σας από τις καθυστερημένες, στρογγυλοποιημένες δημόσιες θέσεις, άρα είναι χονδρικές: μια διαδρομή είναι μια σειρά θέσεων με διαφορά μικρότερη των 30 λεπτών που καλύπτει τουλάχιστον 2 χλμ. και διαρκεί λιγότερο από 6 ώρες, οι αποστάσεις στρογγυλοποιούνται στα 5 χλμ. πάνω από 10 χλμ. και η αρχή είναι η πρώτη θέση που άλλαξε.');
   const tripsHead = (c, withVehicle) => el('tr', null,
@@ -534,6 +535,7 @@
         !trOk ? errBox(T('The vehicle positions could not be loaded, so there are no trips to list.', 'Δεν φορτώθηκαν οι θέσεις των οχημάτων, άρα δεν υπάρχουν διαδρομές για προβολή.') + eMsg(c.R.trails), retry)
           : !shown.length ? el('div', { class: 'empty' }, T('No trips found yet. Positions are published late, so a trip shows up here a couple of hours after it starts.', 'Δεν βρέθηκαν ακόμα διαδρομές. Οι θέσεις δημοσιεύονται με καθυστέρηση, οπότε μια διαδρομή εμφανίζεται εδώ λίγες ώρες μετά την έναρξή της.'))
             : el('div', { class: 'nm-table-wrap', role: 'region', tabindex: '0', 'aria-label': T('Trips table, scrolls sideways', 'Πίνακας διαδρομών, κυλίεται πλευρικά') }, el('table', { class: 'nm-table' }, el('thead', null, tripsHead(c, true)), el('tbody', null, tripRows(c, shown, true)))),
+        shown.length ? pmLegend(c) : null,
         shown.length ? el('p', { class: 'vh-fine' }, tripsFine) : null);
     }
 
@@ -719,6 +721,7 @@
           el('div', null, el('h2', null, T('Trips in the last 24 hours', 'Διαδρομές τις τελευταίες 24 ώρες')), el('p', null, T(trips.length + (trips.length === 1 ? ' trip' : ' trips') + ' found in the public positions', 'Βρέθηκαν ' + trips.length + (trips.length === 1 ? ' διαδρομή' : ' διαδρομές') + ' στις δημόσιες θέσεις')))),
         trips.length ? el('div', { class: 'nm-table-wrap', role: 'region', tabindex: '0', 'aria-label': T('Trips table, scrolls sideways', 'Πίνακας διαδρομών, κυλίεται πλευρικά') }, el('table', { class: 'nm-table' }, el('thead', null, tripsHead(c, false)), el('tbody', null, tripRows(c, trips, false))))
           : el('div', { class: 'empty' }, T('No trips found yet. Positions are published late, so a trip shows up here a couple of hours after it starts.', 'Δεν βρέθηκαν ακόμα διαδρομές. Οι θέσεις δημοσιεύονται με καθυστέρηση, οπότε μια διαδρομή εμφανίζεται εδώ λίγες ώρες μετά την έναρξή της.')),
+        trips.length ? pmLegend(c) : null,
         trips.length ? el('p', { class: 'vh-fine' }, tripsFine) : null);
     }
 

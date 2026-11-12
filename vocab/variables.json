@@ -253,5 +253,18 @@
     ],
     "max_step": 2000,
     "tolerance": null
+  },
+  "bus_lines_near_school": {
+    "label": [
+      "Bus lines near a school",
+      "Γραμμές λεωφορείων κοντά σε σχολείο"
+    ],
+    "unit": "{lines}",
+    "range": [
+      0,
+      200
+    ],
+    "max_step": 200,
+    "tolerance": null
   }
 }

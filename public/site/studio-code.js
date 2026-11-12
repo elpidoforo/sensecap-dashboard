@@ -235,7 +235,7 @@
       else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); doRun(); }
     });
 
-    async function doRun(quiet) {
+    async function doRun(quiet, stay) {   // quiet: the studio runs it before a build or send; stay: undo keeps the student on the Code tab
       if (busy) return false;
       if (over() > 0 || !text.trim()) { setMode('edit', true); return false; }
       busy = true; srvErr = ''; msg.textContent = ''; paint();
@@ -249,7 +249,7 @@
         if (quiet) api.show('code');
       }
       busy = false; paint();
-      if (ok && !quiet) api.afterRun();
+      if (ok && !quiet && !stay) api.afterRun();
       return ok;
     }
     function undo() {
@@ -259,7 +259,7 @@
         body: el('p', null, T('Your own changes will be removed from this draft. This cannot be undone.', 'Οι δικές σου αλλαγές θα αφαιρεθούν από αυτό το προσχέδιο. Δεν αναιρείται.')),
         actions: [{ label: T('Keep my changes', 'Κράτα τις αλλαγές μου') }, { label: T('Go back', 'Επιστροφή'), primary: true, run: async () => {
           text = guideText(); ta.value = text; stale = true; srvErr = '';
-          if (dirty()) { stash.set(o.key, text); const ok = await doRun(); if (ok) msg.textContent = T('Back to the studio’s version.', 'Επιστροφή στην έκδοση του στούντιο.'); } else { stash.delete(o.key); msg.textContent = T('Back to the studio’s version.', 'Επιστροφή στην έκδοση του στούντιο.'); paint(); }
+          if (dirty()) { stash.set(o.key, text); const ok = await doRun(false, true); if (ok) msg.textContent = T('Back to the studio’s version.', 'Επιστροφή στην έκδοση του στούντιο.'); } else { stash.delete(o.key); msg.textContent = T('Back to the studio’s version.', 'Επιστροφή στην έκδοση του στούντιο.'); paint(); }
         } }],
       });
     }

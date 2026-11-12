@@ -128,3 +128,12 @@
 .bd-err { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
 .bd-err .nm-btn { min-height: 38px; padding: 4px 14px; font-size: 14px; }
 @media (max-width: 700px) { .bd-chartcard { padding: 18px 16px 16px; } .bd-chartcard h3 { font-size: 20px; } }
+/* shared PM2.5 scale (SC.aqi): legend under the gauge and under the island, and the model's European index line */
+.bd-kpi .aqi-legend-box { margin-top: 10px; }
+.bd-kpi .aqi-legend { gap: 3px 12px; font-size: 12px; }
+.bd-kpi .aqi-note { font-size: 11px; }
+.bd-kpi .aqi-model { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.bd-kpi .aqi-model .nm-badge { font-size: 12px; padding: 1px 9px; }
+.bd-aqi { padding: 4px 0 8px; }
+.bd-aqi .aqi-legend { gap: 3px 11px; font-size: 12px; }
+.bd-aqi[hidden] { display: none; }

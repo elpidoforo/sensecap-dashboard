@@ -107,3 +107,5 @@ text.mr-tx { fill: #fff; font-family: var(--nm-font); font-weight: 600; stroke: 
   .mr-ctl .nm-pillbar { border-radius: 22px; }
 }
 @media (prefers-reduced-motion: reduce) { .mr-mode, .mr-how > summary::after { transition: none; } }
+/* shared PM2.5 legend (SC.aqi.legend) under the strip of stretches */
+.mr-strip .aqi-legend-box { margin-top: 10px; }

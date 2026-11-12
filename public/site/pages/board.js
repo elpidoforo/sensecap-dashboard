@@ -101,7 +101,7 @@
       const sc = SCH.find((s) => s.dist === dn);
       const c = byId[sc ? sc.id : near[dn]];
       const base = hex('#2a62b0');
-      return c && c.t != null ? rgb(rgbMix(base, ramp(c.t), 0.55)) : rgb(base);
+      return c && c.t != null ? rgb(rgbMix(base, c.rgb || ramp(c.t), 0.55)) : rgb(base);
     };
     const kids = [sv('defs', null,
       sv('radialGradient', { id: 'bd-aur', cx: '50%', cy: '54%', r: '55%' }, sv('stop', { offset: 0, 'stop-color': '#4CCBEA', 'stop-opacity': 0.16 }), sv('stop', { offset: 0.55, 'stop-color': '#4C8BEA', 'stop-opacity': 0.05 }), sv('stop', { offset: 1, 'stop-color': '#4C8BEA', 'stop-opacity': 0 })),
@@ -131,7 +131,7 @@
     placed.forEach(({ c, p }) => {
       const has = c.t != null;
       const h = has ? 30 + 100 * Math.max(0, Math.min(1, c.t)) : 9;
-      const col = has ? ramp(c.t) : [107, 127, 153], d = 15;
+      const col = has ? (c.rgb || ramp(c.t)) : [107, 127, 153], d = 15;
       const cn = [[-d, -d], [d, -d], [d, d], [-d, d]].map((k) => { const q = P(p[0] + k[0], p[1] + k[1]); return [q[0], q[1] - DEPTH]; });
       const cx = (cn[0][0] + cn[1][0] + cn[2][0] + cn[3][0]) / 4, cy = (cn[0][1] + cn[1][1] + cn[2][1] + cn[3][1]) / 4;
       kids.push(sv('ellipse', { cx: f1(cx), cy: f1(cy + 2), rx: 30, ry: 15, fill: rgb(col), opacity: 0.2 }),
@@ -198,21 +198,18 @@
     return sv('svg', { viewBox: '0 0 240 40', role: 'img', 'aria-label': al }, kids);
   }
 
-  function gauge(v) {   // PM2.5, scale 0..50: good up to 15, fair to 35, poor above
-    const cx = 182, cy = 54, r = 38;
+  function gauge(v) {   // PM2.5 on the six equal steps of the shared scale (SC.aqi): Good ... Extremely poor; the needle follows the place inside the bands
+    const AQ = SC.aqi, bd = AQ.bands('eaqi', 'pm25'), res = AQ.classify(v, { pollutant: 'pm25' });
+    const cx = 120, cy = 54, r = 38;
     const pt = (fr, rr) => { const a = Math.PI * (1 - fr); return [cx + rr * Math.cos(a), cy - rr * Math.sin(a)]; };
     const arc = (f0, f1_, col, op) => { const p0 = pt(f0, r), p1 = pt(f1_, r); return sv('path', { d: 'M' + f1(p0[0]) + ' ' + f1(p0[1]) + ' A' + r + ' ' + r + ' 0 0 1 ' + f1(p1[0]) + ' ' + f1(p1[1]), fill: 'none', stroke: col, 'stroke-width': 8, 'stroke-opacity': op }); };
-    const lvl = v <= 15 ? 0 : v <= 35 ? 1 : 2;
-    const kids = [arc(0, 0.3, '#59d98e', lvl === 0 ? 1 : 0.32), arc(0.315, 0.695, '#F0B94A', lvl === 1 ? 1 : 0.32), arc(0.71, 1, '#FF5C6C', lvl === 2 ? 1 : 0.32)];
-    for (let i = 0; i <= 10; i++) { const a0 = pt(i / 10, r + 8), a1 = pt(i / 10, r + (i % 5 === 0 ? 13 : 10.5)); kids.push(sv('line', { x1: f1(a0[0]), y1: f1(a0[1]), x2: f1(a1[0]), y2: f1(a1[1]), stroke: 'rgba(255,255,255,.35)', 'stroke-width': 1 })); }
-    const nd = pt(Math.max(0, Math.min(1, v / 50)), r - 4);
+    const kids = bd.map((b, k) => arc(k / 6 + 0.006, (k + 1) / 6 - 0.006, b.color, res && res.level === b.level ? 1 : 0.38));
+    for (let i = 0; i <= 6; i++) { const a0 = pt(i / 6, r + 8), a1 = pt(i / 6, r + 12); kids.push(sv('line', { x1: f1(a0[0]), y1: f1(a0[1]), x2: f1(a1[0]), y2: f1(a1[1]), stroke: 'rgba(255,255,255,.35)', 'stroke-width': 1 })); }
+    const nd = pt(Math.max(0, Math.min(1, AQ.eaqiPosition('pm25', v) / 6)), r - 4);
     kids.push(sv('line', { x1: cx, y1: cy, x2: f1(nd[0]), y2: f1(nd[1]), stroke: '#fff', 'stroke-width': 2.4, 'stroke-linecap': 'round' }), sv('circle', { cx, cy, r: 4.5, fill: '#fff' }),
       sv('text', { x: cx - r - 8, y: cy + 9, 'text-anchor': 'middle', 'font-family': 'Inter,sans-serif', 'font-size': 9.5, fill: '#7f93ab' }, '0'),
-      sv('text', { x: cx + r + 8, y: cy + 9, 'text-anchor': 'middle', 'font-family': 'Inter,sans-serif', 'font-size': 9.5, fill: '#7f93ab' }, '50'));
-    [['#59d98e', T('Good: up to 15', 'Καλή: έως 15'), '#9BD88F', 600], ['#F0B94A', T('Fair: 15 to 35', 'Μέτρια: 15 έως 35'), '#9fb2ca', 500], ['#FF5C6C', T('Poor: over 35', 'Κακή: πάνω από 35'), '#9fb2ca', 500]].forEach((l, i) => {
-      kids.push(sv('circle', { cx: 5, cy: 16 + i * 17, r: 3.5, fill: l[0] }), sv('text', { x: 16, y: 20 + i * 17, 'font-family': 'Inter,sans-serif', 'font-size': 11.5, 'font-weight': l[3], fill: l[2] }, l[1]));
-    });
-    return sv('svg', { viewBox: '0 0 240 62', role: 'img', 'aria-label': T('PM2.5 scale from 0 to 50 with the reading at ' + f1(v), 'Κλίμακα PM2.5 από 0 έως 50 με την τιμή ' + f1(v)) }, kids);
+      sv('text', { x: cx + r + 8, y: cy + 9, 'text-anchor': 'middle', 'font-family': 'Inter,sans-serif', 'font-size': 9.5, fill: '#7f93ab' }, '>140'));
+    return sv('svg', { viewBox: '0 0 240 62', role: 'img', 'aria-label': T('PM2.5 reading ' + f1(v) + ' µg/m³ on six bands from Good to Extremely poor: ', 'Μέτρηση PM2.5 ' + f1(v) + ' µg/m³ σε έξι ζώνες από Καλή έως Εξαιρετικά κακή: ') + (res ? AQ.nameOf(res) : '') }, kids);
   }
 
   function hourBars(counts, t0, max) {
@@ -323,9 +320,10 @@
       const mapBox = el('div', { class: 'bd-mapbox' }, mapSvg);
       const mapMsg = el('div');
       const rampBar = el('span', { class: 'ramp' });
+      const pmLegend = el('div', { class: 'bd-aqi', hidden: true });   // the shared PM2.5 legend, only while the PM2.5 chip is chosen
       const mapCard = el('section', { class: 'nm-card bd-br bd-map', 'aria-label': T('Island map', 'Χάρτης νησιού') },
         el('div', { class: 'bd-mc-head' }, el('div', null, el('div', { class: 'bd-eb' }, T('Cyprus · the four schools', 'Κύπρος · τα τέσσερα σχολεία')), mapDesc), chipsBox),
-        mapMsg, mapBox, valsList,
+        mapMsg, mapBox, valsList, pmLegend,
         el('div', { class: 'bd-foot' }, el('span', { class: 'lg' }, el('span', null, T('Lower', 'Χαμηλότερο')), rampBar, el('span', null, T('Higher', 'Υψηλότερο'))),
           el('span', { class: 'lg' }, el('span', { class: 'sq' }), T('School (column)', 'Σχολείο (στήλη)')), el('span', { class: 'lg' }, el('span', { class: 'st' }), T('Met Office station', 'Σταθμός Μετεωρολογικής')),
           ready('city3d') ? inl('city3d', T('Turn it in Cyprus 3D', 'Γυρίστε το σε 3D')) : null));
@@ -387,12 +385,19 @@
           const vals = []; let unit = null;
           dv.filter((d) => schoolOf(d) === s.id).forEach((d) => { const r = reading(d, C.id, now); if (r) { vals.push(r.v); unit = unit || unitOf(C.id, r.mid); } });
           const v = mean(vals);
-          return { s, val: v, n: vals.length, t: v == null ? null : Math.max(0, Math.min(1, (v - C.lo) / (C.hi - C.lo))), txt: v == null ? '' : fmt(v, C.dec), unit: unit || C.unit };
+          return { s, val: v, n: vals.length, t: v == null ? null : Math.max(0, Math.min(1, (v - C.lo) / (C.hi - C.lo))), txt: v == null ? '' : fmt(v, C.dec), unit: unit || C.unit, rgb: v != null && C.id === 'pm25' ? SC.aqi.rgbAt(v, 'eaqi', 'pm25') : null };
         });
         const unit = (cols.find((c) => c.val != null) || { unit: C.unit }).unit;
-        mapDesc.textContent = T('Height = the chosen reading, averaged over each school’s sensors (last 3 h). Colour: blue lower, copper higher, on a fixed ' + C.lo + ' to ' + C.hi + ' ' + unit + ' scale.',
-          'Ύψος = η επιλεγμένη μέτρηση, με μέσο όρο των αισθητήρων κάθε σχολείου (τελευταίες 3 ώ.). Χρώμα: μπλε χαμηλότερο, χάλκινο υψηλότερο, σε σταθερή κλίμακα ' + C.lo + ' έως ' + C.hi + ' ' + unit + '.');
+        const pm = C.id === 'pm25';   // PM2.5 uses the one shared colour scale of the site (SC.aqi), the other readings keep the blue to copper ramp
+        mapDesc.textContent = pm
+          ? T('Height = the chosen reading, averaged over each school’s sensors (last 3 h), on a fixed ' + C.lo + ' to ' + C.hi + ' ' + unit + ' scale. Colour: the European Air Quality Index bands for PM2.5 (indicative).',
+            'Ύψος = η επιλεγμένη μέτρηση, με μέσο όρο των αισθητήρων κάθε σχολείου (τελευταίες 3 ώ.), σε σταθερή κλίμακα ' + C.lo + ' έως ' + C.hi + ' ' + unit + '. Χρώμα: οι ζώνες του Ευρωπαϊκού Δείκτη Ποιότητας Αέρα για PM2.5 (ενδεικτικό).')
+          : T('Height = the chosen reading, averaged over each school’s sensors (last 3 h). Colour: blue lower, copper higher, on a fixed ' + C.lo + ' to ' + C.hi + ' ' + unit + ' scale.',
+            'Ύψος = η επιλεγμένη μέτρηση, με μέσο όρο των αισθητήρων κάθε σχολείου (τελευταίες 3 ώ.). Χρώμα: μπλε χαμηλότερο, χάλκινο υψηλότερο, σε σταθερή κλίμακα ' + C.lo + ' έως ' + C.hi + ' ' + unit + '.');
         rampBar.title = C.lo + ' – ' + C.hi + ' ' + unit;
+        rampBar.style.background = pm ? SC.aqi.gradient(C.lo, C.hi, 'eaqi', 'pm25') : '';
+        pmLegend.hidden = !pm;
+        fill(pmLegend, pm ? SC.aqi.legend({ note: false }) : null);
         mapSvg.setAttribute('aria-label', T('Pseudo-3D map of Cyprus with a column at each school: ', 'Ψευδο-τρισδιάστατος χάρτης της Κύπρου με μία στήλη σε κάθε σχολείο: ') + cols.map((c) => c.s.short + ' ' + (c.val == null ? T('no reading', 'χωρίς μέτρηση') : c.txt + ' ' + c.unit)).join(', '));
         fill(valsList, ...cols.map((c) => el('li', null, c.s.n, el('b', null, c.val == null ? T('no reading', 'χωρίς μέτρηση') : c.txt + ' ' + c.unit), c.val == null ? null : T(c.n + (c.n === 1 ? ' sensor' : ' sensors'), c.n + (c.n === 1 ? ' αισθητήρας' : ' αισθητήρες')))));
         const cy = val('cydom'), pts = cy && Array.isArray(cy.points) ? cy.points.filter((p) => fin(p.lat) && fin(p.lng)) : [];
@@ -510,13 +515,16 @@
           fill(kAir, lab, el('div', { class: 'val' }, el('span', { class: 'num' }, '–')), el('div', { class: 'empty', style: 'margin-top:10px' }, pending ? T('Loading…', 'Φόρτωση…') : T('No PM2.5 reading yet: our sensors do not report it and the open air-quality feeds returned nothing.', 'Δεν υπάρχει ακόμα μέτρηση PM2.5: οι αισθητήρες μας δεν τη στέλνουν και οι ανοιχτές πηγές δεν επέστρεψαν τίποτα.')));
           return;
         }
-        const lvl = a.v <= 15 ? 0 : a.v <= 35 ? 1 : 2;
-        const badge = [['ok', T('Good', 'Καλή')], ['warn', T('Fair', 'Μέτρια')], ['bad', T('Poor', 'Κακή')]][lvl];
+        const AQ = SC.aqi, res = AQ.classify(a.v, { pollutant: 'pm25', source: a.src === 'model' ? 'model' : 'sensor' });
+        // the Open-Meteo European index (all five pollutants, model) is shown only where the PM2.5 itself comes from the model
+        const eaqiPts = a.src === 'model' && st.airApi && st.airApi.points ? st.airApi.points.map((p) => p.european_aqi).filter(fin) : [];
+        const eres = eaqiPts.length ? AQ.fromOpenMeteoIndex(mean(eaqiPts)) : null;
         const srcText = a.src === 'dev' ? T('Mean of ' + a.n + ' school sensors. ', 'Μέσος όρος ' + a.n + ' αισθητήρων σχολείων. ') : a.src === 'model' ? T('Open-Meteo model, ' + a.n + ' points over Cyprus; our sensors do not report PM2.5. ', 'Μοντέλο Open-Meteo, ' + a.n + ' σημεία στην Κύπρο· οι αισθητήρες μας δεν στέλνουν PM2.5. ') : T('Mean of ' + a.n + ' public Sensor.Community sensors; ours do not report PM2.5. ', 'Μέσος όρος ' + a.n + ' δημόσιων αισθητήρων Sensor.Community· οι δικοί μας δεν στέλνουν PM2.5. ');
         fill(kAir, lab,
-          el('div', { class: 'val' }, el('span', { class: 'num ' + ['bd-ok', 'bd-wn', 'bd-bd'][lvl] }, fmt(a.v, a.v < 10 ? 1 : 0), el('small', null, 'µg/m³')), el('span', { class: 'nm-badge nm-badge--' + badge[0] }, badge[1])),
-          el('p', { class: 'sub' }, lvl === 0 ? T('Under the WHO daily guide of 15. ', 'Κάτω από το ημερήσιο όριο των 15 του ΠΟΥ. ') : T('Above the WHO daily guide of 15. ', 'Πάνω από το ημερήσιο όριο των 15 του ΠΟΥ. '), srcText, ready('explore') ? inl('explore', T('Explore data', 'Εξερεύνηση')) : null),
-          el('div', { class: 'gfx' }, gauge(a.v)));
+          el('div', { class: 'val' }, el('span', { class: 'num aqi-num', style: '--c:' + res.color }, fmt(a.v, a.v < 10 ? 1 : 0), el('small', null, 'µg/m³')), AQ.chip(res)),
+          el('p', { class: 'sub' }, a.v <= 15 ? T('Under the WHO daily guide of 15. ', 'Κάτω από το ημερήσιο όριο των 15 του ΠΟΥ. ') : T('Above the WHO daily guide of 15. ', 'Πάνω από το ημερήσιο όριο των 15 του ΠΟΥ. '), srcText, T('Indicative. ', 'Ενδεικτικό. '), ready('explore') ? inl('explore', T('Explore data', 'Εξερεύνηση')) : null),
+          eres ? el('p', { class: 'sub aqi-model', title: T('Open-Meteo model, all five pollutants, mean of ' + eaqiPts.length + ' points. Indicative.', 'Μοντέλο Open-Meteo, και οι πέντε ρύποι, μέσος όρος ' + eaqiPts.length + ' σημείων. Ενδεικτικό.') }, T('European index (model): ', 'Ευρωπαϊκός δείκτης (μοντέλο): '), AQ.chip(eres, String(eres.index))) : null,
+          el('div', { class: 'gfx' }, gauge(a.v)), AQ.legend({ level: res.level, fold: true }));
       }
 
       function paintVeh() {

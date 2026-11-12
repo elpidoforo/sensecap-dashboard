@@ -232,7 +232,7 @@ class MqttClient extends EventEmitter {
     this._wanted = false;
     this._sock = null; this._parser = null; this._timers = {};
     this._acks = new Map();           // packet id -> { resolve, reject, timer } for QoS 1 publishes
-    this._sub = null;                 // the SUBSCRIBE that waits for its SUBACK
+    this._pendingSubs = new Map();    // packet id -> { filters, timer } for each SUBSCRIBE that waits for its SUBACK
     this._nextId = 0; this._lastSent = 0; this._pingAt = 0; this._onlineAt = 0; this._authRefused = false; this._lastError = null;
   }
 
@@ -296,7 +296,7 @@ class MqttClient extends EventEmitter {
   _newId() {
     for (let n = 0; n < 65535; n++) {
       this._nextId = (this._nextId % 65535) + 1;
-      if (!this._acks.has(this._nextId) && !(this._sub && this._sub.id === this._nextId)) return this._nextId;
+      if (!this._acks.has(this._nextId) && !this._pendingSubs.has(this._nextId)) return this._nextId;
     }
     throw new MqttError('no free packet id', 'EBUSY');
   }
@@ -347,6 +347,7 @@ class MqttClient extends EventEmitter {
   }
 
   _onData(chunk) {
+    if (this.state === 'stopped') return;   // stop() was called: whatever is still arriving is of no interest
     let packets;
     try { packets = this._parser.push(chunk); } catch (e) { return this._fail(e); }
     for (const p of packets) {
@@ -384,10 +385,10 @@ class MqttClient extends EventEmitter {
         return;
       }
       case 'suback': {
-        const s = this._sub;
-        if (!s || s.id !== p.id) throw proto('SUBACK for a request that was not made');
+        const s = this._pendingSubs.get(p.id);
+        if (!s) throw proto('SUBACK for a request that was not made');
         if (p.granted.length !== s.filters.length) throw proto('SUBACK does not match the SUBSCRIBE');
-        clearTimeout(s.timer); this._sub = null;
+        clearTimeout(s.timer); this._pendingSubs.delete(p.id);
         s.filters.forEach((f, i) => this._emit(p.granted[i] === 0x80 ? 'subscribe-failed' : 'subscribed', f.filter, p.granted[i]));
         return;
       }
@@ -397,11 +398,10 @@ class MqttClient extends EventEmitter {
   }
 
   _sendSubscribe() {
-    if (this._sub) { clearTimeout(this._sub.timer); this._sub = null; }
     const filters = [...this.subs].map(([filter, qos]) => ({ filter, qos }));
     const id = this._newId();
     this._write(encodeSubscribe(id, filters));
-    this._sub = { id, filters, timer: setTimeout(() => this._fail(new MqttError('no SUBACK in time', 'ETIMEDOUT')), this.connectTimeoutMs) };
+    this._pendingSubs.set(id, { filters, timer: setTimeout(() => this._fail(new MqttError('no SUBACK in time', 'ETIMEDOUT')), this.connectTimeoutMs) });
   }
 
   _startKeepAlive() {
@@ -425,7 +425,8 @@ class MqttClient extends EventEmitter {
     const wasOnline = this.state === 'online';
     const stable = wasOnline && Date.now() - this._onlineAt >= this.reconnectOpts.stableMs;
     this._clear('connect', 'keep', 'hardClose');
-    if (this._sub) { clearTimeout(this._sub.timer); this._sub = null; }
+    for (const s of this._pendingSubs.values()) clearTimeout(s.timer);
+    this._pendingSubs.clear();
     for (const [id, a] of this._acks) { clearTimeout(a.timer); a.reject(new MqttError('connection closed', 'ECLOSED')); this._acks.delete(id); }
     this._sock = null; this._parser = null;
     this._emit('close', { wasOnline, error: this._lastError });

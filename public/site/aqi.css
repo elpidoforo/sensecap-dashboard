@@ -1,0 +1,18 @@
+/* Shared air-quality legend and chip (see /site/aqi.js). Loaded by SC.aqi.legend() on first use.
+   Band colours come from the script as inline styles; the text uses the theme's own text colours. */
+.aqi-legend-box { min-width: 0; }
+.aqi-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; line-height: 1.3; color: var(--nm-text, #D9E3EF); }
+.aqi-legend li { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.aqi-legend i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.aqi-legend em { font-style: normal; color: var(--nm-muted, #9fb2ca); }
+.aqi-legend li.on { font-weight: 600; color: #fff; }
+.aqi-note { margin: 6px 0 0; font-size: 11.5px; line-height: 1.35; color: var(--nm-muted, #9fb2ca); }
+/* the band name as a filled label: background and text colour are set by the script (the text is at least 4.5:1 on the fill) */
+.aqi-chip { border-color: transparent; }
+/* a number coloured by its band (large text only: the bands have at least 3:1 on our panels) */
+.aqi-num { color: var(--c) !important; }
+/* the same legend folded away in a narrow tile */
+.aqi-fold { margin-top: 8px; }
+.aqi-fold > summary { cursor: pointer; font-size: 12px; line-height: 1.4; color: var(--nm-muted, #9fb2ca); padding: 2px 0; }
+.aqi-fold > summary:hover { color: var(--nm-text, #D9E3EF); }
+.aqi-fold[open] > summary { margin-bottom: 6px; }

@@ -344,7 +344,7 @@
       ok.addEventListener('click', () => decide('approve'));
       back.addEventListener('click', () => decide('reject'));
 
-      const flagged = (p.flags || []).includes('coordinates');
+      const flagged = (p.flags || []).includes('coordinates'), edited = (p.flags || []).includes('edited');   // edited: a student changed the code by hand
       const size = (p.bytes || 0);
       const idea = p.idea && String(p.idea).trim();
       return el('article', { class: 'nm-card nm-card--glow ap-top', 'aria-labelledby': 'ap-card-h' },
@@ -365,7 +365,8 @@
               el('li', null, ic('checkc'), t(kb(size) + ' KB of the ' + kb(S.maxHtml) + ' KB limit', kb(size) + ' KB από το όριο των ' + kb(S.maxHtml) + ' KB')),
               flagged
                 ? el('li', { class: 'warn' }, ic('warn'), t('The page seems to contain map coordinates. Look for exact positions before you approve.', 'Η σελίδα φαίνεται να περιέχει συντεταγμένες. Ελέγξτε για ακριβείς θέσεις πριν εγκρίνετε.'))
-                : el('li', null, ic('checkc'), t('No map coordinates found', 'Δεν βρέθηκαν συντεταγμένες χάρτη'))))),
+                : el('li', null, ic('checkc'), t('No map coordinates found', 'Δεν βρέθηκαν συντεταγμένες χάρτη')),
+              edited ? el('li', { class: 'warn' }, ic('warn'), t('The code of this page was changed by hand. You are looking at the version that was run.', 'Ο κώδικας αυτής της σελίδας άλλαξε με το χέρι. Βλέπετε την έκδοση που εκτελέστηκε.')) : null))),
         el('hr', { class: 'ap-hr' }),
         el('div', { class: 'ap-eb' }, t('Your three checks', 'Οι τρεις έλεγχοί σας')),
         el('div', { class: 'ap-chk3' }, checks.map(([id, h, small], k) => el('label', { for: 'ap-ck-' + id }, boxes[k], el('span', null, el('b', null, h), el('small', null, small))))),

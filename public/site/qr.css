@@ -1,0 +1,7 @@
+/* The QR figure under a sheet (SC.qrFigure in qr.js). It sits at the right of the sheet's footer and is the same black on white on screen and on paper. */
+.qr-fig { float: right; display: flex; flex-direction: column; align-items: center; gap: 3px; width: 100px; margin: 0 0 6px 18px; }
+.qr-fig[hidden] { display: none; }
+.qr-fig svg { display: block; width: 96px; height: 96px; border: 1px solid #C5D0DC; }
+.qr-fig figcaption { font-size: 10.5px; line-height: 1.3; text-align: center; color: var(--mute, #4A5A70); }
+.rp-sh-foot { display: flow-root; }   /* the footer holds the floated code */
+@media print { .qr-fig svg { border-color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }

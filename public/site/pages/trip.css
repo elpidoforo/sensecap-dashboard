@@ -111,3 +111,26 @@
   .tr-facts { grid-template-columns: 1fr; }
   .tr-big b { font-size: 38px; }
 }
+
+/* bus lines near a school (planned timetables, no vehicle of ours) */
+.tr-bus { margin-top: 14px; padding: 22px 22px 20px; min-width: 0; }
+.tr-bus-pick { margin-bottom: 14px; }
+.tr-bus-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 14px 22px; align-items: start; }
+.tr-bus h3 { margin: 0 0 8px; font: 600 11px/1.3 var(--nm-font); letter-spacing: .1em; text-transform: uppercase; color: var(--nm-mute); }
+.tr-bus-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.tr-bus-stop, .tr-bus-line { padding: 10px 12px; border-radius: 14px; background: rgba(255, 255, 255, .045); border: 1px solid rgba(255, 255, 255, .1); display: flex; flex-direction: column; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.tr-bus-stop b, .tr-bus-l1 b { font: 600 15px/1.3 var(--nm-font); color: #fff; }
+.tr-bus-d, .tr-bus-l2, .tr-bus-t, .tr-bus-none { font-size: 13px; line-height: 1.4; color: var(--nm-muted); }
+.tr-bus-chips, .tr-bus-l1, .tr-bus-l3 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.tr-bus-l3 { gap: 2px 14px; }
+.tr-bus-t { font-variant-numeric: tabular-nums; }
+.tr-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; max-width: 100%; padding: 2px 8px; border-radius: 8px; border: 1px solid var(--nm-copper-2); background: var(--nm-copper-fill); color: #fff; font: 600 13px/1.4 var(--nm-font); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.tr-chip--more { border-color: rgba(255, 255, 255, .2); background: transparent; color: var(--nm-muted); }
+.tr-bus-warn { margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--nm-warn-line); background: var(--nm-warn-bg); color: var(--nm-warn); font-size: 14px; line-height: 1.45; }
+.tr-bus-fine { margin-top: 16px; }
+.tr-bus-fine p { margin: 0 0 6px; }
+.tr-bus-fine a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+@media (max-width: 700px) {
+  .tr-bus { padding: 16px 14px; }
+  .tr-bus-cols { grid-template-columns: 1fr; }
+}

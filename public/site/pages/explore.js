@@ -1060,6 +1060,16 @@ h('aside', { class: 'nm-callout nm-callout--info how' }, h('b', { class: 't1' },
   const TOOL_ALIAS = { vs: 'official', sensor: 'official', number: 'finder', find: 'finder', csv: 'download' };
   const MOUNT = { compare: mountCompare, timeline: mountTimeline, finder: mountFinder, official: mountOfficial, download: mountDownload };
 
+  // The card "My school sensor vs the nearest official station" is its own file (explore-air.js), loaded here and never needed by the five tools.
+  let airCleanup = null, airTok = 0;
+  function airSlot(host, isAlive) {
+    const my = ++airTok;
+    if (airCleanup) { try { airCleanup(); } catch (e) { /* ignore */ } airCleanup = null; }
+    const go = () => { try { if (my === airTok && isAlive() && window.SCExploreAir) airCleanup = window.SCExploreAir.mount(host, { alive: isAlive, sensors: sensorsOf(), names: E.names }); } catch (e) { /* the card is optional */ } };
+    if (window.SCExploreAir) return go();
+    const s = document.createElement('script'); s.src = '/site/pages/explore-air.js?v=1'; s.onload = go; s.onerror = () => s.remove(); document.head.append(s);
+  }
+
   SC.register('explore', {
     title: ['Explore data', 'Εξερεύνηση'],
     render(root, ctx) {
@@ -1163,6 +1173,7 @@ h('aside', { class: 'nm-callout nm-callout--info how' }, h('b', { class: 't1' },
           notes, top,
           h('div', { class: 'ex-grid' }, rank.el, h('div', { class: 'ex-col' }, main, after)),
           h('p', { class: 'ex-meta' }, metaBits.join(' · ')));
+        airSlot(body, () => alive);
 
         function openTool(id, fromRank) {
           if (!MOUNT[id]) id = 'compare';

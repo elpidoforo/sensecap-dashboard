@@ -2,16 +2,15 @@
   "schema": "smartcities.source/1",
   "id": "gtfs-public-transport",
   "name": "Public transport",
-  "summary": "Bus routes and timetables for Lefkosia, Larnaka, Limassol and Paphos (GTFS), plus a live bus feed (GTFS-Realtime), from the national transport portal.",
+  "summary": "Bus stops, lines and planned times for Cyprus from the national transport portal, shown on the Follow one trip page. Planned timetables only: no live buses.",
   "layer": "context",
-  "status": "candidate",
-  "planned": true,
-  "tagline": "live bus positions",
+  "status": "active",
+  "tagline": "bus stops and planned times",
   "i18n": {
     "el": {
       "name": "Δημόσιες συγκοινωνίες",
-      "summary": "Διαδρομές και δρομολόγια λεωφορείων για Λευκωσία, Λάρνακα, Λεμεσό και Πάφο (GTFS), και ζωντανή τροφοδοσία λεωφορείων (GTFS-Realtime), από την εθνική πύλη μεταφορών.",
-      "tagline": "ζωντανές θέσεις λεωφορείων"
+      "summary": "Στάσεις, γραμμές και προγραμματισμένες ώρες λεωφορείων για την Κύπρο, από την εθνική πύλη μεταφορών, στη σελίδα «Ακολουθήστε μία διαδρομή». Μόνο προγραμματισμένα δρομολόγια: όχι ζωντανά λεωφορεία.",
+      "tagline": "στάσεις και προγραμματισμένες ώρες"
     }
   },
   "themes": [
@@ -27,12 +26,13 @@
     "id": "CC-BY-4.0",
     "url": "https://traffic4cyprus.org.cy/dataset/publictransportstatic",
     "attribution": "Cyprus National Access Point for transport (traffic4cyprus.org.cy)",
+    "commercial_use": true,
+    "share_alike": false,
     "checked_on": "2026-11-12"
   },
   "access": {
     "type": "gtfs",
-    "url": "https://traffic4cyprus.org.cy/dataset/publictransportstatic",
-    "docs_url": "https://traffic4cyprus.org.cy/dataset/publictransportrealtime_gtfs_rt"
+    "url": "https://traffic4cyprus.org.cy/dataset/publictransportstatic"
   },
   "coverage": {
     "area": "Cyprus",
@@ -45,13 +45,13 @@
   },
   "update": {
     "every": "P90D",
-    "note": "Timetables up to every 3 months; the live bus feed about every 30 seconds"
+    "note": "The portal says timetables change up to every 3 months. The server checks each file once a week and keeps the last good copy."
   },
   "variables": [
     {
-      "id": "buses_in_service",
-      "unit": "{vehicles}",
-      "kind": "measured"
+      "id": "bus_lines_near_school",
+      "unit": "{lines}",
+      "kind": "derived"
     }
   ],
   "representativeness": {
@@ -59,17 +59,31 @@
   },
   "quality": {
     "kind": "statistics",
-    "uncertainty": "Timetables are plans, not what buses actually did. The live feed has about 30 seconds delay.",
+    "uncertainty": "Planned timetables, not what buses actually did: they can be late, and holidays and changes are not applied. Distances are straight lines from the school's place.",
     "known_issues": [
-      "A validator report shows 1 or 2 errors in some city feeds"
+      "A validator report shows 1 or 2 errors in some city feeds",
+      "Not yet confirmed from the real files: line drawings (shapes), and whether stop names are Greek, English or both"
+    ],
+    "stale_after": "P30D"
+  },
+  "restrictions": [
+    "The live bus feed (GTFS-Realtime) is not used: it is plain HTTP on a bare IP address and could show where our own buses are",
+    "Credit the portal (CC BY 4.0) wherever this data is shown, and say that it was reduced to stops, lines and times"
+  ],
+  "agent_hints": {
+    "use_for": [
+      "Which bus stops and lines are near a school",
+      "Planned first and last bus of a line"
+    ],
+    "not_for": [
+      "Where a bus is right now, or whether it is late",
+      "Anything about our own vehicles"
     ]
   },
-  "notes": "Licence read on the portal's dataset page (opened by the research, no data downloaded yet). Each of the four cities has its own feed. Check whether the live feed needs a key before building.",
+  "notes": "Static GTFS only, read by gtfs.js and served at /api/transit. The download addresses (motionbuscard.org.cy, files 2, 4, 5, 6, 9, 10 and 11) come from research notes and have not been opened from the server yet: check the Railway log after the deploy. The brain does not read this layer (x_reads).",
+  "x_reads": false,
   "added": {
     "by": "smart-cities-team",
     "on": "2026-11-12"
-  },
-  "restrictions": [
-    "The live feed is plain HTTP on a bare IP address and the page does not say whether a key is needed"
-  ]
+  }
 }

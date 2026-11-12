@@ -109,13 +109,13 @@
     s.innerHTML = '<rect x="1" y="1" width="36" height="36" rx="10" fill="#10223a"/><circle cx="19" cy="19" r="3" fill="#F2A56B"/><path d="M12.5 12.5a9.2 9.2 0 000 13M25.5 12.5a9.2 9.2 0 010 13M8.6 8.6a14.7 14.7 0 000 20.8M29.4 8.6a14.7 14.7 0 010 20.8" fill="none" stroke="#4CCBEA" stroke-width="1.8" stroke-linecap="round"/>';   // static string, no data
     return s;
   }
-  function sheet({ title, sub, stamps, children, foot }) {
+  function sheet({ title, sub, stamps, children, foot, qr }) {
     return el('article', { class: 'rp-sheet', 'aria-label': title },
       el('header', { class: 'rp-sh-head' }, logo(), el('div', { class: 'rp-sh-brand' }, el('b', null, 'SMART CITIES'), el('small', null, T('Cyprus · live from our schools', 'Κύπρος · ζωντανά από τα σχολεία μας'))),
         el('span', { class: 'rp-stamps' }, (stamps || []).map((s) => el('span', { class: 'rp-stamp' + (s.cls ? ' ' + s.cls : '') }, s.text)))),
       el('h2', { class: 'rp-sh-title' }, title), sub ? el('p', { class: 'rp-sh-sub' }, sub) : null,
       children,
-      el('footer', { class: 'rp-sh-foot' }, foot));
+      el('footer', { class: 'rp-sh-foot' }, qr || null, foot));   // qr: a small code that opens this sheet online (SC.qrFigure)
   }
   const PRIVACY = () => T('Privacy: this page shows school averages and delayed, grouped routes only. No live vehicle positions and no student names.', 'Ιδιωτικότητα: αυτή η σελίδα δείχνει μόνο μέσους όρους σχολείων και ομαδοποιημένες διαδρομές με καθυστέρηση. Καμία ζωντανή θέση οχήματος και κανένα όνομα μαθητή.');
   const SOURCES = () => T('Sources: school sensors (SenseCAP) on buses and cars; Cyprus Department of Meteorology (Met Office) for the warnings page. Weather Data Copyright The Cyprus Department of Meteorology.', 'Πηγές: αισθητήρες σχολείων (SenseCAP) σε λεωφορεία και αυτοκίνητα· Τμήμα Μετεωρολογίας Κύπρου (Μετεωρολογική Υπηρεσία) για τη σελίδα προειδοποιήσεων. Weather Data Copyright The Cyprus Department of Meteorology.');
@@ -205,7 +205,8 @@
     const stamps = [r.status === 'released' ? { text: T('Released' + (r.releasedAt ? ' ' + SC.date(r.releasedAt) : ''), 'Δημοσιεύτηκε' + (r.releasedAt ? ' ' + SC.date(r.releasedAt) : '')) } : r.status === 'withdrawn' ? { text: T('Withdrawn', 'Αποσύρθηκε'), cls: 'rp-st-bad' } : { text: T('Draft', 'Πρόχειρο'), cls: 'rp-st-warn' }];
     if (r.demo) stamps.push({ text: T('Demo data', 'Δεδομένα επίδειξης'), cls: 'rp-st-demo' });
     return sheet({ title: T('Weekly school report', 'Εβδομαδιαία αναφορά σχολείου'), sub: nameOfReport(r) + (when ? ' · ' + when : '') + (r.weekEnding ? ' (' + weekStart(r.weekEnding) + ' – ' + fmtShort(r.weekEnding) + ')' : ''), stamps, children: kids,
-      foot: [el('p', null, PRIVACY()), el('p', null, SOURCES())] });
+      foot: [el('p', null, PRIVACY()), el('p', null, SOURCES())],
+      qr: r.status === 'released' && SC.qrFigure ? SC.qrFigure(location.origin + '/#/reports/' + encodeURIComponent(r.id), { label: T('QR code for the link to this report', 'Κωδικός QR για τον σύνδεσμο αυτής της αναφοράς'), caption: T('Scan to read this report online', 'Σαρώστε για να διαβάσετε την αναφορά στο διαδίκτυο') }) : null });   // only a released report has a public link
   }
 
   /* ---------- the page ---------- */
@@ -394,7 +395,8 @@
         stage.append(el('div', { class: 'rp-tools rp-noprint' }, el('span', { class: 'muted' }, upd ? T('Numbers from ' + SC.dateTime(upd), 'Αριθμοί από ' + SC.dateTime(upd)) : ''), el('span', { class: 'rp-tools-sp' }),
           el('button', { class: 'nm-btn nm-btn--primary', type: 'button', onclick: () => window.print() }, SC.icon('file', 16), T('Print', 'Εκτύπωση'))),
           sheet({ title: T('Smart Cities: the one-page summary', 'Smart Cities: η σύνοψη μίας σελίδας'), sub: T('For mayors, media and parents' + (upd ? ' · ' + SC.date(upd) : ''), 'Για δημάρχους, μέσα ενημέρωσης και γονείς' + (upd ? ' · ' + SC.date(upd) : '')),
-            stamps: [{ text: T('Live numbers', 'Ζωντανοί αριθμοί') }].concat(demo ? [{ text: T('Demo data', 'Δεδομένα επίδειξης'), cls: 'rp-st-demo' }] : []), children: kids, foot: [el('p', null, PRIVACY()), el('p', null, SOURCES())] }));
+            stamps: [{ text: T('Live numbers', 'Ζωντανοί αριθμοί') }].concat(demo ? [{ text: T('Demo data', 'Δεδομένα επίδειξης'), cls: 'rp-st-demo' }] : []), children: kids, foot: [el('p', null, PRIVACY()), el('p', null, SOURCES())],
+            qr: SC.qrFigure ? SC.qrFigure(location.origin + '/#/reports?tab=summary', { label: T('QR code for the link to the live summary', 'Κωδικός QR για τον σύνδεσμο της ζωντανής σύνοψης'), caption: T('Scan to see the live numbers', 'Σαρώστε για να δείτε τους ζωντανούς αριθμούς') }) : null }));
       }
 
       /* ---------- go ---------- */

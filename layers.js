@@ -254,6 +254,7 @@ function createLayers(opts) {
   const data = opts.data;
   const feeds = opts.feeds || null;
   const appCore = opts.appCore || null;
+  const gtfs = opts.gtfs || null;   // the bus timetable reader (gtfs.js): its layer is shown, the brain does not read it
   const log = opts.log || ((m) => console.log(m));
   const apiKey = opts.apiKey || '';
   const model = opts.model || 'claude-sonnet-5-5';
@@ -308,6 +309,8 @@ function createLayers(opts) {
     'metar-airports': async () => { const m = await data.metar(); const pts = m.points || []; const t = pts.reduce((x, p) => Math.max(x, toMs(p.time) || 0), 0); return { ok: pts.length > 0, n: pts.length, at: t || toMs(m.updated), note: `${pts.length} airports`, noteEl: `${pts.length} αεροδρόμια` }; },
     'openmeteo-weather': async () => { const w = await data.weather(); return { ok: !!(w.points && w.points.length), n: (w.points || []).length, at: toMs(w.updated), note: `${(w.points || []).length} grid points`, noteEl: `${(w.points || []).length} σημεία πλέγματος` }; },
     'openmeteo-air': async () => { const a = await data.air(); return { ok: !!(a.points && a.points.length), n: (a.points || []).length, at: toMs(a.updated), note: `${(a.points || []).length} grid points`, noteEl: `${(a.points || []).length} σημεία πλέγματος` }; },
+    'gtfs-public-transport': async () => (gtfs ? gtfs.probe() : { ok: false, n: 0, at: null, note: 'the timetable reader is not running', noteEl: 'ο αναγνώστης δρομολογίων δεν λειτουργεί' }),
+    'air-quality-stations-cy': async () => { const e = data.eea ? data.eea() : null; const pts = (e && e.points) || []; const t = pts.reduce((m, p) => Math.max(m, toMs(p.time) || 0), 0); const off = e && e.status && e.status.state === 'off'; return { ok: pts.length > 0, n: pts.length, at: t || null, note: pts.length ? `${pts.length} stations` : off ? 'switched off' : 'not available right now', noteEl: pts.length ? `${pts.length} σταθμοί` : off ? 'απενεργοποιημένο' : 'δεν είναι διαθέσιμο αυτή τη στιγμή' }; },
     'openmeteo-marine': async () => { const s = await data.sea(); return { ok: !!(s.points && s.points.length), n: (s.points || []).length, at: toMs(s.updated), note: `${(s.points || []).length} sea points`, noteEl: `${(s.points || []).length} σημεία θάλασσας` }; },
   };
 
@@ -444,6 +447,14 @@ function createLayers(opts) {
       const p = best.p, t = toMs(a.updated), where = `model grid point ${Math.round(best.d)} km from the city centre`;
       add(src, 'pm25', p.pm25, { t, where }); add(src, 'pm10', p.pm10, { t, where }); add(src, 'dust', p.dust, { t, where }); add(src, 'ozone', p.ozone, { t, where });
     })());
+    if (has('air-quality-stations-cy')) tasks.push((async () => {   // official stations (eea.js): the nearest one with a reading, within 40 km, unvalidated up-to-date values
+      const e = data.eea ? data.eea() : null; const src = srcById('air-quality-stations-cy');
+      const list = (e && e.points) || [];
+      const best = nearest(list, at, 40, (p) => p.pm25 != null || p.pm10 != null);
+      if (!best) return list.length ? missing.push({ source: src.id, why: 'too-far' }) : undefined;
+      const p = best.p, t = toMs(p.time), where = `${p.name} station${p.type ? ` (${p.type})` : ''}, ${Math.round(best.d)} km from the city centre`;
+      add(src, 'pm25', p.pm25, { t, where }); add(src, 'pm10', p.pm10, { t, where });
+    })());
     if (has('openmeteo-marine')) tasks.push((async () => {
       const s = await data.sea(); const src = srcById('openmeteo-marine');
       const best = nearest(s.points, at, 60);
@@ -454,7 +465,7 @@ function createLayers(opts) {
     const settled = await Promise.allSettled(tasks);
     const failed = settled.filter((x) => x.status === 'rejected').length;
     // A source with no row and no other reason did not answer.
-    for (const s of needs) if (PROBES[s.id] && !rows.some((r) => r.source === s.id) && !missing.some((m) => m.source === s.id)) missing.push({ source: s.id, why: 'no-reading' });
+    for (const s of needs) if (PROBES[s.id] && s['x_reads'] !== false && !rows.some((r) => r.source === s.id) && !missing.some((m) => m.source === s.id)) missing.push({ source: s.id, why: 'no-reading' });
     const now = Date.now();
     for (const r of rows) {
       const src = srcById(r.source);
@@ -681,7 +692,7 @@ const lc = (s) => String(s).replace(/^\S+/, (w) => (/[A-Z0-9]/.test(w.slice(1)) 
     const view = await registerView(9000);   // the brain waits for the checks: it must know which layers answer
     const usable = new Set(view.layers.filter((l) => l.state === 'live' || l.state === 'late').map((l) => l.id));
     const asked = Array.isArray(body.layers) ? body.layers.map(String) : [...usable];
-    const onIds = [...new Set(asked)].filter((id) => usable.has(id)).sort();
+    const onIds = [...new Set(asked)].filter((id) => usable.has(id) && (srcById(id) || {})['x_reads'] !== false).sort();   // a layer with x_reads: false is shown on its own page and holds no readings for the brain
     const question = body.question == null ? '' : String(body.question).trim();
     if (question && ([...question].length < MIN_QUESTION || [...question].length > MAX_QUESTION)) fail(400, `Write the question in ${MIN_QUESTION} to ${MAX_QUESTION} characters.`);
     const key = cityId + '|' + onIds.join(',');

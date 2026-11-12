@@ -167,3 +167,5 @@
   .vh-cmd .grow { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .vh-orb.live::after { animation: none; opacity: 0; } }
+/* shared PM2.5 legend (SC.aqi.legend) under a trips table that has a PM2.5 column */
+.vh-trips .aqi-legend-box { margin-top: 12px; }

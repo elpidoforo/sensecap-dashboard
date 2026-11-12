@@ -1178,7 +1178,7 @@ function createStudio(opts) {
       return sendJson(res, 200, { project: publicProject(submitProject(user, r[1], typeof body.show_name === 'boolean' ? body.show_name : undefined), v, false) });
     }
     // A student changes the code of a draft by hand ("Run my changes"). saveProject does the saving, so these changes get exactly the checks of every
-    // other save (title, size limit, private-text check) and send the page back to draft like any change; the teacher reviews what is stored here.
+    // other save (a page that is not empty, the size limit, the title and idea checks) and send the page back to draft like any change; the teacher reviews what is stored here.
     // html_guide keeps the version the studio last built so the student can undo; via 'student-edit' marks a page that holds hand-made changes.
     if (req.method === 'POST' && (r = m(/^\/studio\/api\/projects\/(\d+)\/code$/))) {
       needUser(v);

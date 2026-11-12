@@ -1,41 +1,41 @@
 {
   "schema": "smartcities.source/1",
   "id": "air-quality-stations-cy",
-  "name": "Air quality stations",
-  "summary": "The national network of about 10 air-quality stations that measure particles, ozone and gases in Cyprus, run by the Department of Labour Inspection.",
+  "name": "Official air quality stations",
+  "summary": "Hourly PM2.5 and PM10 from the national air-quality stations of Cyprus, as reported to the European Environment Agency. Up-to-date values: not yet checked by the authorities.",
   "layer": "official",
-  "status": "candidate",
-  "planned": true,
-  "tagline": "needs a free token",
+  "status": "active",
+  "tagline": "official stations, hourly, unchecked",
   "i18n": {
     "el": {
-      "name": "Σταθμοί ποιότητας αέρα",
-      "summary": "Το εθνικό δίκτυο περίπου 10 σταθμών ποιότητας αέρα που μετρά σωματίδια, όζον και αέρια στην Κύπρο, από το Τμήμα Επιθεώρησης Εργασίας.",
-      "tagline": "χρειάζεται δωρεάν κωδικό πρόσβασης"
+      "name": "Επίσημοι σταθμοί ποιότητας αέρα",
+      "summary": "Ωριαία PM2.5 και PM10 από τους εθνικούς σταθμούς ποιότητας αέρα της Κύπρου, όπως αναφέρονται στον Ευρωπαϊκό Οργανισμό Περιβάλλοντος. Πρόσφατες τιμές: δεν έχουν ελεγχθεί ακόμη.",
+      "tagline": "επίσημοι σταθμοί, ωριαία, χωρίς έλεγχο"
     }
   },
   "themes": [
     "air quality",
-    "particles",
-    "ozone"
+    "particles"
   ],
   "publisher": {
-    "name": "Department of Labour Inspection, through the World Air Quality Index project",
-    "url": "https://aqicn.org/api/",
+    "name": "European Environment Agency (EEA), from data reported by the Cyprus Department of Labour Inspection",
+    "url": "https://eeadmz1-downloads-api-appservice.azurewebsites.net/swagger/index.html",
     "kind": "government"
   },
   "licence": {
     "id": "unknown",
+    "url": "https://www.eea.europa.eu/en/about/contact-us/faqs/can-i-use-eea-content-in-my-work-or-in-my-organisations-products",
+    "attribution": "European Environment Agency (EEA), Air Quality Download Service; data reported by the Cyprus Department of Labour Inspection",
+    "commercial_use": "unknown",
     "checked_on": "2026-11-12"
   },
   "access": {
-    "type": "manual",
-    "url": "https://aqicn.org/api/",
+    "type": "file",
+    "url": "https://eeadmz1-downloads-api-appservice.azurewebsites.net/swagger/index.html",
     "auth": {
-      "type": "api-key",
-      "env": "AQICN_TOKEN"
+      "type": "none"
     },
-    "docs_url": "https://aqicn.org/api/"
+    "docs_url": "https://eeadmz1-downloads-api-appservice.azurewebsites.net/swagger/index.html"
   },
   "coverage": {
     "area": "Cyprus",
@@ -47,7 +47,8 @@
     ]
   },
   "update": {
-    "every": "PT1H"
+    "every": "PT1H",
+    "note": "The server asks the EEA once an hour and keeps about 5 weeks of hourly values. The EEA's own delay (hours) is not known yet."
   },
   "variables": [
     {
@@ -59,11 +60,6 @@
       "id": "pm10",
       "unit": "ug/m3",
       "kind": "measured"
-    },
-    {
-      "id": "ozone",
-      "unit": "ug/m3",
-      "kind": "measured"
     }
   ],
   "representativeness": {
@@ -72,13 +68,34 @@
   },
   "quality": {
     "kind": "reference-station",
-    "uncertainty": "Reference-grade stations, but only a few on the island and Paphos has a traffic station only.",
+    "uncertainty": "Reference-grade instruments, but the newest values are unchecked, and a station can be several km from a school (a traffic station reads differently from a quiet street).",
     "known_issues": [
-      "Data shown by the republisher is unvalidated at the time of publication",
-      "Sources disagree on whether the network has 9, 10 or 11 stations"
+      "Up-to-date (E2a) values are unvalidated and can change later",
+      "Only a few stations on the island; the nearest one can be far from a school",
+      "Not yet confirmed from the real EEA service: the file format, the time zone of the hours and how late the values arrive"
+    ],
+    "stale_after": "PT12H"
+  },
+  "upstream": [
+    {
+      "name": "Cyprus Department of Labour Inspection air-quality network"
+    }
+  ],
+  "restrictions": [
+    "Credit the European Environment Agency wherever these values are shown, and say that they are unvalidated up-to-date data",
+    "Never call a school sensor 'certified' or 'wrong' because of a comparison with a station that is kilometres away"
+  ],
+  "agent_hints": {
+    "use_for": [
+      "How much PM2.5 and PM10 the nearest official station reports, hour by hour",
+      "Checking whether a school's low-cost particle sensor goes up and down together with the official station"
+    ],
+    "not_for": [
+      "Ozone, nitrogen dioxide or other gases (only particles are read)",
+      "A health warning: official alerts come from the authorities"
     ]
   },
-  "notes": "Three routes, best first: the DLI dataset on data.gov.cy, the DLI website, or the World Air Quality Index API (needs a free token). The licence is not stated anywhere read so far: email the Department, say we are a school project and will credit it. Each of the four school cities has at least one station. Terms of a republished copy can be stricter than the original.",
+  "notes": "Read by eea.js, served at /api/eea. POST /ParquetFile/urls gives one Parquet file per sampling point (hourly, dataset 1); station places and types come from the EEA metadata CSV, with the station map service as fallback. Not tried against the real service from the build sandbox: after a deploy look in the Railway log for 'EEA air quality: first update done'. Licence stays unknown until the dataset factsheet is read; the EEA says in general its data may be reused with credit.",
   "added": {
     "by": "smart-cities-team",
     "on": "2026-11-12"

@@ -21,4 +21,17 @@
     return SC.svgEl('svg', { viewBox: '0 0 ' + w + ' ' + w, width: size, height: size, class: 'qr-svg', role: 'img', 'aria-label': (o && o.label) || 'QR code', 'shape-rendering': 'crispEdges', focusable: 'false' },
       SC.svgEl('rect', { width: w, height: w, fill: '#fff' }), SC.svgEl('path', { d: d.join(''), fill: '#000' }));
   };
+  // A small figure for a printed or shared sheet: the code and one line under it. It appears when the generator has loaded and stays hidden if it cannot.
+  SC.qrFigure = function (text, o) {
+    o = o || {};
+    SC.css('/site/qr.css');
+    const fig = SC.el('figure', { class: 'qr-fig', hidden: true });
+    SC.qrLoad().then(() => {
+      const svg = SC.qrSvg(text, { size: o.size || 96, label: o.label });
+      if (!svg) return;
+      fig.append(svg, SC.el('figcaption', null, o.caption || ''));
+      fig.hidden = false;
+    });
+    return fig;
+  };
 })();

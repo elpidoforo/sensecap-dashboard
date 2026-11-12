@@ -28,6 +28,7 @@ let measurementNames = { ...FALLBACK_NAMES };
 const { createCache } = require('./cache');
 const { createPrivacy, GPS_MIDS } = require('./privacy');
 const priv = createPrivacy();
+const { simplifyTrail, simplifyTrails, publicToleranceM, GAP_EXACT_MS, GAP_PUBLIC_MS } = require('./trailsimplify');   // fewer trail points, after privacy.js
 const { createFeeds, createArchive } = require('./feeds');
 const { createQcWatch } = require('./qcwatch');   // quality checks on the sensors' series: an extra `qc` field, never an alert
 
@@ -346,9 +347,10 @@ async function liveTrail(dev, hours, mid) {
   const lngs = await rawSeries(dev.eui, GPS_LNG, lngCh, hours);
   const wantValue = mid && mid !== GPS_LAT && mid !== GPS_LNG && dev.measurements.includes(String(mid));
   const vals = wantValue ? await rawSeries(dev.eui, String(mid), dev.channelOf[String(mid)] || 1, hours) : [];
-  const pts = pairTrack(lats, lngs, vals);
-  const step = Math.ceil(pts.length / 1500); // keep long windows small
-  return { points: step > 1 ? pts.filter((_, i) => i % step === 0 || i === pts.length - 1) : pts };
+  // No thinning here. This is the exact data layer: publicPositions, the cities overview and the assistant read it too, and a point
+  // dropped here could be the newest old-enough position. Trails are simplified where they LEAVE the server (trailsFor below), after
+  // the privacy rules. One series holds at most 1000 rows per slice and 7 slices, so a trail stays bounded without it.
+  return { points: pairTrack(lats, lngs, vals) };
 }
 
 async function liveTrails(hours, mid) {
@@ -683,20 +685,33 @@ function forecast() {
   });
 }
 
+const aqiLib = require('./aqi');   // our European Air Quality Index maths (aqi.js); here only to fill european_aqi in the test mode
 function air() {
   return viaFeed('openmeteo', cached, 'air', 1800000, async () => {
     const pts = weatherGridPoints();
     let points;
     if (MOCK) {
-      points = pts.map((p, i) => ({ ...p, pm25: 6 + (i % 9) * 2, pm10: 15 + (i % 7) * 4, dust: 10 + (i % 13) * 8, ozone: 70 }));
+      // european_aqi in the test mode is worked out by aqi.js from the fake values (Open-Meteo is not asked), so the page can show it
+      points = pts.map((p, i) => {
+        const q = { ...p, pm25: 6 + (i % 9) * 2, pm10: 15 + (i % 7) * 4, dust: 10 + (i % 13) * 8, ozone: 70 };
+        q.european_aqi = aqiLib.eaqi({ pm25: q.pm25, pm10: q.pm10, o3: q.ozone }).index;
+        return q;
+      });
     } else {
-      const j = await omJson(
-        OM_AIR_BASE + '/v1/air-quality?latitude=' + pts.map((p) => p.lat).join(',') +
-        '&longitude=' + pts.map((p) => p.lng).join(',') + '&current=pm2_5,pm10,dust,ozone&timezone=UTC',
-        pts.length
-      );
+      const airUrl = (vars) => OM_AIR_BASE + '/v1/air-quality?latitude=' + pts.map((p) => p.lat).join(',') +
+        '&longitude=' + pts.map((p) => p.lng).join(',') + '&current=' + vars + '&timezone=UTC';
+      let j;
+      try {
+        j = await omJson(airUrl('pm2_5,pm10,dust,ozone,european_aqi'), pts.length);
+      } catch (e) {
+        // an unknown variable is answered with HTTP 400: ask again without the European index, the PM values matter more
+        if (!e || e.status !== 400) throw e;
+        console.log('Open-Meteo air: european_aqi was refused (HTTP 400), asking again without it');
+        j = await omJson(airUrl('pm2_5,pm10,dust,ozone'), pts.length);
+      }
       points = asArray(j).map((o, i) => ({
         ...pts[i], pm25: o.current.pm2_5, pm10: o.current.pm10, dust: o.current.dust, ozone: o.current.ozone,
+        european_aqi: Number.isFinite(o.current.european_aqi) ? o.current.european_aqi : null,   // Open-Meteo's own 0-100+ number, all five pollutants (a model value)
       }));
     }
     return { ...WG, points, updated: new Date().toISOString(), mock: MOCK };
@@ -1055,6 +1070,8 @@ const { createNotifier } = require('./notify');
 const { createCouncil } = require('./council');
 const { createReports } = require('./reports');
 const { createLayers } = require('./layers');
+const { createGtfs } = require('./gtfs');
+const { createEea } = require('./eea');
 const citiesApi = require('./cities');
 const { createClassLogin } = require('./classlogin');
 const classLogin = createClassLogin();
@@ -1064,6 +1081,8 @@ let studio = null;
 let council = null;
 let reports = null;
 let layers = null;
+let gtfs = null;        // the official bus timetables (gtfs.js), static GTFS only
+let eea = null;         // the official air-quality stations (eea.js): EEA hourly PM2.5 and PM10 for Cyprus, read only
 let assistant = null;   // the Ask assistant (bot.js), for the helper list
 
 /* ---------- who sees what (vehicle positions) ----------
@@ -1136,9 +1155,23 @@ async function latestFor(level) {
 // or hides a reading and never sends an alert. QC=0 switches it off.
 const qcWatch = createQcWatch({ root: __dirname, names: () => measurementNames, devices: () => rawDevices(), log: (m) => console.log(m), pauseMs: DEMO ? 0 : undefined,
   series: async (eui, mid, ch) => (DEMO ? (demoGuard(), demoSeries(eui, mid, 1)) : liveSeries(eui, mid, ch, 1)) });
+// Trails are simplified (trailsimplify.js) only on their way out and only AFTER privacy.js has delayed, rounded and de-duplicated them:
+// simplification just drops rows, it never moves or adds one, so it cannot weaken a privacy rule. Public: tolerance of one grid cell
+// (about 1.1 km) and the 45 min silence the map draws dashed. Exact (teachers): a trail up to the old ceiling of 1500 rows is sent as it is,
+// a longer one is simplified at 5 m (GPS noise), with a larger tolerance if it is still above 1500 rows.
+const EXACT_TRAIL_MAX = 1500;
 function trailsFor(level, hours, mid) {
-  if (level === 'exact') return rawTrails(hours, mid);
-  return publicView(level, `trails|${hours}|${mid}`, async () => priv.publicTrails(await rawTrails(hours, mid)));
+  if (level === 'exact') {
+    return rawTrails(hours, mid).then((raw) => {
+      const trails = {};
+      for (const [eui, pts] of Object.entries(raw.trails || {})) trails[eui] = pts.length > EXACT_TRAIL_MAX ? simplifyTrail(pts, { tolM: 5, gapMs: GAP_EXACT_MS, maxPoints: EXACT_TRAIL_MAX }) : pts;
+      return { ...raw, trails };
+    });
+  }
+  return publicView(level, `trails|${hours}|${mid}`, async () => {
+    const answer = priv.publicTrails(await rawTrails(hours, mid));
+    return { ...answer, trails: simplifyTrails(answer.trails, { tolM: publicToleranceM(priv.grid), gapMs: GAP_PUBLIC_MS }) };
+  });
 }
 
 // What the assistant and the Build studio may read. Everything is read-only and ALWAYS the public view, even when a teacher
@@ -1170,6 +1203,7 @@ const botData = {
     return priv.publicTrail((t.trails && t.trails[eui]) || [], Date.now());
   },
   weather, air, sea, cydom, metar,
+  eea: () => (eea ? eea.snapshot() : null),   // official air-quality stations (eea.js), for the Layers page; null when it did not start
   history: () => history,
   domPage, domNet,
 };
@@ -1182,7 +1216,14 @@ function startApp() {
   assistant = bot;
   notifier = createNotifier({ log: (m) => console.log(m) });   // an email to the admin when something waits for approval (off until RESEND_API_KEY and NOTIFY_EMAIL are set)
   appCore = createApp({ dataDir: DATA_DIR, bot, notify: notifier, log: (m) => console.log(m) });
-  layers = createLayers({ root: __dirname, dataDir: DATA_DIR, appCore, data: botData, feeds, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });   // works without the student app too (only editing the mission needs a teacher sign-in)
+  try { gtfs = createGtfs({ dataDir: DATA_DIR, simulated: MOCK, log: (m) => console.error(m) }); gtfs.start(); }   // official bus timetables: the first download runs in the background and can never stop the server from starting
+  catch (e) { console.error('GTFS: not started (' + e.message + ')'); gtfs = null; }
+  try {   // official air-quality stations (EEA): an hourly download in the background; a failure is one log line and the Layers page says "not available right now"
+    const eb = process.env.EEA_API_BASE, off = process.env.EEA === '0' || (MOCK && !eb);
+    eea = createEea({ root: __dirname, dataDir: DATA_DIR, log: (m) => console.error(m), getData: () => botData, off, offReason: process.env.EEA === '0' ? 'switched off with EEA=0' : 'test mode', apiBase: eb, metaUrl: process.env.EEA_META_URL, stationsUrl: process.env.EEA_STATIONS_URL, days: process.env.EEA_DAYS, everyMin: process.env.EEA_EVERY_MIN, extraHosts: [eb, process.env.EEA_META_URL, process.env.EEA_STATIONS_URL].filter(Boolean).map((u) => new URL(u).host) });
+    eea.start();
+  } catch (e) { console.error('EEA air quality: not started (' + e.message + ')'); eea = null; }
+  layers = createLayers({ root: __dirname, dataDir: DATA_DIR, appCore, data: botData, feeds, gtfs, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });   // works without the student app too (only editing the mission needs a teacher sign-in)
   if (!appCore.enabled) return console.error('Student app is off: ' + appCore.reason);
   feeds.attach(appCore);   // from now on the on/off switches of the feeds are kept in the student database
   studio = createStudio({ appCore, notify: notifier, layers, classValid: (req) => classLogin.enabled && classLogin.valid(req), bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });
@@ -1550,6 +1591,8 @@ const server = http.createServer(async (req, res) => {
     const to = redirectFor(url);
     if (to) { res.writeHead(302, { Location: to, 'Cache-Control': 'no-store' }); return res.end(); }
     if (await sourceRoutes(req, res, url)) return;   // /api/feeds, helpers, archive, ops, search, dom/watch
+    if (gtfs && (await gtfs.handle(req, res, url))) return;   // /api/transit/*: official bus timetables, read only, rate limited
+    if (eea && (await eea.handle(req, res, url))) return;     // /api/eea/*: official air-quality stations and the school-sensor comparison, read only
     if (url.pathname === '/cities/api/overview') {
       return sendJson(res, 200, await citiesApi.overview({
         devices: rawDevices,

@@ -183,6 +183,10 @@
     en: 'Indicative: the bands are for hourly values, and single readings from low-cost sensors or models can be off.',
     el: 'Ενδεικτικό: οι ζώνες ισχύουν για ωριαίες τιμές και μεμονωμένες μετρήσεις από αισθητήρες χαμηλού κόστους ή μοντέλα μπορεί να αποκλίνουν.',
   };
+  const CAVEAT_US = {
+    en: 'Indicative: the US index uses a 24-hour mean, so one reading from a sensor or a model is only a guide.',
+    el: 'Ενδεικτικό: ο αμερικανικός δείκτης χρησιμοποιεί μέσο όρο 24 ωρών, οπότε μία μέτρηση από αισθητήρα ή μοντέλο είναι μόνο ένδειξη.',
+  };
   function unitOf(scale, pollutant) { return scale === 'us' && US[pollutant] ? US[pollutant].unit : 'µg/m³'; }
   const BAND_CACHE = {};
   function bands(scale, pollutant) {
@@ -204,7 +208,7 @@
   }
   function build(scale, pollutant, value, level, index, indexKind, source) {
     const b = NAMES[scale][level - 1], color = colorOfNode(level - 1), indicative = source !== 'station';
-    return { scale, pollutant, value, unit: unitOf(scale, pollutant), level, id: b.id, name: { en: b.en, el: b.el }, index, indexKind, color, ink: inkFor(color), source, indicative, caveat: indicative ? CAVEAT : null };
+    return { scale, pollutant, value, unit: unitOf(scale, pollutant), level, id: b.id, name: { en: b.en, el: b.el }, index, indexKind, color, ink: inkFor(color), source, indicative, caveat: indicative ? (scale === 'us' ? CAVEAT_US : CAVEAT) : null };
   }
   // value -> { index, level, id, name: {en, el}, color, ink, indicative ... }, or null when there is no usable number
   function classify(value, o) {
@@ -251,11 +255,11 @@
   const rangeOf = (b) => (b.hi === Infinity ? '>' + b.lo : '≤' + b.hi);
 
   /* ---------- browser helpers (the same markup on every page) ---------- */
-  // <ul class="aqi-legend"> with the six bands, then the caveat. opts: { scale, pollutant, level (highlight), note (default true) }
+  // <ul class="aqi-legend"> with the six bands, then the caveat. opts: { scale, pollutant, level (highlight), note (default true), fold (put it in a closed <details>) }
   function legend(opts) {
     if (typeof document === 'undefined') return null;
     opts = opts || {};
-    const SC = pageSC(); if (SC && SC.css) SC.css('/site/aqi.css');
+    loadCss();
     const l = lang(), box = document.createElement('div'), ul = document.createElement('ul');
     box.className = 'aqi-legend-box'; ul.className = 'aqi-legend';
     ul.setAttribute('aria-label', l === 'el' ? 'Ζώνες δείκτη ποιότητας αέρα' : 'Air quality bands');
@@ -274,11 +278,18 @@
         : 'Bands of the European Air Quality Index for PM2.5 (hourly values), in our own colours. Values from sensors and models are indicative.';
       box.append(p);
     }
-    return box;
+    if (!opts.fold) return box;
+    // for a narrow place: the same legend behind a native <details> (closed at first, works from the keyboard)
+    const d = document.createElement('details'), sm = document.createElement('summary');
+    d.className = 'aqi-fold'; sm.textContent = l === 'el' ? 'Ζώνες και χρώματα' : 'Bands and colours';
+    d.append(sm, box);
+    return d;
   }
+  function loadCss() { const SC = pageSC(); if (SC && SC.css) SC.css('/site/aqi.css'); }
   // a small filled label with the band name: <span class="nm-badge aqi-chip">Fair</span>; extra (optional) text such as a number is appended
   function chip(result, extra) {
     if (typeof document === 'undefined' || !result) return null;
+    loadCss();
     const s = document.createElement('span');
     s.className = 'nm-badge aqi-chip'; s.style.background = result.color; s.style.color = result.ink;
     s.textContent = nameOf(result) + (extra ? ' ' + extra : '');
@@ -301,7 +312,7 @@
   };
 
   return {
-    VERSION: 1, T0, SOURCES, EAQI_BP, US_TABLES: US, PPB_TO_UGM3, US_COLOR_NAMES, CAVEAT,
+    VERSION: 1, T0, SOURCES, EAQI_BP, US_TABLES: US, PPB_TO_UGM3, US_COLOR_NAMES, CAVEAT, CAVEAT_US,
     usIndex, usLevel, eaqiLevel, eaqiPosition, eaqiIndex, eaqi, fromOpenMeteoIndex,
     bands, classify, colorAt, rgbAt, gradient, viridis, viridisRgb, colorOfNode, nameOf, rangeOf,
     luminance, contrast, inkFor, legend, chip, NAVY, WHITE,

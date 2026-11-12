@@ -146,6 +146,108 @@
   }
   const niceStep = (raw) => { const p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; };
 
+  /* ---------- bus lines near a school ----------
+     Planned timetables only, from /api/transit/school (the national transport portal, CC BY 4.0). No vehicle of ours and no live bus is
+     involved, and no coordinate is printed: a stop is given as a name, a distance and a direction in words. Everything from the server
+     goes in as text nodes. To take this block off the page, remove the "busBlock()" line in render() and the "bus.near" line in openTrip(). */
+  const BUS_DAYS = [['weekday', 'Mon–Fri', 'Δευ–Παρ'], ['saturday', 'Sat', 'Σάβ'], ['sunday', 'Sun', 'Κυρ']];
+  function busDist(d) {
+    if (!fin(d)) return '';
+    if (d < 1000) return Math.round(d) + T(' m', ' μ.');
+    const k = (d / 1000).toFixed(1).replace(/\.0$/, '');
+    return (SC.lang === 'el' ? k.replace('.', ',') : k) + T(' km', ' χλμ.');
+  }
+  const busWay = (b) => (fin(b) ? T(DIR_EN, DIR_EL)[Math.round(b / 45) % 8] : '');
+  function busNearest(lat, lng) {   // the school closest to a point, if one is within 30 km
+    let bs = null;
+    ((window.ISLAND && ISLAND.schools) || []).forEach((s) => { const k = km(lat, lng, s.lat, s.lng); if (!bs || k < bs.k) bs = { k, id: s.id }; });
+    return bs && bs.k <= 30 && SCH.some((s) => s.id === bs.id) ? bs.id : null;
+  }
+  function busChips(list) {
+    const names = (Array.isArray(list) ? list : []).map(String).filter(Boolean);
+    return names.slice(0, 5).map((x) => el('span', { class: 'tr-chip' }, x)).concat(names.length > 5 ? [el('span', { class: 'tr-chip tr-chip--more' }, '+' + (names.length - 5))] : []);
+  }
+  function busBlock() {
+    let tok = 0, cur = null, picked = false;
+    const body = el('div', { class: 'tr-bus-body', 'aria-live': 'polite' }, el('div', { class: 'loading' }, T('Loading', 'Φόρτωση')));
+    const pills = el('div', { class: 'tr-kinds tr-bus-pick', role: 'group', 'aria-label': T('Choose a school', 'Διάλεξε σχολείο') },
+      SCH.map((s) => el('button', { type: 'button', class: 'tr-kind', 'data-school': s.id, 'aria-pressed': 'false', onclick: () => pick(s.id, true, false) }, T(s.en, s.el))));
+    const node = el('section', { class: 'nm-card tr-bus', 'aria-label': T('Bus lines near this school', 'Γραμμές λεωφορείων κοντά σε αυτό το σχολείο') },
+      el('div', { class: 'tr-card-h' }, el('div', null, el('h2', null, T('Bus lines near this school', 'Γραμμές λεωφορείων κοντά σε αυτό το σχολείο')),
+        el('p', { class: 'sub' }, T('Planned times from the national transport portal. These are not live buses.', 'Προγραμματισμένες ώρες από την εθνική πύλη μεταφορών. Δεν είναι ζωντανά λεωφορεία.')))),
+      pills, body);
+    const mark = () => pills.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b.getAttribute('data-school') === cur ? 'true' : 'false'));
+
+    function stopLi(s) {
+      return el('li', { class: 'tr-bus-stop' }, el('b', null, s.name || T('Bus stop', 'Στάση')),
+        el('span', { class: 'tr-bus-d' }, [busDist(s.distance), busWay(s.bearing)].filter(Boolean).join(' ')),
+        el('span', { class: 'tr-bus-chips' }, busChips(s.lines)));
+    }
+    function lineLi(l) {
+      const times = BUS_DAYS.map(([k, en, gr]) => {
+        const d = l[k];
+        if (!d || !d.trips) return null;
+        return el('span', { class: 'tr-bus-t' }, T(en, gr) + ' ' + (d.first === d.last ? d.first : d.first + '–' + d.last) + ' · ' + T(d.trips + (d.trips === 1 ? ' trip' : ' trips'), d.trips + (d.trips === 1 ? ' δρομολόγιο' : ' δρομολόγια')));
+      }).filter(Boolean);
+      const ns = l.nearestStop;
+      return el('li', { class: 'tr-bus-line' },
+        el('div', { class: 'tr-bus-l1' }, l.short ? el('span', { class: 'tr-chip' }, String(l.short)) : null, el('b', null, l.long && l.long !== l.short ? l.long : (l.short ? '' : String(l.id || '')))),
+        ns ? el('div', { class: 'tr-bus-l2' }, (l.operator ? l.operator + ' · ' : '') + T('Nearest stop: ', 'Πλησιέστερη στάση: ') + (ns.name || '') + ', ' + [busDist(ns.distance), busWay(ns.bearing)].filter(Boolean).join(' ')) : null,
+        el('div', { class: 'tr-bus-l3' }, times.length ? times : el('span', { class: 'tr-bus-t' }, T('No planned times in the file for this line.', 'Δεν υπάρχουν προγραμματισμένες ώρες στο αρχείο για αυτή τη γραμμή.'))));
+    }
+    function fine(J) {
+      const safe = (u) => (typeof u === 'string' && /^https:\/\//.test(u) ? u : null);
+      const lic = J.licence || {}, src = J.source || {};
+      return el('div', { class: 'tr-fine tr-bus-fine' },
+        el('p', null, SC.lang === 'el' ? J.attributionEl : J.attribution),
+        el('p', null, T('Planned times, not live buses: a bus can be late or not come at all, and holidays are not applied. Distances are a straight line from the school, not the walking route. This block does not use any of our own vehicles.',
+          'Προγραμματισμένες ώρες, όχι ζωντανά λεωφορεία: ένα λεωφορείο μπορεί να αργήσει ή να μην έρθει και οι αργίες δεν λαμβάνονται υπόψη. Οι αποστάσεις είναι σε ευθεία γραμμή από το σχολείο, όχι η διαδρομή με τα πόδια. Αυτό το πλαίσιο δεν χρησιμοποιεί κανένα από τα δικά μας οχήματα.')),
+        el('p', null, safe(lic.url) ? el('a', { href: lic.url, target: '_blank', rel: 'noopener noreferrer' }, T('Licence: ', 'Άδεια: ') + (lic.id === 'CC-BY-4.0' ? 'CC BY 4.0' : String(lic.id || ''))) : null,
+          safe(lic.url) && safe(src.url) ? ' · ' : null,
+          safe(src.url) ? el('a', { href: src.url, target: '_blank', rel: 'noopener noreferrer' }, T('Data source', 'Πηγή δεδομένων')) : null));
+    }
+    function show(J) {
+      const stops = J.stops, lines = Array.isArray(J.lines) ? J.lines : [];
+      const kids = [];
+      if ((J.feeds || []).some((f) => f && f.expired)) kids.push(el('p', { class: 'tr-bus-warn', role: 'note' }, T('Some of these timetable files have ended, so the times may be out of date.', 'Μερικά από αυτά τα αρχεία δρομολογίων έχουν λήξει, άρα οι ώρες μπορεί να είναι παλιές.')));
+      if (!stops.length) kids.push(el('div', { class: 'tr-empty' }, T('No bus stop within ' + busDist(J.radius) + ' of this school in the timetable files we have.', 'Δεν υπάρχει στάση λεωφορείου σε απόσταση ' + busDist(J.radius) + ' από αυτό το σχολείο στα αρχεία δρομολογίων που έχουμε.')));
+      else {
+        kids.push(el('div', { class: 'tr-bus-cols' },
+          el('div', null, el('h3', null, T('Nearest stops', 'Πλησιέστερες στάσεις')), el('ul', { class: 'tr-bus-list' }, stops.map(stopLi))),
+          el('div', null, el('h3', null, T('Lines', 'Γραμμές')), lines.length ? el('ul', { class: 'tr-bus-list' }, lines.map(lineLi)) : el('p', { class: 'tr-bus-none' }, T('No line is listed for these stops.', 'Δεν αναφέρεται καμία γραμμή για αυτές τις στάσεις.')),
+            fin(J.linesTotal) && J.linesTotal > lines.length ? el('p', { class: 'tr-bus-none' }, T('Showing ' + lines.length + ' of ' + J.linesTotal + ' lines.', 'Εμφανίζονται ' + lines.length + ' από ' + J.linesTotal + ' γραμμές.')) : null)));
+      }
+      kids.push(fine(J));
+      return kids;
+    }
+    function pick(id, byUser, fresh) {
+      if (byUser) picked = true;
+      cur = id; mark();
+      const my = ++tok;
+      fill(body, el('div', { class: 'loading' }, T('Loading', 'Φόρτωση')));
+      const url = '/api/transit/school?school=' + enc(id) + '&radius=1000';
+      settle(fresh ? SC.api(url) : SC.cached(url, 600000)).then((r) => {
+        if (my !== tok || !node.isConnected) return;
+        if (!r.ok || !r.v || !Array.isArray(r.v.stops)) {
+          fill(body, el('div', { class: 'err', role: 'alert' }, T('Bus timetables are not available right now. Try again in a little while.', 'Τα δρομολόγια λεωφορείων δεν είναι διαθέσιμα αυτή τη στιγμή. Δοκίμασε ξανά σε λίγο.'), ' ',
+            el('button', { class: 'nm-btn', type: 'button', onclick: () => pick(id, picked, true) }, T('Try again', 'Δοκίμασε ξανά'))));
+          return;
+        }
+        fill(body, show(r.v));
+      });
+    }
+    // The page picks the school nearest to the trip once it knows where the trip starts. If that never comes, Larnaka.
+    setTimeout(() => { if (cur == null && node.isConnected) pick('larnaka', false, false); }, 1500);
+    return {
+      node,
+      near(p) {
+        if (picked || !p || !fin(p.lat) || !fin(p.lng)) return;
+        const id = busNearest(p.lat, p.lng) || 'larnaka';
+        if (id !== cur) pick(id, false, false);
+      },
+    };
+  }
+
   SC.register('trip', {
     title: ['Follow one trip', 'Ακολουθήστε μία διαδρομή'],
     async render(root, ctx) {
@@ -169,6 +271,8 @@
       const mapCard = el('section', { class: 'nm-card tr-mapcard', 'aria-label': T('The route', 'Η διαδρομή') });
       const readCard = el('section', { class: 'nm-card tr-readcard', 'aria-label': T('Readings along the way', 'Μετρήσεις κατά μήκος της διαδρομής') });
       root.append(noteBox, pickBox, el('div', { class: 'tr-grid' }, mapCard, readCard));
+      const bus = busBlock();   // bus lines near a school: planned timetables, nothing to do with our vehicles
+      root.append(bus.node);
 
       const S = { cfg: { names: {} }, devices: [], vehicles: [], eui: null, day: null, kind: 'temp', exact: false, delayMs: 120 * MIN, grid: 0.01,
         pts: [], xy: [], times: [], n: 0, cum: [], p: 0, playing: false, speed: 1, series: {}, tok: 0, raf: 0, last: 0, stepAt: 0, bright: 0, seg: [], loadErr: null, loaded: false };
@@ -229,6 +333,7 @@
         if (!d) return;
         S.pts = d.pts; S.n = d.pts.length; S.times = d.pts.map((p) => p.t);
         S.xy = d.pts.map((p) => ISLAND.project(p.lng, p.lat));
+        bus.near(d.pts[0]);   // the bus block starts at the school nearest to where the trip starts (unless a school was picked there)
         S.p = 0; S.bright = 0; S.series = {};
         drawMap();
         drawControls();

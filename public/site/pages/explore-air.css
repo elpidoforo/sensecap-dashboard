@@ -1,0 +1,88 @@
+/* Explore data: the card "My school sensor vs the nearest official station" (explore-air.js). Tokens come from site.css, shapes from explore.css. */
+
+.ea-card { padding: 20px 22px; min-width: 0; }
+.ea-card h3 { margin: 18px 0 6px; font: 700 15px/1.3 var(--nm-font); color: var(--nm-ink); }
+.ea-intro { margin: 2px 0 14px; max-width: 70ch; font-size: 14px; line-height: 1.55; color: var(--nm-muted); }
+.ea-pick { max-width: 520px; margin: 0 0 14px; }
+.ea-out { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+/* where the station is */
+.ea-station { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ea-station > div { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-radius: 14px; background: var(--nm-well); border: 1px solid var(--nm-edge); min-width: 0; }
+.ea-station small, .ea-stats dt, .ea-tgt small { font: 700 10.5px/1.3 var(--nm-font); letter-spacing: .1em; text-transform: uppercase; color: var(--nm-muted); }
+.ea-station b { font: 650 16px/1.3 var(--nm-font); color: var(--nm-ink); overflow-wrap: anywhere; }
+.ea-station .ea-km { font-size: 22px; font-variant-numeric: tabular-nums; }
+.ea-station span { font-size: 13px; line-height: 1.45; color: var(--nm-text); }
+
+.ea-verdict { line-height: 1.55; }
+.ea-verdict b { color: var(--nm-ink); }
+
+/* the chart */
+.ea-fig { margin: 0; padding: 12px 12px 6px; border-radius: 14px; background: var(--nm-well); border: 1px solid var(--nm-edge); min-width: 0; }
+.ea-legend { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 0 0 4px 6px; font-size: 13px; color: var(--nm-text); }
+.ea-legend span { display: inline-flex; align-items: center; gap: 8px; }
+.ea-chart { display: block; width: 100%; height: auto; overflow: visible; }
+.ea-sw { flex: none; }
+.ea-grid { stroke: rgba(255, 255, 255, .12); stroke-width: 1; }
+.ea-ax { fill: var(--nm-mute); font: 500 11.5px var(--nm-font); }
+.ea-line { fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.ea-line-se { stroke: var(--nm-copper-2); }
+.ea-line-st { stroke: var(--nm-info); stroke-dasharray: 6 4; }
+
+/* the numbers */
+.ea-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.ea-stats > div { padding: 10px 12px; border-radius: 12px; background: var(--nm-well); min-width: 0; }
+.ea-stats dd { margin: 3px 0 0; font: 650 18px/1.25 var(--nm-font); color: var(--nm-ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ea-bias { margin: -4px 0 0; font-size: 14px; color: var(--nm-text); }
+
+/* the scorecard: a word and a sign, never colour alone */
+.ea-scoresub { margin: 0 0 8px; font-size: 13px; color: var(--nm-muted); }
+.ea-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ea-row { display: grid; grid-template-columns: minmax(150px, 190px) minmax(0, 1.5fr) minmax(0, 1.1fr) minmax(0, 1.3fr); gap: 6px 14px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--nm-well); border-left: 3px solid var(--nm-edge-2); }
+.ea-row.ea-pass { border-left-color: #86C27A; }
+.ea-row.ea-fail { border-left-color: #F0B94A; }
+.ea-state { display: inline-flex; align-items: center; gap: 8px; font: 650 13px/1.3 var(--nm-font); color: var(--nm-ink); }
+.ea-state i { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; font: 700 12px/1 var(--nm-font); font-style: normal; background: rgba(255, 255, 255, .1); }
+.ea-pass .ea-state i { background: var(--nm-ok-bg); color: var(--nm-ok); }
+.ea-fail .ea-state i { background: var(--nm-warn-bg); color: var(--nm-warn); }
+.ea-what b { display: block; font: 600 14px/1.35 var(--nm-font); color: var(--nm-ink); }
+.ea-what small { display: block; font-size: 12px; line-height: 1.4; color: var(--nm-muted); }
+.ea-val { font: 650 14px/1.35 var(--nm-font); color: var(--nm-ink); font-variant-numeric: tabular-nums; }
+.ea-tgt { font-size: 13px; line-height: 1.4; color: var(--nm-text); }
+.ea-tgt small { display: block; margin-bottom: 1px; }
+
+/* the hourly numbers */
+.ea-details { border-radius: 12px; background: var(--nm-well); }
+.ea-details summary { cursor: pointer; padding: 11px 14px; font: 600 14px/1.3 var(--nm-font); color: var(--nm-copper-2); border-radius: 12px; }
+.ea-details summary:focus-visible { outline: 3px solid var(--nm-copper-2); outline-offset: 1px; }
+.ea-tablewrap { overflow-x: auto; padding: 0 14px 12px; }
+.ea-table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.ea-table th, .ea-table td { padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--nm-edge); white-space: nowrap; }
+.ea-table thead th { font: 700 11px/1.3 var(--nm-font); letter-spacing: .06em; text-transform: uppercase; color: var(--nm-muted); }
+.ea-table th:first-child, .ea-table td:first-child { text-align: left; }
+.ea-table tbody th { font-weight: 500; color: var(--nm-text); }
+
+/* caveats and credits */
+.ea-caveats { padding: 4px 16px 12px; border-radius: 14px; border: 1px solid var(--nm-warn-line); background: var(--nm-warn-bg); }
+.ea-caveats h3 { margin-top: 12px; color: var(--nm-warn); }
+.ea-caveats ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.55; color: var(--nm-text); }
+.ea-caveats b { color: var(--nm-ink); }
+.ea-credit { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--nm-muted); }
+.ea-credit a { color: var(--nm-copper-2); }
+
+.ea-problem { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; padding: 14px 16px; border-radius: 14px; background: var(--nm-well); border-left: 3px solid var(--nm-cyan); }
+.ea-problem p { margin: 0; flex: 1 1 320px; font-size: 14.5px; line-height: 1.55; color: var(--nm-text); }
+.ea-problem .nm-btn { min-height: 38px; padding: 4px 16px; }
+
+@media (max-width: 860px) {
+  .ea-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ea-state { grid-column: 1 / -1; }
+  .ea-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .ea-card { padding: 16px 14px; }
+  .ea-station { grid-template-columns: minmax(0, 1fr); }
+  .ea-row { grid-template-columns: minmax(0, 1fr); }
+  .ea-pick { max-width: none; }
+}
+@media (prefers-reduced-motion: reduce) { .ea-card * { transition: none !important; animation: none !important; } }
