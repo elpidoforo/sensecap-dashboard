@@ -249,7 +249,7 @@ function guideByName(guides, name) {
 // A way to see what the question turned into (for tests and for maintainers).
 function explain(query, opts) {
   const { groups, words } = queryGroups(query, (opts && opts.concepts) || getConcepts());
-  return { words, groups: groups.map((g) => ({ text: g.text, w: g.w, concept: g.concept || null })) };
+  return { words, groups: groups.map((g) => ({ text: g.text, w: g.w, concept: g.concept || null, alts: g.alts.map((a) => a.k + ':' + (Array.isArray(a.key) ? a.key.join(' ') : a.key)) })) };
 }
 
 module.exports = { rank, handbook, passages, rankRows, layersFor, galleryFor, guideByName, explain, hasQuery, loadConcepts, parseConcepts, setConcepts, getConcepts, _t: { queryGroups, build, score } };

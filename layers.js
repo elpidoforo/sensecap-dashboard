@@ -296,7 +296,9 @@ function createLayers(opts) {
       for (const mid of Object.keys(l)) { const x = toMs(l[mid] && l[mid].t); if (x && x > t) t = x; }
       if (t && Date.now() - t <= FRESH_OWN) { fresh++; if (t > newest) newest = t; }
     }
-    return { ok: fresh > 0, n: mine.length, fresh, at: newest || null, note: mine.length ? `${fresh} of ${mine.length} sensors reported lately` : `no sensor is named like a ${kind} yet`, noteEl: mine.length ? `${fresh} από ${mine.length} αισθητήρες έστειλαν πρόσφατα` : 'κανένας αισθητήρας δεν έχει όνομα που να δείχνει ' + (kind === 'classroom' ? 'τάξη' : kind === 'bus' ? 'λεωφορείο' : 'αυτοκίνητο') };
+    let chk = 0;   // sensors whose readings look odd (qc.js); only a quiet word in the note, never changes ok/fresh
+    try { const q = data.qcStatus ? await data.qcStatus() : null; if (q) chk = mine.filter((d) => q[d.eui] === 'check').length; } catch { /* the quality notes are optional */ }
+    return { ok: fresh > 0, n: mine.length, fresh, at: newest || null, note: mine.length ? `${fresh} of ${mine.length} sensors reported lately${chk ? `, ${chk} to check` : ''}` : `no sensor is named like a ${kind} yet`, noteEl: mine.length ? `${fresh} από ${mine.length} αισθητήρες έστειλαν πρόσφατα${chk ? `, ${chk} για έλεγχο` : ''}` : 'κανένας αισθητήρας δεν έχει όνομα που να δείχνει ' + (kind === 'classroom' ? 'τάξη' : kind === 'bus' ? 'λεωφορείο' : 'αυτοκίνητο') };
   }
   const PROBES = {
     'sensecap-classrooms': () => ownProbe('classroom'),

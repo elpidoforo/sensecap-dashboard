@@ -79,6 +79,7 @@ class CsvError extends Error { constructor(m) { super(m); this.name = 'CsvError'
 class GtfsError extends Error { constructor(m) { super(m); this.name = 'GtfsError'; } }
 
 const mb = (n) => Math.round((n / MB) * 10) / 10;
+const size = (n) => (n < 100 * 1024 ? `${(n / 1024).toFixed(1)} KB` : `${mb(n)} MB`);   // for the log
 const tick = () => new Promise((r) => setImmediate(r));
 const envNum = (v, d, min, max) => { const n = Number(v); return Number.isFinite(n) && v !== '' && v != null ? Math.min(max, Math.max(min, n)) : d; };
 // Text that came from a file or a server: one line, no control characters, a sensible length.
@@ -405,11 +406,20 @@ async function buildFeed(zip, info, opts) {
   let ref = cyDate(now);
   if (from && ref < from) ref = from;
   if (to && ref > to) ref = to;
-  const flags = new Map();
-  const mark = (sid, fl) => flags.set(sid, (flags.get(sid) || 0) | fl);
-  for (const [sid, s, e, fl] of calRows) if (s <= ref && ref <= e) mark(sid, fl);
-  const lastDay = addDays(ref, 27);
-  for (const [sid, d] of addRows) if (d >= ref && d <= lastDay) mark(sid, typeOf(d));
+  // the services that run on a day, and in the 27 days after it (calendar_dates additions are single dates)
+  const activeAt = (d) => {
+    const m = new Map(), last = addDays(d, 27);
+    const mark = (sid, fl) => m.set(sid, (m.get(sid) || 0) | fl);
+    for (const [sid, s, e, fl] of calRows) if (s <= d && d <= e) mark(sid, fl);
+    for (const [sid, x] of addRows) if (x >= d && x <= last) mark(sid, typeOf(x));
+    return m;
+  };
+  let flags = activeAt(ref);
+  if (!flags.size && (calRows.length || addRows.length)) {   // nothing runs around that day (a gap between two timetables): the nearest day that has service
+    const later = [...calRows.map((r) => r[1]), ...addRows.map((r) => r[1])].filter((x) => x > ref).sort()[0];
+    const earlier = [...calRows.map((r) => r[2]), ...addRows.map((r) => r[1])].filter((x) => x < ref).sort().pop();
+    for (const d of [later, earlier]) { if (!d) continue; const m = activeAt(d); if (m.size) { ref = d; flags = m; break; } }
+  }
   const noCalendar = !calE && !cdE;
 
   // trips
@@ -703,7 +713,7 @@ function createGtfs(opts) {
       s.etag = r.etag || null; s.lastModified = r.lastModified || null;
       if (loaded.has(feed.id) && s.sha === sha) {
         s.okAt = now(); s.error = null;
-        log(`GTFS ${feed.id}: the same file again (${mb(r.buf.length)} MB, ${r.etag || r.lastModified ? 'headers offered' : 'no ETag or Last-Modified offered'}), the saved copy stays`);
+        log(`GTFS ${feed.id}: the same file again (${size(r.buf.length)}, ${r.etag || r.lastModified ? 'headers offered' : 'no ETag or Last-Modified offered'}), the saved copy stays`);
         await saveState();
         return true;
       }
@@ -715,12 +725,12 @@ function createGtfs(opts) {
       s.sha = sha; s.bytes = r.buf.length; s.okAt = now(); s.loadedAt = s.okAt; s.error = null;
       let saved = 'not saved (no data folder)';
       if (dir) {
-        try { await fsp.mkdir(dir, { recursive: true }); const text = JSON.stringify(compact); await writeAtomic(path.join(dir, feed.id + '.json'), text); saved = `saved ${mb(text.length)} MB`; }
+        try { await fsp.mkdir(dir, { recursive: true }); const text = JSON.stringify(compact); await writeAtomic(path.join(dir, feed.id + '.json'), text); saved = `saved ${size(text.length)}`; }
         catch (e) { saved = `NOT saved (${clean(e && e.message, 60)}), kept in memory only`; }
       }
       await saveState();
       const c = compact.counts;
-      log(`GTFS ${feed.id}: ${where(feed.url)} gave ${mb(r.buf.length)} MB in ${(r.ms / 1000).toFixed(1)} s (${r.etag ? 'ETag' : 'no ETag'}, ${r.lastModified ? 'Last-Modified' : 'no Last-Modified'}); ${c.stops} stops, ${c.routes} lines, ${c.trips} trips, ${c.stopTimes} stop times read in ${(compact.buildMs / 1000).toFixed(1)} s; timetable ${compact.validFrom || '?'} to ${compact.validTo || '?'}, reference day ${compact.ref}; shapes ${compact.hasShapes ? 'yes' : 'no'}; ${saved}`);
+      log(`GTFS ${feed.id}: ${where(feed.url)} gave ${size(r.buf.length)} in ${(r.ms / 1000).toFixed(1)} s (${r.etag ? 'ETag' : 'no ETag'}, ${r.lastModified ? 'Last-Modified' : 'no Last-Modified'}); ${c.stops} stops, ${c.routes} lines, ${c.trips} trips, ${c.stopTimes} stop times read in ${(compact.buildMs / 1000).toFixed(1)} s; timetable ${compact.validFrom || '?'} to ${compact.validTo || '?'}, reference day ${compact.ref}; shapes ${compact.hasShapes ? 'yes' : 'no'}; ${saved}`);
       return true;
     } catch (e) {
       s.error = clean(e && e.message, 160);

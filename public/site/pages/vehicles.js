@@ -16,6 +16,10 @@
   SC.css('/site/pages/vehicles.css');
   // replaceChildren that skips null and false (the native one would print them as text)
   const fill = (box, ...kids) => box.replaceChildren(...kids.flat(Infinity).filter((k) => k != null && k !== false));
+  // a quiet "Check this sensor" note from the qc field of /api/devices (data quality, never an alert); null when the sensor is fine
+  const qcNote = (d) => d && d.qc && d.qc.status === 'check' && d.qc.note
+    ? (SC.css('/site/qc-note.css'), el('p', { class: 'qc-note', role: 'note' }, el('b', null, T('Check this sensor', 'Έλεγξε αυτόν τον αισθητήρα')), ' ', T(d.qc.note.en, d.qc.note.el)))
+    : null;
 
   const HOUR = 3600000, DAY = 86400000, FRESH = 3 * HOUR;
   const fin = (v) => typeof v === 'number' && isFinite(v);
@@ -479,6 +483,7 @@
         el('div', { class: 'vh-loc' }, ico('pin'), el('div', null, el('b', null, w.main), el('small', null, w.sub))),
         show.length ? el('div', { class: 'vh-reads' + (show.length === 2 ? ' two' : show.length === 1 ? ' one' : ''), title: reads.length > 3 ? T('+ ' + (reads.length - 3) + ' more readings on the vehicle page', '+ ' + (reads.length - 3) + ' ακόμα μετρήσεις στη σελίδα του οχήματος') : null }, tiles.map((t) => t.node))
           : el('div', { class: 'empty' }, T('This sensor reports no readings yet.', 'Ο αισθητήρας δεν στέλνει ακόμα μετρήσεις.')),
+        qcNote(d),
         el('div', { class: 'vh-foot' },
           el('div', { class: 'vh-meta' },
             bat != null ? el('span', { title: T('Battery', 'Μπαταρία') }, el('i', { class: 'vh-bat', style: '--p:' + bat + '%;--c:' + (bat < 20 ? '#FF7A6A' : bat < 50 ? '#F0B94A' : '#59d98e') }, el('i')), bat + ' %') : null,
@@ -654,7 +659,8 @@
         el('div', { class: 'vh-loc' }, ico('pin'), el('div', null, el('b', null, w.main), el('small', null, w.sub))),
         el('div', { class: 'vh-meta' },
           bat != null ? el('span', { title: T('Battery', 'Μπαταρία') }, el('i', { class: 'vh-bat', style: '--p:' + bat + '%;--c:' + (bat < 20 ? '#FF7A6A' : bat < 50 ? '#F0B94A' : '#59d98e') }, el('i')), bat + ' %') : null,
-          el('span', null, me.seen ? T('Last reading ' + SC.ago(me.seen) + ' (' + when(me.seen) + ')', 'Τελευταία μέτρηση ' + SC.ago(me.seen) + ' (' + when(me.seen) + ')') : T('No reading yet', 'Καμία μέτρηση ακόμα')))));
+          el('span', null, me.seen ? T('Last reading ' + SC.ago(me.seen) + ' (' + when(me.seen) + ')', 'Τελευταία μέτρηση ' + SC.ago(me.seen) + ' (' + when(me.seen) + ')') : T('No reading yet', 'Καμία μέτρηση ακόμα'))),
+        qcNote(d)));
     }
 
     function paintReads() {

@@ -98,6 +98,8 @@ function pollutantOfSpo(spo) {
 /* Station metadata CSV (the "DataExtract.csv" of the EEA metadata download). Streaming: feed lines in, read the result out. */
 function metaCollector(country = 'CY', countryName = 'Cyprus') {
   let head = null, pending = '';
+  const esc = (x) => String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const cheap = new RegExp(`SPO-${esc(country)}|"${esc(countryName)}"|^${esc(countryName)},`, 'i');
   const stations = new Map();
   let rows = 0, kept = 0;
   const col = (name) => (head ? head.get(name) : undefined);
@@ -130,7 +132,7 @@ function metaCollector(country = 'CY', countryName = 'Cyprus') {
       head = new Map(f.map((n, i) => [n.trim().toLowerCase(), i]));
       return;
     }
-    if (!/SPO-CY|"Cyprus"|^Cyprus,/i.test(l)) { rows++; return; }   // cheap filter before parsing: the file holds all of Europe
+    if (!cheap.test(l)) { rows++; return; }   // cheap filter before parsing: the file holds all of Europe
     rows++;
     row(parseCsvRow(l));
   }
@@ -378,7 +380,10 @@ function createEea(opts = {}) {
       if (mode === 'stored') { const part = b.subarray(0, stored); stored -= part.length; onText(part); if (!stored) { endedFlag = true; call._done(); return false; } return true; }
       if (mode === 'zip') {
         if (endedFlag || call._err) return false;
-        if (!inflater.write(b)) await new Promise((r) => { inflater.once('drain', r); inflater.once('end', r); inflater.once('error', r); });
+        if (!inflater.write(b)) await new Promise((r) => {
+          const done = () => { inflater.off('drain', done); inflater.off('end', done); inflater.off('error', done); r(); };
+          inflater.once('drain', done); inflater.once('end', done); inflater.once('error', done);
+        });
         return !(endedFlag || call._err);
       }
       return true;
@@ -444,7 +449,8 @@ function createEea(opts = {}) {
   async function readParquet(buf) {
     const lib = await hyparquet();
     const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-    const meta = lib.parquetMetadata(ab);
+    let meta;
+    try { meta = lib.parquetMetadata(ab); } catch (e) { throw Object.assign(new Error(`not a readable Parquet file: ${e.message}`), { code: 'format' }); }
     if (Number(meta.num_rows) > maxRowsPerFile) throw Object.assign(new Error(`file has ${meta.num_rows} rows, more than the limit ${maxRowsPerFile}`), { code: 'size' });
     const names = (meta.schema || []).map((s) => s.name);
     const want = ['samplingpoint', 'pollutant', 'start', 'end', 'value', 'unit', 'aggtype', 'validity', 'verification', 'resulttime'];
@@ -670,7 +676,7 @@ function createEea(opts = {}) {
       off, reason: off ? offReason : null, lastRun: st.lastRun, lastOk: st.lastOk, nextRun: st.nextRun, running: st.running,
       lastError: st.lastError, fails: st.fails, stations: list.length, newestHour: newest || null, ageMin: newest ? Math.max(0, Math.round((nowMs - (newest + HOUR)) / 60000)) : null,
       savedAt: S.savedAt, metaFrom: S.meta ? S.meta.src : null, metaAt: S.meta ? S.meta.at : null, days,
-      lastInfo: st.lastInfo && { files: st.lastInfo.files, ok: st.lastInfo.ok, notModified: st.lastInfo.notModified, failed: st.lastInfo.failed, kept: st.lastInfo.kept, codecs: st.lastInfo.codecs },
+      lastInfo: st.lastInfo && { files: st.lastInfo.files, ok: st.lastInfo.ok, notModified: st.lastInfo.notModified, failed: st.lastInfo.failed, kept: st.lastInfo.kept, codecs: st.lastInfo.codecs, skipped: st.lastInfo.skipped },
     };
   }
 
