@@ -195,11 +195,11 @@ const cityOfDevice = (places, d) => {
   return Object.keys(places).find((id) => id[0] !== '_' && (places[id].words || []).some((w) => t.includes(w))) || null;
 };
 
-const UNIT_TEXT = { Cel: '°C', 'ug/m3': 'µg/m³', '[ppm]': 'ppm', 'm/s': 'm/s' };
+const UNIT_TEXT = { Cel: '°C', 'ug/m3': 'µg/m³', '[ppm]': 'ppm', 'm/s': 'm/s', '{AOD}': 'AOD', '{UVI}': 'UVI', '{index}': 'index', 'umol/m2': 'µmol/m²', 'mmol/m2': 'mmol/m²' };
 const unitText = (u) => UNIT_TEXT[u] || u;
 
 // Rounded the same way in the evidence, in the templates and in the check of the assistant's numbers.
-const fmt = (v) => (v == null || !isFinite(v) ? '–' : Math.abs(v) >= 100 ? String(Math.round(v)) : String(Math.round(v * 10) / 10));
+const fmt = (v) => (v == null || !isFinite(v) ? '–' : Math.abs(v) >= 100 ? String(Math.round(v)) : Math.abs(v) < 1 ? String(Math.round(v * 100) / 100) : String(Math.round(v * 10) / 10));   // two decimals below 1 (haze, AOD 0.17 must not show as 0.2)
 
 /* ---------- the master brain ---------- */
 
@@ -249,12 +249,27 @@ const ANSWER_TOOL = {
   input_schema: { type: 'object', properties: { en: { type: 'string' }, el: { type: 'string' }, cites: { type: 'array', items: { type: 'string' } } }, required: ['en', 'el'] },
 };
 
+// Satellite feeds (satellite/index.js). A demo feed brings its own source description (it has no file in sources/). A source that is a
+// candidate and needs a free key counts as active while that key is set on the server (the key itself is never read here).
+function withSatellite(reg, satellite, log) {
+  if (!satellite) return reg;
+  for (const v of satellite.virtualSources()) {
+    if (reg.layers.some((l) => l.src.id === v.id)) continue;
+    const r = checkSource(v.src, null, reg);
+    if (r.errors.length) { log(`Layers: the satellite demo source is not valid: ${r.errors[0]}`); continue; }
+    reg.layers.push({ src: v.src, warnings: r.warnings });
+  }
+  reg.layers = reg.layers.map((l) => (l.src.status === 'candidate' && satellite.has(l.src.id) && satellite.keyState(l.src.id) === 'present' ? { ...l, src: { ...l.src, status: 'active' } } : l));
+  return reg;
+}
+
 function createLayers(opts) {
   const root = opts.root || __dirname;
   const data = opts.data;
   const feeds = opts.feeds || null;
   const appCore = opts.appCore || null;
   const gtfs = opts.gtfs || null;   // the bus timetable reader (gtfs.js): its layer is shown, the brain does not read it
+  const satellite = opts.satellite || null;   // the satellite feeds (satellite/index.js): probes and readings for every source that has a feed there
   const log = opts.log || ((m) => console.log(m));
   const apiKey = opts.apiKey || '';
   const model = opts.model || 'claude-sonnet-5-5';
@@ -262,8 +277,8 @@ function createLayers(opts) {
   const dataDir = opts.dataDir || null;
   const missionFile = dataDir ? path.join(dataDir, 'layers-mission.json') : null;
 
-  let reg = loadRegister(root, log);
-  const reload = () => { reg = loadRegister(root, log); return reg; };
+  let reg = withSatellite(loadRegister(root, log), satellite, log);
+  const reload = () => { reg = withSatellite(loadRegister(root, log), satellite, log); return reg; };
   for (const p of reg.problems) log(`Layers: problem in ${p.file}: ${p.errors[0]}`);
 
   /* ----- mission ----- */
@@ -313,6 +328,9 @@ function createLayers(opts) {
     'air-quality-stations-cy': async () => { const e = data.eea ? data.eea() : null; const pts = (e && e.points) || []; const t = pts.reduce((m, p) => Math.max(m, toMs(p.time) || 0), 0); const off = e && e.status && e.status.state === 'off'; return { ok: pts.length > 0, n: pts.length, at: t || null, note: pts.length ? `${pts.length} stations` : off ? 'switched off' : 'not available right now', noteEl: pts.length ? `${pts.length} σταθμοί` : off ? 'απενεργοποιημένο' : 'δεν είναι διαθέσιμο αυτή τη στιγμή' }; },
     'openmeteo-marine': async () => { const s = await data.sea(); return { ok: !!(s.points && s.points.length), n: (s.points || []).length, at: toMs(s.updated), note: `${(s.points || []).length} sea points`, noteEl: `${(s.points || []).length} σημεία θάλασσας` }; },
   };
+  for (const id of satellite ? satellite.allIds() : []) if (!PROBES[id]) PROBES[id] = () => satellite.probe(id);   // satellite feeds: the registry answers for each (it never throws)
+  // A source reads numbers for the brain only when it has variables: an imagery-only satellite layer (variables: []) is shown on its own page.
+  const readsNumbers = (s) => s['x_reads'] !== false && (s.variables || []).length > 0;
 
   const staleMs = (src) => isoMs(src.quality && src.quality.stale_after) || (isoMs(src.update && src.update.every) || HOUR) * 3;
 
@@ -462,10 +480,17 @@ function createLayers(opts) {
       const p = best.p, t = toMs(s.updated), where = `sea point ${Math.round(best.d)} km from the city centre`;
       add(src, 'sea_surface_temperature', p.sst, { t, where }); add(src, 'wave_height', p.wave, { t, where });
     })());
+    for (const src of needs.filter((s) => satellite && satellite.has(s.id) && readsNumbers(s))) tasks.push((async () => {   // satellite feeds: the readings for the city centre, as the registry cleaned them (an area, not a spot)
+      const declared = new Set((src.variables || []).map((v) => v.id));
+      for (const r of await satellite.read(src.id, cityId)) {
+        if (!declared.has(r.variable) || (r.unit && r.unit !== vocab(r.variable).unit)) continue;   // not in the source file, or in another unit: never evidence
+        add(src, r.variable, r.value, { t: toMs(r.time), where: r.where, whereEl: r.whereEl, note: r.note, noteEl: r.noteEl });
+      }
+    })());
     const settled = await Promise.allSettled(tasks);
     const failed = settled.filter((x) => x.status === 'rejected').length;
     // A source with no row and no other reason did not answer.
-    for (const s of needs) if (PROBES[s.id] && s['x_reads'] !== false && !rows.some((r) => r.source === s.id) && !missing.some((m) => m.source === s.id)) missing.push({ source: s.id, why: 'no-reading' });
+    for (const s of needs) if (PROBES[s.id] && readsNumbers(s) && !rows.some((r) => r.source === s.id) && !missing.some((m) => m.source === s.id)) missing.push({ source: s.id, why: 'no-reading' });
     const now = Date.now();
     for (const r of rows) {
       const src = srcById(r.source);
@@ -525,16 +550,17 @@ function createLayers(opts) {
         const caveats = [];
         if (mixed) caveats.push('A reading from a vehicle is the air around or inside that vehicle, not the weather of the whole city.');
         if (usable.some((r) => r.kind === 'model')) caveats.push('A model value is for a grid cell about 11 km wide, not for one spot.');
+        if (usable.some((r) => r.kind === 'satellite')) caveats.push('A satellite value describes an area, only where the sky is clear, at the time the satellite passed over; it is not a sensor at the school.');
         if (usable.some((r) => r.kind === 'low-cost-sensor')) caveats.push('Low-cost sensors are not calibrated against a reference instrument.');
         out.push({ id: 'compare-' + variable, kind: differ ? 'differ' : 'agree', variable, rows: usable, spread, tolerance: tol, independent: indep, confidence, why, caveats });
       } else if (usable.length) {
         const r = usable[0];
         const isMeasured = MEASURED.has(r.kind);
-        out.push({ id: 'single-' + variable, kind: 'single', variable, rows: usable.slice(0, 3), confidence: isMeasured ? 'medium' : 'low', why: [isMeasured ? 'One fresh measurement and nothing to check it against.' : 'A single model value and nothing to check it against.'], caveats: r.kind === 'model' ? ['A model value is for a grid cell about 11 km wide, not for one spot.'] : [] });
+        out.push({ id: 'single-' + variable, kind: 'single', variable, rows: usable.slice(0, 3), confidence: isMeasured ? 'medium' : 'low', why: [isMeasured ? 'One fresh measurement and nothing to check it against.' : 'A single model value and nothing to check it against.'], caveats: r.kind === 'model' ? ['A model value is for a grid cell about 11 km wide, not for one spot.'] : r.kind === 'satellite' ? ['A satellite value describes an area, only where the sky is clear, at the time the satellite passed over; it is not a sensor at the school.'] : [] });
       }
     }
     // Air quality first (it is what the mission is about), then comfort and weather; within that, disagreements first.
-    const topic = { pm25: 0, pm10: 0, ozone: 0, dust: 0, co2: 0, noise: 1, temperature: 2, relative_humidity: 3, sea_surface_temperature: 3, wind_speed: 4, wave_height: 5, pressure: 5 };
+    const topic = { pm25: 0, pm10: 0, ozone: 0, dust: 0, co2: 0, aerosol_optical_depth: 0, nitrogen_dioxide: 1, sulphur_dioxide: 1, carbon_monoxide: 1, no2_column: 1, uv_aerosol_index: 1, uv_index: 3, noise: 1, temperature: 2, relative_humidity: 3, sea_surface_temperature: 3, wind_speed: 4, wave_height: 5, pressure: 5 };
     const rank = { differ: 0, threshold: 0, agree: 1, single: 2 };
     out.sort((a, b) => (topic[a.variable] ?? 6) - (topic[b.variable] ?? 6) || rank[a.kind] - rank[b.kind]);
     return out.slice(0, 5);
@@ -692,7 +718,7 @@ const lc = (s) => String(s).replace(/^\S+/, (w) => (/[A-Z0-9]/.test(w.slice(1)) 
     const view = await registerView(9000);   // the brain waits for the checks: it must know which layers answer
     const usable = new Set(view.layers.filter((l) => l.state === 'live' || l.state === 'late').map((l) => l.id));
     const asked = Array.isArray(body.layers) ? body.layers.map(String) : [...usable];
-    const onIds = [...new Set(asked)].filter((id) => usable.has(id) && (srcById(id) || {})['x_reads'] !== false).sort();   // a layer with x_reads: false is shown on its own page and holds no readings for the brain
+    const onIds = [...new Set(asked)].filter((id) => usable.has(id) && readsNumbers(srcById(id) || {})).sort();   // a layer with x_reads: false is shown on its own page and holds no readings for the brain
     const question = body.question == null ? '' : String(body.question).trim();
     if (question && ([...question].length < MIN_QUESTION || [...question].length > MAX_QUESTION)) fail(400, `Write the question in ${MIN_QUESTION} to ${MAX_QUESTION} characters.`);
     const key = cityId + '|' + onIds.join(',');

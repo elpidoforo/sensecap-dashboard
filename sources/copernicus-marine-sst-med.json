@@ -1,0 +1,81 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "copernicus-marine-sst-med",
+  "name": "Mediterranean sea temperature (Copernicus)",
+  "summary": "Daily gap-free satellite sea temperature maps of the Mediterranean (about 1 km), probably the best fit for Cyprus. Needs a free Copernicus Marine account, so it is not connected yet.",
+  "layer": "model",
+  "status": "candidate",
+  "planned": false,
+  "tagline": "Needs a free account",
+  "i18n": {
+    "el": {
+      "name": "Θερμοκρασία θάλασσας Μεσογείου (Copernicus)",
+      "summary": "Καθημερινοί δορυφορικοί χάρτες θερμοκρασίας θάλασσας της Μεσογείου χωρίς κενά (περίπου 1 km), μάλλον η καλύτερη επιλογή για την Κύπρο. Θέλει δωρεάν λογαριασμό Copernicus Marine, γι’ αυτό δεν έχει συνδεθεί ακόμη.",
+      "tagline": "Θέλει δωρεάν λογαριασμό"
+    }
+  },
+  "themes": [
+    "sea",
+    "coast",
+    "satellite"
+  ],
+  "publisher": {
+    "name": "Copernicus Marine Service (CNR-ISMAR)",
+    "url": "https://data.marine.copernicus.eu/",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "LicenseRef-Copernicus-Marine-licence",
+    "url": "https://marine.copernicus.eu/user-corner/service-commitments-and-licence",
+    "attribution": "Generated using E.U. Copernicus Marine Service Information; https://doi.org/10.48670/moi-00172",
+    "commercial_use": true,
+    "share_alike": false,
+    "checked_on": "2026-11-12"
+  },
+  "access": {
+    "type": "file",
+    "url": "https://data.marine.copernicus.eu/product/SST_MED_SST_L4_NRT_OBSERVATIONS_010_004/services",
+    "docs_url": "https://data.marine.copernicus.eu/product/SST_MED_SST_L4_NRT_OBSERVATIONS_010_004/description",
+    "auth": {
+      "type": "basic"
+    }
+  },
+  "coverage": {
+    "area": "Mediterranean Sea",
+    "bbox": [
+      -18.12,
+      30.25,
+      36.25,
+      46
+    ],
+    "resolution_m": 1000
+  },
+  "update": {
+    "every": "P1D",
+    "note": "The product page lists daily updates at 12:00 and 15:00."
+  },
+  "variables": [
+    {
+      "id": "sea_surface_temperature",
+      "unit": "Cel",
+      "kind": "derived"
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 1000
+  },
+  "quality": {
+    "kind": "satellite",
+    "uncertainty": "Not read yet. The product page names the method (statistical interpolation of the best night-time satellite passes) but gives no error number.",
+    "known_issues": [
+      "Night-time 'foundation' temperature at 00:00 UTC, free of daytime warming: it can read cooler than a beach on a sunny afternoon.",
+      "Gap-free: cloudy gaps are filled by statistical interpolation, so it is an estimate under cloud."
+    ]
+  },
+  "notes": "Needs a free Copernicus Marine account (a Copernicus Data Space account also works). Not connected: the build sandbox could not test a login, and the data come as NetCDF/Zarr files, which this Node-only server cannot read yet. Product pages found: SST_MED_SST_L4_NRT_OBSERVATIONS_010_004 (this one, 1/100 and 1/16 degree), SST_MED_SST_L3S_NRT_OBSERVATIONS_010_012 (cloud gaps kept) and OCEANCOLOUR_MED_BGC_L3_NRT_009_141 (Mediterranean chlorophyll, not read).",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

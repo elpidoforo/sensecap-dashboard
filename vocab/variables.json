@@ -118,6 +118,141 @@
       "abs": 20
     }
   },
+  "aerosol_optical_depth": {
+    "label": [
+      "Haze (aerosol optical depth)",
+      "Θολούρα (οπτικό βάθος αερολυμάτων)"
+    ],
+    "unit": "{AOD}",
+    "range": [
+      0,
+      6
+    ],
+    "max_step": 2,
+    "tolerance": {
+      "abs": 0.1,
+      "rel": 0.3
+    }
+  },
+  "uv_index": {
+    "label": [
+      "UV index",
+      "Δείκτης UV"
+    ],
+    "unit": "{UVI}",
+    "range": [
+      0,
+      16
+    ],
+    "max_step": 6,
+    "tolerance": {
+      "abs": 2
+    }
+  },
+  "nitrogen_dioxide": {
+    "label": [
+      "Nitrogen dioxide (NO2) near the ground",
+      "Διοξείδιο του αζώτου (NO2) κοντά στο έδαφος"
+    ],
+    "unit": "ug/m3",
+    "range": [
+      0,
+      1000
+    ],
+    "max_step": 200,
+    "tolerance": null
+  },
+  "sulphur_dioxide": {
+    "label": [
+      "Sulphur dioxide (SO2) near the ground",
+      "Διοξείδιο του θείου (SO2) κοντά στο έδαφος"
+    ],
+    "unit": "ug/m3",
+    "range": [
+      0,
+      2000
+    ],
+    "max_step": 400,
+    "tolerance": null
+  },
+  "carbon_monoxide": {
+    "label": [
+      "Carbon monoxide (CO) near the ground",
+      "Μονοξείδιο του άνθρακα (CO) κοντά στο έδαφος"
+    ],
+    "unit": "ug/m3",
+    "range": [
+      0,
+      50000
+    ],
+    "max_step": 5000,
+    "tolerance": null
+  },
+  "no2_column": {
+    "label": [
+      "Nitrogen dioxide, whole air column (satellite)",
+      "Διοξείδιο του αζώτου, όλη η στήλη αέρα (δορυφόρος)"
+    ],
+    "unit": "umol/m2",
+    "range": [
+      -50,
+      2000
+    ],
+    "max_step": 1000,
+    "tolerance": null
+  },
+  "co_column": {
+    "label": [
+      "Carbon monoxide, whole air column (satellite)",
+      "Μονοξείδιο του άνθρακα, όλη η στήλη αέρα (δορυφόρος)"
+    ],
+    "unit": "mmol/m2",
+    "range": [
+      0,
+      500
+    ],
+    "max_step": 300,
+    "tolerance": null
+  },
+  "o3_column": {
+    "label": [
+      "Ozone layer thickness (satellite)",
+      "Πάχος στρώματος όζοντος (δορυφόρος)"
+    ],
+    "unit": "DU",
+    "range": [
+      100,
+      700
+    ],
+    "max_step": 100,
+    "tolerance": null
+  },
+  "so2_column": {
+    "label": [
+      "Sulphur dioxide, whole air column (satellite)",
+      "Διοξείδιο του θείου, όλη η στήλη αέρα (δορυφόρος)"
+    ],
+    "unit": "DU",
+    "range": [
+      -5,
+      100
+    ],
+    "max_step": 50,
+    "tolerance": null
+  },
+  "uv_aerosol_index": {
+    "label": [
+      "UV aerosol index (dust and smoke signal, satellite)",
+      "Δείκτης αερολυμάτων UV (ένδειξη σκόνης και καπνού, δορυφόρος)"
+    ],
+    "unit": "{index}",
+    "range": [
+      -6,
+      20
+    ],
+    "max_step": 10,
+    "tolerance": null
+  },
   "noise": {
     "label": [
       "Noise",
@@ -188,6 +323,19 @@
     "tolerance": {
       "abs": 0.5
     }
+  },
+  "chlorophyll_a": {
+    "label": [
+      "Sea chlorophyll-a (algae)",
+      "Χλωροφύλλη-a θάλασσας (φύκια)"
+    ],
+    "unit": "mg/m3",
+    "range": [
+      0.001,
+      100
+    ],
+    "max_step": 50,
+    "tolerance": null
   },
   "land_surface_temperature": {
     "label": [

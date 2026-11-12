@@ -83,6 +83,13 @@
       "Lefkosia, which has no coast"
     ]
   },
+  "upstream": [
+    {
+      "name": "Satellite sea surface temperature observations",
+      "url": "https://data.marine.copernicus.eu/product/GLOBAL_ANALYSISFORECAST_PHY_001_024/description"
+    }
+  ],
+  "notes": "Open-Meteo's sea temperature comes from the Copernicus Marine global ocean model (about 8 km, 6-hourly, refreshed daily), which assimilates satellite sea temperature. So it is not independent of the satellite layer noaa-sst.",
   "x_feed": "openmeteo",
   "added": {
     "by": "smart-cities-team",

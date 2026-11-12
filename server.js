@@ -1072,6 +1072,7 @@ const { createReports } = require('./reports');
 const { createLayers } = require('./layers');
 const { createGtfs } = require('./gtfs');
 const { createEea } = require('./eea');
+const { createSatellite } = require('./satellite');
 const citiesApi = require('./cities');
 const { createClassLogin } = require('./classlogin');
 const classLogin = createClassLogin();
@@ -1083,6 +1084,7 @@ let reports = null;
 let layers = null;
 let gtfs = null;        // the official bus timetables (gtfs.js), static GTFS only
 let eea = null;         // the official air-quality stations (eea.js): EEA hourly PM2.5 and PM10 for Cyprus, read only
+let satellite = null;   // the satellite feeds (satellite/index.js): one module per feed in satellite/feeds/, read only
 let assistant = null;   // the Ask assistant (bot.js), for the helper list
 
 /* ---------- who sees what (vehicle positions) ----------
@@ -1223,7 +1225,11 @@ function startApp() {
     eea = createEea({ root: __dirname, dataDir: DATA_DIR, log: (m) => console.error(m), getData: () => botData, off, offReason: process.env.EEA === '0' ? 'switched off with EEA=0' : 'test mode', apiBase: eb, metaUrl: process.env.EEA_META_URL, stationsUrl: process.env.EEA_STATIONS_URL, days: process.env.EEA_DAYS, everyMin: process.env.EEA_EVERY_MIN, tzForce: process.env.EEA_TZ_HOURS, extraHosts: [eb, process.env.EEA_META_URL, process.env.EEA_STATIONS_URL].filter(Boolean).map((u) => new URL(u).host) });
     eea.start();
   } catch (e) { console.error('EEA air quality: not started (' + e.message + ')'); eea = null; }
-  layers = createLayers({ root: __dirname, dataDir: DATA_DIR, appCore, data: botData, feeds, gtfs, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });   // works without the student app too (only editing the mission needs a teacher sign-in)
+  try {   // satellite feeds: every feed is isolated, a failure is one log line and the Layers page says "not available right now"; in test mode (OPEN_METEO_MOCK) only the demo feed can run
+    satellite = createSatellite({ root: __dirname, dataDir: DATA_DIR, log: (m) => console.error(m), off: process.env.SATELLITE === '0' || (MOCK && process.env.SATELLITE_LIVE !== '1'), offReason: process.env.SATELLITE === '0' ? 'switched off with SATELLITE=0' : 'test mode' });
+    satellite.start();
+  } catch (e) { console.error('Satellite feeds: not started (' + e.message + ')'); satellite = null; }
+  layers = createLayers({ root: __dirname, dataDir: DATA_DIR, appCore, data: botData, feeds, gtfs, satellite, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });   // works without the student app too (only editing the mission needs a teacher sign-in)
   if (!appCore.enabled) return console.error('Student app is off: ' + appCore.reason);
   feeds.attach(appCore);   // from now on the on/off switches of the feeds are kept in the student database
   studio = createStudio({ appCore, notify: notifier, layers, classValid: (req) => classLogin.enabled && classLogin.valid(req), bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });
@@ -1593,6 +1599,7 @@ const server = http.createServer(async (req, res) => {
     if (await sourceRoutes(req, res, url)) return;   // /api/feeds, helpers, archive, ops, search, dom/watch
     if (gtfs && (await gtfs.handle(req, res, url))) return;   // /api/transit/*: official bus timetables, read only, rate limited
     if (eea && (await eea.handle(req, res, url))) return;     // /api/eea/*: official air-quality stations and the school-sensor comparison, read only
+    if (satellite && (await satellite.handle(req, res, url))) return;   // /api/satellite/*: satellite feed status and pictures, read only, rate limited
     if (url.pathname === '/cities/api/overview') {
       return sendJson(res, 200, await citiesApi.overview({
         devices: rawDevices,
@@ -1711,7 +1718,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 // A deploy sends SIGTERM: save the feed counters first, so they are not blank after every deploy.
-for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { try { feeds.flush(); } catch (e) { /* best effort */ } process.exit(0); });
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { try { feeds.flush(); } catch (e) { /* best effort */ } try { if (satellite) satellite.stop(); } catch (e) { /* best effort */ } process.exit(0); });
 
 loadMeasurementNames().finally(() => {
   server.listen(PORT, () => {

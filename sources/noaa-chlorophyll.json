@@ -1,0 +1,101 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "noaa-chlorophyll",
+  "name": "Satellite sea colour (algae)",
+  "summary": "Chlorophyll-a in the sea off Larnaka, Limassol and Paphos from a satellite colour sensor (VIIRS): more green = more algae/plankton. Coastal cities only. Days old; clouds leave gaps.",
+  "layer": "model",
+  "status": "active",
+  "tagline": "Algae from space · coastal cities only",
+  "i18n": {
+    "el": {
+      "name": "Χρώμα θάλασσας από δορυφόρο (φύκια)",
+      "summary": "Χλωροφύλλη-a στη θάλασσα ανοιχτά της Λάρνακας, της Λεμεσού και της Πάφου από δορυφορικό αισθητήρα χρώματος (VIIRS): περισσότερο πράσινο = περισσότερα φύκια/πλαγκτόν. Μόνο παράκτιες πόλεις. Έχει καθυστέρηση ημερών· τα σύννεφα αφήνουν κενά.",
+      "tagline": "Φύκια από δορυφόρο · μόνο παράκτιες πόλεις"
+    }
+  },
+  "themes": [
+    "sea",
+    "coast",
+    "satellite",
+    "algae"
+  ],
+  "publisher": {
+    "name": "NOAA CoastWatch (NOAA/NESDIS STAR)",
+    "url": "https://coastwatch.noaa.gov/",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "LicenseRef-NASA-data-information-policy",
+    "url": "https://science.nasa.gov/earth-science/earth-science-data/data-information-policy/",
+    "attribution": "These data were provided by NOAA's Center for Satellite Applications and Research (STAR) and the CoastWatch program.",
+    "commercial_use": true,
+    "share_alike": false,
+    "checked_on": "2026-11-12"
+  },
+  "restrictions": [
+    "Provider disclaimer: free to use and share, but not intended for legal use because it may contain inaccuracies",
+    "The server asks users to run one request at a time (the feed does)"
+  ],
+  "access": {
+    "type": "rest-json",
+    "url": "https://coastwatch.pfeg.noaa.gov/erddap/griddap/nesdisVHNSQchlaDaily.json",
+    "docs_url": "https://coastwatch.pfeg.noaa.gov/erddap/griddap/documentation.html",
+    "auth": {
+      "type": "none"
+    }
+  },
+  "coverage": {
+    "area": "Sea off Larnaka, Limassol and Paphos (not Lefkosia)",
+    "bbox": [
+      32.2,
+      34.5,
+      33.9,
+      35.1
+    ],
+    "resolution_m": 4000
+  },
+  "update": {
+    "every": "P1D",
+    "latency": "P15D",
+    "note": "Science-quality maps arrive 11 to 15 days late. Clouds leave holes."
+  },
+  "variables": [
+    {
+      "id": "chlorophyll_a",
+      "unit": "mg/m3",
+      "kind": "derived",
+      "note": "Estimated from the colour of the sea (the provider's default recipe)"
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 4000
+  },
+  "quality": {
+    "kind": "satellite",
+    "uncertainty": "Studies found standard global colour recipes very uncertain in the Mediterranean (about 100%) and worse near coasts. Use it for patterns and change, not exact numbers.",
+    "known_issues": [
+      "A satellite sees only the colour of the top few metres, and only through clear sky. We use the newest clear view of the last 7 days and say its date.",
+      "Science-quality maps are about 11 to 15 days old: the value is never today's.",
+      "Near the coast, shallow sand, dust in the air and land in the pixel can make the value too high. A pixel is about 4 km wide.",
+      "Offshore, the eastern Mediterranean is low in algae, so values are small and easy to over-read."
+    ],
+    "stale_after": "P30D"
+  },
+  "agent_hints": {
+    "use_for": [
+      "Where the sea near a coastal city looks greener (more algae)",
+      "Teaching how the colour of the sea shows life in it"
+    ],
+    "not_for": [
+      "Lefkosia, which has no coast",
+      "Water quality or whether it is safe to swim",
+      "Anything that needs today's value"
+    ]
+  },
+  "notes": "Read from the NOAA CoastWatch ERDDAP, dataset nesdisVHNSQchlaDaily (chlor_a, mg m^-3, 4 km), newest 7 daily maps in a small box per city. Same-server chlorophyll datasets that have stopped are not used (noaacwNPPN20VIIRSchlociDaily, noaacwN20VIIRSchlaWeekly, nesdisVHNSQchlaWeekly, erdVH3chla8day). The live server could not be reached from the build sandbox.",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

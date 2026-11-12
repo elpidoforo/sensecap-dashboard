@@ -1,0 +1,106 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "noaa-sst",
+  "name": "Satellite sea temperature",
+  "summary": "Sea surface temperature from a daily satellite map (NASA MUR, served by NOAA) off Larnaka, Limassol and Paphos. Coastal cities only. It sees the sea's top skin and not through cloud.",
+  "layer": "model",
+  "status": "active",
+  "tagline": "Satellite · coastal cities only",
+  "i18n": {
+    "el": {
+      "name": "Θερμοκρασία θάλασσας από δορυφόρο",
+      "summary": "Θερμοκρασία επιφάνειας θάλασσας από καθημερινό δορυφορικό χάρτη (NASA MUR, μέσω NOAA) στις ακτές Λάρνακας, Λεμεσού και Πάφου. Μόνο παράκτιες πόλεις. Βλέπει το λεπτό επιφανειακό στρώμα, όχι μέσα από σύννεφα.",
+      "tagline": "Δορυφόρος · μόνο παράκτιες πόλεις"
+    }
+  },
+  "themes": [
+    "sea",
+    "coast",
+    "satellite"
+  ],
+  "publisher": {
+    "name": "NOAA CoastWatch (MUR analysis by NASA JPL)",
+    "url": "https://coastwatch.pfeg.noaa.gov/erddap/",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "LicenseRef-JPL-PODAAC-data-policy",
+    "url": "https://podaac.jpl.nasa.gov/dataset/MUR-JPL-L4-GLOB-v4.1",
+    "attribution": "These data were provided by JPL under support by NASA MEaSUREs program.",
+    "commercial_use": true,
+    "share_alike": false,
+    "checked_on": "2026-11-12"
+  },
+  "restrictions": [
+    "Provider disclaimer: free to use and share, but not intended for legal use because it may contain inaccuracies",
+    "The server asks users to run one request at a time (the feed does)"
+  ],
+  "access": {
+    "type": "rest-json",
+    "url": "https://coastwatch.pfeg.noaa.gov/erddap/griddap/jplMURSST41.json",
+    "docs_url": "https://coastwatch.pfeg.noaa.gov/erddap/griddap/documentation.html",
+    "auth": {
+      "type": "none"
+    }
+  },
+  "coverage": {
+    "area": "Sea off Larnaka, Limassol and Paphos (not Lefkosia)",
+    "bbox": [
+      32.2,
+      34.5,
+      33.9,
+      35.1
+    ],
+    "resolution_m": 1000
+  },
+  "update": {
+    "every": "P1D",
+    "latency": "P4D",
+    "note": "The newest map is about 3 days old and the last 7 days are revised later."
+  },
+  "variables": [
+    {
+      "id": "sea_surface_temperature",
+      "unit": "Cel",
+      "kind": "derived",
+      "note": "Gap-free analysis of satellite maps (foundation temperature)"
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 1000
+  },
+  "quality": {
+    "kind": "satellite",
+    "uncertainty": "A gap-free analysis: under cloud the value is interpolated. Each pixel has its own error estimate. It is the sea without the sun-warmed skin, not the water on a beach.",
+    "known_issues": [
+      "A satellite sees only the top skin of the sea and cannot see through cloud. This map fills cloudy gaps by interpolation (a gap-free L4 analysis).",
+      "The newest map is about 3 days old (nominal delay 4 days) and the last 7 days are revised later, so it is never today's value.",
+      "We take the nearest open-sea pixel (about 1 km wide) to the city centre, often some km offshore. A harbour or a beach can differ.",
+      "The sea model of Open-Meteo also assimilates satellite sea temperature, so model and satellite are not fully independent."
+    ],
+    "stale_after": "P6D"
+  },
+  "upstream": [
+    {
+      "name": "Satellite sea surface temperature observations",
+      "url": "https://podaac.jpl.nasa.gov/dataset/MUR-JPL-L4-GLOB-v4.1"
+    }
+  ],
+  "agent_hints": {
+    "use_for": [
+      "Checking the sea model: satellite sea temperature near Larnaka, Limassol and Paphos",
+      "Teaching what a satellite can and cannot see"
+    ],
+    "not_for": [
+      "Lefkosia, which has no coast",
+      "Beach or harbour water temperature today",
+      "Anything that needs today's value (the map is days old)"
+    ]
+  },
+  "notes": "Read from the NOAA CoastWatch ERDDAP, dataset jplMURSST41 (analysed_sst, degree_C; analysis_error; mask), nearest sea pixel in a small box per city. Backup if that fails: ncdcOisst21NrtAgg (OISST v2.1 preliminary, NOAA NCEI, 25 km pixels). The AWS Open Data registry lists MUR as CC BY 4.0, the ERDDAP copy says free under the JPL PO.DAAC data policy: we credit it either way. The live server could not be reached from the build sandbox.",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

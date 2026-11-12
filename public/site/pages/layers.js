@@ -98,6 +98,55 @@
   }
   function placeLabel(id) { return ({ larnaka: T('Larnaka', 'Λάρνακα'), lefkosia: T('Lefkosia', 'Λευκωσία'), limassol: T('Limassol', 'Λεμεσός'), paphos: T('Paphos', 'Πάφος') })[id.toLowerCase()] || id; }
 
+  /* ---------------------------------------------------------------- satellite pictures in a layer's dialog ----
+     A satellite feed (satellite/index.js) may keep its newest pictures. GET /api/satellite/images lists them (newest first, with the
+     feed id); the dialog of a layer shows the ones of that layer: the latest large, the earlier days as small pictures you can press.
+     Pictures load from our own server only. If the list cannot be read, or the layer has no picture, nothing is drawn. */
+  const quietWord = () => T('satellite', 'δορυφόρος');
+  const kindChip = () => h('em', { class: 'ly-kd' }, quietWord());
+  const utcLong = () => new Intl.DateTimeFormat(isEl() ? 'el-GR' : 'en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const utcShort = () => new Intl.DateTimeFormat(isEl() ? 'el-GR' : 'en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short' });
+  const takenAt = (t) => T('Taken ', 'Λήψη ') + utcLong().format(t) + ' UTC';
+  function satelliteStrip(images) {
+    const list = (images || []).slice(0, 8);
+    if (!list.length) return null;
+    const lt = (im, k) => (isEl() ? im[k + 'El'] : im[k]) || im[k] || '';
+    let cur = 0;
+    const big = h('img', { class: 'ly-sat-img', decoding: 'async', width: '640', height: '392' });
+    const title = h('b', null), when = h('span', null), what = h('p', { class: 'ly-sat-what' }), credit = h('p', { class: 'ly-fine ly-sat-credit' });
+    const cloudy = h('p', { class: 'ly-sat-cloud', hidden: true });
+    const miss = h('p', { class: 'ly-fine', hidden: true }, T('This picture is not available right now.', 'Αυτή η εικόνα δεν είναι διαθέσιμη αυτή τη στιγμή.'));
+    big.addEventListener('error', () => { big.hidden = true; miss.hidden = false; });
+    big.addEventListener('load', () => { big.hidden = false; miss.hidden = true; });
+    const thumbs = h('div', { class: 'ly-sat-th', role: 'group', 'aria-label': T('Earlier pictures', 'Προηγούμενες εικόνες') });
+    function show(i) {
+      cur = i;
+      const im = list[i];
+      big.hidden = false; miss.hidden = true;
+      big.src = im.url;
+      big.alt = lt(im, 'title') + '. ' + takenAt(im.time) + '.' + (im.cloud != null && im.cloud >= 40 ? ' ' + T('Lots of cloud.', 'Πολλά σύννεφα.') : '');
+      title.textContent = lt(im, 'title');
+      when.textContent = takenAt(im.time);
+      what.replaceChildren(h('b', null, T('What you are looking at: ', 'Τι βλέπεις: ')), lt(im, 'text'));
+      credit.textContent = lt(im, 'attribution') ? T('Picture credit: ', 'Πηγή εικόνας: ') + lt(im, 'attribution') : '';
+      credit.hidden = !credit.textContent;
+      cloudy.hidden = !(im.cloud != null && im.cloud >= 40);
+      cloudy.textContent = T('Lots of cloud in this picture, so the ground is hard to see.', 'Αυτή η εικόνα έχει πολλά σύννεφα, γι’ αυτό το έδαφος δεν φαίνεται καλά.');
+      [...thumbs.children].forEach((b, k) => b.setAttribute('aria-pressed', k === i ? 'true' : 'false'));
+    }
+    list.forEach((im, i) => thumbs.append(h('button', { type: 'button', class: 'ly-sat-b', 'aria-pressed': 'false', 'aria-label': T('Show the picture from ', 'Δες την εικόνα της ') + utcShort().format(im.time), title: takenAt(im.time), onclick: () => show(i) },
+      h('img', { src: im.url, alt: '', loading: 'lazy', decoding: 'async', width: '64', height: '40' }),
+      h('span', null, i === 0 ? T('Latest', 'Τελευταία') : utcShort().format(im.time)))));
+    show(0);
+    return h('section', { class: 'ly-sat', 'aria-label': T('Satellite pictures', 'Δορυφορικές εικόνες') },
+      h('div', { class: 'ly-eb' }, T('Satellite pictures', 'Δορυφορικές εικόνες')),
+      h('figure', { class: 'ly-sat-fig' }, big, miss, h('figcaption', null, title, when)),
+      what, cloudy,
+      list.length > 1 ? thumbs : null,
+      h('p', { class: 'ly-sat-note' }, T('Satellite picture, not a photo of today. It shows what the satellite saw when it passed over, and if it is cloudy the clouds hide the ground.', 'Δορυφορική εικόνα, όχι φωτογραφία της σημερινής μέρας. Δείχνει ό,τι είδε ο δορυφόρος όταν πέρασε από πάνω, και αν έχει σύννεφα, τα σύννεφα κρύβουν το έδαφος.')),
+      credit);
+  }
+
   /* ---------------------------------------------------------------------------- the page ---- */
   SC.register('layers', {
     title: ['Data layers', 'Στρώματα δεδομένων'],
@@ -199,7 +248,7 @@
               const sub = locked || l.state === 'late' ? (l.state === 'late' || l.state === 'down' ? (isEl() ? l.noteEl : l.note) : (isEl() ? l.taglineEl : l.tagline)) : (isEl() ? l.taglineEl : l.tagline);
               return h('div', { class: 'ly-row' + (locked ? ' ly-dim' : '') },
                 h('button', { class: 'ly-tg', type: 'button', role: 'switch', 'aria-checked': checked ? 'true' : 'false', disabled: locked, 'aria-label': T('Read ' + nameOf(l) + ' in the findings', 'Ανάγνωση «' + nameOf(l) + '» στα ευρήματα'), onclick: () => toggle(l) }),
-                h('button', { class: 'ly-nm', type: 'button', onclick: () => openLayer(l.id) }, layerLabel(l), sub ? h('small', null, sub) : null),
+                h('button', { class: 'ly-nm', type: 'button', onclick: () => openLayer(l.id) }, layerLabel(l), l.kind === 'satellite' ? kindChip() : null, sub ? h('small', null, sub) : null),
                 h('span', { class: 'ly-pl ' + st[2] }, T(st[0], st[1])));
             })));
         });
@@ -359,7 +408,7 @@
 
       /* ----- findings ----- */
       function sourceChips(list) {
-        return (list || []).map((s) => h('button', { type: 'button', class: 'ly-' + (s.group || 'own'), title: T('About this layer', 'Σχετικά με αυτό το στρώμα'), onclick: () => openLayer(s.id) }, (isEl() && s.nameEl) || s.name));
+        return (list || []).map((s) => h('button', { type: 'button', class: 'ly-' + (s.group || 'own'), title: T('About this layer', 'Σχετικά με αυτό το στρώμα'), onclick: () => openLayer(s.id) }, (isEl() && s.nameEl) || s.name, s.kind === 'satellite' ? kindChip() : null));
       }
       function confidence(level) {
         const c = CONF[level] || CONF.low;
@@ -496,8 +545,10 @@
           const row = (k, v) => (v == null || v === '' ? null : [h('dt', null, k), h('dd', null, v)]);
           const link = (u) => (u ? h('a', { href: u, target: '_blank', rel: 'noopener' }, u.replace(/^https?:\/\//, '').slice(0, 60)) : null);
           const stt = STATE[(known && known.state) || st.state] || STATE.off;
+          const sat = h('div', { class: 'ly-sat-slot' });   // the satellite pictures of this layer, when its feed has any
           body.replaceChildren(
             h('p', null, isEl() && i18n.summary ? i18n.summary : s.summary),
+            sat,
             h('dl', null,
               row(T('Group', 'Ομάδα'), T(GROUPS[s.layer].en, GROUPS[s.layer].el)),
               row(T('Status', 'Κατάσταση'), T(stt[0], stt[1]) + (st.note ? ' · ' + (isEl() ? st.noteEl : st.note) : '')),
@@ -509,6 +560,7 @@
               row(T('Where it is from', 'Από πού προέρχεται'), link(s.publisher && s.publisher.url) || link(s.access && s.access.url)),
               row(T('Limits', 'Όρια'), s.representativeness && s.representativeness.notes ? s.representativeness.notes : null)),
             isTeacher() && (r.warnings || []).length ? h('div', { class: 'ly-warn' }, T('For teachers: ', 'Για εκπαιδευτικούς: ') + r.warnings.map((w) => w.replace(/^\$[^:]*:\s*/, '')).join(' ')) : null);
+          SC.cached('/api/satellite/images', 60000).then((d) => { const strip = satelliteStrip(((d && d.images) || []).filter((im) => im.feed === id)); if (strip) sat.append(strip); }).catch(() => { /* no pictures: nothing to draw */ });
         } catch (e) { body.replaceChildren(h('div', { class: 'err', role: 'alert' }, errMsg(e))); }
       }
       function howWeFind() {
