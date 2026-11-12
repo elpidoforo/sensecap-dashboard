@@ -46,8 +46,9 @@ npx promptfoo@<version> eval          # reads promptfooconfig.yaml in this folde
 npx promptfoo@<version> view          # optional: local results page
 ```
 
-Useful options: `--repeat 3` (model answers vary, so run each case three times before you call something a bug), `--filter-pattern "EL "` (only the
-Greek cases), `--max-concurrency 1` (gentler on the rate limit).
+Useful options (names as in promptfoo's command-line documentation): `--repeat 3 --no-cache` (model answers vary, so run each case three times, without
+the cache, before you call something a bug), `--filter-pattern "EL "` (only the Greek cases), `-j 1` / `--max-concurrency 1` (gentler on the rate limit).
+promptfoo also has a `validate` command that checks a config file; see its documentation for the exact form.
 
 What happens: `provider.js` starts `node server.js` from the repository root with demo data, a temporary database in your temp folder and a random port;
 creates one made-up admin and four made-up students (random passwords that exist only in memory); and sends every question to

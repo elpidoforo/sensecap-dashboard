@@ -19,13 +19,15 @@
    127/8, 169.254/16 (link-local, cloud metadata 169.254.169.254), 172.16/12, 192.0.0/24, 192.0.2/24, 192.88.99/24, 192.168/16, 198.18/15,
    198.51.100/24, 203.0.113/24, multicast 224/4, reserved 240/4 (incl. broadcast), Azure 168.63.129.16; IPv6: everything outside 2000::/3,
    plus ::ffff:0:0/96 (IPv4-mapped), 64:ff9b::/96 and 64:ff9b:1::/48 (NAT64), 2001::/23 (Teredo and other protocol ranges), 2001:db8::/32,
-   2002::/16 (6to4), 3fff::/20, and with them the ULA range fc00::/7 (also Railway's private network and AWS fd00:ec2::254), fe80::/10,
+   2002::/16 (6to4), 3fff::/20, and with them the unique-local range fc00::/7 (the range private networks of hosting platforms usually use, and AWS fd00:ec2::254), fe80::/10,
    multicast ff00::/8. A zone id (fe80::1%eth0) is refused.
 
-   Ported from azu/request-filtering-agent (MIT, https://github.com/azu/request-filtering-agent, v3.2.1, commit 29dd910): the rule "only a
-   plain unicast address may be connected to", checking every address the lookup returns, checking an IP written directly in the URL, and
-   its test list of URL spellings. NOT copied: it needs ipaddr.js and is an Agent (it cannot stop redirects or sizes, and its first version
-   skipped HTTPS to 127.0.0.1, CVE-2025-57814). Here the range table is our own, written for this file.
+   Ported from azu/request-filtering-agent (MIT, https://github.com/azu/request-filtering-agent, v3.2.1, commit 29dd910): the rule "only a plain
+   unicast address may be connected to", checking every address the lookup returns, and checking an address written straight into the URL.
+   Not copied: that package needs ipaddr.js and is an http.Agent, which filters the address when the socket connects but does not follow redirects by
+   hand, cap time or size, or check content types, and its README says its own deny list is not a security boundary and recommends blocking at the network
+   layer as well. Here the range table is our own, written for this file, and the extra limits are added around it. Do both in production: this file
+   and, where the host allows it, an egress rule that blocks the same ranges.
 
    Not covered (say so to whoever wires it in): it connects directly, so it ignores HTTP_PROXY settings and cannot be used to reach a service on
    Railway's private network (those addresses are blocked on purpose; give such a service its own code path). It stops network abuse. It does

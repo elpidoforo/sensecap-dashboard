@@ -18,6 +18,7 @@
 const crypto = require('crypto');
 const { unsafeText, normCode, nameKey } = require('./school');
 const knowledge = require('./knowledge');
+const safebox = require('./safebox');   // headers and the first-in-page script that make a student page a "safe box"
 const guideSearch = require('./guidesearch');   // the guide's search in Greek, Greeklish and English (see guidesearch.js)
 
 const DAY = 86400000;
@@ -33,18 +34,11 @@ const PLAN_SOURCES = ['sensecap', 'dom', 'metoffice', 'air', 'openmeteo', 'senso
 const GPS_IDS = ['4197', '4198'];
 const PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 const BRIDGE = '<script>window.cities=(function(){var n=0,p={};addEventListener("message",function(e){var d=e.data;if(d&&d.type==="cities-result"&&p[d.id]){var f=p[d.id];delete p[d.id];f(d)}});function ask(w){return new Promise(function(ok,no){var id=++n;p[id]=function(d){d.error?no(new Error(d.error)):ok(d.data)};parent.postMessage({type:"cities-get",id:id,what:w},"*");setTimeout(function(){if(p[id]){delete p[id];no(new Error("No live data here. Open the page inside the AI Sustainable Cities site."))}},8000)})}return{overview:function(){return ask("overview")}}})();</script>';
-function withBridge(html) {
-  const h = String(html);
-  if (/<head[^>]*>/i.test(h)) return h.replace(/<head[^>]*>/i, (m) => m + BRIDGE);
-  if (/<html[^>]*>/i.test(h)) return h.replace(/<html[^>]*>/i, (m) => m + BRIDGE);
-  return /^\s*<!doctype[^>]*>/i.test(h) ? h.replace(/^(\s*<!doctype[^>]*>)/i, (m) => m + BRIDGE) : BRIDGE + h;
-}
+const withBridge = (html) => safebox.withBridge(html, BRIDGE);   // safebox script first, then the data bridge, in front of everything the student wrote
 // "sandbox allow-scripts" has no allow-top-navigation (and no allow-popups, allow-forms, allow-same-origin): inside an iframe a page cannot
 // move the top window, open windows or send forms, and it has no cookies or storage of ours. A page opened directly (top level) could still
 // redirect itself, so pageResponse() wraps top-level visits in a small frame of ours (see there).
-const PROJECT_CSP = "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'";
-const WRAPPER_CSP = "default-src 'none'; style-src 'unsafe-inline'; frame-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
-const PERMISSIONS = 'accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=(), clipboard-read=(), clipboard-write=()';
+const { PROJECT_CSP, WRAPPER_CSP, PERMISSIONS } = safebox;   // what a student page may and may not do is defined in safebox.js; pageResponse() sends safebox.projectHeaders()
 
 class HttpError extends Error {
   constructor(status, message, code, extra) { super(message); this.status = status; this.code = code || null; this.extra = extra || null; }
@@ -1367,10 +1361,10 @@ function createStudio(opts) {
     if (String(req.headers['sec-fetch-dest'] || '').toLowerCase() === 'document') {
       const t = esc(meta.title);
       const wrap = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${t}</title><style>html,body{height:100%;margin:0}body{display:flex;flex-direction:column;font:15px/1.4 system-ui,sans-serif;background:#0f1722;color:#e8eef7}header{padding:10px 14px;border-bottom:1px solid #2a3a52}header span{opacity:.75}iframe{flex:1;width:100%;border:0;background:#fff}</style></head><body><header><strong>${t}</strong> <span>${esc(meta.label)}</span></header><iframe title="${t}" sandbox="allow-scripts" src="${esc(meta.path)}"></iframe></body></html>`;
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Security-Policy': WRAPPER_CSP, 'Permissions-Policy': PERMISSIONS, ...noIndex, ...NOSNIFF });
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', ...noIndex, ...NOSNIFF, ...safebox.wrapperHeaders() });
       return res.end(wrap);
     }
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Security-Policy': PROJECT_CSP, 'Permissions-Policy': PERMISSIONS, ...noIndex, ...NOSNIFF });
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', ...noIndex, ...NOSNIFF, ...safebox.projectHeaders() });
     res.end(withBridge(html));
   }
   const notFound = (res) => { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...NOSNIFF }); res.end('Not found'); };
