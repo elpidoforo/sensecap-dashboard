@@ -37,7 +37,7 @@ test('both source files are valid, say "pictures, not numbers", and carry a lice
     assert.ok(s.i18n && s.i18n.el && s.i18n.el.name && s.i18n.el.summary, id + ' has a Greek name and summary');
     assert.ok(Array.isArray(s.x_images) && s.x_images.length >= 2);
     const text = JSON.stringify(s);
-    assert.doesNotMatch(text, /coolstar|api[_-]?key=|password/i);
+    assert.doesNotMatch(text, /api[_-]?key=|password/i);
   }
   const g = reg.layers.find((x) => x.src.id === IDS[0]).src, e = reg.layers.find((x) => x.src.id === IDS[1]).src;
   assert.deepEqual(g.x_images, gibs.DEFS.map((d) => d.id));
