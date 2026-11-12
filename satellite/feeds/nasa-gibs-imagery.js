@@ -53,6 +53,11 @@ const COAST_IDS = ['Coastlines', 'Coastlines_15m'];   // a thin outline for the 
 
 const NOAA21 = 'NOAA-21 (VIIRS)', NOAA20 = 'NOAA-20 (VIIRS)', AQUA = 'Aqua (MODIS)', TERRA = 'Terra (MODIS)';
 
+// Short names of the kinds of picture, for the buttons that switch between them in the layer dialog: [English, Greek].
+const SHORT = {
+  'true-colour': ['Natural colours', 'Φυσικά χρώματα'], 'night-lights': ['Night lights', 'Νυχτερινά φώτα'], aerosol: ['Dust and haze', 'Σκόνη και θολούρα'],
+  'land-temperature': ['Ground heat', 'Θερμότητα εδάφους'], 'sea-temperature': ['Sea warmth', 'Θερμοκρασία θάλασσας'], fires: ['Fires', 'Φωτιές'],
+};
 const DEFS = [
   {
     id: 'true-colour', format: 'image/jpeg', bg: '0x000000', overlay: false, readyHours: 15, hour: 12, minBytes: 15000, staleDays: 5,
@@ -410,6 +415,7 @@ module.exports = function create(ctx, opts) {
         attribution: ATTRIBUTION, attributionEl: ATTRIBUTION_EL,
         // extras for a viewer that groups the pictures by kind (the registry may drop them): kind, day, newest of its kind, the layer
         group: def.id, day: e.day, latest: newestOf[e.group] === e.id, layer: e.layer, platform: e.platform, fixed: !!e.static,
+        groupOrder: DEFS.indexOf(def), groupLabel: (SHORT[def.id] || [])[0] || null, groupLabelEl: (SHORT[def.id] || [])[1] || null,
       };
     });
   }

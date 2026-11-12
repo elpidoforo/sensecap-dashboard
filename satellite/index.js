@@ -35,7 +35,8 @@ const ID_RE = /^[a-z0-9][a-z0-9-]{0,59}$/;
 const IMAGE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/;
 const IMAGE_TYPES = { 'image/png': 1, 'image/jpeg': 1, 'image/webp': 1, 'image/gif': 1, 'image/svg+xml': 1 };
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
-const MAX_IMAGES_PER_FEED = 12;
+const MAX_IMAGES_PER_FEED = 60;     // all kinds of picture of one feed together
+const MAX_IMAGES_PER_GROUP = 12;     // the newest ones of one kind of picture
 const MAX_READINGS = 24;
 const TIMEOUTS = { probe: 8000, read: 5000, images: 4000 };
 const PROBE_TTL_OK = 30000, PROBE_TTL_BAD = 10000, LIST_TTL = 10000;
@@ -309,11 +310,23 @@ function createSatellite(opts) {
       out.push({
         feed: e.id, id, title: clip(im.title, 140), titleEl: clip(im.titleEl || im.title, 160), text: clip(im.text, 500), textEl: clip(im.textEl || im.text, 600),
         time, bbox: bboxOf(im.bbox), cloud: num(im.cloud) == null ? null : Math.max(0, Math.min(100, Math.round(num(im.cloud)))), contentType: type, bytes: f.size, attribution: clip(im.attribution, 300), attributionEl: clip(im.attributionEl || im.attribution, 340),
+        group: IMAGE_ID_RE.test(String(im.group || '')) ? String(im.group) : null, day: /^\d{4}-\d{2}-\d{2}$/.test(String(im.day || '')) ? String(im.day) : null, latest: im.latest === true,
+        groupOrder: Number.isInteger(im.groupOrder) && im.groupOrder >= 0 && im.groupOrder < 100 ? im.groupOrder : null,
+        groupLabel: clip(im.groupLabel, 40) || null, groupLabelEl: clip(im.groupLabelEl || im.groupLabel, 40) || null,
         _file: f.real, _mtime: f.mtimeMs,
       });
     }
     out.sort((a, b) => b.time - a.time);
-    return out.slice(0, MAX_IMAGES_PER_FEED);
+    // A feed with several kinds of picture (a group each) keeps the newest few of every kind, so one busy kind cannot push the others out.
+    const perGroup = new Map(), kept = [];
+    for (const im of out) {
+      const g = im.group || '';
+      const n = perGroup.get(g) || 0;
+      if (n >= MAX_IMAGES_PER_GROUP) continue;
+      perGroup.set(g, n + 1);
+      kept.push(im);
+    }
+    return kept.slice(0, MAX_IMAGES_PER_FEED);
   }
 
   let listCache = null;

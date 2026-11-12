@@ -116,8 +116,14 @@ test('inside the registry: the feeds start, fetch through the registry network l
       assert.ok(i.bytes > 1000 && i.bytes < 2 * 1024 * 1024);
       assert.ok(Array.isArray(i.bbox) && i.bbox.length === 4);
     }
-    // the registry shows at most 12 pictures per feed (the newest); the feeds hold more
-    assert.ok(list.filter((i) => i.feed === IDS[0]).length <= 12);
+    // the registry shows at most 12 pictures of one kind (the newest) and 60 per feed; the feeds hold more
+    const mine = list.filter((i) => i.feed === IDS[0]);
+    assert.ok(mine.length <= 60);
+    const perKind = {};
+    for (const i of mine) perKind[i.group || ''] = (perKind[i.group || ''] || 0) + 1;
+    assert.ok(Object.values(perKind).every((n) => n <= 12));
+    // the kind, the day, the 'newest of its kind' flag and the short kind name come through to the page
+    assert.ok(mine.every((i) => i.group && /^\d{4}-\d{2}-\d{2}$/.test(i.day || '2000-01-01') && typeof i.latest === 'boolean' && i.groupLabel && i.groupLabelEl));
     // an image can be fetched through the registry, and its bytes are the stored file
     const one = list.find((i) => i.feed === IDS[1]);
     const f = await sat.imageFile(one.feed, one.id);

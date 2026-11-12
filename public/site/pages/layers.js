@@ -108,8 +108,15 @@
   const utcShort = () => new Intl.DateTimeFormat(isEl() ? 'el-GR' : 'en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short' });
   const takenAt = (t) => T('Taken ', 'Λήψη ') + utcLong().format(t) + ' UTC';
   function satelliteStrip(images) {
-    const list = (images || []).slice(0, 8);
-    if (!list.length) return null;
+    const all = (images || []).slice(0, 60);
+    if (!all.length) return null;
+    // A feed with several kinds of picture (natural colours, night lights, ...) gets one button per kind; the small pictures below are the days of the chosen kind.
+    const kinds = [];
+    all.forEach((im) => { if (im.group && !kinds.some((k) => k.id === im.group)) kinds.push({ id: im.group, o: im.groupOrder == null ? 99 : im.groupOrder, en: im.groupLabel || im.title, el: im.groupLabelEl || im.groupLabel || im.title }); });
+    kinds.sort((a, b) => a.o - b.o);   // the feed's own order, so the buttons do not jump around from day to day
+    let kindId = kinds.length > 1 ? kinds[0].id : null;
+    const pick = () => (kindId ? all.filter((im) => im.group === kindId) : all).slice(0, 8);
+    let list = pick();
     const lt = (im, k) => (isEl() ? im[k + 'El'] : im[k]) || im[k] || '';
     let cur = 0;
     const big = h('img', { class: 'ly-sat-img', decoding: 'async', width: '640', height: '392' });
@@ -134,15 +141,27 @@
       cloudy.textContent = T('Lots of cloud in this picture, so the ground is hard to see.', 'Αυτή η εικόνα έχει πολλά σύννεφα, γι’ αυτό το έδαφος δεν φαίνεται καλά.');
       [...thumbs.children].forEach((b, k) => b.setAttribute('aria-pressed', k === i ? 'true' : 'false'));
     }
-    list.forEach((im, i) => thumbs.append(h('button', { type: 'button', class: 'ly-sat-b', 'aria-pressed': 'false', 'aria-label': T('Show the picture from ', 'Δες την εικόνα της ') + utcShort().format(im.time), title: takenAt(im.time), onclick: () => show(i) },
-      h('img', { src: im.url, alt: '', loading: 'lazy', decoding: 'async', width: '64', height: '40' }),
-      h('span', null, i === 0 ? T('Latest', 'Τελευταία') : utcShort().format(im.time)))));
+    function drawThumbs() {
+      thumbs.replaceChildren(...list.map((im, i) => h('button', { type: 'button', class: 'ly-sat-b', 'aria-pressed': 'false', 'aria-label': T('Show the picture from ', 'Δες την εικόνα της ') + utcShort().format(im.time), title: takenAt(im.time), onclick: () => show(i) },
+        h('img', { src: im.url, alt: '', loading: 'lazy', decoding: 'async', width: '64', height: '40' }),
+        h('span', null, i === 0 ? T('Latest', 'Τελευταία') : utcShort().format(im.time)))));
+      thumbs.hidden = list.length < 2;
+    }
+    const kindBar = kinds.length > 1 ? h('div', { class: 'ly-sat-kinds', role: 'group', 'aria-label': T('Kinds of picture', 'Είδη εικόνων') }) : null;
+    function setKind(id) {
+      kindId = id; list = pick(); drawThumbs(); show(0);
+      if (kindBar) [...kindBar.children].forEach((b, k) => b.setAttribute('aria-pressed', kinds[k].id === id ? 'true' : 'false'));
+    }
+    if (kindBar) kinds.forEach((k) => kindBar.append(h('button', { type: 'button', class: 'ly-sat-k', 'aria-pressed': 'false', onclick: () => setKind(k.id) }, isEl() ? k.el : k.en)));
+    drawThumbs();
     show(0);
+    if (kindBar) [...kindBar.children].forEach((b, k) => b.setAttribute('aria-pressed', kinds[k].id === kindId ? 'true' : 'false'));
     return h('section', { class: 'ly-sat', 'aria-label': T('Satellite pictures', 'Δορυφορικές εικόνες') },
       h('div', { class: 'ly-eb' }, T('Satellite pictures', 'Δορυφορικές εικόνες')),
+      kindBar,
       h('figure', { class: 'ly-sat-fig' }, big, miss, h('figcaption', null, title, when)),
       what, cloudy,
-      list.length > 1 ? thumbs : null,
+      thumbs,
       h('p', { class: 'ly-sat-note' }, T('Satellite picture, not a photo of today. It shows what the satellite saw when it passed over, and if it is cloudy the clouds hide the ground.', 'Δορυφορική εικόνα, όχι φωτογραφία της σημερινής μέρας. Δείχνει ό,τι είδε ο δορυφόρος όταν πέρασε από πάνω, και αν έχει σύννεφα, τα σύννεφα κρύβουν το έδαφος.')),
       credit);
   }

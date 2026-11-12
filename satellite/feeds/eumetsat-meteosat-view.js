@@ -52,6 +52,8 @@ const creditEl = (year, withOverlay) => `${credit(year, withOverlay)} · Περ�
 
 const MTG = 'Meteosat-12 (MTG, 0°)', MSG0 = 'Meteosat (MSG, 0°)', IODC = 'Meteosat (MSG, 45.5°E)';
 
+// Short names of the kinds of picture, for the buttons that switch between them in the layer dialog: [English, Greek].
+const SHORT = { geocolour: ['Clouds', 'Σύννεφα'], dust: ['Dust map', 'Χάρτης σκόνης'] };
 const DEFS = [
   {
     id: 'geocolour', cadenceMin: 10, minBytes: 20000,
@@ -308,6 +310,7 @@ module.exports = function create(ctx, opts) {
         textEl: `${def.textEl} Δορυφόρος: ${e.platform}.${e.approx ? ' Η ώρα είναι κατά προσέγγιση.' : ''}`,
         time: e.time, bbox: BBOX, file: e.file, contentType: e.contentType, attribution: c, attributionEl: creditEl(new Date(e.time).getUTCFullYear(), e.overlay),
         group: def.id, day, latest, layer: e.layer, platform: e.platform, fixed: false,
+        groupOrder: DEFS.indexOf(def), groupLabel: (SHORT[def.id] || [])[0] || null, groupLabelEl: (SHORT[def.id] || [])[1] || null,
       };
     });
   }
