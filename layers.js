@@ -195,7 +195,7 @@ const cityOfDevice = (places, d) => {
   return Object.keys(places).find((id) => id[0] !== '_' && (places[id].words || []).some((w) => t.includes(w))) || null;
 };
 
-const UNIT_TEXT = { Cel: '°C', 'ug/m3': 'µg/m³', '[ppm]': 'ppm', 'm/s': 'm/s', '{AOD}': 'AOD', '{UVI}': 'UVI', '{index}': 'index', 'umol/m2': 'µmol/m²', 'mmol/m2': 'mmol/m²', 'W/m2': 'W/m²', 'kW.h/m2/d': 'kWh/m²/day', 'mg/m3': 'mg/m³' };
+const UNIT_TEXT = { Cel: '°C', 'ug/m3': 'µg/m³', '[ppm]': 'ppm', 'm/s': 'm/s', '{AOD}': 'AOD', '{NDVI}': 'NDVI', '{UVI}': 'UVI', '{index}': 'index', 'umol/m2': 'µmol/m²', 'mmol/m2': 'mmol/m²', 'W/m2': 'W/m²', 'kW.h/m2/d': 'kWh/m²/day', 'mg/m3': 'mg/m³', '{hotspots}': 'hotspot(s)', km2: 'km²' };
 const unitText = (u) => UNIT_TEXT[u] || u;
 
 // Rounded the same way in the evidence, in the templates and in the check of the assistant's numbers.

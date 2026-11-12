@@ -625,6 +625,10 @@ test('Data layers: the evidence for the master brain keeps the words, the units,
   assert.ok(!cs.some((c) => c.kind === 'agree' || c.kind === 'differ'));
   const tpl = L._t.template(single, 'larnaka');
   assert.match(tpl.body.en, /Ground surface temperature|Ground heat from space/); assert.match(tpl.body.en, /\(satellite\)/); assert.match(tpl.body.el, /δορυφόρος/);
+  // the NDVI unit is shown as the word NDVI, never as the raw braces of the vocab unit
+  const nd = cs.find((c) => c.id === 'single-ndvi'); assert.ok(nd, 'a single-source NDVI candidate');
+  const ndTpl = L._t.template(nd, 'larnaka');
+  assert.match(ndTpl.body.en, /\d\.\d+ NDVI \(satellite\)/); assert.ok(!/\{NDVI\}/.test(ndTpl.body.en + ndTpl.body.el), 'no raw {NDVI} in the words');
   R.done();
 }, 120000);
 

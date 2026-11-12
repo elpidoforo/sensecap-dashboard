@@ -111,7 +111,7 @@ module.exports = function create(ctx) {
       if (!gotNeeded) {   // nothing usable this time: keep what we had, say why once
         failures++;
         lastFail = { kind: worst ? worst.kind : 'network', at: t0, retryAfterSec: worst && worst.e && worst.e.retryAfterSec };
-        const hint = lastFail.kind === 'key' ? 'NASA FIRMS refused the key (check FIRMS_MAP_KEY)' : lastFail.kind === 'limit' ? 'NASA FIRMS says too many requests, waiting' : lastFail.kind === 'format' ? 'NASA FIRMS gave an answer that is not a fire list (check FIRMS_MAP_KEY)' : 'NASA FIRMS did not answer';
+        const hint = lastFail.kind === 'key' ? 'NASA FIRMS refused the key (check the key that was set)' : lastFail.kind === 'limit' ? 'NASA FIRMS says too many requests, waiting' : lastFail.kind === 'format' ? 'NASA FIRMS gave an answer that is not a fire list (check FIRMS_MAP_KEY)' : 'NASA FIRMS did not answer';
         ctx.log(`${hint}; the last good data (if any) stay`);
         return { ok: false, answered, failed };
       }
@@ -196,8 +196,8 @@ module.exports = function create(ctx) {
 
   function probe() {
     const none = (note, noteEl, extra) => ({ ok: false, n: 0, at: null, note, noteEl, ...(extra || {}) });
-    if (!key()) return none('needs a free key: set FIRMS_MAP_KEY', 'χρειάζεται δωρεάν κλειδί: όρισε το FIRMS_MAP_KEY');
-    if (!keyOk()) return none('the key in FIRMS_MAP_KEY does not look right (letters and digits only)', 'το κλειδί στο FIRMS_MAP_KEY δεν φαίνεται σωστό (μόνο γράμματα και ψηφία)');
+    if (!key()) return none('needs a free NASA FIRMS key, which the site owner has not added yet', 'χρειάζεται δωρεάν κλειδί NASA FIRMS, που δεν το έχει προσθέσει ακόμη ο διαχειριστής');
+    if (!keyOk()) return none('the NASA FIRMS key that was set does not look right (letters and digits only)', 'το κλειδί NASA FIRMS που ορίστηκε δεν φαίνεται σωστό (μόνο γράμματα και ψηφία)');
     const k = current();
     if (!k) {
       if (lastFail && lastFail.kind === 'key') return none('NASA FIRMS did not accept the key', 'η NASA FIRMS δεν δέχτηκε το κλειδί');
@@ -224,12 +224,13 @@ module.exports = function create(ctx) {
     }
     const pm = k.pic;
     const when = hhmm(k.at, false), whenEl = hhmm(k.at, true);
-    const n = pm.drawn;
+    const n = pm.drawn, out = pm.outside || 0;
+    const outEn = out ? ` ${out === 1 ? '1 more lies' : out + ' more lie'} outside the picture.` : '', outEl = out ? ` ${out === 1 ? '1 ακόμη είναι' : out + ' ακόμη είναι'} εκτός εικόνας.` : '';
     return [{
       id: 'hotspots-cyprus',
       title: 'Fire hotspots seen from space over Cyprus', titleEl: 'Θερμές κηλίδες φωτιάς από δορυφόρο πάνω από την Κύπρο',
-      text: `Where NASA's fire satellites saw heat in the last 24 hours, up to ${when} (Cyprus time): ${n === 0 ? 'none in this picture' : n === 1 ? '1 place' : n + ' places'}. A hotspot is a heat spot seen as a satellite passed over, not a confirmed fire: gas flares, industry and farm burning show up too, and cloud can hide a fire. The dashed rings are 25 km and 50 km from each city centre. If you see smoke or fire, call 112.`,
-      textEl: `Πού είδαν θερμότητα οι δορυφόροι πυρκαγιών της NASA τις τελευταίες 24 ώρες, έως ${whenEl} (ώρα Κύπρου): ${n === 0 ? 'καμία στην εικόνα' : n === 1 ? '1 σημείο' : n + ' σημεία'}. Μια θερμή κηλίδα είναι θερμό σημείο που είδε δορυφόρος καθώς περνούσε, όχι επιβεβαιωμένη φωτιά: καύση αερίων, βιομηχανία και αγροτικές καύσεις φαίνονται κι αυτές και τα σύννεφα μπορεί να κρύψουν μια φωτιά. Οι διακεκομμένοι κύκλοι απέχουν 25 km και 50 km από το κέντρο κάθε πόλης. Αν δεις καπνό ή φωτιά, πάρε στο 112.`,
+      text: `Where NASA's fire satellites saw heat in the last 24 hours, up to ${when} (Cyprus time): ${n === 0 ? 'none in this picture' : n === 1 ? '1 place' : n + ' places'}.${outEn} A hotspot is a heat spot seen as a satellite passed over, not a confirmed fire: gas flares, industry and farm burning show up too, and cloud can hide a fire. The dashed rings are 25 km and 50 km from each city centre. If you see smoke or fire, call 112.`,
+      textEl: `Πού είδαν θερμότητα οι δορυφόροι πυρκαγιών της NASA τις τελευταίες 24 ώρες, έως ${whenEl} (ώρα Κύπρου): ${n === 0 ? 'καμία στην εικόνα' : n === 1 ? '1 σημείο' : n + ' σημεία'}.${outEl} Μια θερμή κηλίδα είναι θερμό σημείο που είδε δορυφόρος καθώς περνούσε, όχι επιβεβαιωμένη φωτιά: καύση αερίων, βιομηχανία και αγροτικές καύσεις φαίνονται κι αυτές και τα σύννεφα μπορεί να κρύψουν μια φωτιά. Οι διακεκομμένοι κύκλοι απέχουν 25 km και 50 km από το κέντρο κάθε πόλης. Αν δεις καπνό ή φωτιά, πάρε στο 112.`,
       time: k.at, bbox: pm.bbox, file: pictureFile, contentType: 'image/svg+xml',
       attribution: 'Fire data: NASA FIRMS (LANCE, NASA ESDIS). Picture drawn by Smart Cities Cyprus. Not endorsed by NASA.',
       attributionEl: 'Δεδομένα πυρκαγιών: NASA FIRMS (LANCE, NASA ESDIS). Εικόνα από το Smart Cities Cyprus. Χωρίς έγκριση της NASA.',
@@ -240,10 +241,10 @@ module.exports = function create(ctx) {
     if (!stopped) return;
     stopped = false;
     if (!key()) {
-      if (!noKeyLogged) { noKeyLogged = true; ctx.log('no FIRMS_MAP_KEY set: fire hotspots stay off (a free key is at firms.modaps.eosdis.nasa.gov/api/map_key)'); }
+      if (!noKeyLogged) { noKeyLogged = true; ctx.log('no NASA FIRMS key set: fire hotspots stay off (a free key is at firms.modaps.eosdis.nasa.gov/api/map_key)'); }
       return;
     }
-    if (!keyOk()) { ctx.log('FIRMS_MAP_KEY does not look like a key (letters and digits only): fire hotspots stay off'); return; }
+    if (!keyOk()) { ctx.log('the NASA FIRMS key that was set does not look like a key (letters and digits only): fire hotspots stay off'); return; }
     const age = state ? ctx.now() - state.fetchedAt : Infinity;
     schedule(age < EVERY_MS - FIRST_MS ? EVERY_MS - age : FIRST_MS);
   }

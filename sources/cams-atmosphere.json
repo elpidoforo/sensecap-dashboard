@@ -2,14 +2,14 @@
   "schema": "smartcities.source/1",
   "id": "cams-atmosphere",
   "name": "Haze, UV and gases (CAMS model)",
-  "summary": "Model estimates of haze, UV index and three gases (NO2, SO2, CO) for each city. Satellite measurements correct the model, but these are model numbers, not satellite pixels.",
+  "summary": "Model estimates of haze, UV and gases (NO2, SO2, CO) for each city. Haze rises on Saharan dust days. Satellites feed the model, but these are model numbers, not satellite pixels.",
   "layer": "model",
   "status": "active",
   "tagline": "Open-Meteo · CAMS · hourly",
   "i18n": {
     "el": {
       "name": "Θολούρα, UV και αέρια (μοντέλο CAMS)",
-      "summary": "Εκτιμήσεις μοντέλου για θολούρα, δείκτη UV και τρία αέρια (NO2, SO2, CO) για κάθε πόλη. Μετρήσεις δορυφόρων διορθώνουν το μοντέλο, αλλά οι τιμές είναι του μοντέλου, όχι εικονοστοιχεία δορυφόρου.",
+      "summary": "Εκτιμήσεις μοντέλου για θολούρα, UV και αέρια (NO2, SO2, CO) για κάθε πόλη. Η θολούρα ανεβαίνει όταν έρχεται σκόνη από τη Σαχάρα. Οι δορυφόροι τροφοδοτούν το μοντέλο, αλλά οι τιμές είναι του μοντέλου, όχι εικονοστοιχεία δορυφόρου.",
       "tagline": "Open-Meteo · CAMS · ωριαία"
     }
   },

@@ -183,14 +183,16 @@ test('feed, no key: does nothing, says so once, and never touches the network', 
   const { ctx, feed } = mk(goodFixtures(), {});
   feed.start(); feed.start();
   assert.equal(ctx.logs.length, 1, 'ONE log line: ' + ctx.logs.join(' | '));
-  assert.match(ctx.logs[0], /FIRMS_MAP_KEY/);
+  assert.match(ctx.logs[0], /^no NASA FIRMS key set: fire hotspots stay off/);
+  assert.ok(!/FIRMS_MAP_KEY/.test(ctx.logs[0]), 'the registry hides the name of a secret, so the words must read well without it');
   const r = await feed.refresh();
   assert.equal(r.ok, false);
   assert.deepEqual(ctx.calls, []);
   const p = await feed.probe();
   assert.equal(p.ok, false);
-  assert.equal(p.note, 'needs a free key: set FIRMS_MAP_KEY');
-  assert.match(p.noteEl, /FIRMS_MAP_KEY/);
+  assert.equal(p.note, 'needs a free NASA FIRMS key, which the site owner has not added yet');
+  assert.match(p.noteEl, /χρειάζεται δωρεάν κλειδί/);
+  assert.ok(!/FIRMS_MAP_KEY/.test(p.note + p.noteEl));
   assert.deepEqual(feed.read('paphos'), []);
   assert.deepEqual(feed.images(), []);
   feed.stop();
@@ -375,6 +377,8 @@ test('feed, the picture: a real SVG file, well formed, no network, no script, bi
   assert.ok(im.title.length <= 140 && im.titleEl.length <= 160 && im.text.length <= 500 && im.textEl.length <= 600, 'caption sizes the registry keeps');
   assert.ok(/[α-ω]/.test(im.titleEl) && /[α-ω]/.test(im.textEl));
   assert.match(im.text, /not a confirmed fire/); assert.match(im.text, /call 112/); assert.match(im.textEl, /112/);
+  assert.match(im.text, /4 places\. 1 more lies outside the picture\./, 'the caption counts what the picture shows and says how many lie outside it');
+  assert.match(im.textEl, /4 σημεία\. 1 ακόμη είναι εκτός εικόνας\./);
   assert.match(im.attribution, /NASA FIRMS/); assert.match(im.attribution, /Not endorsed by NASA/);
   const [w, s, e, n] = im.bbox;
   assert.ok(w < 32.27 && e > 34.6 && s < 34.56 && n > 35.7 && w > 31.9 && e < 35.0, 'frame bbox ' + im.bbox);

@@ -48,6 +48,7 @@ const W = 1000, H = 633;
 const KEEP_DAYS = 7;
 const HOUR = kit.HOUR, DAY = kit.DAY;
 const ATTRIBUTION = "We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS).";
+const ATTRIBUTION_EL = `${ATTRIBUTION} · Εικόνες από το Global Imagery Browse Services (GIBS) της NASA.`;   // NASA's wording stays exact; the Greek line explains it
 const COAST_IDS = ['Coastlines', 'Coastlines_15m'];   // a thin outline for the science pictures; the first one the service knows is kept
 
 const NOAA21 = 'NOAA-21 (VIIRS)', NOAA20 = 'NOAA-20 (VIIRS)', AQUA = 'Aqua (MODIS)', TERRA = 'Terra (MODIS)';
@@ -262,10 +263,18 @@ module.exports = function create(ctx, opts) {
     }
     if (r.kind === 'layer') return 'layer';
     if (r.kind === 'time') return 'missing';
-    if (r.kind !== 'ok') { sum.failed++; sum.notes.add(r.v.detail); return 'fail'; }
+    if (r.kind !== 'ok') { sum.failed++; sum.notes.add(r.v.detail); if (date) markMiss(def, date, t); return 'fail'; }   // rests like a missing day, so the next run reaches the older days
     sum.netFails = 0;
-    const same = store.list().find((e) => e.group === def.id && e.key !== (cand.static ? 'static' : date) && e.sha256 === r.v.sha256);
-    if (same && !cand.static) { sum.snapped++; return 'missing'; }      // the service gave the picture of another date (nearestValue)
+    const same = cand.static ? null : store.list().find((e) => e.group === def.id && !e.static && e.key !== date && e.sha256 === r.v.sha256);
+    if (same) {
+      // The service gave the picture of another date (nearestValue snaps a date it does not have to the nearest one it has). The real
+      // date of that picture is the EARLIER of the two: the later one is the copy. Asked newest first, the copy may already be stored.
+      sum.snapped++;
+      if (!same.day || same.day < date) return 'missing';
+      store.remove(same.id);
+      if (same.savedAt >= t) sum.stored--;
+      markMiss(def, same.day, t);
+    }
     const key = cand.static ? 'static' : date;
     store.put({
       id: entryId(def, key), group: def.id, key, time: cand.static ? cand.staticTime : dayTime(def, date), contentType: r.v.type === 'png' ? 'image/png' : 'image/jpeg',
@@ -290,15 +299,17 @@ module.exports = function create(ctx, opts) {
     if (!pick.caps) dates = dates.reverse();   // oldest first: a date past the real newest comes back as a copy of the last real picture, and is recognised
     let bads = 0;
     const snapped0 = sum.snapped, stored0 = sum.stored;
+    const noted = [];
+    const giveUp = () => { for (const d of noted) delete state.miss[`${def.id}|${d}`]; return 'next'; };   // those misses were this candidate's, not the next one's
     for (const date of dates) {
       if (sum.abort) return 'abort';
       if (sum.requests >= o.maxRequests) { sum.notes.add('stopped for now: that was a lot of requests'); return 'done'; }
       await sleep(o.pauseMs);
       const r = await getPicture(def, cand, date, t, sum);
       if (r === 'abort') return 'abort';
-      if (r === 'layer') { markBad(cand, 24 * HOUR, t, 'the service refused it'); return 'next'; }
-      if (r === 'missing') { markMiss(def, date, t); bads++; }
-      else if (r === 'fail') bads++;
+      if (r === 'layer') { markBad(cand, 24 * HOUR, t, 'the service refused it'); return giveUp(); }
+      if (r === 'missing') { markMiss(def, date, t); noted.push(date); bads++; }
+      else if (r === 'fail') { noted.push(date); bads++; }
       else bads = 0;
       if (bads >= 3 && sum.stored === stored0) break;
     }
@@ -308,7 +319,7 @@ module.exports = function create(ctx, opts) {
       const first = store.get(entryId(def, dates[0]));
       if (first && first.savedAt >= t) { store.remove(first.id); sum.stored--; }
       markBad(cand, 12 * HOUR, t, 'it has no new pictures');
-      return 'next';
+      return giveUp();
     }
     return 'done';
   }
@@ -396,7 +407,7 @@ module.exports = function create(ctx, opts) {
         title: src.title, titleEl: src.titleEl,
         text: `${src.text} Satellite: ${e.platform}.`, textEl: `${src.textEl} Δορυφόρος: ${e.platform}.`,
         time: e.time, bbox: BBOX, file: e.file, contentType: e.contentType,
-        attribution: ATTRIBUTION, attributionEl: ATTRIBUTION,
+        attribution: ATTRIBUTION, attributionEl: ATTRIBUTION_EL,
         // extras for a viewer that groups the pictures by kind (the registry may drop them): kind, day, newest of its kind, the layer
         group: def.id, day: e.day, latest: newestOf[e.group] === e.id, layer: e.layer, platform: e.platform, fixed: !!e.static,
       };

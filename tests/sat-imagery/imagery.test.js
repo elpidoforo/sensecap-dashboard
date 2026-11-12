@@ -1,6 +1,6 @@
 'use strict';
 /* Unit tests for satellite/lib/imagery.js: picture validation, atomic writes, the picture store (retention, size cap, clean-up),
- * the schedule and the capabilities reader. Run:  node --test tests/sat-imagery/ */
+ * the schedule and the capabilities reader. Run:  node --test tests/sat-imagery/*.test.js */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -227,4 +227,24 @@ test('the loop: first run, regular runs, doubling pause after failures, Retry-Af
   await new Promise((r) => setTimeout(r, 40));
   assert.ok(l2.nextInMs >= 5000, String(l2.nextInMs));
   l2.stop();
+});
+
+test('a picture that claims to be small but inflates to a huge size, or declares a huge size, is refused without being unpacked', () => {
+  const zlib = require('zlib');
+  const chunk = (type, data) => {
+    const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
+    const crc = Buffer.alloc(4); crc.writeUInt32BE(zlib.crc32(Buffer.concat([Buffer.from(type, 'latin1'), data])));
+    return Buffer.concat([len, Buffer.from(type, 'latin1'), data, crc]);
+  };
+  const ihdr = (w, h) => { const b = Buffer.alloc(13); b.writeUInt32BE(w, 0); b.writeUInt32BE(h, 4); b[8] = 8; b[9] = 2; return chunk('IHDR', b); };
+  const sig = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const bomb = Buffer.concat([sig, ihdr(64, 40), chunk('IDAT', zlib.deflateSync(Buffer.alloc(80 * 1024 * 1024))), chunk('IEND', Buffer.alloc(0))]);
+  assert.ok(bomb.length < 200 * 1024, 'the bomb is small: ' + bomb.length);
+  const t0 = Date.now();
+  const r = kit.validateImage(bomb, { minBytes: 1 });
+  assert.equal(r.ok, false);
+  assert.ok(Date.now() - t0 < 2000);
+  const huge = Buffer.concat([sig, ihdr(60000, 60000), chunk('IDAT', zlib.deflateSync(Buffer.alloc(100))), chunk('IEND', Buffer.alloc(0))]);
+  assert.equal(kit.validateImage(huge, { minBytes: 1 }).reason, 'dimensions');
+  assert.equal(kit.validateImage(Buffer.concat([sig, ihdr(0, 10), chunk('IEND', Buffer.alloc(0))]), { minBytes: 1 }).ok, false);
 });

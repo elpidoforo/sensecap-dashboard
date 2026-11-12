@@ -47,6 +47,8 @@ const MIN = 60000, HOUR = kit.HOUR;
 const SLOT = [10.5 * HOUR, 14.5 * HOUR];  // the daily frame is the first one in this window of the UTC day (10:30 to 14:30)
 const OVERLAY = ['backgrounds:ne_10m_coastline', 'backgrounds:ne_boundary_lines_land'];
 const credit = (year, withOverlay) => `Contains modified EUMETSAT Meteosat data ${year}${withOverlay ? '; coastlines and borders: Natural Earth' : ''}`;
+// the licence's own wording stays exact (English); the Greek line after it says the same in plain words
+const creditEl = (year, withOverlay) => `${credit(year, withOverlay)} · Περιέχει τροποποιημένα δεδομένα Meteosat του EUMETSAT ${year}${withOverlay ? '· ακτογραμμές και σύνορα: Natural Earth' : ''}`;
 
 const MTG = 'Meteosat-12 (MTG, 0°)', MSG0 = 'Meteosat (MSG, 0°)', IODC = 'Meteosat (MSG, 45.5°E)';
 
@@ -126,7 +128,7 @@ module.exports = function create(ctx, opts) {
   const envN = (name) => { try { return num(ctx.env && ctx.env[name]); } catch (e) { return null; } };
   const o = { pauseMs: 2000, firstDelayMs: 40000, everyMs: 45 * MIN, capsTtlMs: 20 * MIN, staleMs: 6 * HOUR, maxBytes: 25 * 1024 * 1024, ...(opts || {}) };
   if (envN('SATELLITE_IMAGERY_PAUSE_MS') != null) o.pauseMs = envN('SATELLITE_IMAGERY_PAUSE_MS');
-  if (envN('SATELLITE_IMAGERY_FIRST_DELAY_MS') != null) o.firstDelayMs = envN('SATELLITE_IMAGERY_FIRST_DELAY_MS') + 15000;
+  if (envN('SATELLITE_IMAGERY_FIRST_DELAY_MS') != null) o.firstDelayMs = envN('SATELLITE_IMAGERY_FIRST_DELAY_MS');   // (the default, 40 s, is already later than the NASA feed's 25 s)
   if (envN('SATELLITE_IMAGERY_MAX_MB') != null) o.maxBytes = Math.max(1, envN('SATELLITE_IMAGERY_MAX_MB')) * 1024 * 1024;
 
   const store = kit.makeStore(ctx.dir, { maxBytes: o.maxBytes, now: () => ctx.now(), log: (m) => ctx.log(m) });
@@ -304,7 +306,7 @@ module.exports = function create(ctx, opts) {
         title: def.title, titleEl: def.titleEl,
         text: `${def.text} Satellite: ${e.platform}.${e.approx ? ' The time is approximate.' : ''}`,
         textEl: `${def.textEl} Δορυφόρος: ${e.platform}.${e.approx ? ' Η ώρα είναι κατά προσέγγιση.' : ''}`,
-        time: e.time, bbox: BBOX, file: e.file, contentType: e.contentType, attribution: c, attributionEl: c,
+        time: e.time, bbox: BBOX, file: e.file, contentType: e.contentType, attribution: c, attributionEl: creditEl(new Date(e.time).getUTCFullYear(), e.overlay),
         group: def.id, day, latest, layer: e.layer, platform: e.platform, fixed: false,
       };
     });

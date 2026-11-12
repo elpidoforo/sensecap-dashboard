@@ -106,7 +106,7 @@
       "Smoke or air quality: this layer shows heat only"
     ]
   },
-  "notes": "Read from the FIRMS pages, never run against the live service from our build sandbox. The key is optional: with no FIRMS_MAP_KEY the layer stays Planned. Licence: NASA says its data are open with no restrictions (CC0 for NASA-led missions); NOAA-20 and NOAA-21 are NOAA missions, so a teacher may want to confirm.",
+  "notes": "Read from the FIRMS pages, never run against the live service from our build sandbox. The key is optional: with no key set the layer stays Planned. Licence: NASA says its data are open with no restrictions (CC0 for NASA-led missions); NOAA-20 and NOAA-21 are NOAA missions, so a teacher may want to confirm.",
   "x_rules": {
     "window": "24 hours that end when the lists were fetched",
     "confidence": "low is dropped for every sensor: VIIRS letter l; MODIS under 30 percent. Nominal and high are kept",
