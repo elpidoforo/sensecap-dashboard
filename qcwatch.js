@@ -13,16 +13,16 @@
  *   goes on without the extra field.
  *
  * Load on the sensor service: the last-day series are asked for one at a time (about 5 a second at most is what the upstream
- * gate allows anyway), only when somebody asks for devices or readings, and at most once every 10 minutes.
+ * gate allows anyway), only when somebody asks for devices or readings, and at most once every 30 minutes.
  */
 const fs = require('fs');
 const path = require('path');
 const Q = require('./qc');
 
 const MIN = 60000, HOUR = 3600000;
-const TTL = 10 * MIN;                 // how long a set of results is used before the series are read again
+const TTL = 30 * MIN;                 // how long a set of results is used before the series are read again (the shared SenseCAP gate is often busy)
 const FRESH = 3 * HOUR;               // a reading older than this is the "sensor quiet" alert's business, not ours
-const PAUSE = 120;                    // ms between two series reads, so the upstream is never hammered
+const PAUSE = 500;                    // ms between two series reads, so the upstream is never hammered
 const BUDGET = 4 * MIN;               // one refresh never runs longer than this
 const GPS = new Set(['4197', '4198']);
 
@@ -76,7 +76,7 @@ function createQcWatch(opts) {
   const state = new Map();        // eui -> { at, env, series: Map(mid -> { mid, variable, scale, unit, profile, result }) }
   let inflight = null, lastAt = 0, started = false;
   const warned = new Set();
-  const warnOnce = (m) => { if (!warned.has(m) && warned.size < 20) { warned.add(m); log('Quality checks: ' + m); } };
+  const warnOnce = (m) => { const k = String(m).replace(/\d+/g, '#'); if (!warned.has(k) && warned.size < 20) { warned.add(k); log('Quality checks: ' + m); } };   // the same trouble with another number of seconds is the same line
 
   async function refreshNow() {
     const t0 = now();
