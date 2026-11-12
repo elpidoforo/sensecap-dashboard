@@ -1,0 +1,7 @@
+three.js r160 (MIT licence, see LICENSE in this folder). Copied unmodified.
+Source:  https://github.com/mrdoob/three.js  tag r160  commit d04539a76736ff500cae883d6a38b3dd8643c548
+Files:   build/three.module.js                       (the ES module build, what three@0.160.0 serves as "three")
+         examples/jsm/controls/OrbitControls.js      (imports only "three")
+Used by: /3d.html through an import map ("three" and "three/addons/" point here), so the page needs no CDN.
+To upgrade: add a new folder (for example three-r161), copy the same two files from that tag, change the import map in 3d.html.
+The folder name carries the version because the server caches /vendor/three-r160/ for a year.

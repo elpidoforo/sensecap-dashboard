@@ -11,6 +11,7 @@
   const T = SC.t, el = SC.el;
   const sv = (tag, attrs, ...kids) => SC.svgEl(tag, attrs, ...kids.flat(Infinity));
   SC.css('/site/pages/alerts.css');
+  SC.css('/site/qc-note.css');   // the quiet "Check this sensor" list below (data quality: never an alert, see qc.js)
   const fill = (box, ...kids) => box.replaceChildren(...kids.flat(Infinity).filter((k) => k != null && k !== false));
   const fin = (v) => typeof v === 'number' && isFinite(v);
   const reduce = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -140,7 +141,8 @@
       const endBox = el('div', { class: 'al-list' });
       const noteBox = el('p', { class: 'al-note' });
       const rulesBox = el('section', { class: 'nm-card al-rules', id: 'al-rules', tabindex: -1, 'aria-label': T('The rules', 'Οι κανόνες') });
-      root.append(sevBox, barBox, probBox, listBox, noteBox, endBox, rulesBox);
+      const qcBox = el('section', { class: 'qc-sec', 'aria-label': T('Sensors to check', 'Αισθητήρες για έλεγχο') });
+      root.append(sevBox, barBox, probBox, listBox, noteBox, endBox, qcBox, rulesBox);
 
       const S = { res: null, err: null, busy: false, level: ctx.query.get('level') || 'all', cat: ctx.query.get('cat') || 'all', school: ctx.query.get('school') || 'all', why: new Set(), next: Date.now() + 60000 };
       if (!['all', 'high', 'medium', 'info'].includes(S.level)) S.level = 'all';
@@ -261,6 +263,19 @@
               ico('muteBell'), muted ? T('Muted for a day · undo', 'Σίγαση για μία ημέρα · αναίρεση') : T('Mute for a day', 'Σίγαση για μία ημέρα'))));
       }
 
+      /* ----- sensors to check: data quality, kept apart from the alerts (no level, no count in the menu, nothing is sent) ----- */
+      function paintQc() {
+        const list = (S.devs || []).filter((d) => d && d.qc && d.qc.status === 'check' && d.qc.note);
+        if (!list.length) { fill(qcBox); return; }
+        fill(qcBox,
+          el('div', { class: 'al-sech' }, el('span', { class: 'eyebrow' }, T('Sensors to check', 'Αισθητήρες για έλεγχο')), el('span', { class: 'ln' })),
+          el('p', { class: 'qc-lede' }, T('These readings look odd. This is not an alert: nothing is hidden or deleted and no message is sent. Look at where the sensor is, then at its chart.',
+            'Αυτές οι μετρήσεις φαίνονται περίεργες. Δεν είναι ειδοποίηση: τίποτα δεν κρύβεται ή διαγράφεται και δεν στέλνεται μήνυμα. Δες πού βρίσκεται ο αισθητήρας και μετά το γράφημά του.')),
+          el('ul', { class: 'qc-list' }, list.map((d) => el('li', null,
+            el('div', { class: 'qc-top' }, el('a', { class: 'qc-name', href: '#/vehicles/' + encodeURIComponent(d.eui) }, d.name || d.eui), el('span', { class: 'nm-badge nm-badge--warn' }, T('Check this sensor', 'Έλεγξε αυτόν τον αισθητήρα'))),
+            (d.qc.items && d.qc.items.length ? d.qc.items.slice(0, 2).map((i) => i.reason) : [d.qc.note]).map((r) => el('span', { class: 'qc-why' }, T(r.en, r.el)))))));
+      }
+
       /* ----- the rules panel ----- */
       const LINE = {
         co2_high: (r) => T('above ' + A.numA(r.threshold) + ' ' + (r.unit || 'ppm'), 'πάνω από ' + A.numA(r.threshold) + ' ' + (r.unit || 'ppm')),
@@ -370,6 +385,7 @@
         fill(noteBox, all.length ? T('A muted alert comes back after 24 hours. Mutes are kept in this browser only.', 'Μια ειδοποίηση σε σίγαση επανέρχεται μετά από 24 ώρες. Οι σιγάσεις κρατιούνται μόνο σε αυτόν τον περιηγητή.') : null);
         const endShown = (res.ended || []).filter(keep);
         fill(endBox, endShown.length ? [el('div', { class: 'al-sech' }, el('span', { class: 'eyebrow' }, T('Ended in the last 24 hours', 'Έληξαν τις τελευταίες 24 ώρες')), el('span', { class: 'ln' })), endShown.map((a) => card(a, true))] : null);
+        paintQc();
         paintRules();
         tick();
       }
@@ -380,6 +396,7 @@
         S.busy = true;
         if (S.res) paint();
         try { S.res = await SC.alertsEvaluate({ force: Boolean(force) }); S.err = null; } catch (e) { S.err = e; if (!S.res) S.res = null; }
+        try { const dv = await SC.cached('/api/devices', 30000); S.devs = Array.isArray(dv) ? dv : []; } catch (e) { S.devs = S.devs || []; }   // the same call the evaluator made, so no new request
         S.busy = false;
         if (!alive) return;
         S.next = Date.now() + 60000;

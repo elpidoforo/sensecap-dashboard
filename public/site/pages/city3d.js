@@ -2,7 +2,8 @@
   Cyprus 3D: the old 3D page (/3d.html) shown inside the shell in a glass frame.
   Same idea as map.js: a separate document (three.js needs its own canvas), so this file builds the frame around it,
   forwards the language and the route query, shows a loading overlay, and an error card with "Try again" if the 3D engine
-  could not start (it loads three.js from a CDN, so it needs internet). Styles are shared with the map page (map.css, prefix mp-).
+  could not start (three.js is served from /vendor/three-r160/ on our own server, so the page makes no third-party request).
+  Styles are shared with the map page (map.css, prefix mp-).
   Privacy: the columns of vehicles stand at the delayed, rounded positions the API gives the public (about 2 hours late, 1 km).
 */
 (function () {

@@ -1,0 +1,10 @@
+{
+  "name": "hyparquet",
+  "version": "1.33.0",
+  "description": "Parquet file parser for JavaScript (vendored copy of src/, unchanged; see LICENSE)",
+  "license": "MIT",
+  "type": "module",
+  "main": "src/index.js",
+  "repository": { "type": "git", "url": "git+https://github.com/hyparam/hyparquet.git" },
+  "x_vendored": { "commit": "8f4096afaa8da5d0bbd76a0225b44c71ac4fcd83", "tag": "v1.33.0 (Publish v1.33.0)", "copied": "src/*.js and LICENSE only, no changes", "date": "2026-11-12" }
+}

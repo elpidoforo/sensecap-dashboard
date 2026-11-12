@@ -137,10 +137,36 @@
     { id: 'temp', ids: ['4097'], re: /temp/i, not: /soil|water|ground|dew|surface|probe|internal|core|wet/i },
     { id: 'co2', ids: ['4100'], re: /\bco2\b|carbon dioxide/i },
     { id: 'pm25', ids: [], re: /pm\s*2[._]?5/i },
+    { id: 'hum', ids: ['4098'], re: /humid/i, not: /soil|leaf|moisture|dew/i },   // relative humidity, only for the "Feels like" value of the heat wave
   ];
+  const PLAUSIBLE = { hum: [0, 100] };   // a reading outside this is a sensor fault, not weather: it is left out of the school average
   const km = (a, b) => { const r = Math.PI / 180, dl = (b.lat - a.lat) * r, dn = (b.lng - a.lng) * r, x = Math.sin(dl / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dn / 2) ** 2; return 12742 * Math.asin(Math.sqrt(x)); };
   const spanText = (ms) => { const m = Math.max(1, Math.round(ms / 60000)); if (m < 90) return T(m + ' min', m + ' λεπτά'); const h = Math.round(m / 60); if (h < 36) return T(h + ' h', h + ' ώρες'); const d = Math.round(h / 24); return T(d + ' days', d + ' ημέρες'); };
   const agoText = (t) => (t ? T(spanText(Date.now() - t) + ' ago', 'πριν ' + spanText(Date.now() - t)) : '');
+
+  /* ---------- "Feels like": the NWS heat index, in its own small file (/site/heatindex.js), loaded here ----------
+     The page works without it: when the file cannot be loaded the "Feels like" line says so and shows the plain temperature. */
+  let HEAT = typeof SC.heatIndex === 'object' ? SC.heatIndex : null;
+  function loadHeat() {
+    if (HEAT) return Promise.resolve(HEAT);
+    return new Promise((done) => {
+      let s = document.getElementById('heatindex-lib');
+      if (!s) { s = document.createElement('script'); s.id = 'heatindex-lib'; s.src = '/site/heatindex.js'; document.head.append(s); }
+      s.addEventListener('load', () => { HEAT = typeof SC.heatIndex === 'object' ? SC.heatIndex : null; done(HEAT); });
+      s.addEventListener('error', () => { s.remove(); done(null); });
+    });
+  }
+  // why there is no heat index, in plain words (the limits are the National Weather Service chart: 80 to 110 °F, 40 to 100 %, up to 137 °F)
+  const heatWhy = {
+    cool: () => T('The air is under 26.7 °C (80 °F), so there is no heat index.', 'Ο αέρας είναι κάτω από 26,7 °C (80 °F), άρα δεν υπάρχει δείκτης θερμότητας.'),
+    hot: () => T('The air is over 43.3 °C (110 °F), beyond the chart the index comes from.', 'Ο αέρας είναι πάνω από 43,3 °C (110 °F), πέρα από το διάγραμμα από το οποίο προέρχεται ο δείκτης.'),
+    dry: () => T('The humidity is under 40 %, below the chart the index comes from.', 'Η υγρασία είναι κάτω από 40 %, κάτω από το διάγραμμα από το οποίο προέρχεται ο δείκτης.'),
+    wet: () => T('The humidity reading is above 100 %, which cannot be right.', 'Η μέτρηση υγρασίας είναι πάνω από 100 %, κάτι που δεν μπορεί να ισχύει.'),
+    extreme: () => T('Air this hot and humid is beyond the chart the index comes from.', 'Αέρας τόσο ζεστός και υγρός ξεπερνά το διάγραμμα από το οποίο προέρχεται ο δείκτης.'),
+    nohum: () => T('This school\'s sensors have no recent humidity reading, so the index cannot be worked out.', 'Οι αισθητήρες του σχολείου δεν έχουν πρόσφατη μέτρηση υγρασίας, άρα ο δείκτης δεν μπορεί να υπολογιστεί.'),
+    nolib: () => T('The feels-like calculation is not available right now.', 'Ο υπολογισμός της αισθητής θερμοκρασίας δεν είναι διαθέσιμος αυτή τη στιγμή.'),
+    input: () => T('The readings cannot be used for a heat index.', 'Οι μετρήσεις δεν μπορούν να χρησιμοποιηθούν για δείκτη θερμότητας.'),
+  };
 
   /* ---------- the page ---------- */
   SC.register('whatif', {
@@ -158,8 +184,8 @@
       const live = el('div', { class: 'sr-only', role: 'status', 'aria-live': 'polite' });
       root.append(live);
 
-      const help = ['Pick a school, then move the sliders. The page starts from what that school\'s sensors read now (CO2, temperature and PM2.5 where it is reported) and shows what the model says could change. The estimate always comes with an 80 % range and the measured value beside it. Open "How this estimate is made" to see every formula and number, and change the assumptions yourself.',
-        'Διαλέξτε ένα σχολείο και μετακινήστε τα ρυθμιστικά. Η σελίδα ξεκινά από όσα διαβάζουν τώρα οι αισθητήρες του σχολείου (CO2, θερμοκρασία και PM2.5 όπου αναφέρεται) και δείχνει τι λέει το μοντέλο ότι θα μπορούσε να αλλάξει. Η εκτίμηση συνοδεύεται πάντα από εύρος 80 % και τη μετρημένη τιμή δίπλα της. Ανοίξτε το «Πώς γίνεται αυτή η εκτίμηση» για να δείτε κάθε τύπο και αριθμό και αλλάξτε μόνοι σας τις παραδοχές.'];
+      const help = ['Pick a school, then move the sliders. The page starts from what that school\'s sensors read now (CO2, temperature and PM2.5 where it is reported) and shows what the model says could change. The estimate always comes with an 80 % range and the measured value beside it. Open "How this estimate is made" to see every formula and number, and change the assumptions yourself. With the heat wave switched on, the temperature card also shows a "Feels like" value (comfort, not PM2.5).',
+        'Διαλέξτε ένα σχολείο και μετακινήστε τα ρυθμιστικά. Η σελίδα ξεκινά από όσα διαβάζουν τώρα οι αισθητήρες του σχολείου (CO2, θερμοκρασία και PM2.5 όπου αναφέρεται) και δείχνει τι λέει το μοντέλο ότι θα μπορούσε να αλλάξει. Η εκτίμηση συνοδεύεται πάντα από εύρος 80 % και τη μετρημένη τιμή δίπλα της. Ανοίξτε το «Πώς γίνεται αυτή η εκτίμηση» για να δείτε κάθε τύπο και αριθμό και αλλάξτε μόνοι σας τις παραδοχές. Με τον καύσωνα ανοιχτό, η κάρτα θερμοκρασίας δείχνει και μια «Αισθητή θερμοκρασία» (άνεση, όχι PM2.5).'];
       function head(extra) {
         headHolder.replaceChildren(SC.head(Object.assign({
           title: T('What-if', 'Σενάρια'),
@@ -199,6 +225,7 @@
             if (catOf(mid) !== cat) continue;
             const r = l[mid], v = Number(r && r.v), t = Date.parse(r && r.t);
             if (!fin(v) || !isFinite(t) || now - t > DAY) continue;
+            if (PLAUSIBLE[cat] && (v < PLAUSIBLE[cat][0] || v > PLAUSIBLE[cat][1])) continue;
             vals.push(v); newest = Math.max(newest, t); break;
           }
         });
@@ -220,7 +247,7 @@
         }
         return null;
       }
-      const baseOf = (s) => ({ pm: pmBaseline(s), co2: readSchool(s, 'co2'), temp: readSchool(s, 'temp') });
+      const baseOf = (s) => ({ pm: pmBaseline(s), co2: readSchool(s, 'co2'), temp: readSchool(s, 'temp'), hum: readSchool(s, 'hum') });
       const sourceText = (b) => (b.src === 'sensors' ? T('Our school sensors (' + b.n + ')', 'Οι αισθητήρες του σχολείου (' + b.n + ')')
         : b.src === 'open' ? T('Sensor.Community, ' + b.n + ' volunteer sensor' + (b.n === 1 ? '' : 's') + ' within 12 km', 'Sensor.Community, ' + b.n + ' αισθητήρες εθελοντών σε απόσταση έως 12 χλμ.')
           : b.src === 'model' ? T('Open-Meteo air-quality model, nearest point about ' + Math.max(1, b.km) + ' km away', 'Μοντέλο ποιότητας αέρα Open-Meteo, κοντινότερο σημείο σε περίπου ' + Math.max(1, b.km) + ' χλμ.')
@@ -330,8 +357,8 @@
         A.hints = () => {
           const h2 = hints();
           Object.keys(h2).forEach((k) => { const p = A.ctl.querySelector('[data-hint="' + k + '"]'); if (p) p.textContent = h2[k]; });
-          heatHint.textContent = T('Hot, still air lets dust build up. The model adds ' + pc(S.K.heatOut) + ' to the outside part of the PM2.5, ' + pc(S.K.heatRoad) + ' to the road\'s part, and ' + SC.num(S.K.heatT, 1) + ' °C to the temperature.',
-            'Ο ζεστός, ακίνητος αέρας αφήνει τη σκόνη να συσσωρεύεται. Το μοντέλο προσθέτει ' + pc(S.K.heatOut) + ' στο εξωτερικό μέρος του PM2.5, ' + pc(S.K.heatRoad) + ' στο μέρος του δρόμου και ' + SC.num(S.K.heatT, 1) + ' °C στη θερμοκρασία.');
+          heatHint.textContent = T('Hot, still air lets dust build up. The model adds ' + pc(S.K.heatOut) + ' to the outside part of the PM2.5, ' + pc(S.K.heatRoad) + ' to the road\'s part, and ' + SC.num(S.K.heatT, 1) + ' °C to the temperature. It also shows a "Feels like" value for comfort; that does not change the PM2.5.',
+            'Ο ζεστός, ακίνητος αέρας αφήνει τη σκόνη να συσσωρεύεται. Το μοντέλο προσθέτει ' + pc(S.K.heatOut) + ' στο εξωτερικό μέρος του PM2.5, ' + pc(S.K.heatRoad) + ' στο μέρος του δρόμου και ' + SC.num(S.K.heatT, 1) + ' °C στη θερμοκρασία. Δείχνει επίσης μια «Αισθητή θερμοκρασία» για την άνεση· αυτή δεν αλλάζει το PM2.5.');
         };
         const ctl = el('div', { class: 'wf-ctl' },
           el('span', { class: 'wf-lab info' }, T('Change the day', 'Αλλάξτε την ημέρα')),
@@ -411,6 +438,31 @@
             el('div', null, el('span', { class: 'k' }, T('80 % range', 'Εύρος 80 %')), el('strong', { class: 'sm' }, SC.num(p10, dec) + T(' to ', ' έως ') + SC.num(p90, dec)), el('span', { class: 'sub' }, unit))),
           extra ? el('p', { class: 'wf-note' }, extra) : null);
       }
+      /* "Feels like", only on a heat wave day. It is about comfort, not PM2.5: nothing here feeds the PM2.5, CO2 or temperature estimates.
+         Inputs: the estimated air temperature (the temperature card, heat wave and trees included) and the humidity this school reads now, kept as measured. */
+      function feelsOf(b) {   // { c: °C to show, plain: true when it is only the air temperature, why, tAir, rh, now } or null
+        if (!S.heat || !b.temp) return null;
+        const tAir = tempParts(b.temp.v, { cars: S.cars, ev: S.ev, trees: S.trees, heat: S.heat }, S.K).mean;
+        if (!HEAT) return { c: tAir, plain: true, why: 'nolib', tAir };
+        if (!b.hum) return { c: tAir, plain: true, why: 'nohum', tAir };
+        const r = HEAT.feelsLike(tAir, b.hum.v), now = HEAT.feelsLike(b.temp.v, b.hum.v);
+        return r.ok ? { c: r.c, plain: false, tAir, rh: b.hum.v, now } : { c: tAir, plain: true, why: r.why, tAir, rh: b.hum.v, now };
+      }
+      function feelsBlock(b) {
+        const f = feelsOf(b);
+        if (!f) return null;
+        const nowTxt = !f.now ? null : f.now.ok ? T('As measured now it feels like ' + f0(f.now.c) + ' °C.', 'Όπως μετρήθηκε τώρα, η αίσθηση είναι ' + f0(f.now.c) + ' °C.')
+          : T('As measured now there is no heat index, the air is ' + f1(f.now.c) + ' °C.', 'Όπως μετρήθηκε τώρα δεν υπάρχει δείκτης θερμότητας, ο αέρας είναι ' + f1(f.now.c) + ' °C.');
+        return el('div', { class: 'wf-feels', role: 'group', 'aria-label': T('Feels like', 'Αισθητή θερμοκρασία') },
+          el('span', { class: 'k' }, T('Feels like on a heat wave day', 'Αισθητή θερμοκρασία σε ημέρα καύσωνα')),
+          el('strong', null, f.plain ? f1(f.c) : f0(f.c), el('small', null, '°C')),
+          f.plain ? el('span', { class: 'nm-badge nm-badge--warn' }, T('Plain air temperature', 'Απλή θερμοκρασία αέρα')) : null,
+          f.rh != null ? el('span', { class: 'sub' }, T('Air ' + f1(f.tAir) + ' °C and humidity ' + f0(f.rh) + ' % (kept as measured, ' + sensorText(b.hum) + ', ' + agoText(b.hum.t) + ')',
+            'Αέρας ' + f1(f.tAir) + ' °C και υγρασία ' + f0(f.rh) + ' % (όπως μετρήθηκε, ' + sensorText(b.hum) + ', ' + agoText(b.hum.t) + ')')) : null,
+          f.rh != null ? staleBadge(b.hum.t) : null,
+          nowTxt ? el('span', { class: 'sub' }, nowTxt) : null,
+          el('p', { class: 'wf-note' }, f.plain ? heatWhy[f.why]() + ' ' + T('The plain air temperature is shown instead.', 'Εμφανίζεται η απλή θερμοκρασία αέρα.') : T('The heat index of the US National Weather Service, good to about 1 °C. It is about comfort, not PM2.5, and it assumes shade and light wind.', 'Ο δείκτης θερμότητας της Εθνικής Μετεωρολογικής Υπηρεσίας των ΗΠΑ, με ακρίβεια περίπου 1 °C. Αφορά την άνεση, όχι το PM2.5, και υποθέτει σκιά και ελαφρύ άνεμο.')));
+      }
       function paintResults() {
         const school = D.schools.find((s) => s.slug === S.school);
         const b = baseOf(school);
@@ -420,6 +472,8 @@
             'Οι αισθητήρες CO2 βρίσκονται σε λεωφορεία, αυτοκίνητα και αίθουσες, άρα μια μέτρηση περιέχει και την αναπνοή των ανθρώπων. Το μοντέλο αγγίζει μόνο το μέρος πάνω από το υπόβαθρο στο ύπαιθρο (περίπου ' + S.K.co2Bg + ' ppm) και υποθέτει ότι το ' + pc(S.K.co2Traffic) + ' αυτού του μέρους είναι κυκλοφορία. Τα ηλεκτρικά λεωφορεία δεν έχουν εξάτμιση· το CO2 του σταθμού παραγωγής ρεύματος δεν υπολογίζεται. Τα δέντρα και η ζέστη δεν αλλάζουν τίποτα εδώ.'));
         const tmp = miniBlock(T('Temperature', 'Θερμοκρασία'), b.temp, tempParts, null, 0, '°C', 1,
           T('Only trees (cooling) and the heat wave change the temperature. Engine heat from cars and buses is tiny at street scale and is not modelled.', 'Μόνο τα δέντρα (δροσισμός) και ο καύσωνας αλλάζουν τη θερμοκρασία. Η θερμότητα των κινητήρων είναι ασήμαντη σε κλίμακα δρόμου και δεν μοντελοποιείται.'), S.K.varT);
+        const feels = feelsBlock(b);   // null unless the heat wave is on and the school has a temperature reading
+        if (feels) tmp.append(feels);
         fill(A.res, pmBlock(school, b), el('div', { class: 'wf-two' }, co2, tmp));
         if (A.draw) A.draw();
       }
@@ -438,6 +492,10 @@
           const r = fn(bb.v, s, K), d = dist(r.mean, vs, oneAtATime(fn, bb.v, s, K), K.unc, abs);
           L.push(nm + ': ' + T('measured ', 'μετρήθηκε ') + SC.num(bb.v, dec) + ' ' + u + ' (' + agoText(bb.t) + '), ' + T('estimate ', 'εκτίμηση ') + SC.num(r.mean, dec) + ' ' + u + ', ' + T('80 % range ', 'εύρος 80 % ') + SC.num(d.q(0.1), dec) + T(' to ', ' έως ') + SC.num(d.q(0.9), dec) + '.');
         });
+        const fl = feelsOf(b);
+        if (fl) L.push(T('Feels like (heat wave day, comfort only, not PM2.5): ', 'Αισθητή θερμοκρασία (ημέρα καύσωνα, μόνο άνεση, όχι PM2.5): ') + (fl.plain
+          ? f1(fl.c) + ' °C ' + T('(plain air temperature, ', '(απλή θερμοκρασία αέρα, ') + heatWhy[fl.why]() + ')'
+          : f0(fl.c) + ' °C ' + T('(US National Weather Service heat index from air ', '(δείκτης θερμότητας της Εθνικής Μετεωρολογικής Υπηρεσίας των ΗΠΑ από αέρα ') + f1(fl.tAir) + ' °C ' + T('and humidity ', 'και υγρασία ') + f0(fl.rh) + ' % ' + T('as measured)', 'όπως μετρήθηκε)')) + '.');
         L.push(T('Model: a simple source split with assumed coefficients, listed on the page ("How this estimate is made"). Not tested against a trial.', 'Μοντέλο: απλός διαχωρισμός πηγών με παραδοχές που αναφέρονται στη σελίδα («Πώς γίνεται αυτή η εκτίμηση»). Δεν έχει ελεγχθεί με πείραμα.'));
         L.push(T('Made ', 'Δημιουργήθηκε ') + SC.dateTime(Date.now()) + ' (' + T('Cyprus time', 'ώρα Κύπρου') + ')');
         return L.join('\n');
@@ -473,16 +531,18 @@
               el('li', null, el('b', null, T('Start from what we measured. ', 'Ξεκινάμε από ό,τι μετρήσαμε. ')), T('The latest CO2, temperature and PM2.5 of the school you picked. If no school sensor reports PM2.5, the page uses nearby volunteer sensors (Sensor.Community) or the Open-Meteo model and says so. A regional value describes the area, not the gate itself.', 'Οι τελευταίες τιμές CO2, θερμοκρασίας και PM2.5 του σχολείου που διαλέξατε. Αν κανένας αισθητήρας σχολείου δεν αναφέρει PM2.5, η σελίδα χρησιμοποιεί κοντινούς αισθητήρες εθελοντών (Sensor.Community) ή το μοντέλο Open-Meteo και το λέει. Μια περιφερειακή τιμή περιγράφει την περιοχή, όχι την ίδια την είσοδο.')),
               el('li', null, el('b', null, T('Split it by source. ', 'Το χωρίζουμε ανά πηγή. ')), T('Part comes from the road (cars and buses), the rest from outside. The split is an assumption (table below).', 'Ένα μέρος προέρχεται από τον δρόμο (αυτοκίνητα και λεωφορεία), το υπόλοιπο από έξω. Ο διαχωρισμός είναι παραδοχή (πίνακας παρακάτω).')),
               el('li', null, el('b', null, T('Each slider changes only its own part. ', 'Κάθε ρυθμιστικό αλλάζει μόνο το δικό του μέρος. ')), T('Fewer cars cut the car part. Electric buses cut the bus part. Trees trim the road part. A heat wave makes the outside and road parts bigger.', 'Λιγότερα αυτοκίνητα μειώνουν το μέρος των αυτοκινήτων. Τα ηλεκτρικά λεωφορεία μειώνουν το μέρος των λεωφορείων. Τα δέντρα μειώνουν το μέρος του δρόμου. Ο καύσωνας μεγαλώνει το εξωτερικό μέρος και του δρόμου.')),
-              el('li', null, el('b', null, T('Add the wobble of real life. ', 'Προσθέτουμε τη διακύμανση της πραγματικής ζωής. ')), T('Readings differ from one moment to the next, and every effect is itself uncertain, so we draw 2,000 possible readings. The 80 % range is where 8 in 10 of them land. The more you change, the wider it gets.', 'Οι μετρήσεις διαφέρουν από στιγμή σε στιγμή και κάθε επίδραση είναι αβέβαιη, γι’ αυτό σχεδιάζουμε 2.000 πιθανές τιμές. Το εύρος 80 % είναι όπου βρίσκονται οι 8 στις 10. Όσο περισσότερα αλλάζετε, τόσο μεγαλώνει.'))),
+              el('li', null, el('b', null, T('Add the wobble of real life. ', 'Προσθέτουμε τη διακύμανση της πραγματικής ζωής. ')), T('Readings differ from one moment to the next, and every effect is itself uncertain, so we draw 2,000 possible readings. The 80 % range is where 8 in 10 of them land. The more you change, the wider it gets.', 'Οι μετρήσεις διαφέρουν από στιγμή σε στιγμή και κάθε επίδραση είναι αβέβαιη, γι’ αυτό σχεδιάζουμε 2.000 πιθανές τιμές. Το εύρος 80 % είναι όπου βρίσκονται οι 8 στις 10. Όσο περισσότερα αλλάζετε, τόσο μεγαλώνει.')),
+              el('li', null, el('b', null, T('Feels like, on a heat wave day only. ', 'Αισθητή θερμοκρασία, μόνο σε ημέρα καύσωνα. ')), T('The temperature card adds the US National Weather Service heat index, worked out from the estimated air temperature and the humidity this school reads now, kept as measured. Outside the range of the Weather Service chart (air 26.7 to 43.3 °C, humidity 40 to 100 %, index up to about 58 °C) the page shows the plain air temperature instead.', 'Η κάρτα θερμοκρασίας προσθέτει τον δείκτη θερμότητας της Εθνικής Μετεωρολογικής Υπηρεσίας των ΗΠΑ, υπολογισμένο από την εκτιμώμενη θερμοκρασία αέρα και την υγρασία που διαβάζει τώρα το σχολείο, όπως μετρήθηκε. Εκτός του εύρους του διαγράμματος της υπηρεσίας (αέρας 26,7 έως 43,3 °C, υγρασία 40 έως 100 %, δείκτης έως περίπου 58 °C) η σελίδα δείχνει την απλή θερμοκρασία αέρα.'))),
             el('div', { class: 'rt' },
-              el('pre', { class: 'wf-formula', tabindex: 0 }, T('PM2.5 = outside + road\noutside = (B − B × traffic) × (1 + heat wave outside)\nroad    = (cars + buses) × (1 − trees) × (1 + heat wave road)\ncars    = B × traffic × (1 − bus share) × (1 + change in cars)\nbuses   = B × traffic × bus share × (1 − electric share × cut)\ntrees   = min(cap, trees ÷ 100 × trim per 100)\nCO2     = (CO2 − traffic part) + cars × (1 + change) + buses × (1 − electric share)\ntemp    = T + heat wave rise − min(cap, trees ÷ 100 × cooling per 100)\nsd      = √( (variation × value)² + (doubt × √Σ effect²)² )\n80 % range = value ± 1.28 × sd      (B = baseline reading)', 'PM2.5 = εξωτερικό + δρόμος\nεξωτερικό = (B − B × κίνηση) × (1 + καύσωνας εξωτερικού)\nδρόμος = (αυτοκίνητα + λεωφορεία) × (1 − δέντρα) × (1 + καύσωνας δρόμου)\nαυτοκίνητα = B × κίνηση × (1 − μερίδιο λεωφορείων) × (1 + μεταβολή αυτοκινήτων)\nλεωφορεία = B × κίνηση × μερίδιο λεωφορείων × (1 − ηλεκτρικό μερίδιο × μείωση)\nδέντρα = min(όριο, δέντρα ÷ 100 × μείωση ανά 100)\nCO2 = (CO2 − μέρος κίνησης) + αυτοκίνητα × (1 + μεταβολή) + λεωφορεία × (1 − ηλεκτρικό μερίδιο)\nθερμοκρασία = T + άνοδος καύσωνα − min(όριο, δέντρα ÷ 100 × ψύξη ανά 100)\nsd = √( (διακύμανση × τιμή)² + (αβεβαιότητα × √Σ επίδραση²)² )\nεύρος 80 % = τιμή ± 1,28 × sd   (B = μέτρηση βάσης)')),
-              el('p', { class: 'wf-untested' }, el('b', null, T('Not tested yet. ', 'Δεν έχει δοκιμαστεί ακόμα. ')), T('No trial has checked this model and the numbers below are not fitted to our data. A pilot with a PM2.5 sensor at the gate would show how far off it is. Read the result as "what would happen if these assumptions were right".', 'Κανένα πείραμα δεν έχει ελέγξει αυτό το μοντέλο και οι αριθμοί παρακάτω δεν έχουν προσαρμοστεί στα δεδομένα μας. Ένας πιλότος με αισθητήρα PM2.5 στην είσοδο θα έδειχνε πόσο απέχει. Διαβάστε το αποτέλεσμα ως «τι θα γινόταν αν οι παραδοχές ήταν σωστές».')))),
+              el('pre', { class: 'wf-formula', tabindex: 0 }, T('PM2.5 = outside + road\noutside = (B − B × traffic) × (1 + heat wave outside)\nroad    = (cars + buses) × (1 − trees) × (1 + heat wave road)\ncars    = B × traffic × (1 − bus share) × (1 + change in cars)\nbuses   = B × traffic × bus share × (1 − electric share × cut)\ntrees   = min(cap, trees ÷ 100 × trim per 100)\nCO2     = (CO2 − traffic part) + cars × (1 + change) + buses × (1 − electric share)\ntemp    = T + heat wave rise − min(cap, trees ÷ 100 × cooling per 100)\nsd      = √( (variation × value)² + (doubt × √Σ effect²)² )\n80 % range = value ± 1.28 × sd      (B = baseline reading)\nfeels like (heat wave only) = heat index(temp, humidity as measured), if air 26.7 to 43.3 °C and humidity 40 to 100 %, else temp', 'PM2.5 = εξωτερικό + δρόμος\nεξωτερικό = (B − B × κίνηση) × (1 + καύσωνας εξωτερικού)\nδρόμος = (αυτοκίνητα + λεωφορεία) × (1 − δέντρα) × (1 + καύσωνας δρόμου)\nαυτοκίνητα = B × κίνηση × (1 − μερίδιο λεωφορείων) × (1 + μεταβολή αυτοκινήτων)\nλεωφορεία = B × κίνηση × μερίδιο λεωφορείων × (1 − ηλεκτρικό μερίδιο × μείωση)\nδέντρα = min(όριο, δέντρα ÷ 100 × μείωση ανά 100)\nCO2 = (CO2 − μέρος κίνησης) + αυτοκίνητα × (1 + μεταβολή) + λεωφορεία × (1 − ηλεκτρικό μερίδιο)\nθερμοκρασία = T + άνοδος καύσωνα − min(όριο, δέντρα ÷ 100 × ψύξη ανά 100)\nsd = √( (διακύμανση × τιμή)² + (αβεβαιότητα × √Σ επίδραση²)² )\nεύρος 80 % = τιμή ± 1,28 × sd   (B = μέτρηση βάσης)\nαισθητή (μόνο με καύσωνα) = δείκτης θερμότητας(θερμοκρασία, υγρασία όπως μετρήθηκε), αν αέρας 26,7 έως 43,3 °C και υγρασία 40 έως 100 %, αλλιώς θερμοκρασία')),
+              el('p', { class: 'wf-untested' }, el('b', null, T('Not tested yet. ', 'Δεν έχει δοκιμαστεί ακόμα. ')), T('No trial has checked this model and the numbers below are not fitted to our data. A pilot with a PM2.5 sensor at the gate would show how far off it is. Read the result as "what would happen if these assumptions were right".', 'Κανένα πείραμα δεν έχει ελέγξει αυτό το μοντέλο και οι αριθμοί παρακάτω δεν έχουν προσαρμοστεί στα δεδομένα μας. Ένας πιλότος με αισθητήρα PM2.5 στην είσοδο θα έδειχνε πόσο απέχει. Διαβάστε το αποτέλεσμα ως «τι θα γινόταν αν οι παραδοχές ήταν σωστές».')),
+              el('p', { class: 'wf-untested wf-comfort' }, el('b', null, T('Feels like is about comfort, not PM2.5. ', 'Η αισθητή θερμοκρασία αφορά την άνεση, όχι το PM2.5. ')), T('The heat wave still changes the PM2.5 only the way it did before, by the two percentages in the table (the outside part and the road part). The feels-like value feeds nothing back into the PM2.5, CO2 or temperature estimates, and it has no 80 % range because humidity is not modelled. The humidity is kept as measured while the air gets warmer, which means more water vapour than a real heat wave may bring, so the real feeling can be lower. The index is for an adult in the shade with light wind: sun adds up to 15 °F (8 °C), children in the sun feel more heat, and it is not a health warning.', 'Ο καύσωνας αλλάζει το PM2.5 μόνο όπως και πριν, με τα δύο ποσοστά του πίνακα (το εξωτερικό μέρος και το μέρος του δρόμου). Η αισθητή θερμοκρασία δεν επηρεάζει καμία από τις εκτιμήσεις PM2.5, CO2 ή θερμοκρασίας και δεν έχει εύρος 80 %, επειδή η υγρασία δεν μοντελοποιείται. Η υγρασία μένει όπως μετρήθηκε ενώ ο αέρας ζεσταίνεται, που σημαίνει περισσότερους υδρατμούς από όσους ίσως φέρει ένας πραγματικός καύσωνας, άρα η πραγματική αίσθηση μπορεί να είναι χαμηλότερη. Ο δείκτης αφορά έναν ενήλικα στη σκιά με ελαφρύ άνεμο: ο ήλιος προσθέτει έως 15 °F (8 °C), τα παιδιά στον ήλιο νιώθουν περισσότερη ζέστη και δεν είναι προειδοποίηση υγείας.')))),
           el('div', { class: 'wf-tbl' }, el('div', { class: 'nm-table-wrap' }, el('table', { class: 'nm-table' },
             el('thead', null, el('tr', null, el('th', null, T('Setting', 'Ρύθμιση')), el('th', null, T('Value (you can change it)', 'Τιμή (μπορείτε να την αλλάξετε)')), el('th', null, T('Sensible range', 'Λογικό εύρος')), el('th', null, T('Where it comes from', 'Από πού προέρχεται')))),
             el('tbody', null, rows))),
             el('button', { type: 'button', class: 'nm-btn nm-btn--ghost', onclick: () => { Object.assign(S.K, DEFAULTS); S.how = null; drawPage(); } }, ic('reset'), T('Back to the starting assumptions', 'Πίσω στις αρχικές παραδοχές'))),
-          el('p', { class: 'wf-src' }, T('Sources named above: Nowak et al. 2013, Environmental Pollution 178:395-402; Abhijith et al. 2017, Atmospheric Environment 162:71-86; Bowler et al. 2010, Landscape and Urban Planning 97:147-155; EMEP/EEA air pollutant emission inventory guidebook (road transport, non-exhaust); WHO global air quality guidelines 2021 (PM2.5, 24-hour guide ' + WHO + ' µg/m³); NOAA Global Monitoring Laboratory (CO2). Values are rounded rules of thumb taken from those ranges, not numbers copied from one table.',
-            'Πηγές που αναφέρονται παραπάνω: Nowak και συν. 2013, Environmental Pollution 178:395-402· Abhijith και συν. 2017, Atmospheric Environment 162:71-86· Bowler και συν. 2010, Landscape and Urban Planning 97:147-155· οδηγός απογραφής εκπομπών EMEP/EEA (οδική μεταφορά, μη καυσαέρια)· Παγκόσμιες οδηγίες ΠΟΥ για την ποιότητα του αέρα 2021 (PM2.5, οδηγός 24 ωρών ' + WHO + ' µg/m³)· NOAA Global Monitoring Laboratory (CO2). Οι τιμές είναι στρογγυλεμένοι εμπειρικοί κανόνες από αυτά τα εύρη, όχι αριθμοί αντιγραμμένοι από έναν πίνακα.')));
+          el('p', { class: 'wf-src' }, T('Sources named above: Nowak et al. 2013, Environmental Pollution 178:395-402; Abhijith et al. 2017, Atmospheric Environment 162:71-86; Bowler et al. 2010, Landscape and Urban Planning 97:147-155; EMEP/EEA air pollutant emission inventory guidebook (road transport, non-exhaust); WHO global air quality guidelines 2021 (PM2.5, 24-hour guide ' + WHO + ' µg/m³); NOAA Global Monitoring Laboratory (CO2). The feels-like value is the published heat-index equation of the US National Weather Service Weather Prediction Center ("The Heat Index Equation", after Rothfusz 1990, NWS Southern Region Technical Attachment SR 90-23, and Steadman 1979, Journal of Applied Meteorology 18:861-873). The other values are rounded rules of thumb taken from those ranges, not numbers copied from one table.',
+            'Πηγές που αναφέρονται παραπάνω: Nowak και συν. 2013, Environmental Pollution 178:395-402· Abhijith και συν. 2017, Atmospheric Environment 162:71-86· Bowler και συν. 2010, Landscape and Urban Planning 97:147-155· οδηγός απογραφής εκπομπών EMEP/EEA (οδική μεταφορά, μη καυσαέρια)· Παγκόσμιες οδηγίες ΠΟΥ για την ποιότητα του αέρα 2021 (PM2.5, οδηγός 24 ωρών ' + WHO + ' µg/m³)· NOAA Global Monitoring Laboratory (CO2). Η αισθητή θερμοκρασία είναι η δημοσιευμένη εξίσωση του δείκτη θερμότητας του Weather Prediction Center της Εθνικής Μετεωρολογικής Υπηρεσίας των ΗΠΑ («The Heat Index Equation», με βάση τους Rothfusz 1990, NWS Southern Region Technical Attachment SR 90-23, και Steadman 1979, Journal of Applied Meteorology 18:861-873). Οι υπόλοιπες τιμές είναι στρογγυλεμένοι εμπειρικοί κανόνες από αυτά τα εύρη, όχι αριθμοί αντιγραμμένοι από έναν πίνακα.')));
         return det;
       }
 
@@ -532,6 +592,7 @@
       const onResize = () => { clearTimeout(rz); rz = setTimeout(() => { if (alive && A.draw && A.res && A.res.isConnected) A.draw(); }, 200); };
       window.addEventListener('resize', onResize);
       timer = setInterval(refresh, 60000);
+      loadHeat().then(() => { if (alive && A.res && S.heat) update(); });   // the "Feels like" file; the page does not wait for it
       start(false);
       return () => { alive = false; clearInterval(timer); clearTimeout(rz); clearTimeout(announce); window.removeEventListener('resize', onResize); };
     },

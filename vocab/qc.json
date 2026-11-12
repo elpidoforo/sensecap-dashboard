@@ -1,0 +1,131 @@
+{
+  "_about": "Limits for the sensor quality checks in qc.js. The hard range (fail) and max_step (the biggest believable change between two consecutive readings) are in vocab/variables.json; this file adds the rest. Every number says where it comes from in its basis: 'our estimate' means we chose it from physics and common sense and it is open to change by a teacher, never a measured or published value. Flags never delete or hide a reading and never send an alert.",
+  "_sources": {
+    "ioos_qc": "NOAA IOOS QARTOD tests as coded in ioos/ioos_qc (Apache-2.0), commit 524de97: gross range (fail span, suspect span), spike (average of the two neighbours), rate of change, flat line. Its documented example for a slow variable (water level) uses a flat-line suspect time of 10800 s (3 h) and fail time of 21600 s (6 h), and a spike suspect 0.8, fail 3.",
+    "wmo305": "WMO-No. 305 (1993), Guide on the Global Data-processing System, chapter 6 (time consistency check), as quoted in the R package dataresqc: the largest change allowed between two observations is, for air temperature, 4 C in 1 h, 7 C in 2 h, 9 C in 3 h; for pressure 3 hPa per hour. Those are hourly values of shaded air, so they only guide our 10-minute limits."
+  },
+  "step_minutes": 10,
+  "max_gap_factor": 3,
+  "rate_fail_factor": 3,
+  "summary": {
+    "window_hours": 6,
+    "fresh_hours": 3,
+    "suspect_events": 3,
+    "basis": "our estimate: only the last 6 hours count, a sensor that has been quiet for 3 hours is the 'sensor quiet' alert's business, and one or two odd points are normal life, so 'check' needs a failed reading, a stuck reading right now, or 3 different suspect readings."
+  },
+  "environments": {
+    "vehicle": {
+      "factor": 1.5,
+      "flat_factor": 2,
+      "range": { "temperature": [-30, 75] },
+      "suspect_range": { "temperature": [-5, 62] },
+      "basis": "our estimate: a sensor on a bus or car sits in sun, in a closed cabin, next to air conditioning and goes through tunnels, so it really does jump (limits x1.5), a parked vehicle may repeat its last reading for longer (flat-line times x2), and a closed car in the Cyprus sun can pass 55 C inside, so for vehicles the temperature fail line is 75 C (the outdoor line of 55 C is in vocab/variables.json) and the suspect line 62 C."
+    }
+  },
+  "variables": {
+    "temperature": {
+      "suspect_range": [-5, 48],
+      "spike": { "suspect": 3, "fail": 6 },
+      "flat": { "tol": 0.05, "suspect_min": 240, "fail_min": 480, "min_points": 6 },
+      "basis": {
+        "max_step": "8 C between two readings 10 minutes apart is in vocab/variables.json. WMO-No. 305 allows 4 C per hour for shaded air, so this is generous on purpose (sun, doors, air conditioning).",
+        "suspect_range": "our estimate: outdoor air in Cyprus rarely leaves -5 to 48 C.",
+        "spike": "our estimate: about 40 % and 75 % of max_step; ioos_qc's own example for a slow variable is suspect 0.8 / fail 3.",
+        "flat": "our estimate: 0.05 C is one step of a 0.1 C sensor; the 4 h and 8 h are the ioos_qc example times (3 h and 6 h) made a little longer because air-conditioned rooms really do stay steady."
+      }
+    },
+    "relative_humidity": {
+      "spike": { "suspect": 12, "fail": 25 },
+      "flat": { "tol": 0.5, "suspect_min": 240, "fail_min": 480, "min_points": 6, "rest": { "above": 98.5 } },
+      "basis": {
+        "max_step": "25 % between two readings 10 minutes apart is in vocab/variables.json (our estimate, generous: a front or an air conditioner can move it 20 %).",
+        "spike": "our estimate: about half of max_step for suspect and all of it for fail.",
+        "flat": "our estimate. At or above 98.5 % the air is saturated (fog, dew) and humidity really does sit there for hours, so that is never called stuck."
+      }
+    },
+    "pressure": {
+      "suspect_range": [940, 1050],
+      "spike": { "suspect": 2, "fail": 5 },
+      "flat": { "tol": 0.1, "suspect_min": 360, "fail_min": 720, "min_points": 6 },
+      "basis": {
+        "max_step": "6 hPa between two readings is in vocab/variables.json. WMO-No. 305 allows 3 hPa per hour; we allow double because a bus can climb a hill (100 m is about 12 hPa). Units: sea-level and low-land sensors only; SenseCAP sends pascals and the server divides by 100.",
+        "suspect_range": "our estimate: pressure at the schools (near sea level) stays between about 990 and 1030 hPa; 940 to 1050 leaves room for a hill.",
+        "spike": "our estimate, a third and four fifths of max_step.",
+        "flat": "our estimate: 0.1 hPa is the size of the noise; a calm high-pressure day can stay within it for a couple of hours but not for 6."
+      }
+    },
+    "co2": {
+      "suspect_range": [350, 5000],
+      "spike": { "suspect": 500, "fail": 1200 },
+      "flat": { "tol": 1, "suspect_min": 360, "fail_min": 720, "min_points": 6 },
+      "basis": {
+        "max_step": "1500 ppm between two readings is in vocab/variables.json. Our estimate of a real classroom: 30 children give off roughly 0.4 m3 of CO2 an hour, in a 180 m3 room that is about 500 ppm per 10 minutes with the windows shut, so 1500 leaves a wide margin for a breath held next to the sensor.",
+        "suspect_range": "our estimate: outdoor air is about 420 ppm, a sensor reading under 350 is off, and 5000 ppm is the usual workplace limit for a whole shift.",
+        "spike": "our estimate, about a third and four fifths of max_step.",
+        "flat": "our estimate: a sealed room at night settles near the outdoor level but still wobbles by several ppm, so 'within 1 ppm' for 6 hours is not a real room; the times are long to avoid false alarms."
+      }
+    },
+    "pm25": {
+      "suspect_range": [0, 300],
+      "spike": { "suspect": 60, "fail": 200, "rel": 0.5 },
+      "flat": { "tol": 0.05, "suspect_min": 240, "fail_min": 480, "min_points": 6 },
+      "basis": {
+        "max_step": "300 ug/m3 is in vocab/variables.json (our estimate; low-cost sensors are indicative only).",
+        "suspect_range": "our estimate: above 300 ug/m3 for PM2.5 would be a heavy dust storm or a fire next to the sensor, worth a second look.",
+        "spike": "our estimate; the point must also be at least half as big as the level around it ('rel'), so 80 on top of 400 is not called a spike.",
+        "flat": "our estimate: a low-cost particle sensor that repeats exactly the same value (a fan that stopped often reads 0 all the time) is stuck; 4 h and 8 h."
+      }
+    },
+    "pm10": {
+      "suspect_range": [0, 600],
+      "spike": { "suspect": 120, "fail": 400, "rel": 0.5 },
+      "flat": { "tol": 0.05, "suspect_min": 240, "fail_min": 480, "min_points": 6 },
+      "basis": {
+        "max_step": "600 ug/m3 is in vocab/variables.json (our estimate).",
+        "suspect_range": "our estimate: double the PM2.5 line, because desert dust is mostly coarse.",
+        "spike": "our estimate, double the PM2.5 limits.",
+        "flat": "our estimate, same as PM2.5."
+      }
+    },
+    "ozone": {
+      "suspect_range": [0, 300],
+      "spike": { "suspect": 40, "fail": 80 },
+      "basis": {
+        "max_step": "100 ug/m3 is in vocab/variables.json (our estimate).",
+        "suspect_range": "our estimate: the EU information threshold is 180 ug/m3 over an hour, the alert threshold 240.",
+        "spike": "our estimate, 40 % and 80 % of max_step. No flat-line test: ozone at night can sit near zero for hours."
+      }
+    },
+    "noise": {
+      "suspect_range": [25, 110],
+      "spike": { "suspect": 30, "fail": 50 },
+      "flat": { "tol": 0.05, "suspect_min": 180, "fail_min": 360, "min_points": 6, "rest": { "below": 35 } },
+      "basis": {
+        "max_step": "40 dB between two readings is in vocab/variables.json (our estimate: a door slam on a quiet room is about 30 dB).",
+        "suspect_range": "our estimate: under 25 dB is below what a small microphone can measure, over 110 dB is a siren next to the sensor.",
+        "spike": "our estimate, a door slam is a normal 30 dB event, so only a bigger one is 'suspect'.",
+        "flat": "our estimate. At or under 35 dB a small microphone sits at its own floor, an empty quiet room really does read the same for hours, so that is never called stuck; any other exact repeat for 3 h is."
+      }
+    },
+    "light": {
+      "suspect_range": null,
+      "flat": { "tol": 0.5, "suspect_min": 180, "fail_min": 360, "min_points": 6, "count": "daylight", "daylight_deg": 8 },
+      "basis": {
+        "max_step": "100000 lx is in vocab/variables.json: light really can change from full sun to shade in a minute, so the rate-of-change test hardly ever speaks for light, and there is no spike test.",
+        "flat": "our estimate. Only time while the sun is more than 8 degrees above the horizon (worked out from the date and the time, in Cyprus) counts, so a sensor that reads 0 lx all night, or sits under a steady street lamp, is never flagged; 0 lx or any exact repeat through 3 h of daylight (a covered or stuck sensor) is."
+      }
+    },
+    "wind_speed": {
+      "suspect_range": [0, 40],
+      "spike": { "suspect": 12, "fail": 25 },
+      "flat": { "tol": 0, "suspect_min": 360, "fail_min": 720, "min_points": 6, "rest": { "below": 0.3 } },
+      "basis": {
+        "max_step": "15 m/s between two readings is in vocab/variables.json (our estimate).",
+        "suspect_range": "our estimate: 40 m/s is a hurricane-force gust, far beyond anything for Cyprus.",
+        "spike": "our estimate: gusts are real, so the limits sit close to max_step (80 % for suspect, 165 % for fail).",
+        "flat": "our estimate. Calm air (at or under 0.3 m/s) really does give the same reading for hours, so that is never called stuck; any other exact repeat for 6 h is."
+      }
+    }
+  },
+  "not_checked": "dust, sea_surface_temperature, wave_height, land_surface_temperature, green_space_share, electricity_renewable_share, dam_fill_level and buses_in_service are model, satellite or statistics values, not readings of one sensor, so they only get the hard range from vocab/variables.json when something asks."
+}

@@ -18,6 +18,7 @@
 const crypto = require('crypto');
 const { unsafeText, normCode, nameKey } = require('./school');
 const knowledge = require('./knowledge');
+const guideSearch = require('./guidesearch');   // the guide's search in Greek, Greeklish and English (see guidesearch.js)
 
 const DAY = 86400000;
 const MAX_HTML = 120000;
@@ -161,6 +162,8 @@ function createStudio(opts) {
   addCol('studio_projects', 'data_json', 'TEXT');
   // 1 = the author chose to show their name on the public tile. NULL or 0 = hidden (every tool approved before this column existed stays hidden).
   addCol('studio_projects', 'show_name', 'INTEGER');
+  // The version the studio last built, kept while a student changes the code by hand (see POST /studio/api/projects/:id/code), so "Undo my edits" can go back to it.
+  addCol('studio_projects', 'html_guide', 'TEXT');
   // A class build is a studio_use row with user_id 0, the school, and a keyed hash of the network address (never the address itself).
   addCol('studio_use', 'school_id', 'INTEGER');
   addCol('studio_use', 'ip', 'TEXT');
@@ -307,7 +310,7 @@ function createStudio(opts) {
       createdAt: p.created_at, updatedAt: p.updated_at, reviewNote: showNote && (p.status === 'rejected' || p.status === 'approved') ? p.review_note : null, via: p.via || 'studio',
       bytes: p.html.length,
     };
-    if (v && v.kind === 'user' && isStaff(v.user)) out.flags = looksLikeCoordinates(p.html) ? ['coordinates'] : [];
+    if (v && v.kind === 'user' && isStaff(v.user)) out.flags = (looksLikeCoordinates(p.html) ? ['coordinates'] : []).concat(p.via === 'student-edit' ? ['edited'] : []);   // 'edited': a student changed the code by hand
     if (withHtml) { out.html = p.html; if (p.data_json) { try { out.data = JSON.parse(p.data_json); } catch (e) { /* stored text only */ } } }
     return out;
   }
@@ -697,14 +700,8 @@ function createStudio(opts) {
 
   const PRIVATE_TITLE = /^\s*(staff|private|internal)\b/i;   // the same pages the assistant keeps from visitors
   function handbookSearch(query, pub) {
-    const words = String(query || '').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 2);
     const docs = db.all('SELECT title, body FROM handbook').filter((d) => !(pub && PRIVATE_TITLE.test(d.title)));
-    return docs.map((d) => {
-      const t = d.title.toLowerCase(), b = d.body.toLowerCase();
-      let s = 0;
-      for (const w of words) { if (t.includes(w)) s += 5; s += Math.min(b.split(w).length - 1, 5); }
-      return { d, s };
-    }).filter((x) => x.s > 0 || !words.length).sort((a, b) => b.s - a.s).slice(0, 3).map((x) => ({ title: x.d.title, text: x.d.body.slice(0, 2500) }));
+    return guideSearch.handbook(docs, query);   // best 3 pages, first 2500 characters (or the best lines of a long page); Greek, Greeklish, English
   }
   function ctxFor(user, teamOverride) {
     const team = teamOf(teamOverride || user.team_id);
@@ -785,10 +782,10 @@ function createStudio(opts) {
     ['Data archive', 'the history we keep and downloads'], ['Build studio', 'students describe a tool, Claude drafts it, a teacher approves, approved tools go public'],
   ];
   const GUIDE_TOOLS = [
-    { name: 'list_data_layers', description: 'List the data layers of the platform (our sensors, Met Office, weather, air, sea and candidate sources): name, what it holds, the variables it measures, who publishes it, its licence and whether it is live now. Use it to see which data an idea could use.', input_schema: { type: 'object', properties: {} } },
+    { name: 'list_data_layers', description: 'List the data layers of the platform (our sensors, Met Office, weather, air, sea and candidate sources): name, what it holds, the variables it measures, who publishes it, its licence and whether it is live now. Use it to see which data an idea could use. With a query (the student\'s own words, Greek or English) it returns the layers that fit best first.', input_schema: { type: 'object', properties: { query: { type: 'string', description: 'Optional: what the student is looking for, for example "ρύπανση" or "bus air".' } } } },
     { name: 'site_map', description: 'What each page of the website holds, how accounts and approval work, and the privacy rules. Use it when a student asks where something is, or to suggest which page could help.', input_schema: { type: 'object', properties: {} } },
-    { name: 'sensor_guides', description: 'The sensor guides: what each kind of sensor measures, its normal range and common mistakes. Without a name it lists the guides; with a name (part of the title) it returns that guide.', input_schema: { type: 'object', properties: { name: { type: 'string', description: 'Part of a guide title, for example "CO2".' } } } },
-    { name: 'gallery_ideas', description: 'Tools and plans that teachers already approved (tools have an id; title, short idea, school, team name; never a student). Use it so a student does not repeat an existing tool, or to show what others did.', input_schema: { type: 'object', properties: {} } },
+    { name: 'sensor_guides', description: 'The sensor guides: what each kind of sensor measures, its normal range and common mistakes. Without a name it lists the guides; with a name (part of the title, in English or Greek) it returns that guide.', input_schema: { type: 'object', properties: { name: { type: 'string', description: 'Part of a guide title, for example "CO2" or "άνεμος".' } } } },
+    { name: 'gallery_ideas', description: 'Tools and plans that teachers already approved (tools have an id; title, short idea, school, team name; never a student). Use it so a student does not repeat an existing tool, or to show what others did. With a query (the student\'s own words, Greek or English) the ones that fit come first.', input_schema: { type: 'object', properties: { query: { type: 'string', description: 'Optional: the topic of the idea, for example "θόρυβος" or "heat".' } } } },
     { name: 'show_found', description: 'Show the student the approved tools and data layers that fit their idea, in a panel beside the chat. Only pass ids you got from gallery_ideas and list_data_layers. Call it once when you mention a fitting tool or layer.', input_schema: { type: 'object', properties: {
       tool_ids: { type: 'array', items: { type: 'integer' }, maxItems: 3, description: 'ids of approved tools, from gallery_ideas.' },
       layer_ids: { type: 'array', items: { type: 'string' }, maxItems: 3, description: 'ids of data layers, from list_data_layers.' } } } },
@@ -823,7 +820,9 @@ function createStudio(opts) {
     if (name === 'list_data_layers') {
       if (!layersApi || !layersApi.register) return { error: 'The data layers are not available right now.' };
       const reg = await layersApi.register(0);
-      return { layers: reg.layers.slice(0, 40).map((l) => ({ id: l.id, group: l.group, name: l.name, what: l.summary, state: l.state, planned: l.planned, variables: l.variables, update: l.tagline, publisher: l.publisher, licence: l.licence })), note: 'state live or late means it has data now; candidate or planned means it is not connected yet.' };
+      const pick = guideSearch.layersFor(reg.layers, cleanLine(input.query, 120));   // with a query: the best fits first
+      const about = pick.matched === true ? ' These are the layers that fit the query best; ask without a query for the whole list.' : pick.matched === false ? ' No layer matched the query, so this is the whole list.' : '';
+      return { layers: pick.rows.slice(0, 40).map((l) => ({ id: l.id, group: l.group, name: l.name, what: l.summary, state: l.state, planned: l.planned, variables: l.variables, update: l.tagline, publisher: l.publisher, licence: l.licence })), note: 'state live or late means it has data now; candidate or planned means it is not connected yet.' + about };
     }
     if (name === 'site_map') {
       return { pages: SITE_PAGES.map(([n, d]) => ({ page: n, holds: d })), about: knowledge.SITE_GUIDE.map((g) => ({ title: g.title, text: g.body.slice(0, 1800) })) };
@@ -832,7 +831,7 @@ function createStudio(opts) {
       const q = cleanLine(input.name, 40).toLowerCase();
       const all = knowledge.SENSOR_GUIDES.map((g) => ({ title: g.title.replace(knowledge.GUIDE_PREFIX, ''), body: g.body }));
       if (!q) return { guides: all.map((g) => g.title) };
-      const hit = all.filter((g) => g.title.toLowerCase().includes(q)).slice(0, 2);
+      const hit = guideSearch.guideByName(all, q);   // part of the title as before, then Greek / Greeklish / topic words
       return hit.length ? { guides: hit.map((g) => ({ title: g.title, text: g.body.slice(0, 2500) })) } : { error: 'No sensor guide has that name.', guides: all.map((g) => g.title) };
     }
     if (name === 'show_found') {
@@ -862,11 +861,15 @@ function createStudio(opts) {
     }
     if (name === 'gallery_ideas') {
       const short = (id) => (schoolOf(id) || {}).short || '';
-      const tools = db.all("SELECT id, title, idea, school_id, team_id, team_label FROM studio_projects WHERE status = 'approved' ORDER BY updated_at DESC LIMIT 20")
+      const q = cleanLine(input.query, 120), lim = q ? 200 : 20;   // with a query the best fits of up to 200 approved tools, not only the newest 20
+      const all = db.all(`SELECT id, title, idea, school_id, team_id, team_label FROM studio_projects WHERE status = 'approved' ORDER BY updated_at DESC LIMIT ${lim}`)
         .map((p) => ({ id: p.id, title: cleanLine(p.title, 80), idea: cleanLine(p.idea, 160), school: short(p.school_id), team: (teamOf(p.team_id) || {}).name || p.team_label || '' }));
-      const plans = db.all("SELECT title, question, school_id, team_id, team_label FROM studio_plans WHERE status = 'approved' ORDER BY updated_at DESC LIMIT 20")
+      const allPlans = db.all(`SELECT title, question, school_id, team_id, team_label FROM studio_plans WHERE status = 'approved' ORDER BY updated_at DESC LIMIT ${lim}`)
         .map((p) => ({ title: cleanLine(p.title, 80), question: cleanLine(p.question, 160), school: short(p.school_id), team: (teamOf(p.team_id) || {}).name || p.team_label || '' }));
-      return { tools, plans, note: tools.length || plans.length ? '' : 'Nothing is approved yet, so there is nothing to repeat.' };
+      const pick = guideSearch.galleryFor(all, allPlans, q);
+      const tools = pick.tools.slice(0, 20), plans = pick.plans.slice(0, 20);
+      const about = !(tools.length || plans.length) ? 'Nothing is approved yet, so there is nothing to repeat.' : pick.matched === true ? 'These fit the query best. Ask without a query for the newest.' : pick.matched === false ? 'Nothing approved matches the query, so these are the newest.' : '';
+      return { tools, plans, note: about };
     }
     return runTool(name, input, user, 'guide');
   }
@@ -1148,7 +1151,8 @@ function createStudio(opts) {
       const p = db.get('SELECT * FROM studio_projects WHERE id = ?', Number(r[1]));
       if (!p || !canViewProject(v, p)) fail(404, 'No such project.');
       const edit = user ? canEdit(user, p) : false;
-      return sendJson(res, 200, { project: publicProject(p, v, canSeeHtml(v, p)), canEdit: edit, canDelete: edit || (classOwns(v, p) && ['pending', 'rejected'].includes(p.status)) });
+      return sendJson(res, 200, { project: publicProject(p, v, canSeeHtml(v, p)), canEdit: edit, canDelete: edit || (classOwns(v, p) && ['pending', 'rejected'].includes(p.status)),
+        guideHtml: edit && p.via === 'student-edit' && p.html_guide && p.html_guide !== p.html ? p.html_guide : null });   // what the studio built, while the page holds a student's own changes
     }
     if (req.method === 'POST' && url.pathname === '/studio/api/projects/submit') {
       needViewer(v);
@@ -1172,6 +1176,23 @@ function createStudio(opts) {
       needUser(v);
       const body = (await readJson(req)) || {};
       return sendJson(res, 200, { project: publicProject(submitProject(user, r[1], typeof body.show_name === 'boolean' ? body.show_name : undefined), v, false) });
+    }
+    // A student changes the code of a draft by hand ("Run my changes"). saveProject does the saving, so these changes get exactly the checks of every
+    // other save (title, size limit, private-text check) and send the page back to draft like any change; the teacher reviews what is stored here.
+    // html_guide keeps the version the studio last built so the student can undo; via 'student-edit' marks a page that holds hand-made changes.
+    if (req.method === 'POST' && (r = m(/^\/studio\/api\/projects\/(\d+)\/code$/))) {
+      needUser(v);
+      const body = objectBody(await readJson(req, MAX_HTML * 4 + 4096));
+      const p = db.get('SELECT * FROM studio_projects WHERE id = ?', Number(r[1]));
+      if (!p || !canEdit(user, p)) fail(404, 'No such project.');
+      if (typeof body.html !== 'string') fail(400, 'Send the page as text.');
+      const wait = hits.wait('code:' + user.id, 60, 10 * 60000);
+      if (wait) fail(429, 'You are changing the code very fast. Wait a moment.', 'rate', { retryAfter: wait });
+      hits.add('code:' + user.id, 10 * 60000);
+      const guide = (p.via === 'student-edit' && p.html_guide) || p.html;
+      const saved = saveProject(user, { id: p.id, title: p.title, idea: p.idea || '', html: body.html }, 'student-edit');
+      db.run('UPDATE studio_projects SET html_guide = ? WHERE id = ?', guide, p.id);
+      return sendJson(res, 200, { project: publicProject(saved, v, false), guideHtml: guide !== saved.html ? guide : null });
     }
     // The author can show or hide their own name at any time. A teacher of the school or an admin can only hide it; teammates cannot change it.
     if (req.method === 'POST' && (r = m(/^\/studio\/api\/projects\/(\d+)\/name$/))) {

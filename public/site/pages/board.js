@@ -407,6 +407,14 @@
         return { exactNow, delayMin, delayH: Math.max(1, Math.round(delayMin / 60)) };
       }
 
+      /* ---------- quiet "Check this sensor" notes (data quality from the qc field of /api/devices; never an alert) ---------- */
+      function qcRows(dv) {
+        const list = dv.filter((d) => d && d.qc && d.qc.status === 'check' && d.qc.note).slice(0, 3);
+        if (!list.length) return null;
+        SC.css('/site/qc-note.css');
+        return el('div', { class: 'qc-notes' }, list.map((d) => el('p', { class: 'qc-note', role: 'note' }, el('b', null, (d.name || '') + ' · ' + T('Check this sensor', 'Έλεγξε αυτόν τον αισθητήρα')), ' ', T(d.qc.note.en, d.qc.note.el))));
+      }
+
       /* ---------- paint: ring ---------- */
       function paintRing() {
         if (!R.devices) return;
@@ -435,7 +443,8 @@
             el('p', { style: 'margin-top:4px' }, T(on + ' of ' + dv.length + ' sensors sent a reading in the last hour. ', on + ' από ' + dv.length + ' αισθητήρες έστειλαν μέτρηση την τελευταία ώρα. '), ready('vehicles') ? inl('vehicles', T('Vehicles', 'Οχήματα')) : null)),
           el('div', { class: 'nm-callout nm-callout--warn' }, T('Quiet sensors are usually parked or switched off. Offline means nothing for over a day.', 'Οι σιωπηλοί αισθητήρες είναι συνήθως σταθμευμένοι ή κλειστοί. Εκτός λειτουργίας σημαίνει τίποτα για πάνω από μία ημέρα.')),
           bad.length ? el('ul', { class: 'bd-quiet' }, bad.map((x) => el('li', null, el('i', { style: 'background:' + (x.s === 'quiet' ? '#F2B24C' : '#FF7A6A') }), el('em', { title: x.d.name }, x.d.name),
-            el('span', null, !x.m ? T('never seen', 'δεν έχει εμφανιστεί') : x.s === 'quiet' ? T('quiet for ' + span(now - x.m), 'σιωπηλός ' + span(now - x.m)) : T('offline since ' + SC.date(x.m), 'εκτός από ' + SC.date(x.m)))))) : null);
+            el('span', null, !x.m ? T('never seen', 'δεν έχει εμφανιστεί') : x.s === 'quiet' ? T('quiet for ' + span(now - x.m), 'σιωπηλός ' + span(now - x.m)) : T('offline since ' + SC.date(x.m), 'εκτός από ' + SC.date(x.m)))))) : null,
+          qcRows(dv));
       }
 
       /* ---------- paint: tiles ---------- */

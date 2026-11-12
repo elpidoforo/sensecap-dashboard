@@ -29,6 +29,7 @@ const { createCache } = require('./cache');
 const { createPrivacy, GPS_MIDS } = require('./privacy');
 const priv = createPrivacy();
 const { createFeeds, createArchive } = require('./feeds');
+const { createQcWatch } = require('./qcwatch');   // quality checks on the sensors' series: an extra `qc` field, never an alert
 
 // Every cache is bounded. `cached` holds the fixed keys (devices, weather, Met Office pages...). The keys that come from a
 // request have their own caches with a small cap each, so odd query strings cannot make the memory grow.
@@ -178,7 +179,7 @@ const softFail = (e) => { if (feeds.isOff(e) || Date.now() < upstream.coolUntil)
 
 let lastDevices = null;   // counts only (never a position): how many vehicles the last answer had and how many were online
 async function liveDevices() {
-  return viaFeed('sensecap', cached, 'devices', 60000, async () => {
+  return viaFeed('sensecap', cached, 'devices', sensecapStream.restTtl(60000, 'devices'), async () => {   // longer only while the live stream is healthy
     const groups = await api('/list_groups').catch(softFail);
     const all = await api('/list_devices', { query: { device_type: 2 } });
     const groupOf = {};
@@ -233,7 +234,7 @@ async function liveDevices() {
 }
 
 async function liveLatest() {
-  return viaFeed('sensecap', cached, 'latest', 60000, async () => {
+  return viaFeed('sensecap', cached, 'latest', sensecapStream.restTtl(60000, 'latest'), async () => {   // the slow safety poll while the live stream is healthy
     const devices = await liveDevices();
     const rows = await mapLimit(devices, 5, async (d) => {
       const data = await api('/view_latest_telemetry_data', { query: { device_eui: d.eui } });
@@ -912,6 +913,9 @@ const feeds = createFeeds({
   simulated: { sensecap: DEMO, openmeteo: MOCK, sensorcommunity: MOCK, metar: MOCK },
   secrets: [ID, KEY, PASS, process.env.ANTHROPIC_API_KEY, process.env.ADMIN_SETUP_CODE, process.env.CLASS_LOGIN_PASSWORD, process.env.STUDIO_CLASS_SECRET],
 });
+// SenseCAP by push (Seeed's OpenStream MQTT feed). OFF unless SENSECAP_MQTT=1 plus an organisation id and a TLS port (see
+// sensecap_stream.js); while it is off every call on this object does nothing and the REST polling above is exactly as before.
+const sensecapStream = require('./sensecap_stream').createSenseCapStream({ env: process.env, isEnabled: () => feeds.enabled('sensecap'), toMs, log: (m) => console.log(m) });
 // What the two savers did, for the helper list (see helpersView).
 const CYDOM_EVERY = 300000, PAGES_EVERY = 900000;
 const savers = { cydom: { lastRun: null, nextRun: null, ok: null, error: null }, pages: { lastRun: null, nextRun: null, ok: null, error: null, failed: [] }, collecting: false };
@@ -1073,7 +1077,9 @@ let assistant = null;   // the Ask assistant (bot.js), for the helper list
 // In demo mode there is nothing to fetch, but the teachers' switch for SenseCAP still applies, so the pages behave the same way.
 const demoGuard = () => feeds.guard('sensecap');
 const rawDevices = async () => (DEMO ? (demoGuard(), DEMO_DEVICES) : await liveDevices());
-const rawLatest = async () => (DEMO ? (demoGuard(), demoLatest()) : await liveLatest());
+// The live stream (sensecap_stream.js, off unless SENSECAP_MQTT=1) lays its newer readings over the REST answer, and stands in for it when
+// the REST refresh fails while the stream is healthy. Whoever asks (latestFor, the overview) still gets GPS only through the privacy rules.
+const rawLatest = async () => sensecapStream.overlay(DEMO ? (demoGuard(), demoLatest()) : await liveLatest().catch((e) => { if (sensecapStream.serving()) return {}; throw e; }));
 // Trails are fetched from SenseCAP for a few fixed windows only (then cut to the hours asked for), so a visitor cannot make the
 // server ask SenseCAP for something new with every request by changing the number of hours.
 const HOUR_STEPS = [1, 3, 6, 12, 24, 48, 72, 120, 168];
@@ -1125,6 +1131,11 @@ async function latestFor(level) {
   const latest = await rawLatest();
   return level === 'exact' ? latest : priv.stripGpsLatest(latest);
 }
+// Quality checks (qc.js, limits in vocab/qc.json): the last day of each sensor's readings is checked for range, spikes, steps and
+// stuck values. The answer is an extra `qc` field on /api/devices and /api/latest, a sentence the pages may show. It never deletes
+// or hides a reading and never sends an alert. QC=0 switches it off.
+const qcWatch = createQcWatch({ root: __dirname, names: () => measurementNames, devices: () => rawDevices(), log: (m) => console.log(m), pauseMs: DEMO ? 0 : undefined,
+  series: async (eui, mid, ch) => (DEMO ? (demoGuard(), demoSeries(eui, mid, 1)) : liveSeries(eui, mid, ch, 1)) });
 function trailsFor(level, hours, mid) {
   if (level === 'exact') return rawTrails(hours, mid);
   return publicView(level, `trails|${hours}|${mid}`, async () => priv.publicTrails(await rawTrails(hours, mid)));
@@ -1139,6 +1150,7 @@ const botData = {
   latest: async () => latestFor('public'),
   // Names and groups only, never a position: for counting sensors without waiting for the GPS history.
   deviceList: async () => (await rawDevices()).map((d) => ({ eui: d.eui, name: d.name, group: d.group, online: d.online, lastSeen: d.lastSeen })),
+  qcStatus: () => qcWatch.statusByDevice(),   // { eui: 'ok' | 'check' } from the quality checks, for the Layers page notes
   series: async (eui, mid, days) => {
     const m = priv.normMid(mid);
     if (m == null) throw new Error('Unknown measurement');
@@ -1265,6 +1277,8 @@ function helpersView() {
     let status = 'ok', detail = P(`${kept} answers kept in memory, pictures ${mb(imageCache.bytes)} MB.`, `${kept} απαντήσεις στη μνήμη, εικόνες ${mb(imageCache.bytes)} MB.`);
     if (resting) { status = 'late'; detail = P(`SenseCAP answered "busy", so calls rest for ${resting} s and the last good readings are shown. ${kept} answers kept.`, `Το SenseCAP απάντησε "απασχολημένο", οπότε οι κλήσεις περιμένουν ${resting} δευτ. και εμφανίζονται οι τελευταίες καλές μετρήσεις. ${kept} απαντήσεις στη μνήμη.`); }
     else if (upstream.queue.length) detail = P(`${kept} answers kept; ${upstream.queue.length} SenseCAP calls waiting their turn.`, `${kept} απαντήσεις στη μνήμη· ${upstream.queue.length} κλήσεις SenseCAP περιμένουν τη σειρά τους.`);
+    const live = sensecapStream.describe();   // one more line about the live stream; null (nothing added) unless SENSECAP_MQTT=1
+    if (live) detail = P(detail.en + ' ' + live.en, detail.el + ' ' + live.el);
     add({ id: 'caches', kind: 'cache', status, detail, lastRun: null, nextRun: null,
       name: ['Caches', 'Προσωρινή μνήμη'], what: ['Keeps the last good answer of every source and spaces out the calls to SenseCAP, so the site stays up when a source is slow or busy.', 'Κρατά την τελευταία καλή απάντηση κάθε πηγής και αραιώνει τις κλήσεις προς το SenseCAP, ώστε ο ιστότοπος να λειτουργεί όταν μια πηγή είναι αργή ή απασχολημένη.'] });
   }
@@ -1313,6 +1327,8 @@ function opsView() {
       detail = DEMO ? P(`Demo data: ${online} of ${total} simulated vehicles online.`, `Δοκιμαστικά δεδομένα: ${online} από ${total} προσομοιωμένα οχήματα συνδεδεμένα.`)
         : P(`${online} of ${total} vehicles online in the last reading.`, `${online} από ${total} οχήματα συνδεδεμένα στην τελευταία μέτρηση.`);
     }
+    const qn = qcWatch.counts();   // sensors whose readings look odd: a sentence only, the status above does not change
+    if (qn && qn.check) detail = P(`${detail.en} ${qn.check} sensor${qn.check === 1 ? ' has' : 's have'} readings worth a check.`, `${detail.el} ${qn.check} ${qn.check === 1 ? 'αισθητήρας έχει' : 'αισθητήρες έχουν'} μετρήσεις που αξίζει να ελεγχθούν.`);
     add('sensors', ['Sensors on buses, cars and in classrooms', 'Αισθητήρες σε λεωφορεία, αυτοκίνητα και τάξεις'], 'sensors', status, detail);
   }
   for (const f of feedList) {
@@ -1491,8 +1507,10 @@ function parseRange(header, size) {
 }
 const CITIES_CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
 const APP_CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
-// The site shell: / and /site/*. It loads the map and the 3D view in same-origin frames (those pages keep no policy of their own
-// because they use CDN scripts and inline code).
+// The site shell: / and /site/*. It loads the map and the 3D view in same-origin frames. The 3D page (/3d.html) has its own strict
+// policy (csp3d.js: three.js is served from /vendor/three-r160/, so nothing is loaded from another host). The map page still keeps
+// no policy of its own because it uses CDN scripts and inline code.
+const { policy3d } = require('./csp3d');
 const SITE_CSP = "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
 
 // The old pages now live inside the site shell. Opened on their own they send people there. With ?embed=1 the shell (or the
@@ -1543,10 +1561,14 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { demo: DEMO, names: measurementNames, gps: [GPS_LAT, GPS_LNG], exactPositions: privileged(req), posDelayMin: priv.delayMin, posGrid: priv.grid });
     }
     if (url.pathname === '/api/devices') {
-      return sendJson(res, 200, await devicesFor(levelOf(req)));
+      const list = await devicesFor(levelOf(req));
+      await qcWatch.ready();
+      return sendJson(res, 200, qcWatch.annotateDevices(list));
     }
     if (url.pathname === '/api/latest') {
-      return sendJson(res, 200, await latestFor(levelOf(req)));
+      const latest = await latestFor(levelOf(req));
+      await qcWatch.ready();
+      return sendJson(res, 200, qcWatch.annotateLatest(latest));
     }
     if (url.pathname === '/api/series') {
       const eui = url.searchParams.get('eui');
@@ -1624,8 +1646,8 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(404);
         return res.end('Not found');
       }
-      const csp = inApp ? APP_CSP : url.pathname.startsWith('/cities') ? CITIES_CSP : url.pathname === '/' || url.pathname.startsWith('/site/') ? SITE_CSP : null;
-      const headers = { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream', 'Cache-Control': 'no-cache', 'Accept-Ranges': 'bytes', ...(csp ? { 'Content-Security-Policy': csp, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' } : {}) };
+      const csp = inApp ? APP_CSP : url.pathname.startsWith('/cities') ? CITIES_CSP : url.pathname === '/3d.html' ? policy3d(buf) : url.pathname === '/' || url.pathname.startsWith('/site/') ? SITE_CSP : null;
+      const headers = { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream', 'Cache-Control': url.pathname.startsWith('/vendor/three-r160/') ? 'public, max-age=31536000, immutable' : 'no-cache', 'Accept-Ranges': 'bytes', ...(csp ? { 'Content-Security-Policy': csp, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' } : {}) };
       const range = req.headers.range ? parseRange(req.headers.range, buf.length) : null;
       if (range === 'bad') {
         res.writeHead(416, { ...headers, 'Content-Range': `bytes */${buf.length}`, 'Content-Length': 0 });
@@ -1653,5 +1675,6 @@ loadMeasurementNames().finally(() => {
     console.log(`Dashboard on port ${PORT}${DEMO ? ' (demo data)' : ''}`);
     startApp();
     startMetOffice();
+    try { sensecapStream.start(); } catch (e) { console.error('SenseCAP live stream could not start: ' + e.message); }   // does nothing unless SENSECAP_MQTT=1
   });
 });

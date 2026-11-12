@@ -574,6 +574,10 @@
         const rows = ms.filter((m) => D.latest[d.eui] && D.latest[d.eui][m]);
         // a reading is "Online" when it is newer than 3 hours and the sensor is on, "Delayed" when it is older, "Offline" when the sensor is off
         const rowSt = (tt) => ({ st: !d.online ? 'off' : isFinite(tt) && Date.now() - tt <= FRESH ? 'ok' : 'stale', t: isFinite(tt) ? tt : null });
+        // a quiet "Check this sensor" note from the qc field of /api/devices (data quality, never an alert); nothing when the sensor is fine
+        const qcNote = d.qc && d.qc.status === 'check' && d.qc.note
+          ? (SC.css('/site/qc-note.css'), el('p', { class: 'qc-note', role: 'note' }, el('b', null, T('Check this sensor', 'Έλεγξε αυτόν τον αισθητήρα')), ' ', T(d.qc.note.en, d.qc.note.el)))
+          : document.createDocumentFragment();
         pane.append(el('div', { class: 'sx-eb2' }, T('Latest readings from this team’s sensor', 'Τελευταίες μετρήσεις από τον αισθητήρα της ομάδας')),
           rows.length ? el('div', { class: 'nm-table-wrap' }, el('table', { class: 'nm-table' }, el('thead', null, el('tr', null, ['Reading', 'Value', 'Last', 'Status'].map((h, i) => el('th', null, T(h, ['Μέτρηση', 'Τιμή', 'Πότε', 'Κατάσταση'][i]))))),
             el('tbody', null, rows.map((m) => {
@@ -583,6 +587,7 @@
                   rs.st === 'ok' ? T('Online', 'Σε λειτουργία') : rs.st === 'stale' ? T('Delayed', 'Με καθυστέρηση') : T('Offline', 'Εκτός λειτουργίας'))));
             }))))
             : el('div', { class: 'empty' }, T('No reading yet from this sensor.', 'Καμία μέτρηση ακόμα από αυτόν τον αισθητήρα.')),
+          qcNote,
           el('div', { class: 'nm-callout' }, (st.t ? T('Last data check ', 'Τελευταίος έλεγχος δεδομένων ') + SC.ago(st.t) + '. ' : T('No reading yet. ', 'Καμία μέτρηση ακόμα. ')) + (isVehicle(d)
             ? T('Vehicle positions are shown about ' + hours() + ' hours late and rounded to about ' + gridKm() + ' km.', 'Οι θέσεις των οχημάτων εμφανίζονται με καθυστέρηση περίπου ' + hours() + ' ωρών και στρογγυλοποιημένες στο ' + gridKm() + ' χλμ.')
             : T('This is a fixed sensor.', 'Αυτός είναι σταθερός αισθητήρας.'))),

@@ -29,6 +29,7 @@
     chev: '<path d="M6 9l6 6 6-6"/>',
     trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>',
     play: '<path d="M8 5.5v13l11-6.5z"/>',
+    qr: '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z"/>',
   };
   function ic(name) {
     const s = SC.svgEl('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' });
@@ -133,14 +134,29 @@
     return () => window.removeEventListener('message', onMsg);
   }
 
+  // The code view, the editor and the Share panel are in /site/studio-code.js. It loads when the page opens; without it the page works as before.
+  let codeLib = null;
+  function loadCodeLib() {
+    if (SC.studioCode) return Promise.resolve(true);
+    return codeLib || (codeLib = new Promise((done) => {
+      const s = document.createElement('script');
+      s.src = '/site/studio-code.js?v=1';
+      s.onload = () => done(Boolean(SC.studioCode));
+      s.onerror = () => { codeLib = null; s.remove(); done(false); };
+      document.head.append(s);
+    }));
+  }
+
   /* ---------- a published tool in a big sandboxed window ---------- */
-  function openViewer(p, label, badge) {
+  // canShare: an approved tool, so the window gets a Share button (link and QR code, to this site only).
+  function openViewer(p, label, badge, canShare) {
     const prev = document.activeElement;
+    let sh = null;
     const close = () => { scrim.remove(); document.removeEventListener('keydown', onKey); if (prev && prev.focus) prev.focus(); };
     const onKey = (e) => {
-      if (e.key === 'Escape') close();
+      if (e.key === 'Escape') { if (sh && sh.isOpen()) { sh.close(); shareBtn.setAttribute('aria-expanded', 'false'); shareBtn.focus(); } else close(); }
       else if (e.key === 'Tab') {   // keep the focus inside the window
-        const f = Array.from(box.querySelectorAll('a[href], button, iframe')).filter((n) => !n.disabled);
+        const f = Array.from(box.querySelectorAll('a[href], button, input, iframe')).filter((n) => !n.disabled && !n.closest('[hidden]'));
         if (!f.length) return;
         const i = f.indexOf(document.activeElement);
         if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
@@ -148,16 +164,26 @@
       }
     };
     const x = el('button', { class: 'nm-btn nm-btn--sm', type: 'button', onclick: close }, ic('x'), t('Close', 'Κλείσιμο'));
+    const shareBtn = canShare ? el('button', { class: 'nm-btn nm-btn--sm', type: 'button', hidden: true, 'aria-expanded': 'false' }, ic('qr'), t('Share', 'Κοινοποίηση')) : null;
+    const shareHost = el('div');
     const box = el('div', { class: 'sd-view nm-enter', role: 'dialog', 'aria-modal': 'true', 'aria-label': p.title },
       el('div', { class: 'sd-view-h' },
         el('div', { class: 'sd-view-t' }, el('h2', null, p.title), el('div', { class: 'sd-who' }, el('i', { style: { background: schoolColor(p.school) } }), el('span', null, label), badge || null)),
-        el('a', { class: 'nm-btn nm-btn--sm', href: '/studio/p/' + p.id, target: '_blank', rel: 'noopener' }, ic('ext'), t('Open in a new tab', 'Άνοιγμα σε νέα καρτέλα')), x),
-      el('div', { class: 'sd-view-f' }, el('iframe', { class: 'sd-frame', sandbox: 'allow-scripts', src: '/studio/p/' + p.id, title: p.title, referrerpolicy: 'no-referrer' })),
+        shareBtn, el('a', { class: 'nm-btn nm-btn--sm', href: '/studio/p/' + p.id, target: '_blank', rel: 'noopener' }, ic('ext'), t('Open in a new tab', 'Άνοιγμα σε νέα καρτέλα')), x),
+      shareHost, el('div', { class: 'sd-view-f' }, el('iframe', { class: 'sd-frame', sandbox: 'allow-scripts', src: '/studio/p/' + p.id, title: p.title, referrerpolicy: 'no-referrer' })),
       el('p', { class: 'sd-view-n' }, ic('lock'), t('Runs in a safe box: no internet, no cookies. It can only read the delayed, rounded overview of the data.', 'Τρέχει σε ασφαλές κουτί: χωρίς internet, χωρίς cookies. Μπορεί να διαβάσει μόνο τη συνολική εικόνα των δεδομένων, με καθυστέρηση και στρογγυλοποίηση.')));
     const scrim = el('div', { class: 'sd-scrim', onclick: (e) => { if (e.target === scrim) close(); } }, box);
     document.body.append(scrim);
     document.addEventListener('keydown', onKey);
     x.focus();
+    if (canShare) loadCodeLib().then((ready) => {   // the link is this site's own address for the tool, nothing else
+      if (!ready || !box.isConnected) return;
+      const shut = () => { sh.close(); shareBtn.setAttribute('aria-expanded', 'false'); shareBtn.focus(); };
+      sh = SC.studioCode.sharePanel(location.origin + '/studio/p/' + p.id, shut);
+      shareHost.append(sh.node);
+      shareBtn.addEventListener('click', () => { if (sh.isOpen()) shut(); else { sh.open(); shareBtn.setAttribute('aria-expanded', 'true'); sh.focus(); } });
+      shareBtn.hidden = false;
+    });
   }
 
   /* ---------- the 1-minute demo video (sample data, shown in the site's language) ---------- */
@@ -473,7 +499,7 @@
       if (!f) return null;
       const rows = [
         ...f.tools.map((x) => el('li', null, el('span', { class: 'sd-fd-k ok' }, t('Tool', 'Εργαλείο')),
-          el('span', { class: 'sd-fd-t' }, el('button', { class: 'sd-link', type: 'button', onclick: () => openViewer({ id: x.id, title: x.title, school: x.school }, galleryLabel(x), el('span', { class: 'nm-badge nm-badge--ok' }, t('Public', 'Δημόσιο'))) }, x.title),
+          el('span', { class: 'sd-fd-t' }, el('button', { class: 'sd-link', type: 'button', onclick: () => openViewer({ id: x.id, title: x.title, school: x.school }, galleryLabel(x), el('span', { class: 'nm-badge nm-badge--ok' }, t('Public', 'Δημόσιο')), true) }, x.title),
             el('small', null, byText(x) + (x.school ? ' · ' + x.school : ''))))),
         ...f.layers.map((x) => el('li', null, el('span', { class: 'sd-fd-k info' }, t('Layer', 'Στρώμα')),
           el('span', { class: 'sd-fd-t' }, el('a', { class: 'sd-link', href: '#/layers' }, x.name), el('small', null, x.live ? t('Has data now', 'Έχει δεδομένα τώρα') : t('Not connected yet', 'Δεν έχει συνδεθεί ακόμη'))))),
@@ -577,6 +603,8 @@
       const lim = limitInfo();
       if (lim && lim.left <= 0) { S.buildErr = t('No builds are left right now. ', 'Δεν απομένουν δημιουργίες αυτή τη στιγμή. ') + (lim.resetsAt ? t('More come back at ' + SC.time(lim.resetsAt) + '.', 'Επιστρέφουν περισσότερες στις ' + SC.time(lim.resetsAt) + '.') : ''); drawMaker(); return; }
       const D = S.cur, fresh = !D || S.mode === 'rebuild';
+      // Changes the student typed in the Code tab and did not run yet are run first, so the studio builds on what the student sees.
+      if (!fresh && W.wb && W.wb.dirty() && !(await W.wb.commit())) { S.buildErr = t('Your changes to the code could not be run, so nothing was built. Look at the Code tab.', 'Οι αλλαγές σου στον κώδικα δεν εκτελέστηκαν, γι’ αυτό δεν φτιάχτηκε τίποτα. Δες την καρτέλα «Κώδικας».'); drawMaker(); return; }
       const before = fresh ? [] : (D ? D.msgs : S.convo).slice(-8);
       const msgs = before.concat([{ role: 'user', text }]);
       const body = { messages: msgs.map((m) => ({ role: m.role, text: m.text })) };
@@ -620,7 +648,7 @@
           const d = (D || { id: 'd' + Date.now().toString(36) + rid(), school: V().school.slug, team: V().team, fromId: null, prompt: '', msgs: [] });
           if (!S.drafts.includes(d)) S.drafts.unshift(d);
           if (fresh || !d.prompt) d.prompt = text;
-          d.title = finalDraft.title || d.title || t('My tool', 'Το εργαλείο μου'); d.html = finalDraft.html; d.at = Date.now();
+          d.title = finalDraft.title || d.title || t('My tool', 'Το εργαλείο μου'); d.html = finalDraft.html; d.guide = null; d.at = Date.now();   // a new version from the studio is the one Undo goes back to
           d.msgs = msgs.concat(ans ? [{ role: 'assistant', text: ans.text }] : []).slice(-10);
           S.cur = d; S.convo = []; produced = true;
           persist();
@@ -629,7 +657,7 @@
         try {
           const r = await SC.api('/studio/api/projects/' + ans.projectId);
           const p = r.project;
-          S.cur = { id: 's' + p.id, serverId: p.id, title: p.title, prompt: (D && !fresh ? D.prompt : text) || text, html: p.html || '', msgs: msgs.concat([{ role: 'assistant', text: ans.text }]).slice(-10), at: Date.now() };
+          S.cur = { id: 's' + p.id, serverId: p.id, title: p.title, prompt: (D && !fresh ? D.prompt : text) || text, html: p.html || '', guide: r.guideHtml || null, msgs: msgs.concat([{ role: 'assistant', text: ans.text }]).slice(-10), at: Date.now() };
           S.convo = []; produced = true;
           await loadMine();
         } catch (e) { note = t('The draft was saved, but it could not be opened here. Find it in Draft below.', 'Το προσχέδιο αποθηκεύτηκε, αλλά δεν άνοιξε εδώ. Βρείτε το στα Προσχέδια παρακάτω.'); }
@@ -652,12 +680,13 @@
     }
 
     /* ----- the open draft: preview, title, send ----- */
-    const W = { key: null, frame: null, state: null, title: null, send: null, meta: null, refresh: null, full: null, count: null };
+    const W = { key: null, frame: null, state: null, title: null, send: null, meta: null, refresh: null, full: null, count: null, wb: null };
     function drawWork() {
       const D = S.cur;
-      if (!D) { W.key = null; W.frame = null; workHost.replaceChildren(); return; }
+      if (!D) { W.key = null; W.frame = null; if (W.wb) W.wb.destroy(); W.wb = null; workHost.replaceChildren(); return; }
       if (W.key !== D.id) {
         W.key = D.id;
+        if (W.wb) W.wb.destroy();
         W.frame = el('iframe', { class: 'sd-frame', sandbox: 'allow-scripts', title: t('Preview of your draft', 'Προεπισκόπηση του προσχεδίου σας'), referrerpolicy: 'no-referrer' });
         W.state = el('div', { class: 'sd-pv-state', role: 'status' });
         W.title = el('input', { class: 'nm-input', id: 'sd-title', type: 'text', maxlength: 80, value: D.title });
@@ -667,11 +696,14 @@
         W.full = el('a', { class: 'nm-btn nm-btn--sm', target: '_blank', rel: 'noopener', hidden: true }, ic('ext'), t('Open full screen', 'Άνοιγμα σε πλήρη οθόνη'));
         W.meta = el('p', { class: 'sd-meta' });
         const disc = el('button', { class: 'nm-btn nm-btn--danger-outline', type: 'button', onclick: () => confirmDiscard(D) }, ic('trash'), t('Discard this draft', 'Απόρριψη προσχεδίου'));
+        const pvbar = el('div', { class: 'sd-pvbar' }, el('span', { class: 'sd-pvtag' }, ic('lock'), t('Preview in a safe box, no internet', 'Προεπισκόπηση σε ασφαλές κουτί, χωρίς internet')), el('span', { class: 'sd-sp' }), W.refresh, W.full);
+        const pvbox = el('div', { class: 'sd-preview' }, W.frame, W.state);
+        // Preview | Code tabs (the code view is in /site/studio-code.js; without it the draft shows the preview alone, as before).
+        W.wb = SC.studioCode ? SC.studioCode.workbench({ key: String(D.id), max: maxHtml(), preview: el('div', null, pvbar, pvbox), text: () => (S.cur && S.cur.html) || '', guide: () => (S.cur && S.cur.guide != null ? S.cur.guide : null), save: saveCode, refresh: () => makePreview(), why }) : null;
         workHost.replaceChildren(el('section', { class: 'nm-card nm-card--glow sd-work', 'aria-labelledby': 'sd-work-h' },
           el('div', { class: 'sd-work-l' },
             el('div', { class: 'sd-eb cu' }, t('Your draft', 'Το προσχέδιό σας')), el('h2', { id: 'sd-work-h' }, t('Preview and check', 'Προεπισκόπηση και έλεγχος')),
-            el('div', { class: 'sd-pvbar' }, el('span', { class: 'sd-pvtag' }, ic('lock'), t('Preview in a safe box, no internet', 'Προεπισκόπηση σε ασφαλές κουτί, χωρίς internet')), el('span', { class: 'sd-sp' }), W.refresh, W.full),
-            el('div', { class: 'sd-preview' }, W.frame, W.state)),
+            W.wb ? W.wb.node : [pvbar, pvbox]),
           el('div', { class: 'sd-work-r' },
             el('div', { class: 'sd-field' }, el('label', { for: 'sd-title' }, t('Title', 'Τίτλος')), W.title),
             W.meta,
@@ -693,6 +725,26 @@
       W.state.className = 'sd-pv-state' + (p.state === 'error' ? ' bad' : '');
       if (p.state === 'ok' && W.frame.getAttribute('src') !== p.url) W.frame.setAttribute('src', p.url);
       if (p.state === 'ok') { W.full.setAttribute('href', p.url); W.full.hidden = false; } else W.full.hidden = true;
+      if (W.wb) W.wb.sync();
+    }
+    // "Run my changes": the student's code is checked like a page the studio built. A saved draft is checked and stored by the server (POST .../code,
+    // which also keeps the studio's version for Undo). A draft kept in this browser goes through the preview call now (size limit) and through the
+    // server's full checks again when it is sent. The teacher always sees the stored version.
+    async function saveCode(text) {
+      const D = S.cur; if (!D) throw new Error(t('There is no draft open.', 'Δεν υπάρχει ανοιχτό προσχέδιο.'));
+      if (D.serverId) {
+        const r = await SC.api('/studio/api/projects/' + D.serverId + '/code', { method: 'POST', body: { html: text } });
+        D.html = text; D.guide = r.guideHtml || null;
+        loadMine().then(() => { if (alive) { drawStats(); drawBoard(); } });   // a page sent back for changes is a draft again
+        await makePreview();
+        if (S.preview.state === 'error') throw S.preview.error;
+      } else {
+        const url = (await SC.api('/studio/api/preview', { method: 'POST', body: { html: text, title: D.title } })).url;
+        if (D.guide == null && D.html !== text) D.guide = D.html;
+        D.html = text; if (D.guide === text) D.guide = null;
+        D.at = Date.now(); persist();
+        S.preview = { state: 'ok', url, for: D.id }; drawWork();
+      }
     }
     async function makePreview() {
       const D = S.cur; if (!D) return;
@@ -740,6 +792,8 @@
       });
     }
     async function doSend(D, showName) {
+      // Code changes that were not run yet are run (and checked by the server) first, so the teacher gets what the student last saw.
+      if (W.wb && W.wb.dirty() && !(await W.wb.commit())) { SC.modal({ title: t('It was not sent', 'Δεν στάλθηκε'), body: el('p', null, t('Your changes to the code could not be run, so the page was not sent. Look at the Code tab.', 'Οι αλλαγές σου στον κώδικα δεν εκτελέστηκαν, γι’ αυτό η σελίδα δεν στάλθηκε. Δες την καρτέλα «Κώδικας».')), actions: [{ label: t('Close', 'Κλείσιμο'), primary: true }] }); return; }
       if (W.send) W.send.disabled = true;
       try {
         if (D.serverId) await SC.api('/studio/api/projects/' + D.serverId + '/submit', { method: 'POST', body: showName === undefined ? {} : { show_name: showName } });
@@ -777,7 +831,7 @@
       catch (e) { SC.toast(why(e)); }
     }
     const galCard = (p) => {
-      const btns = [{ label: t('Open', 'Άνοιγμα'), run: () => openViewer(p, galleryLabel(p), el('span', { class: 'nm-badge nm-badge--ok' }, t('Public', 'Δημόσιο'))) }];
+      const btns = [{ label: t('Open', 'Άνοιγμα'), run: () => openViewer(p, galleryLabel(p), el('span', { class: 'nm-badge nm-badge--ok' }, t('Public', 'Δημόσιο')), true) }];
       if (p.mine) btns.push({ label: p.showName ? t('Hide my name', 'Απόκρυψη ονόματος') : t('Show my name', 'Εμφάνιση ονόματος'), link: true, run: () => setName(p, !p.showName) });
       else if (p.creator && isStaff() && p.canHideName) btns.push({ label: t('Hide name', 'Απόκρυψη ονόματος'), link: true, run: () => setName(p, false) });
       return card({ title: p.title, who: byText(p), avatar: p.creator ? p.creator.charAt(0) : '', color: schoolColor(p.school), seed: p.id, badge: ['ok', t('Public', 'Δημόσιο')], meta: t('Published ', 'Δημοσιεύτηκε ') + SC.date(p.updatedAt), buttons: btns });
@@ -808,7 +862,7 @@
         if (isClass()) {
           const d = { id: 'd' + Date.now().toString(36) + rid(), school: V().school.slug, team: V().team, title: q.title, prompt: q.idea || '', html: q.html || '', msgs: [], at: Date.now(), fromId: q.status === 'rejected' ? q.id : null };
           S.drafts.unshift(d); persist(); S.cur = d;
-        } else S.cur = { id: 's' + q.id, serverId: q.id, title: q.title, prompt: q.idea || '', html: q.html || '', msgs: [], at: Date.now() };
+        } else S.cur = { id: 's' + q.id, serverId: q.id, title: q.title, prompt: q.idea || '', html: q.html || '', guide: r.guideHtml || null, msgs: [], at: Date.now() };
         S.convo = []; S.reply = null; S.buildErr = null; S.mode = 'update';
         drawAll(); makePreview(); const h = workHost.querySelector('h2'); if (h) { h.tabIndex = -1; h.focus(); }
       } catch (e) { SC.toast(why(e)); }
@@ -887,6 +941,7 @@
       if (!hadFocus) drawMaker();
     }
 
+    loadCodeLib().then((ready) => { if (ready && alive && S.cur && !W.wb) { W.key = null; drawWork(); } });   // a draft opened before the code view was ready gets its tabs
     drawHead(); drawStats(); drawMaker(); drawBoard();
     return (async () => {
       await loadAll();
@@ -901,6 +956,8 @@
     title: ['Build studio', 'Στούντιο'],
     render(root) {
       SC.css('/site/pages/studio.css');
+      SC.css('/site/studio-code.css');
+      loadCodeLib();
       return studio(root);
     },
   });

@@ -1,0 +1,15 @@
+/* "Check this sensor": a quiet note under a sensor, a reading or a list of sensors.
+   It is never an alert: no coloured fill, no count in the menu, no sound, nothing is hidden. The sentence comes from the server
+   (qc field of /api/devices, English and Greek), see qc.js and vocab/qc.json. Loaded with SC.css('/site/qc-note.css'). */
+.qc-note { margin: 8px 0 0; padding: 7px 12px; font-size: 13px; line-height: 1.45; color: var(--nm-text); background: var(--nm-well); border-left: 3px solid var(--nm-warn-line); border-radius: 12px; }
+.qc-note b { margin-right: 6px; color: var(--nm-warn); font-weight: 600; }
+.qc-notes { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.qc-notes .qc-note { margin: 0; }
+.qc-sec { margin-top: 22px; }
+.qc-lede { margin: 12px 0 10px; color: var(--nm-muted); font-size: 13.5px; max-width: 70ch; }
+.qc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.qc-list li { display: grid; gap: 4px; padding: 10px 14px; background: var(--nm-well); border-left: 3px solid var(--nm-warn-line); border-radius: 14px; }
+.qc-list .qc-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.qc-list .qc-name { color: var(--nm-ink); font-weight: 600; text-decoration: none; }
+.qc-list .qc-name:hover, .qc-list .qc-name:focus-visible { text-decoration: underline; }
+.qc-list .qc-why { color: var(--nm-text); font-size: 13.5px; line-height: 1.45; }
