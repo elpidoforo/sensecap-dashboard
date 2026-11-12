@@ -286,3 +286,167 @@ The page `#/layers` lists every open source we know for Cyprus's cities as **lay
 - **Endpoints:** `GET /layers/api/register` (the layer cards with live status `live`, `late`, `down`, `off`, `planned`, `candidate` or `retired`, the counts, the mission, files with problems, `brain.configured`, the four places), `GET /layers/api/layers/<id>` (the full register entry; the name of a secret is never shown, only the kind of key), `POST /layers/api/brain { city, layers?, question? }`, and for teachers `PUT /layers/api/mission { en, el }` and `POST /layers/api/mission/reset`. The mission is kept in `DATA_DIR/layers-mission.json`.
 - **How the brain decides:** the code, not the AI, does the work. For one city it takes the readings of the layers that are on and live, compares sources of the same measurement with the tolerances in `vocab/variables.json`, counts independent sources (two sources with the same `upstream` count as one) and sets the confidence. The assistant (when `ANTHROPIC_API_KEY` is set) only words what the code found, through one forced tool call (`give_findings`, English and Greek). Every number in its text is checked against the readings: a finding with an invented number falls back to the template text for that finding. Without a key the findings are written from templates and are labelled so. A question (`give_answer`) is answered the same way and is refused with `503 not_configured` without a key. Nothing sent to the assistant holds a coordinate or a position.
 - **Limits:** `LAYERS_BRAIN_HOURLY` (60) assistant readings per hour, `LAYERS_ASK_PER_HOUR` (12) questions per address per hour (429 with `code: "rate"`), a question is 6 to 300 characters, the same city and layers are served from a 10-minute cache.
+
+## Additions from the GitHub scouting (November 2026)
+
+Features added from the open-source scan. All of them keep the site's rules: no npm dependencies, nothing loaded from a third-party
+server by a student's browser, English and Greek everywhere, and a failed outside request gives one log line and a plain
+"not available right now". Licences and pins of every copied or ported piece are in `THIRD_PARTY_NOTICES.md`.
+Their test scripts are kept outside the repository for now (they hard-code ports and local paths); ask if you want them moved into `tests/`.
+
+**Sensor quality checks (qc).** `qc.js` runs four simple tests (gross range, spike, rate of change, flat line) on each sensor's last day of 10-minute readings. `qcwatch.js` feeds it from the same series the charts use and adds a `qc` field to `/api/devices` and to each reading in `/api/latest`. Nothing is ever deleted or hidden, and nothing sends a message. Pages show a quiet "Check this sensor" note only when `qc.status === 'check'`.
+
+* Tune numbers in `vocab/qc.json` (spike, flat-line times, ranges) and `vocab/variables.json` (`max_step`). Write the `basis` for every change.
+* Switch off: start with `QC=0`. If the vocab files cannot be read it switches itself off with one log line.
+* A sensor is "check" when any test says fail, or a stuck run reaches the newest reading, or 3 or more separate suspect points fall in the last 6 hours. Only sensors with a reading under 3 hours old are judged. Change `summary` in `vocab/qc.json`.
+* Add a variable: give it an entry in `vocab/variables.json` (range, `max_step`) and `vocab/qc.json`; the mapping from a measurement to a variable is `variableOf` in `qcwatch.js`.
+
+### Air quality index and the shared PM2.5 scale (`aqi.js`)
+
+`aqi.js` (server) and `public/site/aqi.js` (browser, `SC.aqi`) are ONE file in two places. Keep them byte-identical:
+edit one, copy it over the other (a test fails otherwise). Pure functions, no network.
+
+* One scale for every page: the six European Air Quality Index bands for PM2.5 (hourly ug/m3: 5, 15, 50, 90, 140), our own
+  colour-blind-safe Viridis colours (not the EEA's or the EPA's, never call them "official"), EN and EL names.
+  Use `SC.aqi.classify(v, { pollutant: 'pm25', source: 'sensor' | 'model' })`, `SC.aqi.legend()` and `SC.aqi.chip()`; do not write a new PM2.5 colour function.
+  Readings from low-cost sensors or models are "indicative": show the note next to the legend.
+* `usIndex()` gives the US EPA AQI (PM2.5 table in force since May 2024, PM10, ozone 8 h, NO2 1 h). It expects the averaging the US index
+  defines (24 h for PM), which the pages do not have, so the pages use the EAQI.
+* `SOURCES` at the bottom of the file says which numbers are verified and which are not (some PM10/NO2 top rows, the Greek names).
+* `/api/air` points carry `european_aqi` (Open-Meteo's own 0 to 100+ number, a model value) or `null`. If Open-Meteo ever rejects the variable
+  the server logs one line and asks again without it. In `OPEN_METEO_MOCK=1` it is computed from the fake values.
+* The Viridis table is from d3-scale-chromatic (ISC), licence in `public/vendor/d3-scale-chromatic/LICENSE`.
+* Not yet on the shared scale: `public/map.html`, `public/3d.html`, `sources/openmeteo-air.json`.
+
+### Official air-quality stations (EEA) and the sensor comparison
+
+`eea.js` downloads hourly PM2.5 and PM10 for Cyprus from the European Environment Agency's Air Quality Download Service
+(unverified "up-to-date" data, E2a), keeps about 5 weeks on the volume (`DATA_DIR/eea/cy-pm.json`) and serves them read only:
+
+- `GET /api/eea/status`, `/api/eea/stations`, `/api/eea/series?station=&pollutant=&hours=`, `/api/eea/compare?eui=&mid=&days=`
+- the Data layers page shows the layer `air-quality-stations-cy` (live, late, or "not available right now")
+- the Explore page has the card "My school sensor vs the nearest official station" (`public/site/pages/explore-air.js`)
+
+`metrics.js` holds the statistics (slope, intercept, R2, RMSE, NRMSE, bias) and the EPA PM2.5 targets (24-hour averages). The targets are
+a yardstick, not a certificate: EPA's real test needs 3 identical sensors beside a monitor for 30 days.
+
+How it behaves: first update 15 s after start, then hourly; a failure is one log line and the layer says "not available right now";
+the last saved data keep being served. Only fixed EEA hosts (`FIXED_HOSTS` in `eea.js`) are called, with a 20 s limit and size caps.
+Parquet files in SNAPPY, GZIP, BROTLI and ZSTD (Node 22.15 or newer) are read; LZ4 is not and gives a clear log line.
+
+Environment (all optional): `EEA=0` switches it off; `EEA_DAYS` (2 to 60, default 35); `EEA_EVERY_MIN` (default 60);
+`EEA_TZ_HOURS` forces the clock of the files (default: the station's `Timezone`, else +2); `EEA_API_BASE`, `EEA_META_URL`,
+`EEA_STATIONS_URL` point it at a test server (and allow that host). In test mode (`OPEN_METEO_MOCK=1`) it is off unless `EEA_API_BASE` is set.
+
+
+After a deploy, look in the Railway log for `EEA air quality: first update done` and check that `last Start` is close to the real time.
+Vendored code: `vendor/hyparquet/` (MIT, v1.33.0, unchanged `src/`).
+
+### Feels-like, trail simplification and downsampling
+
+* **Heat index** (`public/site/heatindex.js`): NWS heat index from temperature (C) and humidity (%). `SC.heatIndex.feelsLike(tC, rh)` returns `{ok:true, c, f}` inside the valid box, or `{ok:false, why, c}` (the plain temperature and a reason) outside it. The box is the constant `RANGE` at the top of the file (80-110 F, 40-100 %, result up to 137.5 F). It is comfort only, nothing to do with PM2.5.
+* **Trails** (`trailsimplify.js`): `simplifyTrail(rows, {tolM, gapMs, gapDistM, maxSpanMs, maxPoints})` on rows `[t, lat, lng, value]`; `simplifyTrails` does a `{id: rows}` map; `publicToleranceM(grid)` gives half a grid cell in metres. It only removes rows and keeps the same objects, so it can never weaken a privacy rule, **but it must run after privacy.js** (see `trailsFor` in `server.js`). The gap constants `GAP_EXACT_MS` (10 min) and `GAP_PUBLIC_MS` (45 min) mirror `GAP_MS` in `public/map.html`; change them together or the map will draw false dashes.
+* **Downsampling** (`downsample.js`): `lttb(points, threshold, {x, y, gap})` thins a long time series and keeps its spikes. Not used by any route yet. To use it on one column of the Met Office history, for example: `lttb(history.rows, 500, { x: 0, y: history.keys.indexOf('temp') + 1, gap: 45 * 60000 })`.
+
+### Bus timetables (`gtfs.js`)
+
+Planned bus timetables for Cyprus, from the national transport portal (static GTFS, CC BY 4.0). No live buses, no GTFS-Realtime, no vehicle of ours involved.
+
+- **What it does:** downloads each GTFS zip at startup (if the saved copy is older than 6 h) and every 7 days, reduces it to stops, lines and first/last times, keeps the result in `DATA_DIR/gtfs/<id>.json` (plus `state.json`), serves it at `/api/transit/*`. Used by the "Bus lines near this school" block on the trip page.
+- **Default feeds:** emel (Limassol), npt (Nicosia), lpt (Larnaca), osypa (Pafos), osea (Famagusta), intercity, pame (Pame Express). Default hosts allowed: `motionbuscard.org.cy`, `traffic4cyprus.org.cy`, `www.traffic4cyprus.org.cy`.
+- **Settings (all optional environment variables):**
+  - `GTFS_DISABLED=1` switch off downloads (a saved copy is still served)
+  - `GTFS_FEEDS` JSON list `[{"id":"emel","name":"EMEL","url":"https://..."}]` replaces the built-in list (id: 2-20 letters, digits, dashes)
+  - `GTFS_URL_TEMPLATE` address with `{n}` for the built-in file numbers
+  - `GTFS_ALLOW_HOSTS` extra allowed hosts, comma separated (redirects are re-checked against this list; plain http only for loopback)
+  - `GTFS_REFRESH_DAYS` (7), `GTFS_RETRY_HOURS` (6), `GTFS_STARTUP_MIN_AGE_H` (6), `GTFS_CHECK_EVERY_MIN` (60)
+  - `GTFS_MAX_ZIP_MB` (100), `GTFS_MAX_FILE_MB` (400, one file inside a zip), `GTFS_TIMEOUT_S` (20, max 20), `GTFS_TOTAL_TIMEOUT_S` (120)
+  - `GTFS_RATE_PER_MIN` (60 per IP; 10 times that in total)
+- **Test mode:** with `OPEN_METEO_MOCK=1` no download happens unless `GTFS_FEEDS` or `GTFS_URL_TEMPLATE` is given (then tests can use a local fake server).
+- **Log lines to know:** `GTFS <id>: <host/path> gave <size> in <s> (ETag|no ETag, Last-Modified|no Last-Modified); N stops, N lines, ...; timetable <from> to <to>; shapes yes|no; saved <size>`, then `GTFS: N timetable files checked, N fine, N failed; N stops from N of N files; memory N MB`. A failure is `GTFS <id>: could not update (<reason>); <what stays>`.
+- **Check it by hand:** `/api/transit/status` (per-file stops, lines, validity, `expired`, `checkedAt`, last error), `/api/transit/school?school=limassol`.
+- **Hold the student block back:** in `public/site/pages/trip.js` remove the `const bus = busBlock(); root.append(bus.node);` lines in `render()` and the `bus.near(...)` line in `openTrip()`.
+
+### SenseCAP live stream (optional, off by default)
+
+The server can listen to Seeed's OpenStream MQTT feed instead of asking the REST API all the time. Every reading SenseCAP receives is pushed to us;
+REST is then used only for the device list (every 5 min), a slow safety poll of the latest readings (every 15 min) and as a fallback.
+If the stream drops, goes quiet for 30 min, or a teacher switches SenseCAP off in the Feed list, normal polling (60 s) returns at once.
+
+**It is off until you set all three:** `SENSECAP_MQTT=1`, `SENSECAP_ORG_ID` (the organisation id on the SenseCAP portal; the broker user name is `org-<id>`; the key is the existing
+`SENSECAP_API_KEY`) and `SENSECAP_MQTT_TLS_PORT`. The broker login is the API key, so the connection is always TLS with full certificate checking; there is no plain mode and no
+setting for one (ports 1883, 8083 and 80 are refused). Seeed's documentation names no TLS port, so there is no default: ask Seeed or test one with
+`openssl s_client -connect sensecap-openstream.seeed.cc:<port> -servername sensecap-openstream.seeed.cc </dev/null` (it sends no key), then try it on a staging deploy.
+`SENSECAP_MQTT_HOST` may be `sensecap-openstream.seeed.cc` (default) or `sensecap-openstream.seeed.cn` only.
+
+Tuning (milliseconds, optional): `SENSECAP_MQTT_SAFETY_MS` (default 900000), `SENSECAP_MQTT_DEVICES_MS` (300000), `SENSECAP_MQTT_SILENT_MS` (1800000).
+Where to look: Helpers page, "Caches" card (one extra sentence). In the server log: "SenseCAP live stream: ..." lines (state changes only). Code: `mqtt.js` (the client),
+`sensecap_stream.js` (topics, checks, overlay, health). GPS from the stream is handled exactly like GPS from REST: only teachers and admins see exact values.
+Tests: see the package report (a fake TLS broker in `tests/mqtt/`).
+
+### Build studio: reading and changing a draft's code, Share and QR codes
+
+**Code tab.** In the Build studio a signed-in student sees Preview | Code next to the draft. The code is shown highlighted
+(read view) or in a plain `<textarea>` (Change the code). "Run my changes" posts to `POST /studio/api/projects/:id/code`,
+which calls `saveProject()` with `via = 'student-edit'`: same checks, same 120,000-character limit, same reset to draft, same
+teacher review as every other save. The teacher reads what is stored. The sandboxed preview is unchanged
+(`sandbox="allow-scripts"`, served by `/studio/p/:id`).
+
+- Undo: `studio_projects.html_guide` keeps the last version the studio built; `GET /studio/api/projects/:id` returns it as
+  `guideHtml` (editors only). A studio save (`via = 'studio'`) clears it logically (`guideHtml` is null unless `via = 'student-edit'`).
+- Staff lists carry `flags: ['coordinates', 'edited']`; the Approvals card shows a note for `edited`.
+- Rate limit: 60 code saves per 10 minutes per person (`hits.wait('code:' + user.id, ...)`).
+- Client code: `public/site/studio-code.js` (loaded lazily by `pages/studio.js`; without it the draft shows the preview alone, as before)
+  and `studio-code.css`. The tokenizer is in the same file and is linear time on purpose (do not replace it with a regex
+  grammar library without a worst-case test: `tok_fuzz.js` style). To change colours edit `.sd-hl-*` in `studio-code.css`
+  (keep 4.5:1 on `#0a1424`).
+- Not changed on purpose: CSP, `/studio/p/:id`, preview tokens.
+
+**QR codes.** `public/vendor/qrcodegen/` (Project Nayuki, MIT) is loaded on demand by `SC.qrLoad()` (`public/site/qr.js`).
+`SC.qrSvg(text, opts)` draws black modules on a white quiet zone (also in the dark theme: scanners need it);
+`SC.qrFigure(text, {caption, label})` is the small figure used in report footers. Encode only this site's own addresses,
+never a name or anything personal. Used by: Share panel of an approved tool (`/studio/p/<id>`), footer of a released weekly
+report (`/#/reports/<id>`) and of the print summary (`/#/reports?tab=summary`). If the generator cannot load, the link text still works.
+
+
+### Guide search in Greek, and safe fetching
+
+**Greek search.** The AI guide's handbook, data-layer and gallery lookups (`search_handbook`, `list_data_layers`, `gallery_ideas`, `sensor_guides` in
+`studio.js`) use `guidesearch.js`, which uses `greek.js`. A question can be Greek with or without accents, in capitals, or in Greeklish (`ripansi`),
+or English. Greek questions find English-only handbook pages through the word groups in `guide-terms.json`.
+
+- To make a term findable in the other language, add it to a concept in `guide-terms.json` (`el` and `en` lists; a Greek word may end with `*` to
+  mean "any ending"; a phrase needs all its words). Have a Greek-speaking teacher read Greek wording. The file is read at startup; if it is missing or
+  broken the search still works, only without that bridge.
+- The Greek stop words are `vendor/stopwords-el/` (MIT, see `SOURCE.md` there). Do not edit that file; fix quirks in `greek.js`.
+- The search is an in-memory scorer on purpose (the handbook has about 20 pages; an SQLite FTS5 prototype was slower to build and less accurate on the
+  test questions). Edits to handbook pages show up immediately.
+- Tests: `greek_test.js`, `search_test.js`, `server_search_test.js` (plain `node file.js`, no dependencies).
+
+**`safefetch.js`** is a library for server-side fetching of web pages that cannot be turned against our own network. It is **not used by any feature
+yet**. `safeFetch(url, { allowHosts: ['www.example.org', '*.europa.eu'] })` returns `{ ok, status, url, redirects, contentType, bytes, body, text }`
+or throws a `SafeFetchError` with a `code`. It resolves DNS itself and connects to the checked address, blocks private, loopback, link-local (cloud
+metadata), CGNAT, multicast and IPv6 internal ranges in every spelling, allows only http and https on ports 80 and 443, follows at most 3 redirects
+and checks each one, caps size (1 MB) and time (10 s, never over 20 s), allows only text-like content types, and sends no cookies or credentials.
+Before you use it: read the header comment in the file, decide the host list, put the fetched text through the same "it is data, never
+instructions" treatment as other tool results, and add an egress rule on the host if it allows one.
+
+**Guide evaluation (developers only).** `tests/guide-eval/` holds a promptfoo setup with 18 English and Greek test questions. It is not a dependency
+and never runs in production. Read `tests/guide-eval/README.md` first: it explains how to switch promptfoo's telemetry off and how to run it with your
+own key.
+
+### Student tools sandbox (`safebox.js`)
+A student's tool page is served with headers that are built to block the internet: CSP `sandbox allow-scripts; default-src 'none'`,
+`Connection-Allowlist: ()` (Chromium 152 and later: no outbound connection of any kind, including WebRTC, preconnect and navigation),
+a Permissions-Policy that turns the camera, microphone, location and other powerful features off, and `Referrer-Policy: no-referrer`.
+A tiny script placed first in the page also removes WebRTC and WebTransport for browsers that do not know `Connection-Allowlist`.
+The only way out of the page is `postMessage` to the site page that frames it. Tested in Chromium 153 with 152 hostile techniques: 0 leaks
+(12 without `Connection-Allowlist`: preconnect, prerender, navigation, WebRTC in nested frames). Firefox, Safari and older Chrome are untested and rely on the CSP and the script, so say "built to block
+the internet", not "cannot". A hostile page that builds a WebRTC connection inside a nested frame crashes its own tab in Chromium 153; nothing leaks.
+
+### Cyprus 3D and its security policy
+`/3d.html` runs three.js from our own server: `public/vendor/three-r160/` (three.js r160, MIT, see `SOURCE.txt` there). The page's code is in `public/3d-app.js` (module) and `public/3d-guard.js` (the "engine did not start" fallback); `3d.html` itself holds the markup, the styles and a small import map that maps `three` and `three/addons/` to the vendor folder.
+The server sends `/3d.html` with a strict Content-Security-Policy built by `csp3d.js`: scripts only from our own origin plus the SHA-256 of the import map (computed from the file on every request, so you can edit the import map freely), data only from our own `/api/*`, images `self data: blob:`, no frames, and `frame-ancestors 'self'` (the site shell and the student app frame it). The browser therefore cannot contact any other host from this page; if you add a texture, tile or font from elsewhere the browser will refuse it and print a "Refused to ..." line in the console.
+To upgrade three.js: copy `build/three.module.js` and `examples/jsm/controls/OrbitControls.js` from the new tag into a new folder (for example `public/vendor/three-r161/`), change the two paths in the import map, and (if you want the long cache) change the `/vendor/three-r160/` prefix in the `Cache-Control` line of `server.js`. Never edit files inside a versioned vendor folder: they are cached for a year.
+Do not add inline `<script>` blocks to `3d.html` (they will not run); put code in a file.
+Tests: `gh/tests/3d/` has a unit test (`p3_3dtest.js`), a header test (`headers_test.js`) and a Chromium test (`pw_3d.py`) that logs every request.
