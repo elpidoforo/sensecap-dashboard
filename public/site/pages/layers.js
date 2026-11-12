@@ -578,7 +578,7 @@
               row(T('Kind of data', 'Είδος δεδομένων'), r.kindLabel ? r.kindLabel[isEl() ? 1 : 0] : null),
               row(T('Where it is from', 'Από πού προέρχεται'), link(s.publisher && s.publisher.url) || link(s.access && s.access.url)),
               row(T('Limits', 'Όρια'), s.representativeness && s.representativeness.notes ? s.representativeness.notes : null)),
-            isTeacher() && (r.warnings || []).length ? h('div', { class: 'ly-warn' }, T('For teachers: ', 'Για εκπαιδευτικούς: ') + r.warnings.map((w) => w.replace(/^\$[^:]*:\s*/, '')).join(' ')) : null);
+            isTeacher() && (r.warnings || []).length ? h('div', { class: 'ly-warn' }, T('For teachers: ', 'Για εκπαιδευτικούς: ') + r.warnings.map((w) => w.replace(/^\$[^:]*:\s*/, '')).join(' ')) : '');   // not null: replaceChildren(null) would write the word "null" into the dialog
           SC.cached('/api/satellite/images', 60000).then((d) => { const strip = satelliteStrip(((d && d.images) || []).filter((im) => im.feed === id)); if (strip) sat.append(strip); }).catch(() => { /* no pictures: nothing to draw */ });
         } catch (e) { body.replaceChildren(h('div', { class: 'err', role: 'alert' }, errMsg(e))); }
       }
