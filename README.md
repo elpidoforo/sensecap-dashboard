@@ -450,3 +450,110 @@ The server sends `/3d.html` with a strict Content-Security-Policy built by `csp3
 To upgrade three.js: copy `build/three.module.js` and `examples/jsm/controls/OrbitControls.js` from the new tag into a new folder (for example `public/vendor/three-r161/`), change the two paths in the import map, and (if you want the long cache) change the `/vendor/three-r160/` prefix in the `Cache-Control` line of `server.js`. Never edit files inside a versioned vendor folder: they are cached for a year.
 Do not add inline `<script>` blocks to `3d.html` (they will not run); put code in a file.
 Tests: `gh/tests/3d/` has a unit test (`p3_3dtest.js`), a header test (`headers_test.js`) and a Chromium test (`pw_3d.py`) that logs every request.
+
+## Satellite feeds (November 2026)
+
+Satellite data plugs into the Data layers page like any other layer: one file in `sources/` and one module in `satellite/feeds/` per feed.
+A satellite value describes an area (a pixel of 250 m to 25 km), only where the sky is clear, at the time the satellite passed; it is never
+shown as "a sensor at the school". Feeds that need a free key (`FIRMS_MAP_KEY`, `CDSE_CLIENT_ID`/`CDSE_CLIENT_SECRET`) stay planned until the key is set.
+A feed with several kinds of picture (NASA: natural colours, night lights, dust and haze, ground heat, sea warmth, fires) shows one button per kind
+in the layer dialog; the small pictures are the last days of the chosen kind (up to 12 per kind, 60 per feed).
+Everything read from the internet is fetched by the server only, from exact allowed hosts, and is untested against the real services until the first deploy logs are read.
+
+### Satellite feeds: the registry (`satellite/`)
+
+The full text is in `satellite/README.md`. Headings:
+
+- Satellite feeds (what a satellite value is: an area, only where the sky is clear, at pass time, never "a sensor at the school")
+- What is in this folder
+- Add a feed in five steps (source file, vocab, feed module with the `create(ctx)` skeleton, test with `makeCtx`, pull request)
+- The ctx (`dir`, `get` options and errors, `env`, `log`, `places`, `now`)
+- The rules for what a feed returns (`read`, `images`, degrade)
+- Testing a feed (`makeCtx`, `reply`, `startFakeServer`)
+- What the registry guarantees
+- Switches (environment)
+- HTTP (read only routes)
+- How it plugs into the Data layers page
+- What to look for in the Railway logs after a deploy
+
+### Air and haze from space (cams-atmosphere, tropomi-air, modis-aerosol)
+
+- cams-atmosphere (active): the CAMS atmospheric-composition MODEL read through Open-Meteo's air-quality API (host air-quality-api.open-meteo.com, no key). Haze (aerosol optical depth), UV index, NO2, SO2, CO.
+  It is a model, quality.kind "model": satellites feed CAMS (MODIS haze, satellite ozone and CO) but the numbers are model numbers. Never present them as satellite pixels. One request for the four cities every hour.
+- tropomi-air (candidate + planned, reader built): Sentinel-5P NO2, CO, O3, SO2 and UV aerosol index, whole-column, about once a day, clear sky only, through the Copernicus Data Space Sentinel Hub Statistical API.
+  Needs a FREE Copernicus Data Space account and an OAuth client. Set CDSE_CLIENT_ID and CDSE_CLIENT_SECRET on the server (names are declared in sources/tropomi-air.json: access.auth.env and x_env). With the secret set,
+  the Data layers page treats the layer as active (layers.js withSatellite); without both values the feed makes no request at all. Update the year in the attribution line of that file once a year.
+- modis-aerosol (candidate, no reader): MODIS MAIAC haze via NASA AppEEARS needs an Earthdata login and several steps per request. The ORNL DAAC MODIS web service has no aerosol product.
+- Tests: node tests/sat-air/cams.test.js ; node tests/sat-air/tropomi.test.js (fixtures in tests/sat-air/fixtures, no network).
+  Whole server with fake providers: node -r tests/sat-air/fake-network.js server.js with DEMO=1 OPEN_METEO_MOCK=1 SATELLITE_LIVE=1 (set FAKE_DUST=1 for a dust day; FAKE_CDSE_ID/FAKE_CDSE_SECRET plus the same two as CDSE_CLIENT_ID/CDSE_CLIENT_SECRET for TROPOMI).
+- Never write a value of CDSE_CLIENT_ID or CDSE_CLIENT_SECRET in a file, a log or an issue. The registry cuts them out of anything it shows.
+
+### Fire feeds (`fire-hotspots`, `effis-burnt-areas`)
+
+Two satellite feeds under `satellite/feeds/`, with their logic in `satellite/fire/` and their descriptors in `sources/`. Tests: `node --test tests/sat-fire/unit.js tests/sat-fire/unit_effis.js` (no network, Node 22). Regenerate fixtures with `node tests/sat-fire/make-fixtures.js`.
+
+**fire-hotspots** needs a free NASA FIRMS key: get one at `https://firms.modaps.eosdis.nasa.gov/api/map_key`, set it as `FIRMS_MAP_KEY` on the server (Railway variable), restart. Without it nothing happens (one log line, the layer stays Planned). With it the layer turns Active by itself, readings flow to the master brain, and the picture appears in the layer's dialog. It asks NASA four times per 30 minutes (5,000 per 10 minutes allowed).
+
+**Rules** (change them in `satellite/fire/firms.js`, and keep `x_rules` in the descriptor and the explain texts in `vocab/variables.json` in step):
+low confidence is dropped for every sensor (VIIRS `l`, MODIS under 30); detections within 1 km of each other are one hotspot whatever the sensor or the time (not chained); counts are hotspots in the 24 hours that end when NASA's lists were read; the three variables are counts within 25 km and 50 km and the distance to the nearest hotspot within 100 km (no row when none).
+
+**effis-burnt-areas** needs no key but is **Planned on purpose**: its request is documented only by a third-party client. After deploy look for the log line "Satellite effis-burnt-areas: EFFIS answered: N perimeters ..."; when it is there and the numbers look right, change `"status": "candidate"` to `"active"` in `sources/effis-burnt-areas.json`.
+
+Never add a reading that names a person, owner or place of a fire; the EFFIS reader deliberately keeps only geometry, area and dates. Every text that reaches a student must say that a hotspot is not a confirmed fire and give 112. A zero is never "safe".
+
+### Satellite pictures: `nasa-gibs-imagery` and `eumetsat-meteosat-view`
+
+What they are: two feeds in `satellite/feeds/` that fetch WMS pictures, check them, keep a week of them in `DATA_DIR/satellite/<feed id>/` and list them through `images()`. They have no numbers (`variables: []`). Shared code: `satellite/lib/imagery.js`.
+
+How a run goes: first run 25 s (NASA) or 40 s (EUMETSAT) after start, then every 3 h or 45 min. A run first works out what is missing (the 7 dates of each NASA kind, or a frame newer than the one held), reads capabilities only if something is missing, then fetches one picture at a time with a pause. Pictures go to the folder with a hash-checked atomic write; `index.json` lists them and `state.json` holds the capabilities cache and the "rested" marks (layer rested 24 h, empty day 6 h, outline layers 24 h).
+
+Change what is shown: edit `DEFS` at the top of the feed. A NASA kind is `{ id, format, bg, overlay, readyHours, hour, minBytes, staleDays, title, titleEl, text, textEl, candidates: [{ layers, platform }] }`; candidates are tried in order. Keep the text to one sentence that starts "Look for" / "Δες", and add the id to `x_images` in the descriptor. A Meteosat kind has `cadenceMin` and `candidates: [{ layer, platform }]`. Do not add a single-channel (Level 1) Meteosat layer without re-reading the data policy. Do not add Suomi NPP layers (no new data since 2 Nov 2026).
+
+Settings (environment, all optional): `SATELLITE_IMAGERY_PAUSE_MS` (pause between requests, default 1500/2000), `SATELLITE_IMAGERY_FIRST_DELAY_MS`, `SATELLITE_IMAGERY_MAX_MB` (folder cap, default 25). No key, no secret.
+
+Tests: `node --test tests/sat-imagery/*.test.js`. `helpers.js` has a fake GIBS and a fake EUMETView; `makeCtx` comes from `satellite/testing.js`.
+
+Reading the logs: every line starts with `Satellite <feed id>:`. Normal: `N new picture(s), M kept`. Trouble: `trouble: ...` lists up to three reasons (for example `no capabilities (...)`, `<layer> is skipped for a while (the service does not list it)`). `/api/satellite/status` shows each feed's `probe` note ("42 pictures kept, 6 of 6 kinds up to date, newest for 2026-11-12").
+
+### Land feeds: modis-lst and modis-ndvi (NASA MODIS / VIIRS through ORNL DAAC)
+
+What: for each of the four cities, the surface temperature of the ground and roofs (day and night, 8-day composites, 1 km) and the greenness of the land (NDVI, 16-day composites, 250 to 500 m). Both are satellite values: an AREA, only where the sky was clear, not a sensor at the school. Surface temperature is NOT air temperature; the brain never compares it with a thermometer.
+
+Where: `satellite/feeds/modis-lst.js`, `satellite/feeds/modis-ndvi.js`, shared code `satellite/lib/modis-ornl.js` (not a feed: only files in `feeds/` are loaded). Descriptors `sources/modis-lst.json`, `sources/modis-ndvi.json`. Variables in `vocab/variables.json` (`land_surface_temperature`, `ndvi`).
+
+Service: https://modis.ornl.gov/rst/api/v1/{product}/dates and /subset (keyless). Products: MYD11A2, MOD11A2 (LST), MOD13Q1, MYD13Q1, VNP13A1 (NDVI). One call at a time, 1.5 s apart, every 12 h; the answers are cached in DATA_DIR/satellite/<id>/state.json. `SATELLITE_MODIS_GAP_MS` (0-60000) changes the pause. No key, no secret.
+
+How a pixel is accepted: raw value times the scale (0.02 K, or 0.0001), fill and out-of-range values dropped, QA bits must say "good" (LST: not cloud, error class up to 3 K; NDVI: reliability 0 or 1 and no cloud, snow or shadow in VI Quality). The city value is the mean of the usable pixels of the centre 3 x 3 block when at least 4 are usable, otherwise the centre pixel alone, otherwise nothing. The reading time is the middle of the composite period.
+
+In production: no log line means a good round. A line `Satellite modis-lst: ...` names the first problem. Check the Data layers card for "Live, 4 of 4 cities". Tests: `node tests/sat-land/run.js` (no network; fixtures made by `tests/sat-land/make-fixtures.js`).
+
+Known limit: Terra and Aqua are drifting and NASA plans to retire them from late 2026 or early 2027. NDVI continues from VIIRS (VNP13A1). LST has no VIIRS route yet.
+
+### Satellite sea feeds (noaa-sst, noaa-chlorophyll)
+
+Two keyless feeds read NOAA CoastWatch ERDDAP (`coastwatch.pfeg.noaa.gov`) with griddap `.json` queries.
+
+- `noaa-sst`: sea surface temperature, variable `sea_surface_temperature` (Cel), the same id and unit as the Open-Meteo marine model, so the
+  Data layers brain can compare them. Product: MUR SST v4.1 (`jplMURSST41`, L4 gap-free analysis, 1 km, daily, about 3-4 days late),
+  backup OISST v2.1 (`ncdcOisst21NrtAgg`, 25 km). Refreshed every 6 h.
+- `noaa-chlorophyll`: variable `chlorophyll_a` (mg/m3), VIIRS S-NPP science quality 4 km, L3 daily (`nesdisVHNSQchlaDaily`), the newest CLEAR value of
+  the last 7 daily maps (cloud leaves holes). Refreshed every 12 h. About 11-15 days late.
+- Coastal cities only (Larnaka, Limassol, Paphos). Lefkosia is never asked and never has a value. Each reading says which pixel it used and how many km
+  from the city centre. A satellite sees the top skin of the sea and cannot see through cloud.
+- Code: `satellite/feeds/noaa-sst.js`, `satellite/feeds/noaa-chlorophyll.js`, shared `satellite/lib/gridfeed.js` and `satellite/lib/erddap.js`.
+  Descriptors: `sources/noaa-sst.json`, `sources/noaa-chlorophyll.json`. Candidate: `sources/copernicus-marine-sst-med.json` (needs a free account).
+- Tuning: `SATELLITE_ERDDAP_PAUSE_MS` (pause between ERDDAP requests, default 500, 0..30000). No key, no other setting.
+- If a map is missing: see `GET /api/satellite/status` (probe note and last network error) and the log line starting "Satellite noaa-sst:" or "Satellite noaa-chlorophyll:".
+
+### Sunshine feeds (satellite/feeds/openmeteo-satellite-solar*.js, nasa-power-solar.js, helpers in satellite/sun/)
+Three keyless feeds, no secret. Shared code lives in satellite/sun/ (the registry only loads satellite/feeds/*.js).
+- openmeteo-satellite-solar      satellite-api.open-meteo.com  solar_irradiance (W/m2), newest finished hour, refresh 30 min
+- openmeteo-satellite-solar-day  satellite-api.open-meteo.com  solar_energy_day (kWh/m2/day) + solar_clear_sky_share (%), last full day, refresh 3 h
+- nasa-power-solar               power.larc.nasa.gov           solar_energy_day_nasa (kWh/m2/day) + cloud_amount_nasa (%), newest day (about a week old), refresh 20 h
+Rules that matter:
+- Irradiance is light arriving, not panel output. Never turn it into yield, money or CO2.
+- Lux (school light sensors) and W/m2 are different quantities. Do not compare or convert them; they have separate variable ids and no tolerance.
+- solar_energy_day (Open-Meteo, 2.5 km, we add up the hours) and solar_energy_day_nasa (1 degree, NASA) are separate ids on purpose, so the brain does not flag a "disagreement" that is only a resolution difference.
+- A "full day" needs every hour of daylight; a hole in daylight (not at night) rejects the day. Night is told apart by the sun's elevation, so both 0 and null at night work.
+- Open-Meteo's free API is for non-commercial use. Educational use is fine; ads, subscriptions or selling anything need a paid plan.
+- Tests: a maintainer can read the reconstructed answers in tests/sat-sun/fixtures/*.json (they are NOT recordings). After the first real run, replace them with a recorded answer.

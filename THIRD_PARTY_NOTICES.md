@@ -37,4 +37,22 @@ A student's browser never loads anything from a third-party server.
 | European Environment Agency, Air Quality Download Service (Cyprus stations reported by the Department of Labour Inspection) | Credit line on the card and in `sources/air-quality-stations-cy.json`. EEA general reuse policy: reuse with credit; some data may carry specific conditions. The licence id is left `unknown` until a teacher reads the dataset factsheet. |
 | Cyprus National Access Point for transport (traffic4cyprus.org.cy), GTFS | CC BY 4.0. The credit is in every API answer and on the trip page. |
 
+## Satellite data sources (fetched live by the server; nothing is copied into the repo)
+
+All the code is our own ("ported, not copied"): written from each provider's documentation. The credit line shown in the layer dialog is in each `sources/*.json`
+(`licence.attribution`). Terms were read on 2026-11-12; a teacher should re-check any line marked "not read".
+
+| Data | Provider and terms |
+|---|---|
+| NASA GIBS daily pictures (`nasa-gibs-imagery`) | NASA Earth Science Data and Information System. NASA open data policy; the acknowledgement NASA asks for is shown with each picture. |
+| EUMETSAT Meteosat pictures (`eumetsat-meteosat-view`) | EUMETSAT Data Policy (2026); the credit line and the Natural Earth overlay credit are shown. |
+| Open-Meteo CAMS air quality (`cams-atmosphere`), satellite radiation (`openmeteo-satellite-solar*`) | CC BY 4.0, free tier for non-commercial use, attribution "Open-Meteo.com". Open-Meteo's source code (AGPL-3.0) was read for field names only; nothing copied. |
+| Copernicus Sentinel-5P TROPOMI via Copernicus Data Space (`tropomi-air`, needs a free key) | Copernicus Sentinel data licence (free, full and open); "Contains modified Copernicus Sentinel data". |
+| NASA MODIS / VIIRS via ORNL DAAC (`modis-lst`, `modis-ndvi`, `modis-aerosol`) | NASA open data; ORNL DAAC asks for a citation of the tool and the product. |
+| NASA FIRMS active fires (`fire-hotspots`, needs a free key) | NASA open data, acknowledgement requested; "Not endorsed by NASA". The exact terms for the NOAA-20/21 products: not read, a teacher may confirm. |
+| EFFIS burnt areas (`effis-burnt-areas`) | European Commission, JRC; CC BY 4.0 with a "changed" statement. |
+| NOAA CoastWatch ERDDAP: MUR SST, OISST, VIIRS chlorophyll (`noaa-sst`, `noaa-chlorophyll`) | NASA JPL PO.DAAC data policy (acknowledgement), NOAA open data. Requests are few and spaced out. |
+| NASA POWER (`nasa-power-solar`) | CC BY 4.0; NASA asks to cite the API version and the date of access. The upstream retrievals (DWD, CERES, GEOS): terms of DWD not read. |
+| Solar position and top-of-atmosphere radiation formulas | NOAA GML calculator equations and FAO Irrigation and Drainage Paper 56 (published methods); written as our own code. |
+
 Last reviewed: 2026-11-12.
