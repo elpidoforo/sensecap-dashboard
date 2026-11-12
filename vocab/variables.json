@@ -1,0 +1,257 @@
+{
+  "_about": "One entry per variable the register knows. unit is a UCUM code. tolerance is how far apart two outdoor readings of the same thing may be before the master brain says the sources disagree (starter values, to be agreed with teachers). Add a variable here before using it in a source file.",
+  "temperature": {
+    "label": [
+      "Air temperature",
+      "Θερμοκρασία αέρα"
+    ],
+    "unit": "Cel",
+    "range": [
+      -30,
+      55
+    ],
+    "max_step": 8,
+    "tolerance": {
+      "abs": 2
+    }
+  },
+  "relative_humidity": {
+    "label": [
+      "Relative humidity",
+      "Σχετική υγρασία"
+    ],
+    "unit": "%",
+    "range": [
+      0,
+      100
+    ],
+    "max_step": 25,
+    "tolerance": {
+      "abs": 10
+    }
+  },
+  "pressure": {
+    "label": [
+      "Air pressure",
+      "Ατμοσφαιρική πίεση"
+    ],
+    "unit": "hPa",
+    "range": [
+      850,
+      1100
+    ],
+    "max_step": 6,
+    "tolerance": {
+      "abs": 3
+    }
+  },
+  "co2": {
+    "label": [
+      "Carbon dioxide",
+      "Διοξείδιο του άνθρακα"
+    ],
+    "unit": "[ppm]",
+    "range": [
+      300,
+      10000
+    ],
+    "max_step": 1500,
+    "tolerance": null
+  },
+  "pm25": {
+    "label": [
+      "PM2.5 particles",
+      "Σωματίδια PM2.5"
+    ],
+    "unit": "ug/m3",
+    "range": [
+      0,
+      1000
+    ],
+    "max_step": 300,
+    "tolerance": {
+      "abs": 5,
+      "rel": 0.3
+    }
+  },
+  "pm10": {
+    "label": [
+      "PM10 particles",
+      "Σωματίδια PM10"
+    ],
+    "unit": "ug/m3",
+    "range": [
+      0,
+      2000
+    ],
+    "max_step": 600,
+    "tolerance": {
+      "abs": 10,
+      "rel": 0.3
+    }
+  },
+  "dust": {
+    "label": [
+      "Dust (model)",
+      "Σκόνη (μοντέλο)"
+    ],
+    "unit": "ug/m3",
+    "range": [
+      0,
+      5000
+    ],
+    "max_step": 1000,
+    "tolerance": null
+  },
+  "ozone": {
+    "label": [
+      "Ozone",
+      "Όζον"
+    ],
+    "unit": "ug/m3",
+    "range": [
+      0,
+      500
+    ],
+    "max_step": 100,
+    "tolerance": {
+      "abs": 20
+    }
+  },
+  "noise": {
+    "label": [
+      "Noise",
+      "Θόρυβος"
+    ],
+    "unit": "dB",
+    "range": [
+      20,
+      140
+    ],
+    "max_step": 40,
+    "tolerance": null
+  },
+  "light": {
+    "label": [
+      "Light",
+      "Φως"
+    ],
+    "unit": "lx",
+    "range": [
+      0,
+      200000
+    ],
+    "max_step": 100000,
+    "tolerance": null
+  },
+  "wind_speed": {
+    "label": [
+      "Wind speed",
+      "Ταχύτητα ανέμου"
+    ],
+    "unit": "m/s",
+    "range": [
+      0,
+      70
+    ],
+    "max_step": 15,
+    "tolerance": {
+      "abs": 2
+    }
+  },
+  "sea_surface_temperature": {
+    "label": [
+      "Sea surface temperature",
+      "Θερμοκρασία επιφάνειας θάλασσας"
+    ],
+    "unit": "Cel",
+    "range": [
+      8,
+      35
+    ],
+    "max_step": 3,
+    "tolerance": {
+      "abs": 1.5
+    }
+  },
+  "wave_height": {
+    "label": [
+      "Wave height",
+      "Ύψος κύματος"
+    ],
+    "unit": "m",
+    "range": [
+      0,
+      15
+    ],
+    "max_step": 3,
+    "tolerance": {
+      "abs": 0.5
+    }
+  },
+  "land_surface_temperature": {
+    "label": [
+      "Ground surface temperature",
+      "Θερμοκρασία επιφάνειας εδάφους"
+    ],
+    "unit": "Cel",
+    "range": [
+      -10,
+      80
+    ],
+    "max_step": 25,
+    "tolerance": null
+  },
+  "green_space_share": {
+    "label": [
+      "Green space share",
+      "Ποσοστό πρασίνου"
+    ],
+    "unit": "%",
+    "range": [
+      0,
+      100
+    ],
+    "max_step": 100,
+    "tolerance": null
+  },
+  "electricity_renewable_share": {
+    "label": [
+      "Renewable share of electricity",
+      "Ποσοστό ανανεώσιμων στον ηλεκτρισμό"
+    ],
+    "unit": "%",
+    "range": [
+      0,
+      100
+    ],
+    "max_step": 100,
+    "tolerance": null
+  },
+  "dam_fill_level": {
+    "label": [
+      "Dam fill level",
+      "Στάθμη φραγμάτων"
+    ],
+    "unit": "%",
+    "range": [
+      0,
+      100
+    ],
+    "max_step": 100,
+    "tolerance": null
+  },
+  "buses_in_service": {
+    "label": [
+      "Buses in service",
+      "Λεωφορεία σε λειτουργία"
+    ],
+    "unit": "{vehicles}",
+    "range": [
+      0,
+      2000
+    ],
+    "max_step": 2000,
+    "tolerance": null
+  }
+}

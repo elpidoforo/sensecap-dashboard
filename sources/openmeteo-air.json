@@ -1,0 +1,116 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "openmeteo-air",
+  "name": "Air quality model",
+  "summary": "Modelled particles, dust and ozone for any point on the island, from the Open-Meteo air-quality service.",
+  "layer": "model",
+  "status": "active",
+  "tagline": "Open-Meteo · CAMS",
+  "i18n": {
+    "el": {
+      "name": "Μοντέλο ποιότητας αέρα",
+      "summary": "Σωματίδια, σκόνη και όζον από μοντέλο για οποιοδήποτε σημείο του νησιού, από την υπηρεσία ποιότητας αέρα της Open-Meteo.",
+      "tagline": "Open-Meteo · CAMS"
+    }
+  },
+  "themes": [
+    "air quality",
+    "dust"
+  ],
+  "publisher": {
+    "name": "Open-Meteo",
+    "url": "https://open-meteo.com",
+    "kind": "community"
+  },
+  "licence": {
+    "id": "CC-BY-4.0",
+    "url": "https://open-meteo.com/en/licence",
+    "attribution": "Air quality data by Open-Meteo.com",
+    "commercial_use": true,
+    "share_alike": false,
+    "checked_on": "2026-11-12"
+  },
+  "restrictions": [
+    "Free API is for non-commercial use only",
+    "Free tier: under 10,000 calls/day, 5,000/hour, 600/minute"
+  ],
+  "access": {
+    "type": "rest-json",
+    "url": "https://air-quality-api.open-meteo.com/v1/air-quality",
+    "docs_url": "https://open-meteo.com/en/docs/air-quality-api",
+    "auth": {
+      "type": "none"
+    },
+    "rate_limit": {
+      "per_minute": 600,
+      "per_day": 10000
+    }
+  },
+  "coverage": {
+    "area": "Global",
+    "bbox": [
+      -180,
+      -90,
+      180,
+      90
+    ],
+    "resolution_m": 11000
+  },
+  "update": {
+    "every": "PT1H"
+  },
+  "variables": [
+    {
+      "id": "pm25",
+      "unit": "ug/m3",
+      "kind": "modelled"
+    },
+    {
+      "id": "pm10",
+      "unit": "ug/m3",
+      "kind": "modelled"
+    },
+    {
+      "id": "dust",
+      "unit": "ug/m3",
+      "kind": "modelled"
+    },
+    {
+      "id": "ozone",
+      "unit": "ug/m3",
+      "kind": "modelled"
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 11000
+  },
+  "quality": {
+    "kind": "model",
+    "uncertainty": "A grid-cell estimate. It cannot see a single busy road or one dusty day exactly.",
+    "known_issues": [
+      "Models often under-read local traffic and over- or under-read Saharan dust days"
+    ],
+    "stale_after": "PT3H"
+  },
+  "upstream": [
+    {
+      "name": "Copernicus Atmosphere Monitoring Service (CAMS)"
+    }
+  ],
+  "agent_hints": {
+    "use_for": [
+      "Outdoor particle context for a city",
+      "A second opinion on a vehicle sensor"
+    ],
+    "not_for": [
+      "Calling a street clean or dirty"
+    ]
+  },
+  "notes": "The upstream name comes from the service page and should be checked by a student against the provider's data-source page.",
+  "x_feed": "openmeteo",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

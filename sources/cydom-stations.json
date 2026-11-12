@@ -1,0 +1,96 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "cydom-stations",
+  "name": "Met Office stations",
+  "summary": "About 54 official automatic weather stations of the Cyprus Department of Meteorology, with readings every 10 minutes.",
+  "layer": "official",
+  "status": "active",
+  "tagline": "every 10 min · dom.org.cy",
+  "i18n": {
+    "el": {
+      "name": "Σταθμοί Μετεωρολογικής",
+      "summary": "Περίπου 54 επίσημοι αυτόματοι μετεωρολογικοί σταθμοί της Μετεωρολογικής Υπηρεσίας Κύπρου, με μετρήσεις κάθε 10 λεπτά.",
+      "tagline": "κάθε 10 λεπτά · dom.org.cy"
+    }
+  },
+  "themes": [
+    "weather",
+    "wind",
+    "pressure"
+  ],
+  "publisher": {
+    "name": "Cyprus Department of Meteorology",
+    "url": "https://www.dom.org.cy/",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "unknown",
+    "checked_on": "2026-11-12",
+    "attribution": "Weather Data Copyright The Cyprus Department of Meteorology"
+  },
+  "access": {
+    "type": "xml",
+    "url": "https://www.dom.org.cy/AWS/OpenData/CyDoM.xml",
+    "auth": {
+      "type": "none"
+    }
+  },
+  "coverage": {
+    "area": "Cyprus",
+    "bbox": [
+      32.2,
+      34.5,
+      34.7,
+      35.8
+    ]
+  },
+  "update": {
+    "every": "PT10M"
+  },
+  "variables": [
+    {
+      "id": "temperature",
+      "unit": "Cel",
+      "kind": "measured"
+    },
+    {
+      "id": "relative_humidity",
+      "unit": "%",
+      "kind": "measured"
+    },
+    {
+      "id": "wind_speed",
+      "unit": "m/s",
+      "kind": "measured"
+    },
+    {
+      "id": "pressure",
+      "unit": "hPa",
+      "kind": "measured",
+      "note": "mean sea level"
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 5000
+  },
+  "quality": {
+    "kind": "reference-station",
+    "uncertainty": "A station value stands for its own site. Near the coast or in the hills a town a few km away can differ.",
+    "stale_after": "PT1H"
+  },
+  "agent_hints": {
+    "use_for": [
+      "Official outdoor temperature, wind and pressure near a school"
+    ],
+    "not_for": [
+      "Air quality: these stations do not measure particles"
+    ]
+  },
+  "notes": "Terms of reuse not yet read from the provider. The line above is the copyright line the site already shows next to the data.",
+  "x_feed": "dom",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

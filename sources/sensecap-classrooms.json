@@ -1,0 +1,117 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "sensecap-classrooms",
+  "name": "Classroom sensors",
+  "summary": "Temperature, humidity, CO2, particles, noise and light measured inside classrooms at the four schools, with SenseCAP sensors.",
+  "layer": "own",
+  "status": "active",
+  "tagline": "every 10 min",
+  "i18n": {
+    "el": {
+      "name": "Αισθητήρες τάξεων",
+      "summary": "Θερμοκρασία, υγρασία, CO2, σωματίδια, θόρυβος και φως μέσα στις τάξεις των τεσσάρων σχολείων, με αισθητήρες SenseCAP.",
+      "tagline": "κάθε 10 λεπτά"
+    }
+  },
+  "themes": [
+    "indoor air",
+    "co2",
+    "comfort"
+  ],
+  "publisher": {
+    "name": "Smart Cities student teams",
+    "url": "https://dashboard-production-f626.up.railway.app",
+    "kind": "own"
+  },
+  "licence": {
+    "id": "unknown",
+    "checked_on": "2026-11-12"
+  },
+  "access": {
+    "type": "rest-json",
+    "url": "https://sensecap.seeed.cc/",
+    "docs_url": "https://sensecap-docs.seeed.cc/",
+    "auth": {
+      "type": "basic",
+      "env": "SENSECAP_API_KEY"
+    }
+  },
+  "coverage": {
+    "area": "Four schools in Cyprus",
+    "bbox": [
+      32.2,
+      34.5,
+      34.7,
+      35.8
+    ]
+  },
+  "update": {
+    "every": "PT10M"
+  },
+  "variables": [
+    {
+      "id": "temperature",
+      "unit": "Cel",
+      "kind": "measured"
+    },
+    {
+      "id": "relative_humidity",
+      "unit": "%",
+      "kind": "measured"
+    },
+    {
+      "id": "co2",
+      "unit": "[ppm]",
+      "kind": "measured"
+    },
+    {
+      "id": "pm25",
+      "unit": "ug/m3",
+      "kind": "measured",
+      "note": "only where a sensor has a particle channel"
+    },
+    {
+      "id": "noise",
+      "unit": "dB",
+      "kind": "measured"
+    },
+    {
+      "id": "light",
+      "unit": "lx",
+      "kind": "measured"
+    }
+  ],
+  "representativeness": {
+    "environment": "indoor",
+    "scale_m": 10
+  },
+  "quality": {
+    "kind": "low-cost-sensor",
+    "uncertainty": "Not calibrated against a reference instrument. A room value is for that room only.",
+    "known_issues": [
+      "Sun on the sensor, an open window or a full room changes a reading quickly"
+    ],
+    "stale_after": "PT3H"
+  },
+  "privacy": {
+    "public": "aggregate",
+    "location_precision_m": 1000,
+    "note": "Only school-level averages are public."
+  },
+  "agent_hints": {
+    "use_for": [
+      "Comparing rooms and school days",
+      "Showing when ventilation is poor (CO2)"
+    ],
+    "not_for": [
+      "Saying what the outdoor air is like",
+      "Regulatory air-quality claims"
+    ]
+  },
+  "x_feed": "sensecap",
+  "x_devices": "classroom",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

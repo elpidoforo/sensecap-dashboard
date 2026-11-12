@@ -1,0 +1,75 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "gtfs-public-transport",
+  "name": "Public transport",
+  "summary": "Bus routes and timetables for Lefkosia, Larnaka, Limassol and Paphos (GTFS), plus a live bus feed (GTFS-Realtime), from the national transport portal.",
+  "layer": "context",
+  "status": "candidate",
+  "planned": true,
+  "tagline": "live bus positions",
+  "i18n": {
+    "el": {
+      "name": "Δημόσιες συγκοινωνίες",
+      "summary": "Διαδρομές και δρομολόγια λεωφορείων για Λευκωσία, Λάρνακα, Λεμεσό και Πάφο (GTFS), και ζωντανή τροφοδοσία λεωφορείων (GTFS-Realtime), από την εθνική πύλη μεταφορών.",
+      "tagline": "ζωντανές θέσεις λεωφορείων"
+    }
+  },
+  "themes": [
+    "transport",
+    "buses"
+  ],
+  "publisher": {
+    "name": "Cyprus National Access Point for transport (Public Works Department)",
+    "url": "https://www.traffic4cyprus.org.cy/",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "CC-BY-4.0",
+    "url": "https://traffic4cyprus.org.cy/dataset/publictransportstatic",
+    "attribution": "Cyprus National Access Point for transport (traffic4cyprus.org.cy)",
+    "checked_on": "2026-11-12"
+  },
+  "access": {
+    "type": "gtfs",
+    "url": "https://traffic4cyprus.org.cy/dataset/publictransportstatic",
+    "docs_url": "https://traffic4cyprus.org.cy/dataset/publictransportrealtime_gtfs_rt"
+  },
+  "coverage": {
+    "area": "Cyprus",
+    "bbox": [
+      32.2,
+      34.5,
+      34.7,
+      35.8
+    ]
+  },
+  "update": {
+    "every": "P90D",
+    "note": "Timetables up to every 3 months; the live bus feed about every 30 seconds"
+  },
+  "variables": [
+    {
+      "id": "buses_in_service",
+      "unit": "{vehicles}",
+      "kind": "measured"
+    }
+  ],
+  "representativeness": {
+    "environment": "not-applicable"
+  },
+  "quality": {
+    "kind": "statistics",
+    "uncertainty": "Timetables are plans, not what buses actually did. The live feed has about 30 seconds delay.",
+    "known_issues": [
+      "A validator report shows 1 or 2 errors in some city feeds"
+    ]
+  },
+  "notes": "Licence read on the portal's dataset page (opened by the research, no data downloaded yet). Each of the four cities has its own feed. Check whether the live feed needs a key before building.",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  },
+  "restrictions": [
+    "The live feed is plain HTTP on a bare IP address and the page does not say whether a key is needed"
+  ]
+}

@@ -1049,6 +1049,7 @@ const { createBot } = require('./bot');
 const { createStudio } = require('./studio');
 const { createCouncil } = require('./council');
 const { createReports } = require('./reports');
+const { createLayers } = require('./layers');
 const citiesApi = require('./cities');
 const { createClassLogin } = require('./classlogin');
 const classLogin = createClassLogin();
@@ -1056,6 +1057,7 @@ let appCore = null;
 let studio = null;
 let council = null;
 let reports = null;
+let layers = null;
 let assistant = null;   // the Ask assistant (bot.js), for the helper list
 
 /* ---------- who sees what (vehicle positions) ----------
@@ -1133,6 +1135,8 @@ const botData = {
   names: () => measurementNames,
   devices: async () => (await devicesFor('public')).map((d) => priv.toolDevice(d)),
   latest: async () => latestFor('public'),
+  // Names and groups only, never a position: for counting sensors without waiting for the GPS history.
+  deviceList: async () => (await rawDevices()).map((d) => ({ eui: d.eui, name: d.name, group: d.group, online: d.online, lastSeen: d.lastSeen })),
   series: async (eui, mid, days) => {
     const m = priv.normMid(mid);
     if (m == null) throw new Error('Unknown measurement');
@@ -1151,7 +1155,7 @@ const botData = {
     const t = await rawTrails(whole(hours, 6, 1, 168), '4097');
     return priv.publicTrail((t.trails && t.trails[eui]) || [], Date.now());
   },
-  weather, air, sea, cydom,
+  weather, air, sea, cydom, metar,
   history: () => history,
   domPage, domNet,
 };
@@ -1163,6 +1167,7 @@ function startApp() {
   });
   assistant = bot;
   appCore = createApp({ dataDir: DATA_DIR, bot, openJoin: (req) => classLogin.enabled && classLogin.valid(req), log: (m) => console.log(m) });
+  layers = createLayers({ root: __dirname, dataDir: DATA_DIR, appCore, data: botData, feeds, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });   // works without the student app too (only editing the mission needs a teacher sign-in)
   if (!appCore.enabled) return console.error('Student app is off: ' + appCore.reason);
   feeds.attach(appCore);   // from now on the on/off switches of the feeds are kept in the student database
   studio = createStudio({ appCore, classValid: (req) => classLogin.enabled && classLogin.valid(req), bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });
@@ -1496,6 +1501,7 @@ const server = http.createServer(async (req, res) => {
     if (studio && (await studio.handle(req, res, url))) return;     // /studio/* and /mcp: the Build studio does its own sign-in
     if (council && (await council.handle(req, res, url))) return;     // /council/api/*: the Council room
     if (reports && (await reports.handle(req, res, url))) return;     // /council/api/reports*: weekly reports
+    if (layers && (await layers.handle(req, res, url))) return;       // /layers/api/*: data layers and the master brain
     if (url.pathname === '/app') { res.writeHead(302, { Location: '/app/' }); return res.end(); }
     const inApp = url.pathname.startsWith('/app/');
     const openAsset = /^\/cities\/(login\.html|login\.js|cities\.css|logo\.svg)$|^\/teachers\/?$/.test(url.pathname);   // what the class sign-in page needs, and the teachers' way in (it only redirects into the app)

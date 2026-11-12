@@ -1,0 +1,63 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "electricity-renewables",
+  "name": "Electricity and renewables",
+  "summary": "How much electricity Cyprus uses and how much of it comes from solar, wind and other renewables, from the grid operator.",
+  "layer": "context",
+  "status": "candidate",
+  "tagline": "grid operator",
+  "i18n": {
+    "el": {
+      "name": "Ηλεκτρισμός και ανανεώσιμες",
+      "summary": "Πόση ηλεκτρική ενέργεια χρησιμοποιεί η Κύπρος και πόση προέρχεται από ηλιακή, αιολική και άλλες ανανεώσιμες πηγές, από τον διαχειριστή του δικτύου.",
+      "tagline": "διαχειριστής δικτύου"
+    }
+  },
+  "themes": [
+    "energy",
+    "renewables"
+  ],
+  "publisher": {
+    "name": "Transmission System Operator Cyprus",
+    "url": "https://tsoc.org.cy/",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "unknown",
+    "checked_on": "2026-11-12"
+  },
+  "access": {
+    "type": "manual",
+    "url": "https://tsoc.org.cy/"
+  },
+  "coverage": {
+    "area": "Cyprus",
+    "bbox": [
+      32.2,
+      34.5,
+      34.7,
+      35.8
+    ]
+  },
+  "update": {
+    "every": "irregular"
+  },
+  "variables": [
+    {
+      "id": "electricity_renewable_share",
+      "unit": "%",
+      "kind": "derived"
+    }
+  ],
+  "representativeness": {
+    "environment": "not-applicable"
+  },
+  "quality": {
+    "kind": "statistics"
+  },
+  "notes": "The grid operator's website shows live demand and the generation mix (solar, wind, conventional). Format, update rate and terms are not yet confirmed. The likely route is to ask the operator for a feed: this is a school project in the public interest.",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

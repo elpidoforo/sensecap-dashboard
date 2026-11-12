@@ -1,0 +1,91 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "openmeteo-marine",
+  "name": "Sea temperature and waves",
+  "summary": "Modelled sea surface temperature and wave height at points around the coast of Cyprus, from the Open-Meteo marine service.",
+  "layer": "model",
+  "status": "active",
+  "tagline": "Open-Meteo marine",
+  "i18n": {
+    "el": {
+      "name": "Θερμοκρασία θάλασσας και κύματα",
+      "summary": "Θερμοκρασία επιφάνειας θάλασσας και ύψος κύματος από μοντέλο σε σημεία γύρω από τις ακτές της Κύπρου, από την υπηρεσία θάλασσας της Open-Meteo.",
+      "tagline": "Open-Meteo θάλασσα"
+    }
+  },
+  "themes": [
+    "sea",
+    "coast"
+  ],
+  "publisher": {
+    "name": "Open-Meteo",
+    "url": "https://open-meteo.com",
+    "kind": "community"
+  },
+  "licence": {
+    "id": "CC-BY-4.0",
+    "url": "https://open-meteo.com/en/licence",
+    "attribution": "Marine data by Open-Meteo.com",
+    "commercial_use": true,
+    "share_alike": false,
+    "checked_on": "2026-11-12"
+  },
+  "restrictions": [
+    "Free API is for non-commercial use only"
+  ],
+  "access": {
+    "type": "rest-json",
+    "url": "https://marine-api.open-meteo.com/v1/marine",
+    "docs_url": "https://open-meteo.com/en/docs/marine-weather-api",
+    "auth": {
+      "type": "none"
+    }
+  },
+  "coverage": {
+    "area": "Coastal waters, global",
+    "bbox": [
+      -180,
+      -90,
+      180,
+      90
+    ],
+    "resolution_m": 5000
+  },
+  "update": {
+    "every": "PT1H"
+  },
+  "variables": [
+    {
+      "id": "sea_surface_temperature",
+      "unit": "Cel",
+      "kind": "modelled"
+    },
+    {
+      "id": "wave_height",
+      "unit": "m",
+      "kind": "modelled"
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 5000
+  },
+  "quality": {
+    "kind": "model",
+    "uncertainty": "Open-sea model values. A harbour or a beach can differ a lot.",
+    "stale_after": "PT3H"
+  },
+  "agent_hints": {
+    "use_for": [
+      "Sea conditions for the coastal cities"
+    ],
+    "not_for": [
+      "Lefkosia, which has no coast"
+    ]
+  },
+  "x_feed": "openmeteo",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

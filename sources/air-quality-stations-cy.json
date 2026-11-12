@@ -1,0 +1,86 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "air-quality-stations-cy",
+  "name": "Air quality stations",
+  "summary": "The national network of about 10 air-quality stations that measure particles, ozone and gases in Cyprus, run by the Department of Labour Inspection.",
+  "layer": "official",
+  "status": "candidate",
+  "planned": true,
+  "tagline": "needs a free token",
+  "i18n": {
+    "el": {
+      "name": "Σταθμοί ποιότητας αέρα",
+      "summary": "Το εθνικό δίκτυο περίπου 10 σταθμών ποιότητας αέρα που μετρά σωματίδια, όζον και αέρια στην Κύπρο, από το Τμήμα Επιθεώρησης Εργασίας.",
+      "tagline": "χρειάζεται δωρεάν κωδικό πρόσβασης"
+    }
+  },
+  "themes": [
+    "air quality",
+    "particles",
+    "ozone"
+  ],
+  "publisher": {
+    "name": "Department of Labour Inspection, through the World Air Quality Index project",
+    "url": "https://aqicn.org/api/",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "unknown",
+    "checked_on": "2026-11-12"
+  },
+  "access": {
+    "type": "manual",
+    "url": "https://aqicn.org/api/",
+    "auth": {
+      "type": "api-key",
+      "env": "AQICN_TOKEN"
+    },
+    "docs_url": "https://aqicn.org/api/"
+  },
+  "coverage": {
+    "area": "Cyprus",
+    "bbox": [
+      32.2,
+      34.5,
+      34.7,
+      35.8
+    ]
+  },
+  "update": {
+    "every": "PT1H"
+  },
+  "variables": [
+    {
+      "id": "pm25",
+      "unit": "ug/m3",
+      "kind": "measured"
+    },
+    {
+      "id": "pm10",
+      "unit": "ug/m3",
+      "kind": "measured"
+    },
+    {
+      "id": "ozone",
+      "unit": "ug/m3",
+      "kind": "measured"
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 2000
+  },
+  "quality": {
+    "kind": "reference-station",
+    "uncertainty": "Reference-grade stations, but only a few on the island and Paphos has a traffic station only.",
+    "known_issues": [
+      "Data shown by the republisher is unvalidated at the time of publication",
+      "Sources disagree on whether the network has 9, 10 or 11 stations"
+    ]
+  },
+  "notes": "Three routes, best first: the DLI dataset on data.gov.cy, the DLI website, or the World Air Quality Index API (needs a free token). The licence is not stated anywhere read so far: email the Department, say we are a school project and will credit it. Each of the four school cities has at least one station. Terms of a republished copy can be stricter than the original.",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

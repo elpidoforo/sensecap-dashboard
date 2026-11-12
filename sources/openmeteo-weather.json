@@ -1,0 +1,125 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "openmeteo-weather",
+  "name": "Weather and forecast",
+  "summary": "Hourly modelled weather for any point on the island, built by Open-Meteo from national weather-service models.",
+  "layer": "model",
+  "status": "active",
+  "tagline": "Open-Meteo",
+  "i18n": {
+    "el": {
+      "name": "Καιρός και πρόγνωση",
+      "summary": "Ωριαίος καιρός από μοντέλο για οποιοδήποτε σημείο του νησιού, από την Open-Meteo με βάση μοντέλα εθνικών μετεωρολογικών υπηρεσιών.",
+      "tagline": "Open-Meteo"
+    }
+  },
+  "themes": [
+    "weather",
+    "forecast"
+  ],
+  "publisher": {
+    "name": "Open-Meteo",
+    "url": "https://open-meteo.com",
+    "kind": "community"
+  },
+  "licence": {
+    "id": "CC-BY-4.0",
+    "url": "https://open-meteo.com/en/licence",
+    "attribution": "Weather data by Open-Meteo.com",
+    "commercial_use": true,
+    "share_alike": false,
+    "checked_on": "2026-11-12"
+  },
+  "restrictions": [
+    "Free API is for non-commercial use only; a paid plan is needed for ads or subscriptions",
+    "Free tier: under 10,000 calls/day, 5,000/hour, 600/minute"
+  ],
+  "access": {
+    "type": "rest-json",
+    "url": "https://api.open-meteo.com/v1/forecast",
+    "docs_url": "https://open-meteo.com/en/docs",
+    "auth": {
+      "type": "none"
+    },
+    "rate_limit": {
+      "per_minute": 600,
+      "per_day": 10000
+    }
+  },
+  "coverage": {
+    "area": "Global; regional models down to 1.5 km",
+    "bbox": [
+      -180,
+      -90,
+      180,
+      90
+    ],
+    "resolution_m": 11000
+  },
+  "update": {
+    "every": "PT1H"
+  },
+  "variables": [
+    {
+      "id": "temperature",
+      "unit": "Cel",
+      "kind": "modelled"
+    },
+    {
+      "id": "relative_humidity",
+      "unit": "%",
+      "kind": "modelled"
+    },
+    {
+      "id": "pressure",
+      "unit": "hPa",
+      "kind": "modelled"
+    },
+    {
+      "id": "wind_speed",
+      "unit": "m/s",
+      "kind": "modelled"
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 11000
+  },
+  "quality": {
+    "kind": "model",
+    "uncertainty": "A value for a grid cell, not a measurement at the point.",
+    "known_issues": [
+      "Coastal and mountain cells can differ strongly from a station a few km away"
+    ],
+    "stale_after": "PT3H"
+  },
+  "upstream": [
+    {
+      "name": "DWD ICON"
+    },
+    {
+      "name": "ECMWF IFS"
+    },
+    {
+      "name": "NOAA GFS"
+    },
+    {
+      "name": "UK Met Office",
+      "licence": "CC-BY-SA-4.0"
+    }
+  ],
+  "agent_hints": {
+    "use_for": [
+      "Regional weather context around a school"
+    ],
+    "not_for": [
+      "Judging indoor air",
+      "Claiming what one street felt like"
+    ]
+  },
+  "x_feed": "openmeteo",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

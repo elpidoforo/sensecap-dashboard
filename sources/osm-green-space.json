@@ -1,0 +1,70 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "osm-green-space",
+  "name": "Green space",
+  "summary": "Parks, trees, forests and playgrounds around each school, from the OpenStreetMap map, worked out once and saved as a file.",
+  "layer": "context",
+  "status": "candidate",
+  "tagline": "OpenStreetMap",
+  "i18n": {
+    "el": {
+      "name": "Πράσινοι χώροι",
+      "summary": "Πάρκα, δέντρα, δάση και παιδικές χαρές γύρω από κάθε σχολείο, από τον χάρτη OpenStreetMap, υπολογισμένα μία φορά και αποθηκευμένα σε αρχείο.",
+      "tagline": "OpenStreetMap"
+    }
+  },
+  "themes": [
+    "green space",
+    "trees",
+    "heat"
+  ],
+  "publisher": {
+    "name": "OpenStreetMap contributors",
+    "url": "https://www.openstreetmap.org/",
+    "kind": "community"
+  },
+  "licence": {
+    "id": "ODbL-1.0",
+    "url": "https://opendatacommons.org/licenses/odbl/",
+    "attribution": "© OpenStreetMap contributors",
+    "commercial_use": true,
+    "share_alike": true,
+    "checked_on": "2026-11-12"
+  },
+  "access": {
+    "type": "file",
+    "url": "https://www.openstreetmap.org/",
+    "docs_url": "https://wiki.openstreetmap.org/wiki/Overpass_API"
+  },
+  "coverage": {
+    "area": "Cyprus",
+    "bbox": [
+      32.2,
+      34.5,
+      34.7,
+      35.8
+    ]
+  },
+  "update": {
+    "every": "static"
+  },
+  "variables": [
+    {
+      "id": "green_space_share",
+      "unit": "%",
+      "kind": "derived"
+    }
+  ],
+  "representativeness": {
+    "environment": "not-applicable"
+  },
+  "quality": {
+    "kind": "map",
+    "uncertainty": "Volunteers draw the map, so some parks and trees are missing or out of date."
+  },
+  "notes": "Plan: run a tool such as OSMnx once on a computer and save green-space share per 1 km cell as a static file.",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

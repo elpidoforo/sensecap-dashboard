@@ -1,0 +1,84 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "metar-airports",
+  "name": "Airport weather (METAR)",
+  "summary": "Weather reports from the airports of Larnaca, Paphos, Ercan and Akrotiri, taken from the US aviation weather service.",
+  "layer": "official",
+  "status": "active",
+  "tagline": "every 30 min",
+  "i18n": {
+    "el": {
+      "name": "Καιρός αεροδρομίων (METAR)",
+      "summary": "Δελτία καιρού από τα αεροδρόμια Λάρνακας, Πάφου, Ercan και Ακρωτηρίου, από την αμερικανική υπηρεσία αεροπορικού καιρού.",
+      "tagline": "κάθε 30 λεπτά"
+    }
+  },
+  "themes": [
+    "weather",
+    "wind"
+  ],
+  "publisher": {
+    "name": "Aviation Weather Center (NOAA)",
+    "url": "https://aviationweather.gov/",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "unknown",
+    "checked_on": "2026-11-12"
+  },
+  "access": {
+    "type": "rest-json",
+    "url": "https://aviationweather.gov/api/data/metar",
+    "docs_url": "https://aviationweather.gov/data/api/",
+    "auth": {
+      "type": "none"
+    }
+  },
+  "coverage": {
+    "area": "Four airports in Cyprus",
+    "bbox": [
+      32.2,
+      34.5,
+      34.7,
+      35.8
+    ]
+  },
+  "update": {
+    "every": "PT30M"
+  },
+  "variables": [
+    {
+      "id": "temperature",
+      "unit": "Cel",
+      "kind": "measured"
+    },
+    {
+      "id": "wind_speed",
+      "unit": "m/s",
+      "kind": "measured",
+      "note": "the service sends knots; the site converts"
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 5000
+  },
+  "quality": {
+    "kind": "reference-station",
+    "uncertainty": "Whole degrees for temperature. An airport is on open flat ground, which is not a city street.",
+    "stale_after": "PT2H"
+  },
+  "agent_hints": {
+    "use_for": [
+      "Official outdoor temperature and wind at Larnaca and Paphos"
+    ],
+    "not_for": [
+      "Limassol or Lefkosia: the nearest airport is far away"
+    ]
+  },
+  "x_feed": "metar",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

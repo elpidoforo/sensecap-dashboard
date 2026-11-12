@@ -1,0 +1,54 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "put-the-file-name-here-without-json",
+  "name": "Short name people will read",
+  "summary": "One or two sentences in your own words: what this data is and what it covers. Do not copy the provider's text.",
+  "layer": "context",
+  "status": "candidate",
+  "planned": false,
+  "tagline": "Publisher or how often",
+  "i18n": {
+    "el": {
+      "name": "Σύντομο όνομα",
+      "summary": "Μία ή δύο προτάσεις με δικά σας λόγια: τι είναι τα δεδομένα και τι καλύπτουν.",
+      "tagline": "Εκδότης ή πόσο συχνά"
+    }
+  },
+  "themes": ["air-quality"],
+  "publisher": {
+    "name": "Who publishes the data",
+    "url": "https://example.org/",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "unknown",
+    "checked_on": "2026-01-01"
+  },
+  "access": {
+    "type": "manual",
+    "url": "https://example.org/the-page-where-the-data-is"
+  },
+  "coverage": {
+    "area": "Cyprus",
+    "bbox": [32.2, 34.5, 34.7, 35.8]
+  },
+  "update": {
+    "every": "irregular"
+  },
+  "variables": [
+    { "id": "temperature", "unit": "Cel", "kind": "measured" }
+  ],
+  "representativeness": {
+    "environment": "outdoor"
+  },
+  "quality": {
+    "kind": "unknown",
+    "uncertainty": "What is known about how accurate it is. Write 'not known' if you do not know.",
+    "known_issues": []
+  },
+  "notes": "What you could not confirm yet (licence, format, terms). Say it plainly.",
+  "added": {
+    "by": "your-team-name",
+    "on": "2026-01-01"
+  }
+}

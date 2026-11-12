@@ -221,7 +221,7 @@
   const MENU = [
     { items: [['home', 'globe', 'The whole project', 'Όλο το έργο']] },
     { h: ['Today', 'Σήμερα'], items: [['board', 'board', 'City board', 'Πίνακας πόλης'], ['city3d', 'globe', 'Cyprus 3D', 'Κύπρος 3D'], ['alerts', 'bell', 'Alerts', 'Ειδοποιήσεις']] },
-    { h: ['The record', 'Το αρχείο'], items: [['weather', 'check', 'Met Office record', 'Μετεωρολογικό αρχείο'], ['explore', 'search', 'Explore data', 'Εξερεύνηση'], ['library', 'db', 'Library', 'Βιβλιοθήκη']] },
+    { h: ['The record', 'Το αρχείο'], items: [['layers', 'layers', 'Data layers', 'Στρώματα δεδομένων'], ['weather', 'check', 'Met Office record', 'Μετεωρολογικό αρχείο'], ['explore', 'search', 'Explore data', 'Εξερεύνηση'], ['library', 'db', 'Library', 'Βιβλιοθήκη']] },
     { h: ['Schools and places', 'Σχολεία και τόποι'], items: [['schools', 'users', 'Schools and teams', 'Σχολεία και ομάδες'], ['districts', 'bars', 'Districts and neighbourhoods', 'Επαρχίες και γειτονιές'], ['guides', 'bolt', 'Sensor guides', 'Οδηγοί αισθητήρων']] },
     { h: ['Think', 'Σκέψη'], items: [['council', 'shield', 'Council room', 'Αίθουσα συμβουλίου'], ['mirror', 'users', 'Mirror', 'Καθρέφτης'], ['whatif', 'refresh', 'What-if', 'Σενάρια'], ['reports', 'file', 'Reports', 'Αναφορές']] },
     { h: ['In the field', 'Στο πεδίο'], items: [['map', 'map', 'Live map', 'Ζωντανός χάρτης'], ['vehicles', 'bus', 'Vehicles', 'Οχήματα'], ['trip', 'route', 'Follow one trip', 'Ακολουθήστε μία διαδρομή'], ['desk', 'home', 'Today’s desk', 'Το γραφείο σήμερα'], ['projects', 'flag', 'Running projects', 'Ενεργά έργα'], ['start', 'layers', 'Start a project', 'Νέο έργο']] },
@@ -231,6 +231,7 @@
   ];
   // What each page holds, from the menu map. Shown on the calm "coming soon" page of an entry whose file is not there yet.
   const DESC = {
+    layers: ['Every open source for Cyprus’s cities as layers, and a master brain that reads the ones that are on and writes findings with sources, confidence and gaps.', 'Κάθε ανοιχτή πηγή για τις πόλεις της Κύπρου ως στρώματα, και ένας κύριος εγκέφαλος που διαβάζει όσα είναι ενεργά και γράφει ευρήματα με πηγές, βεβαιότητα και κενά.'],
     home: ['The map of the whole platform: eight windows in the order the data travels.', 'Ο χάρτης όλης της πλατφόρμας: οκτώ παράθυρα με τη σειρά που ταξιδεύουν τα δεδομένα.'],
     board: ['The island with a column at each school, sensors online, Met Office warnings and vehicles on the road.', 'Το νησί με μια στήλη σε κάθε σχολείο, αισθητήρες σε λειτουργία, προειδοποιήσεις της Μετεωρολογικής και οχήματα στον δρόμο.'],
     city3d: ['Our 3D island with a glass rail for layers.', 'Το τρισδιάστατο νησί μας με γυάλινη μπάρα για επίπεδα.'],
@@ -265,7 +266,7 @@
     ask: ['A full-screen assistant. Answers come from live tools and the handbook, with source chips. Never exact vehicle positions.', 'Βοηθός πλήρους οθόνης. Οι απαντήσεις προέρχονται από ζωντανά εργαλεία και το εγχειρίδιο, με ετικέτες πηγών. Ποτέ ακριβείς θέσεις οχημάτων.'],
   };
   // Pages that exist. The lead adds an id here, or lists it in public/site/pages/index.json (read at start, see loadPagesIndex).
-  const READY = new Set(['alerts', 'approvals', 'archive', 'ask', 'board', 'city3d', 'council', 'desk', 'districts', 'explore', 'feeds', 'guides', 'helpers', 'home', 'league', 'library', 'map', 'mirror', 'opsmap', 'projects', 'reports', 'research', 'schools', 'settings', 'start', 'studio', 'submitted', 'trip', 'vehicles', 'warnings', 'weather', 'whatif']);
+  const READY = new Set(['alerts', 'approvals', 'archive', 'ask', 'board', 'city3d', 'council', 'desk', 'districts', 'explore', 'feeds', 'guides', 'helpers', 'home', 'layers', 'league', 'library', 'map', 'mirror', 'opsmap', 'projects', 'reports', 'research', 'schools', 'settings', 'start', 'studio', 'submitted', 'trip', 'vehicles', 'warnings', 'weather', 'whatif']);
   SC.ready = READY;
   window.SC_PAGES = window.SC_PAGES || [];
   const isReady = (id) => READY.has(id) || window.SC_PAGES.indexOf(id) >= 0;

@@ -1,0 +1,67 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "dam-levels",
+  "name": "Dam levels",
+  "summary": "How full the 21 reservoirs of Cyprus are, per dam and in total, as the Water Development Department publishes them.",
+  "layer": "context",
+  "status": "candidate",
+  "tagline": "Water Development Dept.",
+  "i18n": {
+    "el": {
+      "name": "Στάθμες φραγμάτων",
+      "summary": "Πόσο γεμάτοι είναι οι 21 ταμιευτήρες της Κύπρου, ανά φράγμα και συνολικά, όπως τους δημοσιεύει το Τμήμα Αναπτύξεως Υδάτων.",
+      "tagline": "Τμήμα Αναπτύξεως Υδάτων"
+    }
+  },
+  "themes": [
+    "water",
+    "drought"
+  ],
+  "publisher": {
+    "name": "Water Development Department",
+    "url": "https://www.moa.gov.cy/",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "unknown",
+    "checked_on": "2026-11-12"
+  },
+  "access": {
+    "type": "html",
+    "url": "https://www.moa.gov.cy/"
+  },
+  "coverage": {
+    "area": "Cyprus",
+    "bbox": [
+      32.2,
+      34.5,
+      34.7,
+      35.8
+    ]
+  },
+  "update": {
+    "every": "irregular"
+  },
+  "variables": [
+    {
+      "id": "dam_fill_level",
+      "unit": "%",
+      "kind": "measured"
+    }
+  ],
+  "representativeness": {
+    "environment": "not-applicable"
+  },
+  "quality": {
+    "kind": "statistics",
+    "uncertainty": "Outlets disagree on how many dams are counted (18 or 21). A dam is not tied to one city.",
+    "known_issues": [
+      "Probably an HTML table, so it needs scraping"
+    ]
+  },
+  "notes": "The department publishes per-dam percentages on its website (seen through news reports). The exact page, the format and the terms are not yet confirmed. Which dam serves which city is our own judgement, not the department's statement.",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

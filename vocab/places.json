@@ -1,0 +1,59 @@
+{
+  "_about": "The four cities the master brain reports on. lat and lng are the city centre used to find the nearest station or model grid point. words are matched (lower case) against sensor group and sensor names to decide which city a sensor belongs to.",
+  "larnaka": {
+    "name": [
+      "Larnaka",
+      "Λάρνακα"
+    ],
+    "lat": 34.9229,
+    "lng": 33.6233,
+    "words": [
+      "larnaka",
+      "larnaca",
+      "λαρνακα",
+      "λάρνακα"
+    ]
+  },
+  "lefkosia": {
+    "name": [
+      "Lefkosia",
+      "Λευκωσία"
+    ],
+    "lat": 35.1856,
+    "lng": 33.3823,
+    "words": [
+      "lefkosia",
+      "nicosia",
+      "λευκωσια",
+      "λευκωσία"
+    ]
+  },
+  "limassol": {
+    "name": [
+      "Limassol",
+      "Λεμεσός"
+    ],
+    "lat": 34.6841,
+    "lng": 33.0379,
+    "words": [
+      "limassol",
+      "lemesos",
+      "λεμεσος",
+      "λεμεσός"
+    ]
+  },
+  "paphos": {
+    "name": [
+      "Paphos",
+      "Πάφος"
+    ],
+    "lat": 34.7754,
+    "lng": 32.4245,
+    "words": [
+      "paphos",
+      "pafos",
+      "πάφος",
+      "παφος"
+    ]
+  }
+}
