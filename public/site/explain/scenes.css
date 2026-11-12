@@ -1,0 +1,106 @@
+/* Explainer scenes: animation classes for the ACTIVE step only (.ex-s.on).
+   Every rule sits inside prefers-reduced-motion: no-preference, so the static scene is always complete.
+   Transform and opacity only (plus stroke-dashoffset for the draw-in). */
+@media (prefers-reduced-motion: no-preference) {
+  .ex-s.on .ex-a-float, .ex-s.on .ex-a-pulse, .ex-s.on .ex-a-ping, .ex-s.on .ex-a-grow, .ex-s.on .ex-a-spin,
+  .ex-s.on .ex-a-rays, .ex-s.on .ex-a-sweep, .ex-s.on .ex-a-scan, .ex-s.on .ex-a-drift, .ex-s.on .ex-a-lift,
+  .ex-s.on .ex-a-blink, .ex-s.on .ex-a-swing, .ex-s.on .ex-a-type, .ex-s.on .ex-a-latch, .ex-s.on .ex-a-wave,
+  .ex-s.on .ex-a-turn, .ex-s.on .ex-a-flip, .ex-s.on .ex-a-k1, .ex-s.on .ex-a-k2, .ex-s.on .ex-a-k3,
+  .ex-s.on .ex-a-f1, .ex-s.on .ex-a-f2, .ex-s.on .ex-a-f3 { transform-box: fill-box; transform-origin: 50% 50%; }
+
+  /* gentle up and down */
+  .ex-s.on .ex-a-float { animation: ex-float 2.6s ease-in-out infinite alternate; }
+  @keyframes ex-float { to { transform: translateY(-3px); } }
+
+  /* soft pulse (halo, badge, spark) */
+  .ex-s.on .ex-a-pulse { animation: ex-pulse 1.8s ease-in-out infinite alternate; }
+  @keyframes ex-pulse { from { transform: scale(.88); opacity: .75; } to { transform: scale(1.18); opacity: 1; } }
+
+  /* ring that expands and fades (pin, sensor dot) */
+  .ex-s.on .ex-a-ping { animation: ex-ping 2.4s ease-out infinite; }
+  @keyframes ex-ping { from { transform: scale(.55); opacity: .95; } to { transform: scale(1.7); opacity: 0; } }
+
+  /* bars growing from their base */
+  .ex-s.on .ex-a-grow { transform-origin: 50% 100%; animation: ex-grow 2.4s ease-in-out infinite alternate; }
+  @keyframes ex-grow { from { transform: scaleY(.3); } to { transform: scaleY(1); } }
+
+  /* line or tick drawing in once, then holding */
+  .ex-s.on .ex-a-draw { stroke-dasharray: 1 2; animation: ex-draw 1.6s ease-out .2s both; }
+  @keyframes ex-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+  /* full turn (clock hand) */
+  .ex-s.on .ex-a-spin { animation: ex-spin 3.2s linear infinite; }
+  @keyframes ex-spin { to { transform: rotate(360deg); } }
+
+  /* eight rays: one eighth turn loops without a seam */
+  .ex-s.on .ex-a-rays { animation: ex-rays 3.2s linear infinite; }
+  @keyframes ex-rays { to { transform: rotate(45deg); } }
+
+  /* sideways (iris looking around) */
+  .ex-s.on .ex-a-sweep { animation: ex-sweep 2.2s ease-in-out infinite alternate; }
+  @keyframes ex-sweep { from { transform: translateX(-7px); } to { transform: translateX(7px); } }
+
+  /* magnifier scanning the rows */
+  .ex-s.on .ex-a-scan { animation: ex-scan 2.8s ease-in-out infinite alternate; }
+  @keyframes ex-scan { from { transform: translate(-16px, -2px); } to { transform: translate(12px, 3px); } }
+
+  /* particles drifting */
+  .ex-s.on .ex-a-drift { animation: ex-drift 3.2s ease-in-out infinite alternate; }
+  @keyframes ex-drift { from { transform: translateX(-9px); } to { transform: translateX(11px); } }
+
+  /* focus ring stepping down the form */
+  .ex-s.on .ex-a-lift { animation: ex-lift 2.8s ease-in-out infinite alternate; }
+  @keyframes ex-lift { from { transform: translateY(0); } to { transform: translateY(40px); } }
+
+  /* signal waves lighting up */
+  .ex-s.on .ex-a-blink { animation: ex-blink 1.6s ease-in-out infinite alternate; }
+  @keyframes ex-blink { from { opacity: .2; } to { opacity: 1; } }
+
+  /* bell swinging from the top */
+  .ex-s.on .ex-a-swing { transform-origin: 50% 0%; animation: ex-swing 1.6s ease-in-out infinite alternate; }
+  @keyframes ex-swing { from { transform: rotate(-13deg); } to { transform: rotate(13deg); } }
+
+  /* text lines typing in from the left */
+  .ex-s.on .ex-a-type { transform-origin: 0% 50%; animation: ex-type 2.2s ease-in-out infinite alternate; }
+  @keyframes ex-type { from { transform: scaleX(.35); } to { transform: scaleX(1); } }
+
+  /* padlock latch opening a little */
+  .ex-s.on .ex-a-latch { animation: ex-latch 2.4s ease-in-out infinite alternate; }
+  @keyframes ex-latch { 0%, 40% { transform: translateY(0); } 100% { transform: translateY(-6px); } }
+
+  /* flag waving from the pole */
+  .ex-s.on .ex-a-wave { transform-origin: 0% 50%; animation: ex-wave 1.8s ease-in-out infinite alternate; }
+  @keyframes ex-wave { from { transform: skewY(-3deg) scaleX(1); } to { transform: skewY(3deg) scaleX(.93); } }
+
+  /* globe meridians turning */
+  .ex-s.on .ex-a-turn { animation: ex-turn 2.6s ease-in-out infinite alternate; }
+  @keyframes ex-turn { from { transform: scaleX(1); } to { transform: scaleX(.22); } }
+
+  /* page turning */
+  .ex-s.on .ex-a-flip { transform-origin: 0% 50%; animation: ex-flip 3.2s ease-in-out infinite alternate; }
+  @keyframes ex-flip { 0%, 22% { transform: scaleX(1); } 78%, 100% { transform: scaleX(-1); } }
+
+  /* sliders: knob moves and its fill follows */
+  .ex-s.on .ex-a-k1, .ex-s.on .ex-a-f1 { animation-duration: 2.6s; animation-timing-function: ease-in-out; animation-iteration-count: infinite; animation-direction: alternate; }
+  .ex-s.on .ex-a-k2, .ex-s.on .ex-a-f2 { animation-duration: 2.2s; animation-timing-function: ease-in-out; animation-iteration-count: infinite; animation-direction: alternate; }
+  .ex-s.on .ex-a-k3, .ex-s.on .ex-a-f3 { animation-duration: 3s; animation-timing-function: ease-in-out; animation-iteration-count: infinite; animation-direction: alternate; }
+  .ex-s.on .ex-a-f1, .ex-s.on .ex-a-f2, .ex-s.on .ex-a-f3 { transform-origin: 0% 50%; }
+  .ex-s.on .ex-a-k1 { animation-name: ex-k1; }
+  .ex-s.on .ex-a-f1 { animation-name: ex-f1; }
+  .ex-s.on .ex-a-k2 { animation-name: ex-k2; }
+  .ex-s.on .ex-a-f2 { animation-name: ex-f2; }
+  .ex-s.on .ex-a-k3 { animation-name: ex-k3; }
+  .ex-s.on .ex-a-f3 { animation-name: ex-f3; }
+  @keyframes ex-k1 { to { transform: translateX(34px); } }
+  @keyframes ex-f1 { to { transform: scaleX(2.097); } }
+  @keyframes ex-k2 { to { transform: translateX(-36px); } }
+  @keyframes ex-f2 { to { transform: scaleX(.507); } }
+  @keyframes ex-k3 { to { transform: translateX(40px); } }
+  @keyframes ex-f3 { to { transform: scaleX(3.353); } }
+
+  /* stagger helpers (class on the same element as an ex-a-* class) */
+  .ex-s.on .ex-a-d1 { animation-delay: .3s; }
+  .ex-s.on .ex-a-d2 { animation-delay: .6s; }
+  .ex-s.on .ex-a-d3 { animation-delay: .9s; }
+  .ex-s.on .ex-a-opp { animation-delay: -2.4s; }
+}

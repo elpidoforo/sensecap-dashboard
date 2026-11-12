@@ -28,6 +28,7 @@
     sparkle: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M18 16l.8 2.2L21 19l-2.2.8L18 22l-.8-2.2L15 19l2.2-.8z"/>',
     chev: '<path d="M6 9l6 6 6-6"/>',
     trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>',
+    play: '<path d="M8 5.5v13l11-6.5z"/>',
   };
   function ic(name) {
     const s = SC.svgEl('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' });
@@ -42,7 +43,7 @@
     get_forecast_model_now: ['Checking the weather model', 'Ελέγχω το μοντέλο καιρού'], get_met_office_now: ['Checking Met Office stations', 'Ελέγχω τους σταθμούς της Μετεωρολογικής Υπηρεσίας'],
     get_met_office_history: ['Reading Met Office history', 'Διαβάζω το ιστορικό της Μετεωρολογικής Υπηρεσίας'], get_met_office_text: ['Reading the Met Office pages', 'Διαβάζω τις σελίδες της Μετεωρολογικής Υπηρεσίας'],
     list_data_layers: ['Looking at the data layers', 'Κοιτάζω τα στρώματα δεδομένων'], site_map: ['Checking the website map', 'Ελέγχω τον χάρτη του ιστότοπου'], sensor_guides: ['Reading the sensor guides', 'Διαβάζω τους οδηγούς αισθητήρων'],
-    gallery_ideas: ['Looking at approved tools', 'Κοιτάζω τα εγκεκριμένα εργαλεία'], offer_choices: ['Thinking of choices', 'Σκέφτομαι επιλογές'], write_brief: ['Writing your brief', 'Γράφω τη σύνοψή σου'],
+    gallery_ideas: ['Looking at approved tools', 'Κοιτάζω τα εγκεκριμένα εργαλεία'], show_found: ['Checking what fits', 'Ελέγχω τι ταιριάζει'], offer_choices: ['Thinking of choices', 'Σκέφτομαι επιλογές'], write_brief: ['Writing your brief', 'Γράφω τη σύνοψή σου'],
     search_handbook: ['Searching the handbook', 'Ψάχνω στο εγχειρίδιο'], save_project: ['Writing the page', 'Γράφω τη σελίδα'],
     list_my_projects: ['Looking at your pages', 'Κοιτάζω τις σελίδες σας'], get_project: ['Reading your page', 'Διαβάζω τη σελίδα σας'], submit_project: ['Sending the page', 'Στέλνω τη σελίδα'],
   };
@@ -159,6 +160,23 @@
     x.focus();
   }
 
+  /* ---------- the 1-minute demo video (sample data, shown in the site's language) ---------- */
+  function openDemo() {
+    const prev = document.activeElement, lang = SC.lang === 'el' ? 'el' : 'en';
+    const close = () => { try { vid.pause(); } catch (e) { /* gone */ } scrim.remove(); document.removeEventListener('keydown', onKey); if (prev && prev.focus) prev.focus(); };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    const x = el('button', { class: 'nm-btn nm-btn--sm', type: 'button', onclick: close }, ic('x'), t('Close', 'Κλείσιμο'));
+    const vid = el('video', { class: 'sd-vid', controls: true, playsinline: true, preload: 'metadata', poster: '/site/media/demo_' + lang + '.jpg', src: '/site/media/demo_' + lang + '.mp4', 'aria-label': t('The Build studio in one minute', 'Το στούντιο σε ένα λεπτό') },
+      t('Your browser cannot play this video.', 'Το πρόγραμμα περιήγησής σας δεν μπορεί να παίξει αυτό το βίντεο.'));
+    const box = el('div', { class: 'sd-view sd-demo nm-enter', role: 'dialog', 'aria-modal': 'true', 'aria-label': t('The 1-minute demo', 'Το demo του ενός λεπτού') },
+      el('div', { class: 'sd-view-h' }, el('div', { class: 'sd-view-t' }, el('h2', null, t('The Build studio in one minute', 'Το στούντιο σε ένα λεπτό')), el('div', { class: 'sd-who' }, el('span', null, t('A walk-through with sample data.', 'Μια ξενάγηση με δεδομένα δείγματος.')))), x),
+      el('div', { class: 'sd-view-f sd-demo-f' }, vid));
+    const scrim = el('div', { class: 'sd-scrim', onclick: (e) => { if (e.target === scrim) close(); } }, box);
+    document.body.append(scrim);
+    document.addEventListener('keydown', onKey);
+    x.focus();
+  }
+
   /* ================= the page ================= */
   function studio(root) {
     const S = {
@@ -186,7 +204,7 @@
     const workHost = el('div'), boardHost = el('div', { id: 'sd-board' });
     const ta = el('textarea', { class: 'nm-input sd-ta', id: 'sd-ta', maxlength: MAX_TEXT, rows: 4 });
     const counter = el('span', { class: 'sd-cc' });
-    root.append(headHost, statsHost, makerHost, workHost, boardHost, live);
+    root.append(headHost, makerHost, workHost, statsHost, boardHost, live);
 
     /* ----- what the viewer owns ----- */
     const myLocal = () => S.drafts.filter((d) => isClass() && V().school && d.school === V().school.slug && sameTeam(d.team, V().team)).sort((a, b) => b.at - a.at);
@@ -229,12 +247,14 @@
     function galleryBtn() {
       return el('button', { class: 'nm-btn nm-btn--sm sd-galbtn', type: 'button', onclick: () => { const bd = document.getElementById('sd-board'); if (bd) bd.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); } }, ic('ext'), t('Open the public gallery', 'Άνοιγμα της δημόσιας συλλογής'));
     }
+    function demoBtn() {
+      return el('button', { class: 'nm-btn nm-btn--sm sd-galbtn', type: 'button', onclick: openDemo }, ic('play'), t('Watch the 1-minute demo', 'Δες το demo του ενός λεπτού'));
+    }
     function drawHead() {
       headHost.replaceChildren(SC.head({
-        title: t('From an idea to a public tool.', 'Από μια ιδέα σε δημόσιο εργαλείο.'),
-        lede: t('Describe a small tool in plain words. A draft is built from our live data. A teacher checks it, then anyone can open it.', 'Περιγράψτε ένα μικρό εργαλείο με απλά λόγια. Φτιάχνεται ένα προσχέδιο από τα ζωντανά μας δεδομένα. Ένας εκπαιδευτικός το ελέγχει και μετά μπορεί να το ανοίξει οποιοσδήποτε.'),
+        title: t('From idea to tool.', 'Από την ιδέα στο εργαλείο.'),
         tags: S.status && S.status.demo ? [{ text: t('Demo data', 'Δεδομένα επίδειξης'), cls: 'demo' }] : [],
-        actions: [galleryBtn()],
+        actions: [demoBtn(), galleryBtn()],
         help: [
           'Students build with their own account: ask to join on the Join page (no email, no class code), and a teacher or an admin approves you. Then describe a tool, the studio builds a draft, you preview it and change it, and you send it to your teacher. Drafts are saved to your account. A teacher checks every tool before anyone else can open it. Approved tools are in the public gallery below.',
           'Οι μαθητές φτιάχνουν με τον δικό τους λογαριασμό: ζητήστε να μπείτε από τη σελίδα εγγραφής (χωρίς email, χωρίς κωδικό τάξης) και σας εγκρίνει ένας εκπαιδευτικός ή ο διαχειριστής. Μετά περιγράφετε ένα εργαλείο, το στούντιο φτιάχνει ένα προσχέδιο, το βλέπετε και το αλλάζετε και το στέλνετε στον εκπαιδευτικό σας. Τα προσχέδια αποθηκεύονται στον λογαριασμό σας. Ένας εκπαιδευτικός ελέγχει κάθε εργαλείο πριν το ανοίξει κάποιος άλλος. Τα εγκεκριμένα εργαλεία είναι στη δημόσια συλλογή παρακάτω.',
@@ -348,6 +368,28 @@
       }
     }
 
+    /* ----- "What did you notice?": the way in for a student who has not started yet. A card starts the guide chat. ----- */
+    const START = [
+      ['bus', ['The air on my bus', 'Ο αέρας στο λεωφορείο μου'], ['Is it worse than the air outside?', 'Είναι χειρότερος από τον αέρα έξω;'], ['I want to look at the air on my bus. Is it worse than the air outside?', 'Θέλω να δω τον αέρα στο λεωφορείο μου. Είναι χειρότερος από τον αέρα έξω;']],
+      ['sensor', ['My classroom feels hot', 'Η τάξη μου ζεσταίνεται'], ['When does it get too warm?', 'Πότε ζεσταίνεται υπερβολικά;'], ['My classroom feels too hot. I want to see when it gets too warm.', 'Η τάξη μου ζεσταίνεται πολύ. Θέλω να δω πότε ζεσταίνεται υπερβολικά.']],
+      ['bars', ['Compare two places', 'Σύγκριση δύο μερών'], ['My school next to an official station, or another school.', 'Το σχολείο μου δίπλα σε έναν επίσημο σταθμό ή σε άλλο σχολείο.'], ['I want to compare my school with another place.', 'Θέλω να συγκρίνω το σχολείο μου με ένα άλλο μέρος.']],
+    ];
+    function showStart() {
+      if (!guideOn() || V().kind !== 'user') return false;
+      gLoad();
+      return !G.msgs.length && !S.cur && !S.skipStart && !S.building && !S.reply && !ta.value.trim();
+    }
+    function toGuide() { try { guideHost.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); } catch (e) { /* old browser */ } }
+    function startWith(text) { S.skipStart = false; gSend(text); drawMaker(); toGuide(); }
+    function startLeft() {
+      return el('div', { class: 'sd-maker-l sd-start' }, el('div', { class: 'sd-eb cu' }, t('Start here', 'Ξεκίνα από εδώ')), el('h2', { id: 'sd-maker-h' }, t('What did you notice?', 'Τι πρόσεξες;')),
+        el('p', { class: 'sd-lede2' }, t('Pick one, or write your own. The guide takes it from there.', 'Διάλεξε ένα ή γράψε το δικό σου. Από εκεί και πέρα το αναλαμβάνει ο οδηγός.')),
+        el('div', { class: 'sd-sc-list' },
+          START.map(([icn, h, sub, say]) => el('button', { class: 'sd-sc', type: 'button', onclick: () => startWith(t(say[0], say[1])) }, el('i', { 'aria-hidden': 'true' }, SC.icon(icn, 22)), el('span', null, el('b', null, t(h[0], h[1])), el('small', null, t(sub[0], sub[1]))))),
+          el('button', { class: 'sd-sc free', type: 'button', onclick: () => { gIn.focus(); toGuide(); } }, el('i', { 'aria-hidden': 'true' }, SC.icon('pencil', 22)), el('span', null, el('b', null, t('Something else', 'Κάτι άλλο')), el('small', null, t('Tell the guide in your own words.', 'Πες το στον οδηγό με δικά σου λόγια.'))))),
+        el('div', { class: 'sd-skip' }, el('button', { class: 'sd-glink', type: 'button', onclick: () => { S.skipStart = true; drawMaker(); ta.focus(); } }, t('I already know what I want to build', 'Ξέρω ήδη τι θέλω να φτιάξω'))));
+    }
+
     function drawMaker() {
       const v = V();
       let who = null;
@@ -358,8 +400,10 @@
       else {
         who = el('div', null, !configured() ? el('div', { class: 'nm-callout nm-callout--warn', style: { margin: '0 0 14px' } }, t('The Build studio is not switched on yet. You can still open the public gallery below. Ask your teacher or an admin to switch it on.', 'Το στούντιο δεν έχει ενεργοποιηθεί ακόμη. Μπορείτε να ανοίξετε τη δημόσια συλλογή παρακάτω. Ζητήστε από τον εκπαιδευτικό σας ή έναν διαχειριστή να το ενεργοποιήσει.')) : null, buildForm());
       }
+      const start = showStart();
       makerHost.classList.toggle('has-guide', guideOn() && v.kind === 'user');
-      makerHost.replaceChildren(el('div', { class: 'sd-maker-l' }, el('div', { class: 'sd-eb cu' }, t('New tool', 'Νέο εργαλείο')), el('h2', { id: 'sd-maker-h' }, t('Describe a tool', 'Περιγράψτε ένα εργαλείο')),
+      makerHost.classList.toggle('has-start', start);
+      makerHost.replaceChildren(start ? startLeft() : el('div', { class: 'sd-maker-l' }, el('div', { class: 'sd-eb cu' }, t('New tool', 'Νέο εργαλείο')), el('h2', { id: 'sd-maker-h' }, t('Describe a tool', 'Περιγράψτε ένα εργαλείο')),
         el('p', { class: 'sd-lede2' }, t('Say what you want to show and who it is for. The studio builds a draft from the same live readings you see on the City board. You can change it before you send it.', 'Πείτε τι θέλετε να δείξετε και για ποιον είναι. Το στούντιο φτιάχνει ένα προσχέδιο από τις ίδιες ζωντανές μετρήσεις που βλέπετε στον Πίνακα πόλης. Μπορείτε να το αλλάξετε πριν το στείλετε.')), who), stepsPanel());
       upd();
     }
@@ -371,6 +415,14 @@
     /* ----- the guide: talks an idea through before building. It never builds or saves (POST /studio/api/guide, streamed) ----- */
     const GKEY = 'sc.studio.guide.v1';
     const G = { uid: null, msgs: [], busy: false, work: '', err: '', ctrl: null };
+    // What the guide found that fits the idea: approved tools and data layers (the server checks every id, this only tidies the shape).
+    function cleanFound(f) {
+      if (!f || typeof f !== 'object') return null;
+      const tools = (Array.isArray(f.tools) ? f.tools : []).slice(0, 3).map((x) => ({ id: Number(x && x.id) || 0, title: String((x && x.title) || '').slice(0, 80), school: String((x && x.school) || '').slice(0, 40), team: String((x && x.team) || '').slice(0, 40), creator: x && x.creator ? String(x.creator).slice(0, 40) : '' })).filter((x) => x.id && x.title);
+      const layers = (Array.isArray(f.layers) ? f.layers : []).slice(0, 3).map((x) => ({ id: String((x && x.id) || '').slice(0, 60), name: String((x && x.name) || '').slice(0, 80), live: Boolean(x && x.live) })).filter((x) => x.id && x.name);
+      return tools.length || layers.length ? { tools, layers } : null;
+    }
+    const lastFound = () => { for (let i = G.msgs.length - 1; i >= 0; i--) if (G.msgs[i].found) return G.msgs[i].found; return null; };
     const guideHost = el('section', { class: 'sd-guide', 'aria-labelledby': 'sd-guide-h' });
     const gIn = el('textarea', { class: 'nm-input sd-gin', id: 'sd-gin', rows: 2, maxlength: 500 });
     const guideOn = () => isUser() && configured();
@@ -383,6 +435,7 @@
         if (Array.isArray(j)) G.msgs = j.filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string').slice(-30).map((m) => ({
           role: m.role, text: m.text.slice(0, 4000),
           choices: Array.isArray(m.choices) ? m.choices.filter((c) => typeof c === 'string').map((c) => c.slice(0, 50)).slice(0, 4) : null,
+          found: cleanFound(m.found),
           brief: m.brief && typeof m.brief.description === 'string' ? { question: String(m.brief.question || '').slice(0, 160), data: (Array.isArray(m.brief.data) ? m.brief.data : []).map((d) => String(d).slice(0, 80)).slice(0, 6), audience: String(m.brief.audience || '').slice(0, 80), description: m.brief.description.slice(0, 600) } : null,
         }));
       } catch (e) { /* a new chat */ }
@@ -403,6 +456,7 @@
     function useBrief(b) {
       if (S.cur) { S.mode = 'rebuild'; drawMaker(); }   // a brief starts a new tool, it does not change the open draft
       ta.value = String(b.description || '').slice(0, MAX_TEXT);
+      if (makerHost.classList.contains('has-start')) drawMaker();
       upd();
       ta.focus();
       try { ta.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); } catch (e) { /* old browser */ }
@@ -413,6 +467,19 @@
       return el('div', { class: 'sd-gbrief' }, el('b', null, t('Your brief so far', 'Η σύνοψή σου μέχρι τώρα')),
         row(t('Question', 'Ερώτημα'), b.question), row(t('Data', 'Δεδομένα'), (b.data || []).join(' · ')), row(t('For', 'Για'), b.audience),
         el('button', { class: 'nm-btn nm-btn--primary', type: 'button', onclick: () => useBrief(b) }, ic('sparkle'), t('Use this brief in the box', 'Χρήση της σύνοψης στο πλαίσιο')));
+    }
+    function foundPanel() {
+      const f = lastFound();
+      if (!f) return null;
+      const rows = [
+        ...f.tools.map((x) => el('li', null, el('span', { class: 'sd-fd-k ok' }, t('Tool', 'Εργαλείο')),
+          el('span', { class: 'sd-fd-t' }, el('button', { class: 'sd-link', type: 'button', onclick: () => openViewer({ id: x.id, title: x.title, school: x.school }, galleryLabel(x), el('span', { class: 'nm-badge nm-badge--ok' }, t('Public', 'Δημόσιο'))) }, x.title),
+            el('small', null, byText(x) + (x.school ? ' · ' + x.school : ''))))),
+        ...f.layers.map((x) => el('li', null, el('span', { class: 'sd-fd-k info' }, t('Layer', 'Στρώμα')),
+          el('span', { class: 'sd-fd-t' }, el('a', { class: 'sd-link', href: '#/layers' }, x.name), el('small', null, x.live ? t('Has data now', 'Έχει δεδομένα τώρα') : t('Not connected yet', 'Δεν έχει συνδεθεί ακόμη'))))),
+      ];
+      return el('div', { class: 'sd-found', role: 'group', 'aria-label': t('Found while you talk', 'Βρέθηκαν όσο μιλάμε') }, el('b', null, t('Found while you talk', 'Βρέθηκαν όσο μιλάμε')),
+        el('p', null, t('Already on the platform, so yours can add something new.', 'Υπάρχουν ήδη στην πλατφόρμα, ώστε το δικό σου να προσθέτει κάτι νέο.')), el('ul', null, rows));
     }
     function gScroll() { const f = guideHost.querySelector('.sd-gfeed'); if (f) f.scrollTop = f.scrollHeight; }
     function drawGuide() {
@@ -430,7 +497,6 @@
         if (m.role === 'assistant' && m.choices && m.choices.length && i === lastIdx && !G.busy) feed.append(el('div', { class: 'sd-gchips' }, m.choices.map((c) => el('button', { class: 'sd-gchip', type: 'button', onclick: () => gSend(c) }, c))));
         if (m.role === 'assistant' && m.brief) feed.append(briefCard(m.brief));
       });
-      if (!G.msgs.length) feed.append(el('div', { class: 'sd-gchips' }, TRIES.map(([en, el2]) => el('button', { class: 'sd-gchip', type: 'button', onclick: () => gSend(t(en, el2)) }, t(en, el2)))));
       if (G.busy) feed.append(el('div', { class: 'sd-working' }, el('span', { class: 'sd-dots', 'aria-hidden': 'true' }, el('i'), el('i'), el('i')), el('span', null, G.work ? working(G.work) : t('Thinking about your idea', 'Σκέφτομαι την ιδέα σου'))));
       if (G.err) feed.append(el('div', { class: 'err', role: 'alert' }, G.err));
       gIn.placeholder = t('Answer the guide or type an idea', 'Απάντησε στον οδηγό ή γράψε μια ιδέα');
@@ -442,11 +508,11 @@
       guideHost.replaceChildren(...[
         el('div', { class: 'sd-eb' }, t('Your guide', 'Ο οδηγός σου')),
         el('div', { class: 'sd-gh' }, el('b', { id: 'sd-guide-h' }, t('Talk it through first', 'Συζήτησέ το πρώτα')), el('span', { class: 'sd-gbadge' }, t('Reads the platform’s data', 'Διαβάζει τα δεδομένα της πλατφόρμας'))),
-        feed, form,
+        feed, foundPanel(), form,
         out ? el('div', { class: 'nm-callout nm-callout--info', style: { margin: '10px 0 0' } }, t('You used your guide messages for today. They come back tomorrow. You can still describe a tool yourself.', 'Χρησιμοποίησες τα μηνύματα του οδηγού για σήμερα. Επιστρέφουν αύριο. Μπορείς να περιγράψεις ένα εργαλείο μόνος/η σου.')) : null,
         el('div', { class: 'sd-gfoot' },
           el('span', null, t('The guide helps you think. It never builds or sends anything for you, and it never shows exact vehicle positions or names.', 'Ο οδηγός σε βοηθά να σκεφτείς. Δεν φτιάχνει ούτε στέλνει τίποτα για σένα και δεν δείχνει ακριβείς θέσεις οχημάτων ή ονόματα.') + (lim ? ' ' + t('Guide messages left today: ' + lim.left + ' of ' + lim.perDay + '.', 'Μηνύματα οδηγού που απομένουν σήμερα: ' + lim.left + ' από ' + lim.perDay + '.') : '')),
-          G.msgs.length ? el('button', { class: 'sd-glink', type: 'button', onclick: () => { if (G.ctrl) G.ctrl.abort(); G.msgs = []; G.err = ''; gSave(); drawGuide(); } }, t('Start over', 'Ξεκίνα από την αρχή')) : null),
+          G.msgs.length ? el('button', { class: 'sd-glink', type: 'button', onclick: () => { if (G.ctrl) G.ctrl.abort(); G.msgs = []; G.err = ''; S.skipStart = false; gSave(); drawMaker(); } }, t('Start over', 'Ξεκίνα από την αρχή')) : null),
       ].filter(Boolean));
       gScroll();
     }
@@ -456,7 +522,7 @@
       if (!text || G.busy || !guideOn()) return;
       const hadFocus = document.activeElement === gIn;
       G.err = ''; G.msgs.push({ role: 'user', text }); G.busy = true; G.work = ''; gIn.value = ''; G.ctrl = new AbortController();
-      gSave(); drawGuide();
+      gSave(); if (makerHost.classList.contains('has-start')) drawMaker(); else drawGuide();   // the first message turns the start cards into the build box
       const body = { messages: G.msgs.slice(-10).map((m) => ({ role: m.role, text: m.text })) };
       let ans = null, errText = '', httpErr = null, aborted = false;
       try {
@@ -490,7 +556,7 @@
       if (ans) {
         const cl = Array.isArray(ans.choices) ? ans.choices.filter((c) => typeof c === 'string').map((c) => c.slice(0, 50)).slice(0, 4) : null;
         const b = ans.brief && typeof ans.brief.description === 'string' ? { question: String(ans.brief.question || '').slice(0, 160), data: (Array.isArray(ans.brief.data) ? ans.brief.data : []).map((d) => String(d).slice(0, 80)).slice(0, 6), audience: String(ans.brief.audience || '').slice(0, 80), description: ans.brief.description.slice(0, 600) } : null;
-        G.msgs.push({ role: 'assistant', text: String(ans.text || '').slice(0, 4000), choices: cl && cl.length ? cl : null, brief: b });
+        G.msgs.push({ role: 'assistant', text: String(ans.text || '').slice(0, 4000), choices: cl && cl.length ? cl : null, brief: b, found: cleanFound(ans.found) });
       } else {
         G.msgs.pop(); gIn.value = text;   // nothing was answered: give the message back so it can be sent again
         G.err = httpErr ? gWhy(httpErr) : (errText || t('The guide could not answer just now. Try again in a moment.', 'Ο οδηγός δεν μπόρεσε να απαντήσει τώρα. Δοκιμάστε ξανά σε λίγο.'));
@@ -500,7 +566,7 @@
       if (!alive) return;
       try { await loadStatus(); } catch (e) { /* the meter refreshes next time */ }
       if (!alive) return;
-      drawGuide();
+      if (!G.msgs.length) drawMaker(); else drawGuide();   // a first message that failed brings the start cards back
       if (hadFocus) gIn.focus();
     }
 

@@ -788,7 +788,10 @@ function createStudio(opts) {
     { name: 'list_data_layers', description: 'List the data layers of the platform (our sensors, Met Office, weather, air, sea and candidate sources): name, what it holds, the variables it measures, who publishes it, its licence and whether it is live now. Use it to see which data an idea could use.', input_schema: { type: 'object', properties: {} } },
     { name: 'site_map', description: 'What each page of the website holds, how accounts and approval work, and the privacy rules. Use it when a student asks where something is, or to suggest which page could help.', input_schema: { type: 'object', properties: {} } },
     { name: 'sensor_guides', description: 'The sensor guides: what each kind of sensor measures, its normal range and common mistakes. Without a name it lists the guides; with a name (part of the title) it returns that guide.', input_schema: { type: 'object', properties: { name: { type: 'string', description: 'Part of a guide title, for example "CO2".' } } } },
-    { name: 'gallery_ideas', description: 'Tools and plans that teachers already approved (title, short idea, school, team name; never a student). Use it so a student does not repeat an existing tool, or to show what others did.', input_schema: { type: 'object', properties: {} } },
+    { name: 'gallery_ideas', description: 'Tools and plans that teachers already approved (tools have an id; title, short idea, school, team name; never a student). Use it so a student does not repeat an existing tool, or to show what others did.', input_schema: { type: 'object', properties: {} } },
+    { name: 'show_found', description: 'Show the student the approved tools and data layers that fit their idea, in a panel beside the chat. Only pass ids you got from gallery_ideas and list_data_layers. Call it once when you mention a fitting tool or layer.', input_schema: { type: 'object', properties: {
+      tool_ids: { type: 'array', items: { type: 'integer' }, maxItems: 3, description: 'ids of approved tools, from gallery_ideas.' },
+      layer_ids: { type: 'array', items: { type: 'string' }, maxItems: 3, description: 'ids of data layers, from list_data_layers.' } } } },
     { name: 'offer_choices', description: 'Show 2 to 4 short tap-to-answer choices under your message (each under 50 characters). Use them for a question with a few clear answers. The student can still type something else.', input_schema: { type: 'object', properties: { choices: { type: 'array', items: { type: 'string' }, minItems: 2, maxItems: 4 } }, required: ['choices'] } },
     { name: 'write_brief', description: 'Write the brief once the student has a clear question and you know which data can answer it. The student sees it as a card with a button that puts the description in the Describe a tool box. Do not call it before the student has agreed on the question.', input_schema: { type: 'object', properties: {
       question: { type: 'string', description: 'The one question the tool answers, in the student\'s words (under 160 characters).' },
@@ -832,10 +835,35 @@ function createStudio(opts) {
       const hit = all.filter((g) => g.title.toLowerCase().includes(q)).slice(0, 2);
       return hit.length ? { guides: hit.map((g) => ({ title: g.title, text: g.body.slice(0, 2500) })) } : { error: 'No sensor guide has that name.', guides: all.map((g) => g.title) };
     }
+    if (name === 'show_found') {
+      const asList = (x) => (Array.isArray(x) ? x : []);
+      const toolIds = [...new Set(asList(input.tool_ids).map((x) => (typeof x === 'number' || (typeof x === 'string' && /^\d{1,9}$/.test(x)) ? Number(x) : NaN)).filter((n) => Number.isInteger(n) && n > 0))].slice(0, 12);
+      const layerIds = [...new Set(asList(input.layer_ids).filter((x) => typeof x === 'string').map((x) => cleanLine(x, 80)).filter(Boolean))].slice(0, 12);
+      const tools = [];
+      for (const id of toolIds) {
+        if (tools.length >= 3) break;
+        const p = db.get("SELECT id, title, school_id, team_id, team_label, status, show_name, author_kind, user_id FROM studio_projects WHERE id = ? AND status = 'approved'", id);
+        if (!p) continue;   // unknown, pending or rejected: dropped without a word
+        tools.push({ id: p.id, title: cleanLine(p.title, 80), school: (schoolOf(p.school_id) || {}).short || '', team: (teamOf(p.team_id) || {}).name || p.team_label || '', creator: creatorOf(p) || null });
+      }
+      const layers = [];
+      if (layerIds.length && layersApi && layersApi.register) {
+        const reg = await layersApi.register(0);
+        for (const id of layerIds) {
+          if (layers.length >= 3) break;
+          const l = (reg.layers || []).find((x) => x.id === id);
+          if (l) layers.push({ id: l.id, name: cleanLine(l.name, 80), nameEl: cleanLine(l.nameEl, 80), state: l.state, live: l.state === 'live' || l.state === 'late' });
+        }
+      }
+      if (!tools.length && !layers.length) return { error: 'None of those ids exist. Only pass ids from gallery_ideas (tool id) and list_data_layers (layer id).' };
+      const found = { tools, layers };
+      got.found = found; send({ type: 'found', found });
+      return { shown: true, tools: tools.map((t) => t.title), layers: layers.map((l) => l.name), note: 'The student now sees these in a panel beside the chat. Refer to them by name in your reply; do not repeat their details.' };
+    }
     if (name === 'gallery_ideas') {
       const short = (id) => (schoolOf(id) || {}).short || '';
-      const tools = db.all("SELECT title, idea, school_id, team_id, team_label FROM studio_projects WHERE status = 'approved' ORDER BY updated_at DESC LIMIT 20")
-        .map((p) => ({ title: cleanLine(p.title, 80), idea: cleanLine(p.idea, 160), school: short(p.school_id), team: (teamOf(p.team_id) || {}).name || p.team_label || '' }));
+      const tools = db.all("SELECT id, title, idea, school_id, team_id, team_label FROM studio_projects WHERE status = 'approved' ORDER BY updated_at DESC LIMIT 20")
+        .map((p) => ({ id: p.id, title: cleanLine(p.title, 80), idea: cleanLine(p.idea, 160), school: short(p.school_id), team: (teamOf(p.team_id) || {}).name || p.team_label || '' }));
       const plans = db.all("SELECT title, question, school_id, team_id, team_label FROM studio_plans WHERE status = 'approved' ORDER BY updated_at DESC LIMIT 20")
         .map((p) => ({ title: cleanLine(p.title, 80), question: cleanLine(p.question, 160), school: short(p.school_id), team: (teamOf(p.team_id) || {}).name || p.team_label || '' }));
       return { tools, plans, note: tools.length || plans.length ? '' : 'Nothing is approved yet, so there is nothing to repeat.' };
@@ -1023,6 +1051,7 @@ function createStudio(opts) {
       'How to guide:',
       '- Ask at most ONE or TWO short questions at a time. Start from what the student noticed or cares about. Help them reach: one question the data can answer, which data fits, who it is for, and what a good picture of the answer looks like (chart, map, traffic light, ranking).',
       '- Use your tools to check what is real before you promise anything: list_data_layers (what data exists and whether it is live), get_vehicles and the other read tools (what our sensors measure now), sensor_guides (what a sensor can and cannot tell), gallery_ideas (so they do not repeat a tool, or can build on one), site_map (where things are on the website). Never invent a reading, a sensor or a layer. If the data they need does not exist yet, say so and suggest the nearest idea that works, or a data layer they could propose later.',
+      '- When your reply mentions an approved tool or a data layer that fits the idea, call show_found with their ids so the student sees them beside the chat (tool ids come from gallery_ideas, layer ids from list_data_layers). At most 3 of each; never invent ids. Call it once, not on every reply.',
       '- When the idea has a few clear options, use offer_choices (2 to 4 short answers) instead of a long list. When the question, the data and the audience are settled and the student agrees, call write_brief, then tell them in one or two lines what to check before pressing Build a draft. Do not call write_brief earlier.',
       '- Teach, do not do it for them: explain in a sentence why a choice matters (for example why a bus sensor and a Met Office station are not directly comparable). Do not write their assessed work (reports, essays, Extended Essay text).',
       '- Reply in the language the student writes in (English or Greek). Be warm, brief and concrete: short paragraphs, plain text, no tables, no headings, no emoji. Use Celsius and Cyprus local time. At most about 120 words per reply.',
@@ -1064,9 +1093,9 @@ function createStudio(opts) {
         continue;
       }
       const text = blocks.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
-      return { text: text || (got.brief ? 'Your brief is ready.' : 'Tell me a bit more about your idea.'), tools: used, choices: got.choices || null, brief: got.brief || null };
+      return { text: text || (got.brief ? 'Your brief is ready.' : 'Tell me a bit more about your idea.'), tools: used, choices: got.choices || null, brief: got.brief || null, found: got.found || null };
     }
-    return { text: 'That needed too many steps. Tell me one smaller thing to look at.', tools: used, choices: got.choices || null, brief: got.brief || null };
+    return { text: 'That needed too many steps. Tell me one smaller thing to look at.', tools: used, choices: got.choices || null, brief: got.brief || null, found: got.found || null };
   }
 
   /* ---------- /studio/api, /studio/p and /studio/preview ---------- */
@@ -1230,7 +1259,7 @@ function createStudio(opts) {
       try {
         const out = await guideChat(user, history, send, ctrl.signal);
         audit(user, 'studio.guide', '', out.tools.join(',').slice(0, 200));
-        send({ type: 'answer', text: out.text, tools: out.tools, choices: out.choices, brief: out.brief });
+        send({ type: 'answer', text: out.text, tools: out.tools, choices: out.choices, brief: out.brief, found: out.found });
       } catch (e) {
         log('Guide error: ' + e.message);
         send({ type: 'error', message: e instanceof HttpError ? e.message : 'The guide could not answer just now. Try again in a moment.' });

@@ -234,3 +234,31 @@
 .sd-nm b { display: block; color: #fff; font: 600 15px/1.3 var(--nm-font); }
 .sd-nm small { display: block; margin-top: 3px; font-size: 13px; line-height: 1.45; color: var(--nm-muted); }
 @media (max-width: 1100px) { .sd-kan2 { grid-template-columns: 1fr; } }
+
+/* "What did you notice?", the found panel and the demo video */
+.sd-start .sd-lede2 { margin-bottom: 14px; }
+.sd-sc-list { display: flex; flex-direction: column; gap: 10px; }
+.sd-sc { display: flex; align-items: center; gap: 14px; width: 100%; padding: 13px 16px; border-radius: 18px; background: rgba(255, 255, 255, .05); border: 1.5px solid var(--nm-edge); color: var(--nm-text); text-align: left; cursor: pointer; font: inherit; }
+.sd-sc:hover { background: rgba(255, 255, 255, .1); border-color: var(--nm-copper-line); }
+.sd-sc:focus-visible { outline: 2px solid var(--nm-copper-2); outline-offset: 2px; }
+.sd-sc i { flex: none; width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; background: var(--nm-copper-soft); border: 1px solid var(--nm-copper-line); color: var(--nm-copper-2); }
+.sd-sc i svg { width: 22px; height: 22px; }
+.sd-sc b { display: block; color: #fff; font: 600 16px/1.25 var(--nm-font); }
+.sd-sc small { display: block; margin-top: 2px; font-size: 13px; line-height: 1.4; color: var(--nm-muted); }
+.sd-sc.free { border-style: dashed; }
+.sd-skip { margin-top: 14px; }
+.sd-found { margin-top: 12px; padding: 12px 14px 12px; border-radius: 16px; background: rgba(76, 203, 234, .07); border: 1px solid var(--nm-info-line); }
+.sd-found > b { display: block; color: #fff; font: 600 14px/1.2 var(--nm-font); }
+.sd-found > p { margin: 3px 0 8px; font-size: 12.5px; line-height: 1.4; color: var(--nm-muted); }
+.sd-found ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.sd-found li { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; line-height: 1.4; color: var(--nm-text); }
+.sd-fd-k { flex: none; min-width: 58px; margin-top: 1px; padding: 4px 7px; border-radius: 7px; text-align: center; font: 700 11px/1 var(--nm-font); }
+.sd-fd-k.ok { background: var(--nm-ok-bg); color: var(--nm-ok); border: 1px solid var(--nm-ok-line); }
+.sd-fd-k.info { background: var(--nm-info-bg); color: var(--nm-info); border: 1px solid var(--nm-info-line); }
+.sd-fd-t { min-width: 0; overflow-wrap: anywhere; }
+.sd-fd-t .sd-link { padding: 0; text-align: left; font-size: 14px; }
+.sd-fd-t small { display: block; margin-top: 1px; font-size: 12.5px; color: var(--nm-muted); }
+.sd-vid { display: block; width: 100%; height: 100%; background: #000; object-fit: contain; }
+.sd-demo { width: min(1000px, 100%); height: auto; max-height: 100%; }
+.sd-demo-f { flex: none; aspect-ratio: 16 / 9; width: 100%; background: #000; }
+@media (max-width: 899px) { .sd-maker.has-guide.has-start .sd-maker-r { order: 0; border-top: 1px solid rgba(255, 255, 255, .1); border-bottom: 0; } }

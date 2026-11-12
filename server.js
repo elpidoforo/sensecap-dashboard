@@ -1474,8 +1474,21 @@ const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml',
   '.png': 'image/png', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.ico': 'image/x-icon',
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.avif': 'image/avif',
-  '.woff': 'font/woff', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8',
+  '.woff': 'font/woff', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8', '.mp4': 'video/mp4', '.webm': 'video/webm',
 };
+// One byte range of a static file (iOS Safari will not play a video without 206 answers): "bytes=a-b", "bytes=a-" or "bytes=-n".
+// Returns { start, end }, null when there is no usable single range (the whole file is sent) or 'bad' when it cannot be satisfied (416).
+function parseRange(header, size) {
+  const m = /^bytes=(\d{0,15})-(\d{0,15})$/.exec(String(header || '').trim());
+  if (!m || (m[1] === '' && m[2] === '')) return null;
+  if (m[1] === '') {   // the last n bytes
+    const n = Number(m[2]);
+    return n > 0 && size > 0 ? { start: Math.max(0, size - n), end: size - 1 } : 'bad';
+  }
+  const start = Number(m[1]), last = m[2] === '' ? size - 1 : Number(m[2]);
+  if (m[2] !== '' && last < start) return null;   // not a valid range: ignore the header
+  return start >= size ? 'bad' : { start, end: Math.min(last, size - 1) };
+}
 const CITIES_CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
 const APP_CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
 // The site shell: / and /site/*. It loads the map and the 3D view in same-origin frames (those pages keep no policy of their own
@@ -1612,7 +1625,17 @@ const server = http.createServer(async (req, res) => {
         return res.end('Not found');
       }
       const csp = inApp ? APP_CSP : url.pathname.startsWith('/cities') ? CITIES_CSP : url.pathname === '/' || url.pathname.startsWith('/site/') ? SITE_CSP : null;
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream', 'Cache-Control': 'no-cache', ...(csp ? { 'Content-Security-Policy': csp, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' } : {}) });
+      const headers = { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream', 'Cache-Control': 'no-cache', 'Accept-Ranges': 'bytes', ...(csp ? { 'Content-Security-Policy': csp, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' } : {}) };
+      const range = req.headers.range ? parseRange(req.headers.range, buf.length) : null;
+      if (range === 'bad') {
+        res.writeHead(416, { ...headers, 'Content-Range': `bytes */${buf.length}`, 'Content-Length': 0 });
+        return res.end();
+      }
+      if (range) {
+        res.writeHead(206, { ...headers, 'Content-Range': `bytes ${range.start}-${range.end}/${buf.length}`, 'Content-Length': range.end - range.start + 1 });
+        return res.end(buf.subarray(range.start, range.end + 1));
+      }
+      res.writeHead(200, { ...headers, 'Content-Length': buf.length });
       res.end(buf);
     });
   } catch (e) {

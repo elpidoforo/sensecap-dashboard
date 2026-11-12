@@ -641,14 +641,18 @@
     if (my !== token) return;
     if (!def) { fresh.replaceChildren(); window.scrollTo(0, 0); soonPage(fresh, id); return; }
     if (!isReady(id)) { READY.add(id); buildMenu(id); drawTour(); }   // the file is there, so the entry joins the menu
+    let stopEx = null;
     try {
       fresh.replaceChildren();
       window.scrollTo(0, 0);
-      const out = await def.render(fresh, { id, args: route.args, query: route.query, me: SC.me, lang: SC.lang, go: SC.go });
-      if (my !== token) { if (typeof out === 'function') out(); return; }
-      if (typeof out === 'function') cleanup = out;
+      const pending = def.render(fresh, { id, args: route.args, query: route.query, me: SC.me, lang: SC.lang, go: SC.go });
+      stopEx = SC.explain ? SC.explain.mount(fresh, id) : null;   // the "how this page works" strip goes under the title while the page is still loading its data
+      const out = await pending;
+      if (my !== token) { if (stopEx) stopEx(); if (typeof out === 'function') out(); return; }
+      cleanup = () => { if (stopEx) stopEx(); if (typeof out === 'function') out(); };
       fresh.focus({ preventScroll: true });
     } catch (e) {
+      if (stopEx) stopEx();
       if (my !== token) return;
       console.error(e);
       fresh.replaceChildren(SC.head({ title: SC.t('Something went wrong', 'Κάτι πήγε στραβά'), help: false }), SC.el('div', { class: 'err', role: 'alert' }, e.message || String(e)),
