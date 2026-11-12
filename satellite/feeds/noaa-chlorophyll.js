@@ -7,7 +7,7 @@
  *   Variable chlor_a, mg m^-3, _FillValue -999 (ERDDAP shows it as null), valid range 0.001 to 100. dims: time, altitude (one value, 0), latitude
  *   (stored high to low, ERDDAP accepts a low:high pair), longitude. 0.0375 degree pixels (about 4 km). Science quality, nominal latency
  *   15 days: on 2026-11-12 the newest day on the server was 2026-11-01. The page was read on 2026-11-12; the service itself is NOT
- *   reachable from the build sandbox, so the request follows the documentation and the fixtures in tests/satellite-sea/.
+ *   reachable from the build sandbox, so the request follows the documentation and local fixtures.
  *   NOT used: noaacwNPPN20VIIRSchlociDaily (ends 2021-09), noaacwN20VIIRSchlaWeekly (ends 2025-04), nesdisVHNSQchlaWeekly (ends 2026-08-20),
  *   erdVH3chla8day (discontinued 2017): they are on the same servers but have stopped.
  *
@@ -47,8 +47,8 @@ module.exports = function create(ctx) {
     const km = E.kmText(e.km), day = E.isoDay(e.obsMs);
     return {
       variable: 'chlorophyll_a', value: e.value, unit: 'mg/m3', time: e.obsMs,
-      where: `nearest clear satellite pixel with a chlorophyll value, ${km} km from the city centre (VIIRS, 4 km grid)`,
-      whereEl: `πλησιέστερο καθαρό εικονοστοιχείο δορυφόρου με τιμή χλωροφύλλης, ${km} km από το κέντρο της πόλης (VIIRS, πλέγμα 4 km)`,
+      where: `nearest clear satellite pixel with a chlorophyll value, ${km} km from the city centre (VIIRS ocean colour)`,
+      whereEl: `πλησιέστερο καθαρό εικονοστοιχείο δορυφόρου με τιμή χλωροφύλλης, ${km} km από το κέντρο της πόλης (χρώμα ωκεανού VIIRS)`,
       note: `Chlorophyll is the green pigment of tiny sea plants (plankton): more green = more algae/plankton. The satellite sees only the colour of the top few metres, and only through clear sky, so this is the latest clear view (${day}), not today. Near the coast shallow sand and dust in the air can fool it: use it as a hint.`,
       noteEl: `Η χλωροφύλλη είναι η πράσινη χρωστική των μικροσκοπικών φυτών της θάλασσας (πλαγκτόν): περισσότερο πράσινο = περισσότερα φύκια/πλαγκτόν. Ο δορυφόρος βλέπει μόνο το χρώμα των πρώτων μέτρων και μόνο με καθαρό ουρανό, γι’ αυτό είναι η τελευταία καθαρή εικόνα (${day}), όχι η σημερινή. Κοντά στην ακτή η ρηχή άμμος και η σκόνη στον αέρα μπορούν να τον μπερδέψουν: δες το ως ένδειξη.`,
     };

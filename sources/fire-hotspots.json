@@ -1,0 +1,122 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "fire-hotspots",
+  "name": "Fire hotspots from space",
+  "summary": "Places where NASA's fire satellites saw heat near each city in the last 24 hours. A hotspot is a heat spot seen from space, not a confirmed fire.",
+  "layer": "model",
+  "status": "candidate",
+  "planned": true,
+  "tagline": "NASA FIRMS · every 30 min · free key",
+  "i18n": {
+    "el": {
+      "name": "Θερμές κηλίδες φωτιάς από το διάστημα",
+      "summary": "Σημεία όπου οι δορυφόροι πυρκαγιών της NASA είδαν θερμότητα κοντά σε κάθε πόλη τις τελευταίες 24 ώρες. Μια θερμή κηλίδα είναι θερμό σημείο από το διάστημα, όχι επιβεβαιωμένη φωτιά.",
+      "tagline": "NASA FIRMS · κάθε 30 λεπτά · δωρεάν κλειδί"
+    }
+  },
+  "themes": ["fire", "heat", "satellite"],
+  "publisher": {
+    "name": "NASA FIRMS (LANCE, operated by NASA ESDIS)",
+    "url": "https://firms.modaps.eosdis.nasa.gov/",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "LicenseRef-NASA-open-data",
+    "url": "https://www.earthdata.nasa.gov/learn/use-data/data-use-policy",
+    "attribution": "Fire data: NASA FIRMS, provided by LANCE FIRMS operated by NASA ESDIS with funding provided by NASA Headquarters",
+    "commercial_use": true,
+    "share_alike": false,
+    "checked_on": "2026-11-12"
+  },
+  "restrictions": [
+    "Needs a free NASA FIRMS MAP_KEY; the limit is 5,000 requests per 10 minutes per key (we make 4 every 30 minutes)",
+    "NASA's disclaimer says the data are not advised for tactical decisions or for conditions at a local scale",
+    "Never say or suggest that NASA endorses this site"
+  ],
+  "access": {
+    "type": "csv",
+    "url": "https://firms.modaps.eosdis.nasa.gov/api/area/csv/",
+    "docs_url": "https://firms.modaps.eosdis.nasa.gov/api/area/",
+    "auth": {
+      "type": "api-key",
+      "env": "FIRMS_MAP_KEY"
+    }
+  },
+  "coverage": {
+    "area": "Cyprus and nearby sea (box 31.3 to 34.9 E, 33.7 to 36.1 N)",
+    "bbox": [31.3, 33.7, 34.9, 36.1],
+    "resolution_m": 375
+  },
+  "update": {
+    "every": "PT30M",
+    "latency": "PT3H",
+    "note": "Satellites pass a few times a day; their data reach FIRMS up to about 3 hours after a pass."
+  },
+  "variables": [
+    {
+      "id": "active_fires_near_25km",
+      "unit": "{hotspots}",
+      "kind": "derived",
+      "note": "Places (repeat sightings merged) within 25 km of the city centre, last 24 hours."
+    },
+    {
+      "id": "active_fires_near_50km",
+      "unit": "{hotspots}",
+      "kind": "derived",
+      "note": "Places (repeat sightings merged) within 50 km of the city centre, last 24 hours."
+    },
+    {
+      "id": "nearest_fire_km",
+      "unit": "km",
+      "kind": "derived",
+      "note": "Distance to the closest hotspot within 100 km. No value when there is none."
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 1000
+  },
+  "quality": {
+    "kind": "satellite",
+    "uncertainty": "A hotspot is a heat spot seen at one moment in a pixel 375 m to 1 km wide: a place, not a confirmed fire. Positions are good to about 1 km. None seen does not mean no fire.",
+    "known_issues": [
+      "A hotspot is a heat anomaly, not a confirmed fire: gas flares, industry (for example power and cement works), sun glint and farm burning also show up",
+      "Each satellite passes only a few times a day, so a short fire between passes is never seen; the passes are hours apart",
+      "Cloud, thick smoke or tree cover can hide a fire, and very small fires are missed",
+      "Low-confidence detections are dropped for every satellite, so a real but faint fire can be missing (the confidence labels are NASA's)",
+      "Counts are places, not detections: one place seen again within 1 km, by any satellite at any time in the 24 hours, counts once",
+      "NASA's page says Suomi NPP no longer delivers new data; NOAA-20, NOAA-21 and MODIS carry the feed",
+      "NASA says these data are not advised for tactical decisions or for conditions at a local scale: call 112 if you see smoke or fire"
+    ],
+    "stale_after": "P1D"
+  },
+  "upstream": [
+    {
+      "name": "NASA FIRMS active fire detections (VIIRS 375 m on Suomi NPP, NOAA-20, NOAA-21; MODIS 1 km on Terra and Aqua)",
+      "url": "https://firms.modaps.eosdis.nasa.gov/"
+    }
+  ],
+  "agent_hints": {
+    "use_for": [
+      "Saying how many places near a city a satellite saw heat in the last 24 hours, and how far the closest is"
+    ],
+    "not_for": [
+      "Saying that there is, or is not, a fire",
+      "Saying a place is safe because no hotspot was seen",
+      "Smoke or air quality: this layer shows heat only"
+    ]
+  },
+  "notes": "Read from the FIRMS pages, never run against the live service from our build sandbox. The key is optional: with no FIRMS_MAP_KEY the layer stays Planned. Licence: NASA says its data are open with no restrictions (CC0 for NASA-led missions); NOAA-20 and NOAA-21 are NOAA missions, so a teacher may want to confirm.",
+  "x_rules": {
+    "window": "24 hours that end when the lists were fetched",
+    "confidence": "low is dropped for every sensor: VIIRS letter l; MODIS under 30 percent. Nominal and high are kept",
+    "same_row": "same sensor, place and time counts once",
+    "hotspot": "any kept detections within 1 km of a seed (best confidence, then newest) are one hotspot, whatever the sensor or the time; not chained",
+    "radii_km": [25, 50, 100],
+    "sources": ["VIIRS_NOAA21_NRT", "VIIRS_NOAA20_NRT", "VIIRS_SNPP_NRT", "MODIS_NRT"]
+  },
+  "added": {
+    "by": "sat-fire",
+    "on": "2026-11-12"
+  }
+}

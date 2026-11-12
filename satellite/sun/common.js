@@ -105,8 +105,8 @@ function makeRunner(o) {
     timer = setTimeout(tick, Math.max(1000, ms));
     if (timer.unref) timer.unref();
   };
-  async function tick() {
-    if (stopped || running) return;
+  async function tick(force) {
+    if ((stopped && force !== true) || running) return;
     running = true;
     let next;
     try {
@@ -124,7 +124,7 @@ function makeRunner(o) {
   return {
     start() { if (!stopped) return; stopped = false; arm(o.firstMs); },
     stop() { stopped = true; clearTimeout(timer); timer = null; },
-    tick,   // for tests
+    tick: () => tick(true),   // for tests: one round now, even when the timer is not started
     get fails() { return fails; },
   };
 }

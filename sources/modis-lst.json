@@ -1,0 +1,109 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "modis-lst",
+  "name": "Ground heat from space",
+  "summary": "How hot the ground and roofs are, seen day and night by NASA's Terra and Aqua satellites in 1 km pixels. It is the surface, not the air, and it needs a clear sky.",
+  "layer": "model",
+  "status": "active",
+  "tagline": "NASA MODIS · every 8 days",
+  "i18n": {
+    "el": {
+      "name": "Θερμότητα εδάφους από το διάστημα",
+      "summary": "Πόσο ζεστά είναι το έδαφος και οι στέγες, όπως τα βλέπουν μέρα και νύχτα οι δορυφόροι Terra και Aqua της NASA σε εικονοστοιχεία 1 km. Είναι η επιφάνεια, όχι ο αέρας, και θέλει καθαρό ουρανό.",
+      "tagline": "NASA MODIS · κάθε 8 ημέρες"
+    }
+  },
+  "themes": [
+    "heat",
+    "urban heat island",
+    "satellite"
+  ],
+  "publisher": {
+    "name": "NASA (MODIS land products, LP DAAC); subsets by ORNL DAAC",
+    "url": "https://modis.ornl.gov/",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "CC0-1.0",
+    "url": "https://www.earthdata.nasa.gov/learn/use-data/data-use-policy",
+    "attribution": "NASA MODIS land products (LP DAAC), subset by ORNL DAAC TESViS, doi:10.3334/ORNLDAAC/1600",
+    "commercial_use": true,
+    "share_alike": false,
+    "checked_on": "2026-11-12"
+  },
+  "restrictions": [
+    "ORNL DAAC asks users to cite both the subset tool (TESViS) and the product",
+    "The documentation we read gives no rate limit: we ask a few times a day, one call at a time"
+  ],
+  "access": {
+    "type": "rest-json",
+    "url": "https://modis.ornl.gov/rst/api/v1/",
+    "docs_url": "https://modis.ornl.gov/data/modis_webservice.html",
+    "auth": {
+      "type": "none"
+    }
+  },
+  "coverage": {
+    "area": "Global land (we read the four city centres)",
+    "bbox": [
+      -180,
+      -90,
+      180,
+      90
+    ],
+    "resolution_m": 1000,
+    "period": {
+      "start": "2000-02-18",
+      "end": null
+    }
+  },
+  "update": {
+    "every": "P8D",
+    "note": "One composite per 8-day period; it appears days after the period ends. We check twice a day."
+  },
+  "variables": [
+    {
+      "id": "land_surface_temperature",
+      "unit": "Cel",
+      "kind": "derived",
+      "note": "Day and night. Surface skin temperature, NOT air temperature."
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 2800
+  },
+  "quality": {
+    "kind": "satellite",
+    "uncertainty": "Each pixel carries its own error class (1, 2, 3 K or more); we use pixels up to 3 K. A mixed city pixel can be off by more.",
+    "known_issues": [
+      "Surface temperature is not air temperature: a sunlit roof or road can be far hotter than the air at midday, and cooler at night",
+      "One value is an average over the clear days of 8; days with cloud are missing, so a cloudy week can leave no value",
+      "A pixel is about 1 km wide and mixes roofs, roads, trees and sometimes sea: it is an area, not a sensor at the school",
+      "Terra and Aqua are drifting off their orbits (Terra earlier, Aqua later) and NASA plans to retire both from late 2026 or early 2027",
+      "The satellites pass at set times only, so the value is not the daily maximum or minimum"
+    ],
+    "stale_after": "P24D"
+  },
+  "upstream": [
+    {
+      "name": "NASA MODIS land surface temperature and emissivity, 8-day, 1 km (MOD11A2, MYD11A2), collection 6.1",
+      "url": "https://www.earthdata.nasa.gov/data/catalog/lpcloud-mod11a2-061"
+    }
+  ],
+  "agent_hints": {
+    "use_for": [
+      "Showing how much hotter or cooler the ground is than the air at day and at night",
+      "A reason to talk about shade, trees and cool roofs"
+    ],
+    "not_for": [
+      "Saying what the air temperature is, or comparing it with a thermometer as if it were the same",
+      "Saying a single street or school yard is hot or cool"
+    ]
+  },
+  "notes": "Built from the ORNL DAAC documentation (modis.ornl.gov/rst/api/v1: /dates and /subset, no key). It could not be tested against the live service from our build sandbox: the first check in production is the Railway log line from modis-lst and the Data layers card. Pair it with land-surface-heat (a Sentinel-3 candidate, not connected) and with modis-ndvi, which shows the greenness behind a cool or hot area.",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

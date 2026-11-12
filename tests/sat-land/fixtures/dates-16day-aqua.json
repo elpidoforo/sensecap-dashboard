@@ -1,0 +1,24 @@
+{
+ "dates": [
+  {"modis_date":"A2025358","calendar_date":"2025-12-24"},
+  {"modis_date":"A2026009","calendar_date":"2026-01-09"},
+  {"modis_date":"A2026025","calendar_date":"2026-01-25"},
+  {"modis_date":"A2026041","calendar_date":"2026-02-10"},
+  {"modis_date":"A2026057","calendar_date":"2026-02-26"},
+  {"modis_date":"A2026073","calendar_date":"2026-03-14"},
+  {"modis_date":"A2026089","calendar_date":"2026-03-30"},
+  {"modis_date":"A2026105","calendar_date":"2026-04-15"},
+  {"modis_date":"A2026121","calendar_date":"2026-05-01"},
+  {"modis_date":"A2026137","calendar_date":"2026-05-17"},
+  {"modis_date":"A2026153","calendar_date":"2026-06-02"},
+  {"modis_date":"A2026169","calendar_date":"2026-06-18"},
+  {"modis_date":"A2026185","calendar_date":"2026-07-04"},
+  {"modis_date":"A2026201","calendar_date":"2026-07-20"},
+  {"modis_date":"A2026217","calendar_date":"2026-08-05"},
+  {"modis_date":"A2026233","calendar_date":"2026-08-21"},
+  {"modis_date":"A2026249","calendar_date":"2026-09-06"},
+  {"modis_date":"A2026265","calendar_date":"2026-09-22"},
+  {"modis_date":"A2026281","calendar_date":"2026-10-08"},
+  {"modis_date":"A2026297","calendar_date":"2026-10-24"}
+ ]
+}

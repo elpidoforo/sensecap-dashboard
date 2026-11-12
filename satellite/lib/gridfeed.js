@@ -31,7 +31,7 @@ const plainErr = (e) => String((e && e.message) || e || 'failed').replace(/[\u00
 function makeGridFeed(ctx, spec) {
   const file = path.join(ctx.dir, spec.cacheFile);
   const inland = new Set(spec.inland || []);
-  const pauseMs = (() => { const n = Number(ctx.env && ctx.env.SATELLITE_ERDDAP_PAUSE_MS); return Number.isFinite(n) && n >= 0 ? Math.min(n, 30000) : 1500; })();
+  const pauseMs = (() => { const n = Number(ctx.env && ctx.env.SATELLITE_ERDDAP_PAUSE_MS); return Number.isFinite(n) && n >= 0 ? Math.min(n, 30000) : 500; })();
   const state = { cities: {}, checkedAt: 0, lastOkAt: 0, lastError: '', fails: 0 };
   let timer = null, inflight = null, stopped = true;
 
@@ -111,7 +111,8 @@ function makeGridFeed(ctx, spec) {
     async probe() {
       if (!Object.keys(state.cities).length && !state.checkedAt) loadCache();
       const quiet = ctx.now() - state.checkedAt > 10 * 60000;
-      if (!have().length && (inflight || quiet)) await Promise.race([refresh(), sleep(6000)]);
+      // Nothing yet and nothing asked for a while: ask now. A refresh already running: wait for it (at most 6 s; the registry gives a probe 8 s).
+      if (inflight || (!have().length && quiet)) await Promise.race([refresh(), sleep(6000)]);
       const ids = have();
       const newest = ids.reduce((m, id) => Math.max(m, state.cities[id].obsMs), 0);
       const t = spec.probeText({ n: ids.length, total: coastal().length, newestMs: newest || null, nowMs: ctx.now(), error: state.lastError });

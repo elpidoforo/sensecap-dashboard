@@ -10,7 +10,7 @@
  *   2. ncdcOisst21NrtAgg  backup: "SST, Daily Optimum Interpolation (OI), AVHRR Only, Version 2.1, Preliminary, Global, 0.25 degree".
  *                      Variable sst (degree_C), err. dims: time, zlev, latitude, longitude (longitude 0..360). Also gap-free L4, 25 km pixels.
  * Both pages were read on 2026-11-12 (dataset id, variable names, units, fill values, time range). The real service cannot be reached from
- * the build sandbox, so the requests below follow the documentation and the fixtures in tests/satellite-sea/, not a live answer.
+ * the build sandbox, so the requests below follow the documentation and local fixtures, not a live answer.
  *
  * Per city: ONE small box around the city centre (about 25 x 31 MUR pixels), the latest map, the nearest pixel that is open sea
  * (mask, not null, plausible) within a few km. The distance is part of the reading's `where`. A satellite pixel is an AREA.
@@ -25,8 +25,8 @@ const MAX_ERR = 3;          // a pixel whose own error estimate is above this (d
 const FRESH_ENOUGH = 10 * DAY;   // a map older than this and the backup is tried too (the newer of the two is kept)
 
 const DATASETS = [
-  { key: 'mur', name: 'MUR', dataset: 'jplMURSST41', value: 'analysed_sst', err: 'analysis_error', mask: 'mask', pre: ['(last)'], halfLat: 0.12, halfLng: 0.15, maxKm: 15, grid: '1 km', coarse: false },
-  { key: 'oisst', name: 'OISST', dataset: 'ncdcOisst21NrtAgg', value: 'sst', err: 'err', mask: null, pre: ['(last)', '0'], halfLat: 0.4, halfLng: 0.4, maxKm: 40, grid: '25 km', coarse: true },
+  { key: 'mur', name: 'MUR', dataset: 'jplMURSST41', value: 'analysed_sst', err: 'analysis_error', mask: 'mask', pre: ['(last)'], halfLat: 0.12, halfLng: 0.15, maxKm: 15, coarse: false },
+  { key: 'oisst', name: 'OISST', dataset: 'ncdcOisst21NrtAgg', value: 'sst', err: 'err', mask: null, pre: ['(last)', '0'], halfLat: 0.4, halfLng: 0.4, maxKm: 40, coarse: true },
 ];
 const BY_KEY = Object.fromEntries(DATASETS.map((d) => [d.key, d]));
 
@@ -73,8 +73,8 @@ module.exports = function create(ctx) {
     const backEl = ds.coarse ? ' Αυτός είναι ο εφεδρικός χάρτης με αδρά εικονοστοιχεία 25 km.' : '';
     return {
       variable: 'sea_surface_temperature', value: e.value, unit: 'Cel', time: e.obsMs,
-      where: `nearest open-sea satellite pixel, ${km} km from the city centre (${ds.name} map, ${ds.grid} grid)`,
-      whereEl: `πλησιέστερο εικονοστοιχείο ανοιχτής θάλασσας από δορυφόρο, ${km} km από το κέντρο της πόλης (χάρτης ${ds.name}, πλέγμα ${ds.grid})`,
+      where: `nearest open-sea satellite pixel, ${km} km from the city centre (${ds.name} analysis${ds.coarse ? ', coarse backup' : ''})`,
+      whereEl: `πλησιέστερο εικονοστοιχείο ανοιχτής θάλασσας από δορυφόρο, ${km} km από το κέντρο της πόλης (ανάλυση ${ds.name}${ds.coarse ? ', αδρή εφεδρική' : ''})`,
       note: `Map of ${day}. A satellite sees only the top skin of the sea and cannot see through cloud; this map fills cloudy gaps by interpolation, so it is a smooth estimate for one pixel, not a thermometer at the beach.${errEn}${backEn}`,
       noteEl: `Χάρτης της ${day}. Ο δορυφόρος βλέπει μόνο το λεπτό επιφανειακό στρώμα της θάλασσας και δεν βλέπει μέσα από σύννεφα· ο χάρτης συμπληρώνει τα κενά με παρεμβολή, άρα είναι ομαλή εκτίμηση για ένα εικονοστοιχείο, όχι θερμόμετρο στην παραλία.${errEl}${backEl}`,
     };

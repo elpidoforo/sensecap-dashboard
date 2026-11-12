@@ -1,0 +1,126 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "openmeteo-satellite-solar-day",
+  "name": "Sunshine, last full day (satellite)",
+  "summary": "Sunshine energy that reached the ground in each city over the last full day, added up from satellite hours, and how much the clouds took away. Not what a panel makes.",
+  "layer": "model",
+  "status": "active",
+  "tagline": "Open-Meteo · MTG satellite, daily",
+  "i18n": {
+    "el": {
+      "name": "Ήλιος, τελευταία πλήρης μέρα (δορυφόρος)",
+      "summary": "Η ενέργεια του ήλιου που έφτασε στο έδαφος σε κάθε πόλη την τελευταία πλήρη μέρα, αθροισμένη από ώρες δορυφόρου, και πόσο την έκοψαν τα σύννεφα. Όχι η παραγωγή ενός πάνελ.",
+      "tagline": "Open-Meteo · δορυφόρος MTG, ημερήσιο"
+    }
+  },
+  "themes": [
+    "solar",
+    "sunshine",
+    "clouds",
+    "energy",
+    "satellite"
+  ],
+  "publisher": {
+    "name": "Open-Meteo",
+    "url": "https://open-meteo.com",
+    "kind": "community"
+  },
+  "licence": {
+    "id": "CC-BY-4.0",
+    "url": "https://open-meteo.com/en/licence",
+    "attribution": "Satellite radiation data by Open-Meteo.com (DWD, EUMETSAT MTG)",
+    "commercial_use": true,
+    "share_alike": false,
+    "checked_on": "2026-11-12"
+  },
+  "restrictions": [
+    "Free API is for non-commercial use only (educational use counts; ads or subscriptions do not)",
+    "Free tier: under 10,000 calls/day, 5,000/hour, 600/minute"
+  ],
+  "access": {
+    "type": "rest-json",
+    "url": "https://satellite-api.open-meteo.com/v1/archive",
+    "docs_url": "https://open-meteo.com/en/docs/satellite-radiation-api",
+    "auth": {
+      "type": "none"
+    },
+    "rate_limit": {
+      "per_minute": 600,
+      "per_day": 10000
+    }
+  },
+  "coverage": {
+    "area": "Europe and Africa (the view of the MTG satellite)",
+    "bbox": [
+      -20,
+      -38,
+      60,
+      65
+    ],
+    "resolution_m": 2500
+  },
+  "update": {
+    "every": "P1D",
+    "latency": "P1D",
+    "note": "A day counts only when every hour of daylight has a value; we add up the hours ourselves."
+  },
+  "variables": [
+    {
+      "id": "solar_energy_day",
+      "unit": "kW.h/m2/d",
+      "kind": "derived",
+      "range": [
+        0,
+        12
+      ],
+      "note": "hourly satellite values added up over one day (kWh per m2)"
+    },
+    {
+      "id": "solar_clear_sky_share",
+      "unit": "%",
+      "kind": "derived",
+      "range": [
+        0,
+        130
+      ],
+      "note": "that day's sunshine divided by what a cloud-free sky would give"
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 2500
+  },
+  "quality": {
+    "kind": "satellite",
+    "uncertainty": "Added up from estimates, not measured by an instrument at the school. Errors in single hours partly cancel over a day but never vanish.",
+    "known_issues": [
+      "One pixel about 2.5 km wide, not the school roof",
+      "The share of cloud-free sunshine is a clue about cloudiness, not a measurement of cloud cover",
+      "1 kWh/m2 is one hour of very strong sun. It is sunlight, not electricity: panel output also depends on size, angle, dirt, heat and efficiency",
+      "School light sensors report lux, not kWh/m2 or W/m2: the quantities are different and are never compared"
+    ],
+    "stale_after": "P3D"
+  },
+  "upstream": [
+    {
+      "name": "DWD surface solar radiation from the EUMETSAT MTG imager",
+      "url": "https://www.dwd.de/DE/leistungen/fernerkund_globalstrahlung_sis/fernerkund_globalstrahlung_sis.html"
+    }
+  ],
+  "agent_hints": {
+    "use_for": [
+      "How sunny the last full day was in a city",
+      "Context for a talk about school solar panels"
+    ],
+    "not_for": [
+      "Saying how much electricity a solar panel makes",
+      "Comparing with the classroom light sensors: lux and kWh/m2 are different things",
+      "Saying how much cloud there was"
+    ]
+  },
+  "notes": "Same service and same upstream as openmeteo-satellite-solar, so the brain counts them as one. The clear-sky column exists only for the DWD product; if the service refuses it or leaves it empty, only the energy is shown. The service could not be called from the build sandbox: after the deploy look in the Railway log for the line 'first answer'.",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

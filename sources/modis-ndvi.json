@@ -1,0 +1,109 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "modis-ndvi",
+  "name": "Greenness from space",
+  "summary": "How green the land around each city is (NDVI, about 0 to 1) from NASA's MODIS and VIIRS satellites, in 250 to 500 m pixels, one value every 16 days.",
+  "layer": "model",
+  "status": "active",
+  "tagline": "NASA MODIS · VIIRS · every 16 days",
+  "i18n": {
+    "el": {
+      "name": "Πρασινάδα από το διάστημα",
+      "summary": "Πόσο πράσινη είναι η γη γύρω από κάθε πόλη (NDVI, περίπου 0 έως 1), από τους δορυφόρους MODIS και VIIRS της NASA, σε εικονοστοιχεία 250 έως 500 m, μία τιμή κάθε 16 ημέρες.",
+      "tagline": "NASA MODIS · VIIRS · κάθε 16 ημέρες"
+    }
+  },
+  "themes": [
+    "green space",
+    "vegetation",
+    "heat",
+    "satellite"
+  ],
+  "publisher": {
+    "name": "NASA (MODIS and VIIRS land products, LP DAAC); subsets by ORNL DAAC",
+    "url": "https://modis.ornl.gov/",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "CC0-1.0",
+    "url": "https://www.earthdata.nasa.gov/learn/use-data/data-use-policy",
+    "attribution": "NASA MODIS/VIIRS land products (LP DAAC), subset by ORNL DAAC TESViS, doi:10.3334/ORNLDAAC/1600",
+    "commercial_use": true,
+    "share_alike": false,
+    "checked_on": "2026-11-12"
+  },
+  "restrictions": [
+    "ORNL DAAC asks users to cite both the subset tool (TESViS) and the product",
+    "The documentation we read gives no rate limit: we ask a few times a day, one call at a time"
+  ],
+  "access": {
+    "type": "rest-json",
+    "url": "https://modis.ornl.gov/rst/api/v1/",
+    "docs_url": "https://modis.ornl.gov/data/modis_webservice.html",
+    "auth": {
+      "type": "none"
+    }
+  },
+  "coverage": {
+    "area": "Global land (we read the four city centres)",
+    "bbox": [
+      -180,
+      -90,
+      180,
+      90
+    ],
+    "resolution_m": 250,
+    "period": {
+      "start": "2000-02-18",
+      "end": null
+    }
+  },
+  "update": {
+    "every": "P16D",
+    "note": "One composite per 16-day period; Terra and Aqua are 8 days apart. We check twice a day."
+  },
+  "variables": [
+    {
+      "id": "ndvi",
+      "unit": "{NDVI}",
+      "kind": "derived",
+      "note": "Greenness score, about 0 (bare) to 1 (dense green). Not a tree count."
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 700
+  },
+  "quality": {
+    "kind": "satellite",
+    "uncertainty": "A 16-day composite of the clearest days. Mixed city pixels (roofs, gardens, sea) blur the score; small parks and single trees do not show.",
+    "known_issues": [
+      "NDVI says how green the surface is, not how many trees there are: dry summer grass and green crops score very differently",
+      "A pixel is 250 to 500 m wide and mixes roofs, roads, gardens and sometimes sea: it is an area, not a spot at the school",
+      "Cloudy, snowy and shadowed pixels are thrown out; in a cloudy period the value can be a month old",
+      "Terra and Aqua (MODIS) are drifting off their orbits and NASA plans to retire both from late 2026 or early 2027; VIIRS carries on"
+    ],
+    "stale_after": "P48D"
+  },
+  "upstream": [
+    {
+      "name": "NASA MODIS vegetation indices 16-day (MOD13Q1, MYD13Q1) and VIIRS vegetation indices 16-day (VNP13A1)",
+      "url": "https://www.earthdata.nasa.gov/data/catalog/lpcloud-mod13q1-061"
+    }
+  ],
+  "agent_hints": {
+    "use_for": [
+      "Saying how green or bare the land around a city is, and how that changes through the year",
+      "A hint about why a nearby area may be hotter or cooler"
+    ],
+    "not_for": [
+      "Counting trees or measuring the shade of one school yard",
+      "Saying a park is healthy or unhealthy"
+    ]
+  },
+  "notes": "Built from the ORNL DAAC documentation (modis.ornl.gov/rst/api/v1: /dates and /subset, no key); not tested against the live service from our build sandbox. Compare it with osm-green-space (a planned share of mapped parks and trees): they should roughly agree, but NDVI also sees gardens and weeds nobody mapped and misses small trees inside a pixel full of roofs. Pair it with modis-lst: greener ground is usually cooler.",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

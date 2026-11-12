@@ -44,8 +44,7 @@ const clip = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f]
 const num = (v) => (v == null || v === '' ? null : (Number.isFinite(Number(v)) ? Number(v) : null));
 const msOf = (v) => { const n = num(v); if (n != null) return n > 0 && n < 1e11 ? n * 1000 : n; if (typeof v === 'string') { const t = Date.parse(v); return Number.isFinite(t) ? t : null; } return null; };
 const withTimeout = (p, ms, what) => new Promise((resolve, reject) => {
-  const t = setTimeout(() => reject(new Error(`${what} took more than ${Math.round(ms / 1000)} s`)), ms);
-  if (t.unref) t.unref();
+  const t = setTimeout(() => reject(new Error(`${what} took more than ${ms < 1000 ? ms + ' ms' : Math.round(ms / 1000) + ' s'}`)), ms);   // not unref'd: it is always cleared, and a hanging feed must still be cut off
   Promise.resolve(p).then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
 });
 
@@ -95,7 +94,7 @@ function createSatellite(opts) {
 
   function envView(e) {
     const allowed = (name) => typeof name === 'string' && (e.envNames.includes(name) || /^SATELLITE_[A-Z0-9_]+$/.test(name));
-    return new Proxy(Object.freeze({}), {
+    return new Proxy({}, {
       get: (_t, name) => {
         if (typeof name !== 'string') return undefined;
         if (allowed(name)) return env[name];
@@ -224,13 +223,14 @@ function createSatellite(opts) {
 
   async function read(id, cityId) {
     const e = entries.get(id);
-    if (!e || e.state !== 'ready' || !places[cityId]) return [];
+    if (!e || e.state !== 'ready' || typeof cityId !== 'string' || !Object.hasOwn(places, cityId)) return [];
     let list;
     try { list = await withTimeout(Promise.resolve().then(() => e.feed.read(cityId)), timeouts.read, 'read'); }
     catch (err) { failFeed(e, 'read', err); return []; }
     if (!Array.isArray(list)) return [];
     const out = [];
-    for (const r of list.slice(0, MAX_READINGS)) {
+    for (const r of list.slice(0, 400)) {
+      if (out.length >= MAX_READINGS) break;
       if (!r || typeof r !== 'object' || typeof r.variable !== 'string') continue;
       const value = num(r.value), time = msOf(r.time);
       if (value == null || time == null || time <= 0) continue;
@@ -315,7 +315,11 @@ function createSatellite(opts) {
   /* ----- status (cheap and public: no path, no key, no raw error text) ----- */
   async function status(sopt) {
     const refresh = !sopt || sopt.probe !== false;
-    if (refresh) await Promise.race([Promise.allSettled([...entries.values()].filter((e) => e.state === 'ready').map((e) => probe(e.id))), new Promise((r) => { const t = setTimeout(r, 2500); if (t.unref) t.unref(); })]);
+    if (refresh) {
+      let t;
+      await Promise.race([Promise.allSettled([...entries.values()].filter((e) => e.state === 'ready').map((e) => probe(e.id))), new Promise((r) => { t = setTimeout(r, 2500); })]);
+      clearTimeout(t);
+    }
     const imgs = await allImages().catch(() => []);
     return {
       enabled: !off || [...entries.values()].some((e) => e.demo), demo, at: now(),
@@ -362,7 +366,7 @@ function createSatellite(opts) {
       if (req.method !== 'GET' && req.method !== 'HEAD') return sendJson(req, res, 405, { error: 'Use GET.', errorEl: 'Χρησιμοποίησε GET.' }, null, { Allow: 'GET, HEAD' }), true;
       if (tooMany(req)) return sendJson(req, res, 429, { error: 'Too many requests, try again in a minute.', errorEl: 'Πάρα πολλά αιτήματα, δοκίμασε ξανά σε ένα λεπτό.' }, null, { 'Retry-After': '60' }), true;
       if (p === '/api/satellite/status') return sendJson(req, res, 200, await status(), null), true;
-      if (p === '/api/satellite/images') return sendJson(req, res, 200, { at: now(), images: await images() }, 'public, max-age=60'), true;
+      if (p === '/api/satellite/images') return sendJson(req, res, 200, { images: await images() }, 'public, max-age=60'), true;
       const m = /^\/api\/satellite\/image\/([a-z0-9][a-z0-9-]{0,59})\/([A-Za-z0-9][A-Za-z0-9_-]{0,79})$/.exec(p);
       if (m) {
         const f = await imageFile(m[1], m[2]);

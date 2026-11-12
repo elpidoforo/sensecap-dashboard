@@ -1,0 +1,115 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "openmeteo-satellite-solar",
+  "name": "Sunshine now (satellite)",
+  "summary": "How strong the sunlight is on the ground in each city, seen from a weather satellite. It is light that arrives, not the electricity a solar panel makes.",
+  "layer": "model",
+  "status": "active",
+  "tagline": "Open-Meteo · MTG satellite",
+  "i18n": {
+    "el": {
+      "name": "Ήλιος τώρα (δορυφόρος)",
+      "summary": "Πόσο δυνατό είναι το φως του ήλιου στο έδαφος σε κάθε πόλη, όπως φαίνεται από δορυφόρο καιρού. Είναι φως που φτάνει, όχι το ρεύμα που παράγει ένα ηλιακό πάνελ.",
+      "tagline": "Open-Meteo · δορυφόρος MTG"
+    }
+  },
+  "themes": [
+    "solar",
+    "sunshine",
+    "energy",
+    "satellite"
+  ],
+  "publisher": {
+    "name": "Open-Meteo",
+    "url": "https://open-meteo.com",
+    "kind": "community"
+  },
+  "licence": {
+    "id": "CC-BY-4.0",
+    "url": "https://open-meteo.com/en/licence",
+    "attribution": "Satellite radiation data by Open-Meteo.com (DWD, EUMETSAT MTG)",
+    "commercial_use": true,
+    "share_alike": false,
+    "checked_on": "2026-11-12"
+  },
+  "restrictions": [
+    "Free API is for non-commercial use only (educational use counts; ads or subscriptions do not)",
+    "Free tier: under 10,000 calls/day, 5,000/hour, 600/minute"
+  ],
+  "access": {
+    "type": "rest-json",
+    "url": "https://satellite-api.open-meteo.com/v1/archive",
+    "docs_url": "https://open-meteo.com/en/docs/satellite-radiation-api",
+    "auth": {
+      "type": "none"
+    },
+    "rate_limit": {
+      "per_minute": 600,
+      "per_day": 10000
+    }
+  },
+  "coverage": {
+    "area": "Europe and Africa (the view of the MTG satellite)",
+    "bbox": [
+      -20,
+      -38,
+      60,
+      65
+    ],
+    "resolution_m": 2500
+  },
+  "update": {
+    "every": "PT1H",
+    "latency": "PT1H",
+    "note": "New satellite scan every 10 min, about 20 min late. We keep one average per hour."
+  },
+  "variables": [
+    {
+      "id": "solar_irradiance",
+      "unit": "W/m2",
+      "kind": "derived",
+      "range": [
+        0,
+        1400
+      ],
+      "note": "average of the last hour that has ended; 0 at night"
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 2500
+  },
+  "quality": {
+    "kind": "satellite",
+    "uncertainty": "Estimated from satellite pictures, not measured by an instrument at the school. Less exact in broken cloud, dust and haze, and near sunrise and sunset.",
+    "known_issues": [
+      "One pixel about 2.5 km wide: the school roof can differ, for example in the shadow of a building or a passing cloud",
+      "The value is the average of the hour that just ended, so it is about an hour behind the sky you see",
+      "It is sunlight, not electricity: panel output also depends on size, angle, dirt, heat and efficiency",
+      "School light sensors report lux (brightness for the eye, mostly indoors). This is W/m2 (energy). They are different and are never compared"
+    ],
+    "stale_after": "PT4H"
+  },
+  "upstream": [
+    {
+      "name": "DWD surface solar radiation from the EUMETSAT MTG imager",
+      "url": "https://www.dwd.de/DE/leistungen/fernerkund_globalstrahlung_sis/fernerkund_globalstrahlung_sis.html"
+    }
+  ],
+  "agent_hints": {
+    "use_for": [
+      "How sunny it is now in a city",
+      "Context for a talk about school solar panels"
+    ],
+    "not_for": [
+      "Saying how much electricity a solar panel makes",
+      "Comparing with the classroom light sensors: lux and W/m2 are different things",
+      "Saying how much cloud there is"
+    ]
+  },
+  "notes": "Written from the provider's documentation on 2026-11-12. The service could not be called from the build sandbox, so the exact answer format is unverified: after the deploy look in the Railway log for the line 'first answer'. DWD's own data terms were not read; only Open-Meteo's CC BY 4.0 licence and fair-use terms were. The sister layer openmeteo-satellite-solar-day uses the same service and counts as the same upstream.",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

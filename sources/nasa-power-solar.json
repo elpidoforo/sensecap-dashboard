@@ -1,0 +1,124 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "nasa-power-solar",
+  "name": "Sunshine and clouds (NASA)",
+  "summary": "NASA's daily sunshine energy and cloud amount for each city, worked out from satellite cloud data. One value covers about 100 km and the newest day is about a week old.",
+  "layer": "model",
+  "status": "active",
+  "tagline": "NASA POWER · about a week behind",
+  "i18n": {
+    "el": {
+      "name": "Ήλιος και σύννεφα (NASA)",
+      "summary": "Η ημερήσια ηλιακή ενέργεια και η νέφωση κάθε πόλης από τη NASA, υπολογισμένες από δορυφορικά δεδομένα νεφών. Μία τιμή καλύπτει περίπου 100 χλμ. και η νεότερη μέρα είναι περίπου μιας εβδομάδας.",
+      "tagline": "NASA POWER · περίπου μία εβδομάδα πίσω"
+    }
+  },
+  "themes": [
+    "solar",
+    "sunshine",
+    "clouds",
+    "energy"
+  ],
+  "publisher": {
+    "name": "NASA POWER (Langley Research Center)",
+    "url": "https://power.larc.nasa.gov/",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "CC-BY-4.0",
+    "url": "https://registry.opendata.aws/nasa-power/",
+    "attribution": "The data was obtained from the NASA Langley Research Center POWER Project (power.larc.nasa.gov)",
+    "commercial_use": true,
+    "share_alike": false,
+    "checked_on": "2026-11-12"
+  },
+  "restrictions": [
+    "NASA asks for at most 5 requests at once and may block repeated requests for the same place",
+    "NASA asks users to cite POWER with the version number and the date the data was obtained"
+  ],
+  "access": {
+    "type": "rest-json",
+    "url": "https://power.larc.nasa.gov/api/temporal/daily/point",
+    "docs_url": "https://power.larc.nasa.gov/docs/services/api/",
+    "auth": {
+      "type": "none"
+    }
+  },
+  "coverage": {
+    "area": "Global; solar values on a 1 degree grid",
+    "bbox": [
+      -180,
+      -90,
+      180,
+      90
+    ],
+    "resolution_m": 100000
+  },
+  "update": {
+    "every": "P1D",
+    "latency": "P7D",
+    "note": "NASA updates nightly; solar values are about 5 to 7 days behind today."
+  },
+  "variables": [
+    {
+      "id": "solar_energy_day_nasa",
+      "unit": "kW.h/m2/d",
+      "kind": "modelled",
+      "range": [
+        0,
+        12
+      ],
+      "note": "ALLSKY_SFC_SW_DWN, newest day NASA has (kWh per m2)"
+    },
+    {
+      "id": "cloud_amount_nasa",
+      "unit": "%",
+      "kind": "derived",
+      "range": [
+        0,
+        100
+      ],
+      "note": "CLOUD_AMT, daily average"
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 100000
+  },
+  "quality": {
+    "kind": "reanalysis",
+    "uncertainty": "Computed, not measured: satellite cloud observations feed a radiation model that also uses NASA weather-model inputs. A 100 km square cannot show a local cloud.",
+    "known_issues": [
+      "A 1 degree grid cell is about 100 km wide, so nearby cities can get the same number",
+      "The newest day is about a week old, and the first estimates are later replaced by better ones",
+      "Cloud amount is a daily average over a big area, not the sky over the school at one moment",
+      "It is sunlight, not electricity: panel output also depends on size, angle, dirt, heat and efficiency; it is not lux either"
+    ],
+    "stale_after": "P10D"
+  },
+  "upstream": [
+    {
+      "name": "NASA CERES (SYN1deg and FLASHFlux)",
+      "url": "https://ceres.larc.nasa.gov/"
+    },
+    {
+      "name": "NASA GEOS weather-model inputs"
+    }
+  ],
+  "agent_hints": {
+    "use_for": [
+      "A look at last week's sunshine and cloudiness for the region",
+      "Context for a talk about school solar panels"
+    ],
+    "not_for": [
+      "Anything about today or yesterday: the values are about a week old",
+      "Telling two nearby cities apart: they can share one 100 km cell",
+      "Saying how much electricity a solar panel makes"
+    ]
+  },
+  "notes": "Written from NASA's own pages on 2026-11-12 (the licence line is from the POWER listing on the AWS open-data registry). The service could not be called from the build sandbox. Unverified: the exact JSON, the unit POWER reports for community RE (the reader reads it and drops units it does not know), and that CLOUD_AMT is served for RE. After the deploy look in the Railway log for the line 'first answer'.",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

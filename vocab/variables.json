@@ -279,6 +279,61 @@
     "max_step": 100000,
     "tolerance": null
   },
+  "solar_irradiance": {
+    "label": ["Sunlight power on the ground", "Ισχύς ηλιακού φωτός στο έδαφος"],
+    "unit": "W/m2",
+    "range": [0, 1400],
+    "max_step": 900,
+    "tolerance": { "abs": 100, "rel": 0.2 },
+    "explain": [
+      "How much sunlight power lands on each square metre of level ground, in watts per square metre (W/m2). A clear summer midday is roughly 1000 W/m2, a dull winter day under thick cloud can be below 100, and night is 0. It is energy, not brightness: the light sensors in our classrooms report lux (how bright it looks to the eye, mostly indoors), so a lux number and a W/m2 number are different things and are never compared or converted here. It is also not what a solar panel produces.",
+      "Πόση ισχύς ηλιακού φωτός πέφτει σε κάθε τετραγωνικό μέτρο οριζόντιου εδάφους, σε βατ ανά τετραγωνικό μέτρο (W/m²). Ένα καθαρό καλοκαιρινό μεσημέρι είναι περίπου 1000 W/m², μια μουντή χειμωνιάτικη μέρα με πυκνά σύννεφα μπορεί να είναι κάτω από 100 και τη νύχτα είναι 0. Είναι ενέργεια, όχι φωτεινότητα: οι αισθητήρες φωτός στις τάξεις μας δίνουν lux (πόσο φωτεινό φαίνεται στο μάτι, κυρίως μέσα στο κτίριο), άρα το lux και τα W/m² είναι διαφορετικά πράγματα και δεν συγκρίνονται ούτε μετατρέπονται εδώ. Επίσης δεν είναι η παραγωγή ενός ηλιακού πάνελ."
+    ]
+  },
+  "solar_energy_day": {
+    "label": ["Sunshine energy in the last full day", "Ηλιακή ενέργεια της τελευταίας πλήρους μέρας"],
+    "unit": "kW.h/m2/d",
+    "range": [0, 12],
+    "max_step": 9,
+    "tolerance": { "abs": 0.5, "rel": 0.15 },
+    "explain": [
+      "The sunshine that landed on one square metre of level ground over a whole day, added up from hourly values, in kilowatt-hours per square metre (kWh/m2). 1 kWh/m2 equals one hour of very strong sun (1000 W/m2), so 5 kWh/m2 is like 5 full-sun hours. A clear summer day in Cyprus gives around 8, a dull winter day only 1 to 3. It is the sunlight that arrives, not the electricity from a panel (size, angle, dirt, heat and efficiency matter too), and it has nothing to do with lux.",
+      "Ο ήλιος που έπεσε σε ένα τετραγωνικό μέτρο οριζόντιου εδάφους σε μια ολόκληρη μέρα, αθροισμένος από ωριαίες τιμές, σε κιλοβατώρες ανά τετραγωνικό μέτρο (kWh/m²). 1 kWh/m² ισούται με μία ώρα πολύ δυνατού ήλιου (1000 W/m²), άρα 5 kWh/m² είναι σαν 5 ώρες γεμάτου ήλιου. Μια καθαρή καλοκαιρινή μέρα στην Κύπρο δίνει γύρω στα 8, μια μουντή χειμωνιάτικη μόνο 1 έως 3. Είναι το φως που φτάνει, όχι το ρεύμα ενός πάνελ (μετράνε και το μέγεθος, η γωνία, η βρωμιά, η ζέστη και η απόδοση), και δεν έχει σχέση με τα lux."
+    ]
+  },
+  "solar_clear_sky_share": {
+    "label": ["Share of cloud-free sunshine that arrived", "Ποσοστό του ήλιου καθαρού ουρανού που έφτασε"],
+    "unit": "%",
+    "range": [0, 130],
+    "max_step": 100,
+    "tolerance": { "abs": 15 },
+    "explain": [
+      "Compares the sunshine that really reached the ground over a day with what a cloud-free sky would have given on the same day. 100% means nothing was lost, 50% means half was lost to clouds, dust and haze. It is a clue about cloudiness, not a measurement of cloud cover. A value a little over 100% can happen because both numbers are estimates.",
+      "Συγκρίνει τον ήλιο που έφτασε πραγματικά στο έδαφος μέσα σε μια μέρα με αυτόν που θα έδινε ουρανός χωρίς σύννεφα την ίδια μέρα. 100% σημαίνει ότι δεν χάθηκε τίποτα, 50% ότι το μισό χάθηκε σε σύννεφα, σκόνη και θολούρα. Είναι ένας δείκτης για τη συννεφιά, όχι μέτρηση της κάλυψης νεφών. Τιμή λίγο πάνω από 100% μπορεί να βγει επειδή και οι δύο αριθμοί είναι εκτιμήσεις."
+    ]
+  },
+  "solar_energy_day_nasa": {
+    "label": ["Daily sunshine energy (NASA, newest day)", "Ημερήσια ηλιακή ενέργεια (NASA, νεότερη μέρα)"],
+    "unit": "kW.h/m2/d",
+    "range": [0, 12],
+    "max_step": 9,
+    "tolerance": null,
+    "explain": [
+      "The same kind of number as the daily sunshine energy from the satellite feed, but from NASA POWER: computed on a grid about 100 km wide, for the newest day NASA has (about a week old). It has its own name so that it is never compared with the value for the last full day: a different day and a much bigger area.",
+      "Το ίδιο είδος αριθμού με την ημερήσια ηλιακή ενέργεια από τον δορυφόρο, αλλά από το NASA POWER: υπολογισμένο σε πλέγμα περίπου 100 χλμ., για τη νεότερη μέρα που έχει η NASA (περίπου μιας εβδομάδας). Έχει δικό του όνομα για να μη συγκρίνεται ποτέ με την τιμή της τελευταίας πλήρους μέρας: άλλη μέρα και πολύ μεγαλύτερη περιοχή."
+    ]
+  },
+  "cloud_amount_nasa": {
+    "label": ["Cloud amount, daily average (NASA)", "Νέφωση, ημερήσιος μέσος όρος (NASA)"],
+    "unit": "%",
+    "range": [0, 100],
+    "max_step": 100,
+    "tolerance": null,
+    "explain": [
+      "How much of the sky was covered by cloud on average over the day, from NASA POWER (satellite-based, a square about 100 km wide). 0% is a clear sky, 100% a fully covered one. It is an average over a big area and a whole day, so it cannot tell you what the sky looked like above the school at a given moment.",
+      "Πόσο από τον ουρανό ήταν καλυμμένο από σύννεφα κατά μέσο όρο μέσα στη μέρα, από το NASA POWER (δορυφορικά δεδομένα, τετράγωνο περίπου 100 χλμ.). 0% είναι καθαρός ουρανός, 100% πλήρως καλυμμένος. Είναι μέσος όρος για μεγάλη περιοχή και ολόκληρη μέρα, άρα δεν λέει πώς ήταν ο ουρανός πάνω από το σχολείο μια συγκεκριμένη στιγμή."
+    ]
+  },
   "wind_speed": {
     "label": [
       "Wind speed",
@@ -348,7 +403,30 @@
       80
     ],
     "max_step": 25,
-    "tolerance": null
+    "tolerance": null,
+    "explain": [
+      "The temperature of the surface the satellite sees: bare ground, roofs, roads and treetops. It is NOT the air temperature that a thermometer measures. In the midday sun a dark roof can be much hotter than the air, and at night the ground is often cooler than the air. That is why this variable is never compared with air temperature as if it were the same thing.",
+      "Η θερμοκρασία της επιφάνειας που βλέπει ο δορυφόρος: γυμνό έδαφος, στέγες, δρόμοι και κορυφές δέντρων. ΔΕΝ είναι η θερμοκρασία του αέρα που μετράει ένα θερμόμετρο. Το μεσημέρι, με ήλιο, μια σκούρα στέγη μπορεί να είναι πολύ πιο ζεστή από τον αέρα, ενώ τη νύχτα το έδαφος συχνά είναι πιο δροσερό από τον αέρα. Γι' αυτό η μεταβλητή αυτή δεν συγκρίνεται ποτέ με τη θερμοκρασία αέρα σαν να ήταν το ίδιο πράγμα."
+    ]
+  },
+  "ndvi": {
+    "label": [
+      "Vegetation greenness (NDVI)",
+      "Πρασινάδα βλάστησης (NDVI)"
+    ],
+    "unit": "{NDVI}",
+    "range": [
+      -0.2,
+      1
+    ],
+    "max_step": 0.5,
+    "tolerance": {
+      "abs": 0.1
+    },
+    "explain": [
+      "NDVI is a greenness score from about 0 to 1. The satellite compares how much red and near-infrared light the ground sends back: healthy leaves send back a lot of near-infrared. Bare ground, roofs and roads score low (about 0.1 or less), grass and shrubs in between, thick green plants high (0.6 and more). It shows how green the area is, not how many trees there are.",
+      "Το NDVI είναι μια βαθμολογία πρασινάδας από περίπου 0 έως 1. Ο δορυφόρος συγκρίνει πόσο κόκκινο και πόσο εγγύς υπέρυθρο φως στέλνει πίσω το έδαφος: τα υγιή φύλλα στέλνουν πίσω πολύ εγγύς υπέρυθρο. Το γυμνό έδαφος, οι στέγες και οι δρόμοι βγάζουν χαμηλό βαθμό (περίπου 0,1 ή λιγότερο), το χορτάρι και οι θάμνοι ενδιάμεσο, τα πυκνά πράσινα φυτά υψηλό (0,6 και πάνω). Δείχνει πόσο πράσινη είναι η περιοχή, όχι πόσα δέντρα έχει."
+    ]
   },
   "green_space_share": {
     "label": [
@@ -375,6 +453,39 @@
     ],
     "max_step": 100,
     "tolerance": null
+  },
+  "active_fires_near_25km": {
+    "label": ["Fire hotspots within 25 km (last 24 h)","Θερμές κηλίδες φωτιάς σε ακτίνα 25 km (τελευταίες 24 ώρες)"],
+    "unit": "{hotspots}",
+    "range": [0,5000],
+    "max_step": 5000,
+    "tolerance": null,
+    "explain": [
+      "How many places a fire satellite saw something hot in the last 24 hours. We count PLACES, not passes: if two satellites, or two passes of one, see the same spot (within 1 km), it counts once. Only medium (nominal) and high confidence detections count. A hotspot is a heat spot seen as the satellite flew over (pixels 375 m to 1 km wide), not a confirmed fire: gas flares, industry and farm burning show up too. Satellites pass only a few times a day and cloud or smoke can hide a fire, so 0 does not mean there is no fire. If you see smoke or fire, call 112.",
+      "Σε πόσα σημεία είδε δορυφόρος πυρκαγιών κάτι πολύ ζεστό τις τελευταίες 24 ώρες. Μετράμε ΣΗΜΕΙΑ, όχι περάσματα: αν δύο δορυφόροι, ή δύο περάσματα του ίδιου, βλέπουν το ίδιο σημείο (σε απόσταση έως 1 km), μετράει μία φορά. Μετράνε μόνο ανιχνεύσεις με μεσαία (nominal) ή υψηλή βεβαιότητα. Μια θερμή κηλίδα είναι θερμό σημείο που φαίνεται καθώς περνά ο δορυφόρος (εικονοστοιχεία 375 m έως 1 km), όχι επιβεβαιωμένη φωτιά: φλόγες αερίων, βιομηχανία και αγροτικές καύσεις φαίνονται κι αυτές. Οι δορυφόροι περνούν μόνο λίγες φορές τη μέρα και τα σύννεφα ή ο καπνός μπορεί να κρύψουν μια φωτιά, γι' αυτό το 0 δεν σημαίνει ότι δεν υπάρχει φωτιά. Αν δεις καπνό ή φωτιά, πάρε στο 112."
+    ]
+  },
+  "active_fires_near_50km": {
+    "label": ["Fire hotspots within 50 km (last 24 h)","Θερμές κηλίδες φωτιάς σε ακτίνα 50 km (τελευταίες 24 ώρες)"],
+    "unit": "{hotspots}",
+    "range": [0,5000],
+    "max_step": 5000,
+    "tolerance": null,
+    "explain": [
+      "How many places a fire satellite saw something hot in the last 24 hours. We count PLACES, not passes: if two satellites, or two passes of one, see the same spot (within 1 km), it counts once. Only medium (nominal) and high confidence detections count. A hotspot is a heat spot seen as the satellite flew over (pixels 375 m to 1 km wide), not a confirmed fire: gas flares, industry and farm burning show up too. Satellites pass only a few times a day and cloud or smoke can hide a fire, so 0 does not mean there is no fire. If you see smoke or fire, call 112.",
+      "Σε πόσα σημεία είδε δορυφόρος πυρκαγιών κάτι πολύ ζεστό τις τελευταίες 24 ώρες. Μετράμε ΣΗΜΕΙΑ, όχι περάσματα: αν δύο δορυφόροι, ή δύο περάσματα του ίδιου, βλέπουν το ίδιο σημείο (σε απόσταση έως 1 km), μετράει μία φορά. Μετράνε μόνο ανιχνεύσεις με μεσαία (nominal) ή υψηλή βεβαιότητα. Μια θερμή κηλίδα είναι θερμό σημείο που φαίνεται καθώς περνά ο δορυφόρος (εικονοστοιχεία 375 m έως 1 km), όχι επιβεβαιωμένη φωτιά: φλόγες αερίων, βιομηχανία και αγροτικές καύσεις φαίνονται κι αυτές. Οι δορυφόροι περνούν μόνο λίγες φορές τη μέρα και τα σύννεφα ή ο καπνός μπορεί να κρύψουν μια φωτιά, γι' αυτό το 0 δεν σημαίνει ότι δεν υπάρχει φωτιά. Αν δεις καπνό ή φωτιά, πάρε στο 112."
+    ]
+  },
+  "nearest_fire_km": {
+    "label": ["Distance to the nearest fire hotspot (last 24 h, up to 100 km)","Απόσταση από την πλησιέστερη θερμή κηλίδα (τελευταίες 24 ώρες, έως 100 km)"],
+    "unit": "km",
+    "range": [0,100],
+    "max_step": 100,
+    "tolerance": null,
+    "explain": [
+      "How far from the city centre the closest fire hotspot of the last 24 hours is, looking up to 100 km. A hotspot is a heat spot a satellite saw as it flew over (pixels 375 m to 1 km wide), not a confirmed fire, so the distance is only good to about 1 km. If no hotspot was seen within 100 km there is no value, and that does not mean there is no fire. If you see smoke or fire, call 112.",
+      "Πόσο μακριά από το κέντρο της πόλης είναι η πιο κοντινή θερμή κηλίδα των τελευταίων 24 ωρών, ψάχνοντας έως 100 km. Μια θερμή κηλίδα είναι θερμό σημείο που είδε δορυφόρος καθώς περνούσε (εικονοστοιχεία 375 m έως 1 km), όχι επιβεβαιωμένη φωτιά, γι' αυτό η απόσταση είναι σωστή μόνο περίπου ως 1 km. Αν δεν φάνηκε θερμή κηλίδα σε απόσταση έως 100 km, δεν υπάρχει τιμή, και αυτό δεν σημαίνει ότι δεν υπάρχει φωτιά. Αν δεις καπνό ή φωτιά, πάρε στο 112."
+    ]
   },
   "dam_fill_level": {
     "label": [

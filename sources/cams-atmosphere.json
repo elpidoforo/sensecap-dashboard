@@ -1,0 +1,139 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "cams-atmosphere",
+  "name": "Haze, UV and gases (CAMS model)",
+  "summary": "Model estimates of haze, UV index and three gases (NO2, SO2, CO) for each city. Satellite measurements correct the model, but these are model numbers, not satellite pixels.",
+  "layer": "model",
+  "status": "active",
+  "tagline": "Open-Meteo · CAMS · hourly",
+  "i18n": {
+    "el": {
+      "name": "Θολούρα, UV και αέρια (μοντέλο CAMS)",
+      "summary": "Εκτιμήσεις μοντέλου για θολούρα, δείκτη UV και τρία αέρια (NO2, SO2, CO) για κάθε πόλη. Μετρήσεις δορυφόρων διορθώνουν το μοντέλο, αλλά οι τιμές είναι του μοντέλου, όχι εικονοστοιχεία δορυφόρου.",
+      "tagline": "Open-Meteo · CAMS · ωριαία"
+    }
+  },
+  "themes": [
+    "air quality",
+    "dust",
+    "haze",
+    "UV"
+  ],
+  "publisher": {
+    "name": "Open-Meteo (data from CAMS, Copernicus)",
+    "url": "https://open-meteo.com",
+    "kind": "community"
+  },
+  "licence": {
+    "id": "CC-BY-4.0",
+    "url": "https://open-meteo.com/en/licence",
+    "attribution": "Air quality data by Open-Meteo.com, from CAMS European air quality forecasts (ENSEMBLE) and CAMS global forecasts, Copernicus Atmosphere Monitoring Service",
+    "commercial_use": true,
+    "share_alike": false,
+    "checked_on": "2026-11-12"
+  },
+  "restrictions": [
+    "Free API is for non-commercial use only (educational use qualifies)",
+    "Free tier: under 10,000 calls/day, 5,000/hour, 600/minute"
+  ],
+  "access": {
+    "type": "rest-json",
+    "url": "https://air-quality-api.open-meteo.com/v1/air-quality",
+    "docs_url": "https://open-meteo.com/en/docs/air-quality-api",
+    "auth": {
+      "type": "none"
+    },
+    "rate_limit": {
+      "per_minute": 600,
+      "per_day": 10000
+    }
+  },
+  "coverage": {
+    "area": "Global (finer detail over Europe)",
+    "bbox": [
+      -180,
+      -90,
+      180,
+      90
+    ],
+    "resolution_m": 45000
+  },
+  "update": {
+    "every": "PT1H",
+    "note": "The model is started once or twice a day; every hour we read the value for the current hour."
+  },
+  "variables": [
+    {
+      "id": "aerosol_optical_depth",
+      "unit": "{AOD}",
+      "kind": "modelled",
+      "note": "At 550 nm, whole air column. The CAMS global system takes in MODIS satellite haze data."
+    },
+    {
+      "id": "uv_index",
+      "unit": "{UVI}",
+      "kind": "modelled",
+      "note": "Counts forecast clouds. Not a UV sensor."
+    },
+    {
+      "id": "nitrogen_dioxide",
+      "unit": "ug/m3",
+      "kind": "modelled",
+      "note": "Near the ground (10 m), averaged over a grid cell."
+    },
+    {
+      "id": "sulphur_dioxide",
+      "unit": "ug/m3",
+      "kind": "modelled",
+      "note": "Near the ground (10 m), averaged over a grid cell."
+    },
+    {
+      "id": "carbon_monoxide",
+      "unit": "ug/m3",
+      "kind": "modelled",
+      "note": "Near the ground (10 m), averaged over a grid cell."
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 45000
+  },
+  "quality": {
+    "kind": "model",
+    "uncertainty": "A grid-cell estimate (11 to 45 km wide). It cannot see one busy road, and it can miss the start, the end or the strength of a Saharan dust event.",
+    "known_issues": [
+      "Satellite data (for example MODIS haze) correct the model, but the numbers are model output: not satellite pixels and not a sensor at the school.",
+      "Gases are for 10 m above ground averaged over a whole cell: a busy road reads much higher than its cell.",
+      "The service does not say which CAMS model (Europe 11 km or global 45 km) answered for each variable.",
+      "The current hour comes from the newest model run, started once or twice a day. UV uses forecast clouds."
+    ],
+    "stale_after": "PT3H"
+  },
+  "upstream": [
+    {
+      "name": "Copernicus Atmosphere Monitoring Service (CAMS)",
+      "url": "https://atmosphere.copernicus.eu/"
+    },
+    {
+      "name": "MODIS instruments on the Terra and Aqua satellites",
+      "url": "https://modis.gsfc.nasa.gov/",
+      "source_id": "modis-aerosol"
+    }
+  ],
+  "agent_hints": {
+    "use_for": [
+      "Telling a Saharan dust day: haze, dust and PM10 rise together",
+      "A model second opinion on haze and UV for a city",
+      "Explaining how satellites feed a computer model"
+    ],
+    "not_for": [
+      "Calling a street's air good or bad",
+      "Presenting the numbers as satellite measurements or as a sensor at the school"
+    ]
+  },
+  "notes": "Saharan dust story: on a dust day the haze here, the dust and PM10 values of the Air quality model layer and the PM10 of the official stations rise together; the UV aerosol index of Sentinel-5P (layer Air from space) is the satellite's own signal. Read from Open-Meteo's documentation on 2026-11-12; the live service could not be reached from the build sandbox.",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}
