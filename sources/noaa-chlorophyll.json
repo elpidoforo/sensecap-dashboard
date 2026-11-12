@@ -38,7 +38,7 @@
   ],
   "access": {
     "type": "rest-json",
-    "url": "https://coastwatch.noaa.gov/erddap/griddap/nesdisVHNSQchlaDaily.json",
+    "url": "https://coastwatch.noaa.gov/erddap/griddap/noaacwNPPVIIRSSQchlaDaily.json",
     "docs_url": "https://coastwatch.noaa.gov/erddap/griddap/documentation.html",
     "auth": {
       "type": "none"
@@ -93,7 +93,7 @@
       "Anything that needs today's value"
     ]
   },
-  "notes": "Read from the NOAA CoastWatch ERDDAP, dataset nesdisVHNSQchlaDaily (chlor_a, mg m^-3, 4 km), newest 7 daily maps in a small box per city. Same-server chlorophyll datasets that have stopped are not used (noaacwNPPN20VIIRSchlociDaily, noaacwN20VIIRSchlaWeekly, nesdisVHNSQchlaWeekly, erdVH3chla8day). The live server could not be reached from the build sandbox.",
+  "notes": "Read from the NOAA CoastWatch ERDDAP, dataset noaacwNPPVIIRSSQchlaDaily (chlor_a, mg m^-3, 4 km), newest 7 daily maps in a small box per city. Same-server chlorophyll datasets that have stopped are not used (noaacwNPPN20VIIRSchlociDaily, noaacwN20VIIRSchlaWeekly, nesdisVHNSQchlaWeekly, erdVH3chla8day). The live server could not be reached from the build sandbox.",
   "added": {
     "by": "smart-cities-team",
     "on": "2026-11-12"

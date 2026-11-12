@@ -536,7 +536,7 @@ Two keyless feeds read NOAA CoastWatch ERDDAP (`coastwatch.pfeg.noaa.gov`) with 
 - `noaa-sst`: sea surface temperature, variable `sea_surface_temperature` (Cel), the same id and unit as the Open-Meteo marine model, so the
   Data layers brain can compare them. Product: MUR SST v4.1 (`jplMURSST41`, L4 gap-free analysis, 1 km, daily, about 3-4 days late),
   backup OISST v2.1 (`ncdcOisst21NrtAgg`, 25 km). Refreshed every 6 h.
-- `noaa-chlorophyll`: variable `chlorophyll_a` (mg/m3), VIIRS S-NPP science quality 4 km, L3 daily (`nesdisVHNSQchlaDaily`), the newest CLEAR value of
+- `noaa-chlorophyll`: variable `chlorophyll_a` (mg/m3), VIIRS S-NPP science quality 4 km, L3 daily (`noaacwNPPVIIRSSQchlaDaily` on coastwatch.noaa.gov; the pfeg server only mirrors it as `nesdisVHNSQchlaDaily`), the newest CLEAR value of
   the last 7 daily maps (cloud leaves holes). Refreshed every 12 h. About 11-15 days late.
 - Coastal cities only (Larnaka, Limassol, Paphos). Lefkosia is never asked and never has a value. Each reading says which pixel it used and how many km
   from the city centre. A satellite sees the top skin of the sea and cannot see through cloud.
