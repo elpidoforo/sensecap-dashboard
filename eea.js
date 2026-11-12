@@ -486,6 +486,7 @@ function createEea(opts = {}) {
   }
 
   const offsetOfStation = (id) => {
+    if (opts.tzForce != null && opts.tzForce !== '' && isFinite(Number(opts.tzForce))) return Number(opts.tzForce);   // EEA_TZ_HOURS: a quick fix if the real files turn out to use another clock
     const s = S.meta && S.meta.stations && S.meta.stations.find((x) => x.id === id);
     return tzHours(s && s.tz, opts.tzHours != null ? Number(opts.tzHours) : 2);
   };
