@@ -62,7 +62,7 @@
     "kind": "map",
     "uncertainty": "Volunteers draw the map, so some parks and trees are missing or out of date."
   },
-  "notes": "Plan: run a tool such as OSMnx once on a computer and save green-space share per 1 km cell as a static file.",
+  "notes": "Plan: run a tool such as OSMnx once on a computer and save green-space share per 1 km cell as a static file. Check it against the satellite greenness of modis-ndvi: mapped parks should sit where NDVI is high; a gap points to unmapped gardens or a missing park.",
   "added": {
     "by": "smart-cities-team",
     "on": "2026-11-12"

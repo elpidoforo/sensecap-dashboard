@@ -1,0 +1,103 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "eumetsat-meteosat-view",
+  "name": "Meteosat pictures (clouds and dust)",
+  "summary": "Two pictures of the eastern Mediterranean from the Meteosat weather satellites, fetched about every hour: clouds in natural colours, and a dust map. Pictures, not numbers.",
+  "layer": "model",
+  "status": "active",
+  "tagline": "EUMETSAT · about hourly",
+  "i18n": {
+    "el": {
+      "name": "Εικόνες Meteosat (σύννεφα και σκόνη)",
+      "summary": "Δύο εικόνες της ανατολικής Μεσογείου από τους μετεωρολογικούς δορυφόρους Meteosat, περίπου κάθε ώρα: σύννεφα με φυσικά χρώματα και ένας χάρτης σκόνης. Είναι εικόνες, όχι αριθμοί.",
+      "tagline": "EUMETSAT · περίπου κάθε ώρα"
+    }
+  },
+  "themes": [
+    "satellite",
+    "clouds",
+    "dust"
+  ],
+  "publisher": {
+    "name": "EUMETSAT (EUMETView)",
+    "url": "https://view.eumetsat.int/",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "CC-BY-4.0",
+    "url": "https://www-cdn.eumetsat.int/files/2026-01/45173%20-%20Data_Policy.pdf",
+    "attribution": "Contains modified EUMETSAT Meteosat data 2026",
+    "commercial_use": true,
+    "share_alike": false,
+    "checked_on": "2026-11-12"
+  },
+  "restrictions": [
+    "Only RGB image products are used: the EUMETSAT data policy calls them core data, free under CC BY 4.0",
+    "The credit line carries the year the picture was made; coastlines and borders are credited to Natural Earth",
+    "EUMETView is busy at times and queues requests, so we ask for one picture at a time"
+  ],
+  "access": {
+    "type": "ogc-api",
+    "url": "https://view.eumetsat.int/geoserver/wms",
+    "docs_url": "https://user.eumetsat.int/resources/user-guides/eumet-view-user-guide",
+    "auth": {
+      "type": "none"
+    }
+  },
+  "coverage": {
+    "area": "Eastern Mediterranean, Libya to Syria",
+    "bbox": [
+      25.0,
+      29.0,
+      41.0,
+      41.0
+    ],
+    "resolution_m": 3000
+  },
+  "update": {
+    "every": "PT15M",
+    "latency": "PT30M",
+    "note": "New frames every 10 to 15 minutes; we fetch about every 45 minutes"
+  },
+  "variables": [],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 3000
+  },
+  "quality": {
+    "kind": "satellite",
+    "uncertainty": "Pictures, not measurements. One pixel is about 1 to 5 km wide over Cyprus, and thick cloud hides what is below it.",
+    "known_issues": [
+      "Meteosat looks at Cyprus at a slant, so details are coarser than in a picture from a polar satellite",
+      "Low clouds and thin or low dust over the sea are hard to see in the dust map",
+      "The night version of the cloud picture is drawn from infrared (heat) data and is not a photo",
+      "When the server cannot tell us the exact time of the newest frame, the time shown is approximate"
+    ],
+    "stale_after": "PT3H"
+  },
+  "upstream": [
+    {
+      "name": "EUMETSAT Meteosat (MTG-I1 / Meteosat-12 and MSG) image products"
+    }
+  ],
+  "agent_hints": {
+    "use_for": [
+      "Showing where clouds and fronts are over the region",
+      "Seeing a Saharan dust plume come towards Cyprus"
+    ],
+    "not_for": [
+      "Rain or cloud amounts at one school",
+      "Dust amounts in micrograms: use the air-quality model for that"
+    ]
+  },
+  "notes": "Layer names are from EUMETSAT-related pages and public code, not from the live service (not reachable from the sandbox); mtg_fd:rgb_geocolour and msg_iodc:rgb_dust are the first choices and each has a fallback. The licence was read in the EUMETSAT data policy (last amended 25 Nov 2025), not in the WMS capabilities.",
+  "x_feed": "eumetsat-meteosat-view",
+  "x_images": [
+    "geocolour",
+    "dust"
+  ],
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

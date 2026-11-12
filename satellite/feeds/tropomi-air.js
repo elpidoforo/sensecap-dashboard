@@ -6,7 +6,7 @@
  * Data Space Ecosystem (CDSE), which needs an OAuth client (client id + client secret) that anyone can create for free in a CDSE
  * account (dashboard: https://shapps.dataspace.copernicus.eu/dashboard/#/account/settings). The two values are set on the server as
  *   CDSE_CLIENT_ID and CDSE_CLIENT_SECRET   (declared in sources/tropomi-air.json: access.auth.env and x_env; never written anywhere)
- * Without both, the feed does nothing: no timer, no request; probe() says "needs a free Copernicus account: set ...".
+ * Without both, the feed does nothing: no timer, no request; probe() says "needs a free Copernicus account: ... not set on the server".
  * With the secret set, the Layers page treats the (candidate, planned) layer as active (layers.js withSatellite).
  *
  * Request shapes, written from the providers' documentation on 2026-11-12. The sandbox that wrote this CANNOT reach the services,
@@ -52,7 +52,7 @@ const PASS_HOUR_UTC = 11;
 const MIN_VALID = 3;                        // clear pixels needed
 const REFRESH_MS = 6 * HOUR;
 const RETRY_MS = [30, 60, 120, 240].map((m) => m * 60000);
-const PAUSE_MS = 400;                       // between two requests: polite to a free service
+const PAUSE_MS = 400;                       // between two requests: polite to a free service (tests may shorten it with SATELLITE_TROPOMI_PAUSE_MS)
 const ID_ENV = 'CDSE_CLIENT_ID', SECRET_ENV = 'CDSE_CLIENT_SECRET';
 
 const PRODUCTS = [
@@ -157,10 +157,11 @@ module.exports = function create(ctx) {
   const file = path.join(ctx.dir, 'latest.json');
   let state = { at: null, cities: {} };    // { at, cities: { id: { variable: { v, t, day } } } }
   let token = null;                         // { value, until }
-  let timer = null, inflight = null, stopped = false, tried = false, fails = 0, lastError = null, authRefused = false;
+  let timer = null, inflight = null, stopped = false, tried = false, fails = 0, lastError = null, authRefused = false, retryAfterMs = 0;
 
   // The two values are read each time and never kept in a log or a message.
   const creds = () => ({ id: String(ctx.env[ID_ENV] || '').trim(), secret: String(ctx.env[SECRET_ENV] || '').trim() });
+  const pauseMs = () => { const n = Number(ctx.env.SATELLITE_TROPOMI_PAUSE_MS); return Number.isFinite(n) && n >= 0 && n <= 5000 ? n : PAUSE_MS; };
   const haveKeys = () => { const c = creds(); return !!(c.id && c.secret); };
 
   function load() {
@@ -188,21 +189,26 @@ module.exports = function create(ctx) {
     if (token && token.until > now) return token.value;
     const c = creds();
     const body = `grant_type=client_credentials&client_id=${encodeURIComponent(c.id)}&client_secret=${encodeURIComponent(c.secret)}`;
-    const j = await ctx.get(TOKEN_URL, { method: 'POST', body, headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' }, timeoutMs: 20000 });
-    if (!j || typeof j.access_token !== 'string' || !j.access_token) throw new Error('the sign-in answer has no access token');
+    let j;
+    try { j = await ctx.get(TOKEN_URL, { method: 'POST', body, headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' }, timeoutMs: 20000 }); }
+    catch (e) { if (e && typeof e === 'object') e.signIn = true; throw e; }   // the sign-in step: a 400, 401 or 403 here means the account was refused
+    if (!j || typeof j.access_token !== 'string' || !j.access_token) { const e = new Error('the sign-in answer has no access token'); e.signIn = true; throw e; }
     const life = num(j.expires_in);
     token = { value: j.access_token, until: now + Math.max(30, (life == null ? 300 : life) - 30) * 1000 };
     return token.value;
   }
 
   async function one(place, product) {
-    const auth = { authorization: 'Bearer ' + (await getToken()) };
     let json;
-    try {
-      json = await ctx.get(STATS_URL, { method: 'POST', body: statsBody(place, product.band, ctx.now()), headers: auth, timeoutMs: 20000 });
-    } catch (e) {
-      if (e && (e.status === 401 || e.status === 403)) token = null;   // an expired or refused token: sign in again next time
-      throw e;
+    for (let attempt = 0; ; attempt++) {
+      const auth = { authorization: 'Bearer ' + (await getToken()) };
+      try {
+        json = await ctx.get(STATS_URL, { method: 'POST', body: statsBody(place, product.band, ctx.now()), headers: auth, timeoutMs: 20000 });
+        break;
+      } catch (e) {
+        if (e && (e.status === 401 || e.status === 403)) { token = null; if (attempt === 0) continue; }   // an expired token: sign in again once
+        throw e;
+      }
     }
     return parseStats(json, product, ctx.now());
   }
@@ -212,7 +218,7 @@ module.exports = function create(ctx) {
     let firstErr = null, consecutive = 0, asked = 0;
     for (const id of ids) {
       for (const product of PRODUCTS) {
-        if (asked++) await sleep(PAUSE_MS);
+        if (asked++) await sleep(pauseMs());
         try {
           const x = await one(ctx.places[id], product);
           consecutive = 0;
@@ -220,7 +226,7 @@ module.exports = function create(ctx) {
         } catch (e) {
           firstErr = firstErr || e;
           consecutive++;
-          if (e && (e.status === 401 || e.status === 403 || e.code === 'parse')) throw e;   // refused: do not hammer the service
+          if (e && (e.status === 401 || e.status === 403 || e.status === 429 || e.code === 'parse' || e.signIn)) throw e;   // refused or rate limited: do not hammer the service
           if (consecutive >= 3) throw firstErr;
         }
       }
@@ -239,15 +245,16 @@ module.exports = function create(ctx) {
     inflight = (async () => {
       try {
         const r = await fetchAll();
-        if (r.empty) { fails = 0; lastError = null; authRefused = false; ctx.log('answered, but no clear pixel over the cities in the last three days'); return; }
+        if (r.empty) { fails = 0; lastError = null; authRefused = false; retryAfterMs = 0; ctx.log('answered, but no clear pixel over the cities in the last three days'); return; }
         state = r; save();
         if (fails || lastError) ctx.log('answering again');
-        fails = 0; lastError = null; authRefused = false;
+        fails = 0; lastError = null; authRefused = false; retryAfterMs = 0;
       } catch (e) {
         fails++;
         lastError = short(e);
-        authRefused = !!(e && (e.status === 401 || e.status === 403));
-        ctx.log(authRefused ? `the account was refused (${lastError}); check ${ID_ENV} and ${SECRET_ENV}` : `not available right now (${lastError})`);
+        authRefused = !!(e && (e.status === 401 || e.status === 403 || (e.signIn && e.status === 400)));
+        retryAfterMs = e && Number.isFinite(e.retryAfterSec) ? e.retryAfterSec * 1000 : 0;
+        ctx.log(authRefused ? `the account was refused (${lastError}); check the client id and the client secret set on the server` : `not available right now (${lastError})`);
       } finally { inflight = null; }
     })();
     return inflight;
@@ -258,7 +265,7 @@ module.exports = function create(ctx) {
     clearTimeout(timer);
     timer = setTimeout(async () => {
       await refresh();
-      schedule(fails ? RETRY_MS[Math.min(fails, RETRY_MS.length) - 1] : REFRESH_MS);
+      schedule(fails ? Math.max(RETRY_MS[Math.min(fails, RETRY_MS.length) - 1], Math.min(retryAfterMs, 12 * HOUR)) : REFRESH_MS);
     }, ms);
     if (timer.unref) timer.unref();
   }
@@ -274,10 +281,11 @@ module.exports = function create(ctx) {
 
   function needsKeyNote() {
     const c = creds();
-    const missing = [!c.id ? ID_ENV : null, !c.secret ? SECRET_ENV : null].filter(Boolean);
+    // The registry cuts every environment NAME out of the texts it shows (it prints "the key" instead), so the words here are plain.
+    const missing = [!c.id ? 'client id' : null, !c.secret ? 'client secret' : null].filter(Boolean);
     return {
-      note: `needs a free Copernicus account: set ${missing.join(' and ')}`,
-      noteEl: `χρειάζεται δωρεάν λογαριασμό Copernicus: όρισε ${missing.join(' και ')}`,
+      note: `needs a free Copernicus account: the ${missing.join(' and the ')} ${missing.length > 1 ? 'are' : 'is'} not set on the server`,
+      noteEl: `χρειάζεται δωρεάν λογαριασμό Copernicus: ${missing.length > 1 ? 'λείπουν' : 'λείπει'} στον διακομιστή ${missing.length > 1 ? 'τα' : 'το'} ${missing.join(' και ')}`,
     };
   }
 

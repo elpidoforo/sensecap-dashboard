@@ -222,7 +222,9 @@ function createClient(ctx, opts) {
 function createRefresher(ctx, spec) {
   const cityIds = Object.keys(ctx.places || {}).filter((k) => k[0] !== '_');
   const file = path.join(ctx.dir, 'state.json');
-  const client = createClient(ctx, { gapMs: spec.gapMs });
+  // The pause between two calls to the service. SATELLITE_MODIS_GAP_MS (0 to 60000) changes it: tests use 0, an operator can be gentler.
+  const envGap = ctx.env ? Number(ctx.env.SATELLITE_MODIS_GAP_MS) : NaN;
+  const client = createClient(ctx, { gapMs: ctx.env && ctx.env.SATELLITE_MODIS_GAP_MS != null && Number.isFinite(envGap) && envGap >= 0 ? Math.min(envGap, 60000) : spec.gapMs });
   const history = spec.history || 3;
   const everyMs = spec.everyMs || 12 * HOUR;
   const retryMs = spec.retryMs || [HOUR, 2 * HOUR, 4 * HOUR, 6 * HOUR];
@@ -257,25 +259,37 @@ function createRefresher(ctx, spec) {
     if (running) return running;
     running = (async () => {
       attempted = true;
-      let ok = 0, bad = 0;
-      const problems = [];
-      const note = (e) => { if (closed) return; const t = short(e); if (!problems.includes(t)) problems.push(t); if (e && e.retryAfterSec) pauseUntil = Math.max(pauseUntil, ctx.now() + Math.min(6 * HOUR, Math.max(5 * 60000, e.retryAfterSec * 1000))); };
+      let ok = 0, bad = 0, streak = 0, busy = false;
+      const problems = [], skipped = [];
+      // A busy service (429, 503) or three failures in a row end the round: we do not hammer a service that says no.
+      const note = (e) => {
+        if (closed) return;
+        const t = short(e);
+        if (!problems.includes(t)) problems.push(t);
+        if (e && (e.status === 429 || e.status === 503)) busy = true;
+        if (e && e.retryAfterSec) pauseUntil = Math.max(pauseUntil, ctx.now() + Math.min(6 * HOUR, Math.max(5 * 60000, e.retryAfterSec * 1000)));
+      };
+      const over = () => closed || busy || streak >= 3;
       client.reopen();
       try {
         const ref = ctx.places[cityIds[0]];
         for (const product of spec.products) {
-          if (closed) break;
+          if (over()) break;
           let dates;
           try {
             dates = parseDates(await client.dates(product, ref.lat, ref.lng));
             if (!dates || !dates.length) throw new Error(`${product}: the list of dates is empty or not in the expected shape`);
-          } catch (e) { bad++; note(e); continue; }
+          } catch (e) {
+            if (e && e.status === 404) { skipped.push(product); continue; }   // this product is not offered: the others go on, and it is not a "problem"
+            bad++; streak++; note(e); continue;
+          }
+          streak = 0;
           const wanted = dates.slice(-history);
           const P = state.products[product] = state.products[product] || { cities: {} };
           P.dates = wanted.map((d) => d.code);
           P.datesAt = ctx.now();
           for (const cityId of cityIds) {
-            if (closed) break;
+            if (over()) break;
             const have = P.cities[cityId] = P.cities[cityId] || {};
             const missing = wanted.filter((d) => !have[d.code]);
             if (!missing.length) continue;
@@ -283,15 +297,17 @@ function createRefresher(ctx, spec) {
             try {
               const parsed = parseSubset(await client.subset(product, place.lat, place.lng, missing[0].code, missing[missing.length - 1].code, spec.km || 1));
               if (!parsed) throw new Error(`${product}: the answer is not a subset (no "subset" list)`);
-              let got = 0;
+              let got = 0, fails = 0;
               for (const d of missing) {
                 const items = parsed.items.filter((i) => i.date.code === d.code);
                 if (!items.length) continue;   // the service has nothing for that date yet: asked again next time
-                have[d.code] = { at: ctx.now(), s: spec.summarise(product, items, parsed) };
-                got++;
+                try { have[d.code] = { at: ctx.now(), s: spec.summarise(product, items, parsed) }; got++; }
+                catch (e) { fails++; note(e); }   // one odd date must not hide the others; it is asked again next round
               }
-              if (got) ok++; else { bad++; note(new Error(`${product}: the answer held none of the dates asked for`)); }
-            } catch (e) { bad++; note(e); }
+              if (got) streak = 0; else streak++;
+              if (got) ok++;
+              if (!got || fails) { bad++; if (!fails) note(new Error(`${product}: the answer held none of the dates asked for`)); }
+            } catch (e) { bad++; streak++; note(e); }
           }
           // keep the newest few composites per city, so the cache stays small
           for (const cityId of Object.keys(P.cities)) {
@@ -304,10 +320,14 @@ function createRefresher(ctx, spec) {
         if (closed) { /* stopped in the middle: say nothing, keep what we have */ }
         else if (ok && !bad) { state.lastOkAt = ctx.now(); state.lastError = null; }
         else if (bad) { state.lastError = problems[0] || 'unknown problem'; state.lastErrorAt = ctx.now(); }
-        if (problems.length && !closed) ctx.log(`the NASA/ORNL subset service gave ${bad} problem${bad === 1 ? '' : 's'}; first: ${problems[0]}`);
+        else if (!ok && skipped.length) { state.lastError = 'the service does not offer ' + skipped.join(', '); state.lastErrorAt = ctx.now(); }   // nothing worked and nothing was a problem: every product was missing
+        const said = [];
+        if (problems.length) said.push(`the NASA/ORNL subset service gave ${bad} problem${bad === 1 ? '' : 's'}; first: ${problems[0]}`);
+        if (skipped.length) said.push(`the service does not offer ${skipped.join(', ')} (HTTP 404)`);
+        if (said.length && !closed) ctx.log(said.join('; '));
         save();
       }
-      return { ok, bad };
+      return { ok, bad, skipped };
     })().finally(() => { running = null; });
     return running;
   }

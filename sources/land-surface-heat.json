@@ -2,15 +2,15 @@
   "schema": "smartcities.source/1",
   "id": "land-surface-heat",
   "name": "Land surface heat",
-  "summary": "Satellite measurements of how hot the ground is. They show which city blocks heat up most, which air thermometers cannot.",
+  "summary": "Satellite measurements of how hot the ground is, from Sentinel-3 in 1 km pixels. They show which parts of the island are hot, not single streets.",
   "layer": "model",
   "status": "candidate",
-  "tagline": "Sentinel satellites",
+  "tagline": "Sentinel-3 · not connected yet",
   "i18n": {
     "el": {
       "name": "Θερμότητα επιφάνειας εδάφους",
-      "summary": "Μετρήσεις δορυφόρων για το πόσο ζεστό είναι το έδαφος. Δείχνουν ποια τετράγωνα της πόλης ζεσταίνονται περισσότερο, κάτι που τα θερμόμετρα αέρα δεν δείχνουν.",
-      "tagline": "δορυφόροι Sentinel"
+      "summary": "Μετρήσεις δορυφόρου για το πόσο ζεστό είναι το έδαφος, από το Sentinel-3 σε εικονοστοιχεία 1 km. Δείχνουν ποια μέρη του νησιού ζεσταίνονται, όχι μεμονωμένους δρόμους.",
+      "tagline": "Sentinel-3 · δεν έχει συνδεθεί ακόμη"
     }
   },
   "themes": [
@@ -23,14 +23,19 @@
     "kind": "government"
   },
   "licence": {
-    "id": "unknown",
+    "id": "LicenseRef-Copernicus-Sentinel-data",
+    "url": "https://ecds.ecmwf.int/licences/ec-sentinel",
+    "attribution": "Contains modified Copernicus Sentinel data [year]",
+    "commercial_use": true,
+    "share_alike": false,
     "checked_on": "2026-11-12"
   },
   "access": {
     "type": "stac",
-    "url": "https://catalogue.dataspace.copernicus.eu/stac",
+    "url": "https://stac.dataspace.copernicus.eu/v1/",
+    "docs_url": "https://documentation.dataspace.copernicus.eu/APIs/STAC.html",
     "auth": {
-      "type": "none"
+      "type": "oauth"
     }
   },
   "coverage": {
@@ -50,7 +55,7 @@
     {
       "id": "land_surface_temperature",
       "unit": "Cel",
-      "kind": "measured"
+      "kind": "derived"
     }
   ],
   "representativeness": {
@@ -59,9 +64,13 @@
   },
   "quality": {
     "kind": "satellite",
-    "uncertainty": "Surface heat is not air temperature. Clouds leave gaps and a satellite passes only a few times a day."
+    "uncertainty": "Surface heat is not air temperature. Clouds leave gaps, and a pixel is about 1 km wide, so it cannot show one street or school yard.",
+    "known_issues": [
+      "Downloading a product needs a free account and a token, and the files are large, so a value for one point needs a whole file first",
+      "Cloud hides the ground, and the satellite passes at set times only"
+    ]
   },
-  "notes": "Access terms and sign-in rules of the catalogue are not yet read.",
+  "notes": "Checked 2026-11-12, not connected. (1) The old STAC address catalogue.dataspace.copernicus.eu/stac is deprecated since 17 Nov 2025; the new one is stac.dataspace.copernicus.eu/v1 and lists Sentinel-3 SLSTR land surface temperature (NRT and NTC). (2) Its docs do not say whether searching needs a login; downloading a product needs a free CDSE account and a token (CDSE terms, section 4), which we do not have. (3) 1 km pixels cannot show single blocks. Meanwhile modis-lst gives day and night ground temperature without a key.",
   "added": {
     "by": "smart-cities-team",
     "on": "2026-11-12"

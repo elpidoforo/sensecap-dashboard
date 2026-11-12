@@ -49,11 +49,27 @@ const enc = (s) => encodeURIComponent(s);
 const deg = (x) => String(Math.round(x * 10000) / 10000);
 
 // griddap URL for a small box. `pre` = the constraints before latitude/longitude, e.g. ['(last)'] or ['last-6:last', '0'].
+// `latDesc: true` writes the latitude pair high:low (for a dataset that stores latitude from north to south).
 function griddapUrl(o) {
-  const lat = `[(${deg(o.lat[0])}):(${deg(o.lat[1])})]`, lng = `[(${deg(o.lng[0])}):(${deg(o.lng[1])})]`;
+  const la = o.latDesc ? [o.lat[1], o.lat[0]] : o.lat;
+  const lat = `[(${deg(la[0])}):(${deg(la[1])})]`, lng = `[(${deg(o.lng[0])}):(${deg(o.lng[1])})]`;
   const pre = (o.pre || []).map((c) => `[${c}]`).join('');
   const q = o.vars.map((v) => `${v}${pre}${lat}${lng}`).join(',');
   return `https://${o.host}/erddap/griddap/${o.dataset}.json?${enc(q)}`;
+}
+
+// Asks for a box. The latitude pair is written in the order the dataset is believed to use (`state.latDesc`); the griddap documentation says
+// ERDDAP swaps a wrong order itself, but if the server answers 400/404/416 anyway the other order is tried once and remembered in `state`.
+async function getBox(get, spec, state) {
+  const st = state || {};
+  const ask = (latDesc) => get(griddapUrl({ ...spec, latDesc }));
+  try { return await ask(!!st.latDesc); }
+  catch (err) {
+    if (!err || ![400, 404, 416].includes(err.status)) throw err;
+    const json = await ask(!st.latDesc);
+    st.latDesc = !st.latDesc;
+    return json;
+  }
 }
 
 // The box around a point: half sizes in degrees.
@@ -109,4 +125,4 @@ const isoDay = (ms) => new Date(ms).toISOString().slice(0, 10);
 const kmText = (km) => (km < 10 ? String(Math.round(km * 10) / 10) : String(Math.round(km)));
 const numText = kmText;
 
-module.exports = { kmBetween, FILL_VALUES, isFill, cleanNumber, toCelsius, griddapUrl, boxAround, parseGrid, nearestCell, serial, isoDay, kmText, numText };
+module.exports = { kmBetween, FILL_VALUES, isFill, cleanNumber, toCelsius, griddapUrl, getBox, boxAround, parseGrid, nearestCell, serial, isoDay, kmText, numText };

@@ -3,11 +3,23 @@
  * bright_ti4 / bright_ti5 and a confidence letter (l, n, h); MODIS rows have brightness / bright_t31 and a confidence number 0 to 100.
  * The scenario: an August afternoon, the lists were fetched at 2026-08-14 15:00 UTC.
  *   Paphos      one fire 10 km north, seen by NOAA-20 (11:02), MODIS (10:55) and NOAA-21 (12:48): ONE hotspot
- *   Limassol    a hotspot 24.9 km north (inside 25 km) and one 25.2 km north (only inside 50 km)
+ *   Limassol    a hotspot 24.9 km north (inside 25 km) and one 25.3 km away (only inside 50 km), 1.9 km apart
  *   Lefkosia    one hotspot 12.7 km north (MODIS confidence 30, the lowest that counts) and one 80 km north
  *   Larnaka     nothing within 25 km; the Lefkosia hotspot is 47 km away
  *   rows that must NOT count: low confidence (VIIRS l, MODIS 25 and 29), bad rows (letters, time 2599, 31 February, too few cells),
  *   a row from the future, a row 33 hours old, and an exact duplicate.
+ *
+ * EFFIS burnt-area perimeters (GeoJSON, as the third-party effis-client README describes the WFS answer for nrt.ba.poly: properties
+ * id, fire_id, initialdate, finaldate, area in hectares as a string). Same fetch moment. A square of the stated area is drawn round each centre.
+ *   F1 160 ha 12.9 km north of Limassol, updated 12 Aug                       Limassol
+ *   F2  40 ha 48.9 km north of Limassol (inside 50), updated 13 Aug          Limassol, Lefkosia
+ *   F3 500 ha 51.3 km north of Limassol (outside 50), updated 1 Aug          Lefkosia only
+ *   F4 300 ha near Paphos, last updated 20 Jun: older than 30 days           nobody
+  *   F5 a MultiPolygon, 100 ha + 50 ha, near Larnaka, updated 10 Aug          Larnaka, Lefkosia (36 km)
+ *   F6  80 ha near Paphos, updated exactly 30 days before the fetch          Paphos (the boundary counts)
+ *   F7  60 ha near Paphos, updated 1 second earlier than that                nobody
+ *   bad: a point, a 3-point ring, area "abc", area 0, no dates, a date in the future, an outline 100 times the stated area (a unit mix-up)
+ *   extra properties (a commune, a province, an owner) are there on purpose: none of them may ever come out.
  * Run:  node tests/sat-fire/make-fixtures.js */
 const fs = require('fs');
 const path = require('path');
@@ -36,7 +48,7 @@ const noaa20 = [HV,
 ].join('\n') + '\n';
 const noaa21 = [HV,
   v(34.8657, 32.4249, D, '1248', 'N21', 'h'),            // the Paphos fire again
-  v(34.9107, 33.0379, D, '1420', 'N21', 'n'),            // Limassol + 25.2 km
+  v(34.9107, 33.0579, D, '1420', 'N21', 'n'),            // Limassol + 25.3 km (and 1.9 km from the other one, so they stay two hotspots)
 ].join('\n') + '\n';
 const modis = [HM,
   m(34.8660, 32.4240, D, '1055', 'Terra', '85'),         // the Paphos fire again, MODIS
@@ -57,3 +69,45 @@ const files = {
 };
 for (const [name, body] of Object.entries(files)) fs.writeFileSync(path.join(out, name), body);
 console.log('wrote', Object.keys(files).length, 'fixtures to', out);
+
+/* ---------- EFFIS ---------- */
+// A closed square ring of about `ha` hectares round (lat, lng). Flat-earth maths, the same as the reader uses.
+const sq = (lat, lng, ha) => {
+  const side = Math.sqrt(ha / 100);   // km
+  const dy = side / 110.574 / 2, dx = side / (111.32 * Math.cos((lat * Math.PI) / 180)) / 2;
+  const r = (v) => Math.round(v * 1e6) / 1e6;
+  return [[r(lng - dx), r(lat - dy)], [r(lng + dx), r(lat - dy)], [r(lng + dx), r(lat + dy)], [r(lng - dx), r(lat + dy)], [r(lng - dx), r(lat - dy)]];
+};
+const poly = (lat, lng, ha) => ({ type: 'Polygon', coordinates: [sq(lat, lng, ha)] });
+let n = 0;
+const feat = (geometry, props) => ({ type: 'Feature', id: 'nrt.ba.poly.' + (++n), geometry, properties: { id: n, fire_id: 1000 + n, initialdate: '2026-08-01 00:00:00', finaldate: '2026-08-02 00:00:00', area: '100', commune: 'Some Village', province: 'Some District', owner: 'A. Person', ...props } });
+const fc = (features) => JSON.stringify({ type: 'FeatureCollection', totalFeatures: features.length, features, crs: { type: 'name', properties: { name: 'urn:ogc:def:crs:EPSG::4326' } } });
+const good = [
+  feat(poly(34.80, 33.05, 160), { initialdate: '2026-08-11 09:00:00', finaldate: '2026-08-12 10:00:00', area: '160' }),
+  feat(poly(35.1241, 33.0379, 40), { initialdate: '2026-08-12 12:00:00', finaldate: '2026-08-13 00:00:00', area: '40' }),
+  feat(poly(35.1453, 33.0379, 500), { initialdate: '2026-07-30 00:00:00', finaldate: '2026-08-01 00:00:00', area: '500' }),
+  feat(poly(34.80, 32.45, 300), { initialdate: '2026-06-18 00:00:00', finaldate: '2026-06-20 00:00:00', area: '300' }),
+  feat({ type: 'MultiPolygon', coordinates: [[sq(34.99, 33.70, 100)], [sq(35.03, 33.74, 50)]] }, { initialdate: '2026-08-08 00:00:00', finaldate: '2026-08-10 00:00:00', area: '150' }),
+  feat(poly(34.85, 32.50, 80), { initialdate: '2026-07-14 00:00:00', finaldate: '2026-07-15 15:00:00', area: 80 }),
+  feat(poly(34.70, 32.40, 60), { initialdate: '2026-07-14 00:00:00', finaldate: '2026-07-15 14:59:59', area: '60' }),
+];
+const badOnes = [
+  feat({ type: 'Point', coordinates: [33.0, 34.8] }, { area: '50', finaldate: '2026-08-12 00:00:00' }),
+  feat({ type: 'Polygon', coordinates: [[[33, 34.8], [33.1, 34.8], [33, 34.8]]] }, { area: '50', finaldate: '2026-08-12 00:00:00' }),
+  feat(poly(34.8, 33.0, 50), { area: 'abc', finaldate: '2026-08-12 00:00:00' }),
+  feat(poly(34.8, 33.0, 50), { area: '0', finaldate: '2026-08-12 00:00:00' }),
+  feat(poly(34.8, 33.0, 50), { area: '50', initialdate: null, finaldate: null }),
+  feat(poly(34.8, 33.0, 50), { area: '50', initialdate: '2026-08-20 00:00:00', finaldate: '2026-08-20 00:00:00' }),
+  feat(poly(34.8, 33.0, 5000), { area: '50', finaldate: '2026-08-12 00:00:00' }),      // the outline is 100 times the stated area
+  { type: 'Feature', geometry: null, properties: null },
+  null,
+];
+const effisFiles = {
+  'effis_burnt_areas.json': fc([...good, ...badOnes]),
+  'effis_empty.json': fc([]),
+  'effis_all_unreadable.json': fc([badOnes[2], badOnes[3], badOnes[6]]),
+  'effis_exception.xml': '<?xml version="1.0" encoding="UTF-8"?>\n<ServiceExceptionReport version="1.1.0" xmlns="http://www.opengis.net/ogc"><ServiceException code="LayerNotDefined">Unknown layer</ServiceException></ServiceExceptionReport>\n',
+  'effis_html_error.html': '<!doctype html><html><body><h1>502 Bad Gateway</h1></body></html>\n',
+};
+for (const [name, body] of Object.entries(effisFiles)) fs.writeFileSync(path.join(out, name), body);
+console.log('wrote', Object.keys(effisFiles).length, 'EFFIS fixtures');

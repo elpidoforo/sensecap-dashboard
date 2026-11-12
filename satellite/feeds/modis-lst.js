@@ -111,14 +111,14 @@ function noteFor(part, s, p, spec) {
     s.good ? 'Indicative; clouds leave gaps.' : 'Indicative; some pixels are flagged as lower quality and clouds leave gaps.',
   ];
   const el = [
-    'Θερμοκρασία της επιφάνειας (έδαφος, στέγες, δρόμοι) όπως τη βλέπει ο δορυφόρος, ΟΧΙ θερμοκρασία αέρα.',
+    'Θερμοκρασία επιφάνειας (έδαφος, στέγες, δρόμοι) όπως τη βλέπει ο δορυφόρος, ΟΧΙ θερμοκρασία αέρα.',
     s.basis === 'mean'
-      ? `Μέσος όρος ${s.n} καθαρών εικονοστοιχείων μπλοκ 3 x 3 (περίπου 2,8 km) γύρω από το κέντρο της πόλης${c != null ? `· το κεντρικό εικονοστοιχείο μόνο ${M.fmtNum(c, 1, true)} °C` : ''}.`
+      ? `Μέσος όρος ${s.n} καθαρών εικονοστοιχείων σε μπλοκ 3 x 3 (περίπου 2,8 km) γύρω από το κέντρο${c != null ? `· το κεντρικό μόνο ${M.fmtNum(c, 1, true)} °C` : ''}.`
       : 'Ένα καθαρό εικονοστοιχείο 1 km στο κέντρο της πόλης.',
     `Περίοδος ${p.days} ημερών ${M.periodText(p, true)}${s.clear != null ? `, ${s.clear} από ${p.days} ${day ? 'ημέρες καθαρές' : 'νύχτες καθαρές'}` : ''}${t ? `, γύρω στις ${t} ηλιακή ώρα` : ''}.`,
-    s.good ? 'Ενδεικτικό· τα σύννεφα αφήνουν κενά.' : 'Ενδεικτικό· κάποια εικονοστοιχεία έχουν σήμανση χαμηλότερης ποιότητας και τα σύννεφα αφήνουν κενά.',
+    s.good ? 'Ενδεικτικό· τα σύννεφα αφήνουν κενά.' : 'Ενδεικτικό· κάποια εικονοστοιχεία χαμηλότερης ποιότητας και τα σύννεφα αφήνουν κενά.',
   ];
-  return { note: M.fit(en, 380), noteEl: M.fit(el, 380) };
+  return { note: M.fit(en, 390), noteEl: M.fit(el, 390) };
 }
 const whereFor = (part, spec) => ({
   where: `ground and roof surface seen by the ${spec.sat} satellite (${spec.product}), ${part === 'day' ? 'daytime' : 'night-time'} pass, pixels around the city centre; not air temperature`,
@@ -159,7 +159,7 @@ module.exports = function create(ctx) {
     }
     const st = R.status();
     if (n) {
-      const bad = st.lastError && st.lastAttemptAt && st.lastAttemptAt > (st.lastOkAt || 0);
+      const bad = !!st.lastError;   // cleared by the next fully good round
       return {
         ok: true, n, at,
         note: `${n} of ${ids.length} cities, newest ${newest.p.days}-day period ${M.periodText(newest.p, false)} (${newest.spec.sat})${bad ? '; the last refresh had a problem' : ''}`,

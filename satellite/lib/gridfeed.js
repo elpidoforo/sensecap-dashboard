@@ -33,7 +33,7 @@ function makeGridFeed(ctx, spec) {
   const inland = new Set(spec.inland || []);
   const pauseMs = (() => { const n = Number(ctx.env && ctx.env.SATELLITE_ERDDAP_PAUSE_MS); return Number.isFinite(n) && n >= 0 ? Math.min(n, 30000) : 500; })();
   const state = { cities: {}, checkedAt: 0, lastOkAt: 0, lastError: '', fails: 0 };
-  let timer = null, inflight = null, stopped = true;
+  let timer = null, inflight = null, stopped = true, saidOk = false;
 
   const coastal = () => Object.keys(ctx.places || {}).filter((id) => !inland.has(id));
   const goodEntry = (e) => e && typeof e === 'object' && Number.isFinite(e.value) && Number.isFinite(e.obsMs) && Number.isFinite(e.km) && e.obsMs > 0;
@@ -74,6 +74,7 @@ function makeGridFeed(ctx, spec) {
       for (const id of Object.keys(state.cities)) if (ctx.now() - state.cities[id].obsMs > spec.keepMs) delete state.cities[id];
       if (ok) { state.lastOkAt = ctx.now(); state.fails = 0; state.lastError = ''; saveCache(); }
       else { state.fails++; state.lastError = firstErr || 'no clear pixel near the coast'; }
+      if (ok && !saidOk) { saidOk = true; ctx.log(`${spec.label}: first update done, ${ok} of ${ids.length} coastal cities read`); }   // the one line that says in the logs: it works
       if (failed || (!ok && ids.length)) ctx.log(`${spec.label}: ${ok} of ${ids.length} coastal cities updated${firstErr ? ` (${firstErr})` : empty ? ' (no usable pixel)' : ''}`);
       return { ok, failed, empty };
     })().finally(() => { inflight = null; });

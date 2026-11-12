@@ -1,0 +1,116 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "nasa-gibs-imagery",
+  "name": "NASA daily satellite pictures",
+  "summary": "Six daily pictures of Cyprus from NASA's GIBS: natural colours, night lights, dust and haze, ground heat, sea warmth and fires. They are pictures, not numbers.",
+  "layer": "model",
+  "status": "active",
+  "tagline": "NASA GIBS · daily pictures",
+  "i18n": {
+    "el": {
+      "name": "Καθημερινές δορυφορικές εικόνες της NASA",
+      "summary": "Έξι καθημερινές εικόνες της Κύπρου από το GIBS της NASA: φυσικά χρώματα, νυχτερινά φώτα, σκόνη και θολούρα, θερμότητα εδάφους, θάλασσα και φωτιές. Είναι εικόνες, όχι αριθμοί.",
+      "tagline": "NASA GIBS · καθημερινές εικόνες"
+    }
+  },
+  "themes": [
+    "satellite",
+    "dust",
+    "heat",
+    "sea",
+    "fire",
+    "night"
+  ],
+  "publisher": {
+    "name": "NASA Global Imagery Browse Services (GIBS)",
+    "url": "https://www.earthdata.nasa.gov/gibs",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "CC0-1.0",
+    "url": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy",
+    "attribution": "Imagery provided by NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS).",
+    "commercial_use": true,
+    "share_alike": false,
+    "checked_on": "2026-11-12"
+  },
+  "restrictions": [
+    "NASA asks users of GIBS to show an acknowledgement; the full sentence is shown with every picture",
+    "NASA material must not be used to suggest that NASA endorses us",
+    "Data from outside NASA that NASA services carry follows its own licence"
+  ],
+  "access": {
+    "type": "ogc-api",
+    "url": "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi",
+    "docs_url": "https://nasa-gibs.github.io/gibs-api-docs/access-basics",
+    "auth": {
+      "type": "none"
+    }
+  },
+  "coverage": {
+    "area": "Cyprus and the sea around it",
+    "bbox": [
+      32.0,
+      34.4,
+      34.9,
+      35.9
+    ],
+    "resolution_m": 250
+  },
+  "update": {
+    "every": "P1D",
+    "latency": "PT4H",
+    "note": "One picture a day per kind; the sea temperature is about a day and a half behind"
+  },
+  "variables": [],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 1000
+  },
+  "quality": {
+    "kind": "satellite",
+    "uncertainty": "Pictures, not measurements at a school. One pixel is 250 m to 2 km wide, and clouds hide the ground, the sea and fires.",
+    "known_issues": [
+      "A satellite passes Cyprus about once a day, so each picture is a daily mosaic, not a live view",
+      "Clouds hide the ground, the sea surface, dust and fires in most of these pictures",
+      "Ground heat is the temperature of the surface, not of the air; the sea map is a gap-filled analysis",
+      "Suomi NPP stopped sending new data on 2 Nov 2026 and Terra and Aqua are ageing, so NOAA-21 and NOAA-20 come first",
+      "Colours follow NASA's colour scales; the numbers on those scales are not shown here"
+    ],
+    "stale_after": "P4D"
+  },
+  "upstream": [
+    {
+      "name": "NASA EOSDIS: VIIRS (NOAA-21, NOAA-20) and MODIS (Terra, Aqua) imagery",
+      "url": "https://www.earthdata.nasa.gov/gibs"
+    },
+    {
+      "name": "NASA JPL GHRSST MUR sea surface temperature analysis"
+    }
+  ],
+  "agent_hints": {
+    "use_for": [
+      "Showing students what Cyprus looks like from space on a recent day",
+      "Seeing a dust cloud, smoke, a sea front or the glow of the cities"
+    ],
+    "not_for": [
+      "Any number at a school or in a street",
+      "Air temperature",
+      "Saying that a fire is out"
+    ]
+  },
+  "notes": "Layer ids come from NASA's own product lists and docs, not from the live service: the sandbox could not reach it. The full GIBS acknowledgement sentence (171 characters) is longer than the attribution field allows, so the pictures carry it. x_images lists what is fetched.",
+  "x_feed": "nasa-gibs-imagery",
+  "x_images": [
+    "true-colour",
+    "night-lights",
+    "aerosol",
+    "land-temperature",
+    "sea-temperature",
+    "fires"
+  ],
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

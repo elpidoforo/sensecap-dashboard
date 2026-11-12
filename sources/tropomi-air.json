@@ -1,0 +1,136 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "tropomi-air",
+  "name": "Air from space (Sentinel-5P)",
+  "summary": "Satellite readings of nitrogen dioxide, carbon monoxide, ozone, sulphur dioxide and a dust-and-smoke signal over each city, once a day when the sky is clear. Needs a free account.",
+  "layer": "model",
+  "status": "candidate",
+  "planned": true,
+  "tagline": "Sentinel-5P TROPOMI · daily",
+  "i18n": {
+    "el": {
+      "name": "Ο αέρας από το διάστημα (Sentinel-5P)",
+      "summary": "Δορυφορικές μετρήσεις διοξειδίου του αζώτου, μονοξειδίου του άνθρακα, όζοντος, διοξειδίου του θείου και ένδειξης σκόνης και καπνού πάνω από κάθε πόλη, μία φορά την ημέρα όταν ο ουρανός είναι καθαρός. Χρειάζεται δωρεάν λογαριασμό.",
+      "tagline": "Sentinel-5P TROPOMI · καθημερινά"
+    }
+  },
+  "themes": [
+    "air quality",
+    "dust",
+    "satellite"
+  ],
+  "publisher": {
+    "name": "ESA and the European Commission (Copernicus Sentinel-5P), via the Copernicus Data Space Ecosystem",
+    "url": "https://dataspace.copernicus.eu/",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "LicenseRef-Copernicus-Sentinel-Data",
+    "url": "https://ads.atmosphere.copernicus.eu/licences/ec-sentinel",
+    "attribution": "Contains modified Copernicus Sentinel data 2026 (Sentinel-5P TROPOMI), accessed through the Copernicus Data Space Ecosystem",
+    "share_alike": false,
+    "checked_on": "2026-11-12"
+  },
+  "restrictions": [
+    "Needs a free Copernicus Data Space account and an OAuth client (client id and secret)",
+    "A free account has quotas (see the CDSE Quotas page); we ask about 20 small requests every 6 hours",
+    "This data collection allows only one band per request"
+  ],
+  "access": {
+    "type": "rest-json",
+    "url": "https://sh.dataspace.copernicus.eu/api/v1/statistics",
+    "docs_url": "https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Statistical.html",
+    "auth": {
+      "type": "api-key",
+      "env": "CDSE_CLIENT_SECRET"
+    }
+  },
+  "coverage": {
+    "area": "Global (read for the four cities)",
+    "bbox": [
+      -180,
+      -90,
+      180,
+      90
+    ],
+    "resolution_m": 5500
+  },
+  "update": {
+    "every": "P1D",
+    "note": "One pass a day over Cyprus (about 13:30 local solar time); the feed asks every 6 hours."
+  },
+  "variables": [
+    {
+      "id": "no2_column",
+      "unit": "umol/m2",
+      "kind": "measured",
+      "note": "Tropospheric NO2, whole column from the ground up."
+    },
+    {
+      "id": "co_column",
+      "unit": "mmol/m2",
+      "kind": "measured",
+      "note": "Carbon monoxide, whole column."
+    },
+    {
+      "id": "o3_column",
+      "unit": "DU",
+      "kind": "measured",
+      "note": "Total ozone column, the thickness of the ozone layer."
+    },
+    {
+      "id": "so2_column",
+      "unit": "DU",
+      "kind": "measured",
+      "note": "Sulphur dioxide, whole column. Near zero is noise."
+    },
+    {
+      "id": "uv_aerosol_index",
+      "unit": "{index}",
+      "kind": "measured",
+      "note": "Band AER_AI_340_380. Positive: dust or smoke high in the air."
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 18000
+  },
+  "quality": {
+    "kind": "satellite",
+    "uncertainty": "A mean of the clear pixels in an area about 18 km wide, once a day. A column is all the air from the ground to space, not the air at the school. Clouds hide the air below.",
+    "known_issues": [
+      "Only where the sky is clear enough: on cloudy days a city has no value, sometimes for several days.",
+      "One pass a day around 13:30 local solar time: it cannot show the morning or the evening rush hour.",
+      "NO2 and SO2 columns are not street-level amounts. Most CO is high in the air and may come from far away.",
+      "The UV aerosol index is a signal (above about 1 hints at dust or smoke), not a measured amount. Clouds can disturb it.",
+      "SO2 near zero can be slightly negative: instrument noise, not real."
+    ],
+    "stale_after": "P3D"
+  },
+  "upstream": [
+    {
+      "name": "Copernicus Sentinel-5P (TROPOMI)",
+      "url": "https://www.tropomi.eu/"
+    }
+  ],
+  "agent_hints": {
+    "use_for": [
+      "Telling a Saharan dust or smoke day: a clearly positive UV aerosol index",
+      "Seeing if NO2 over a whole city area is higher than usual",
+      "Showing students what a satellite can and cannot see"
+    ],
+    "not_for": [
+      "Street-level NO2 or what a pupil breathes at school",
+      "Hourly changes or the rush hour",
+      "Cloudy days: no value does not mean no pollution"
+    ]
+  },
+  "notes": "Not active until CDSE_CLIENT_SECRET and CDSE_CLIENT_ID are set on the server (free: create an OAuth client in the Copernicus Data Space account settings). The reader follows the Sentinel Hub Statistical API documentation and is not yet tested against the live service.",
+  "x_env": [
+    "CDSE_CLIENT_ID"
+  ],
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

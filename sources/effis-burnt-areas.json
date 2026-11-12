@@ -1,0 +1,107 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "effis-burnt-areas",
+  "name": "Burnt areas mapped from space (EFFIS)",
+  "summary": "Land that the European Forest Fire Information System (EFFIS) mapped as burnt from satellite pictures near each city, in the last 30 days. Only larger fires are mapped.",
+  "layer": "model",
+  "status": "candidate",
+  "planned": true,
+  "tagline": "EFFIS · every 6 h · no key · not yet verified",
+  "i18n": {
+    "el": {
+      "name": "Καμένες εκτάσεις από το διάστημα (EFFIS)",
+      "summary": "Γη που το Ευρωπαϊκό Σύστημα Πληροφοριών για τις Δασικές Πυρκαγιές (EFFIS) χαρτογράφησε ως καμένη από δορυφορικές εικόνες κοντά σε κάθε πόλη τις τελευταίες 30 ημέρες. Χαρτογραφούνται μόνο οι μεγαλύτερες πυρκαγιές.",
+      "tagline": "EFFIS · κάθε 6 ώρες · χωρίς κλειδί · δεν έχει επαληθευτεί ακόμη"
+    }
+  },
+  "themes": ["fire", "land", "satellite"],
+  "publisher": {
+    "name": "EFFIS, Copernicus Emergency Management Service (Joint Research Centre, European Commission)",
+    "url": "https://forest-fire.emergency.copernicus.eu/",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "CC-BY-4.0",
+    "url": "https://forest-fire.emergency.copernicus.eu/about-effis/data-license",
+    "attribution": "Burnt areas: EFFIS, Copernicus Emergency Management Service, © European Union, CC BY 4.0. Changed: dates and areas kept, summed by city",
+    "commercial_use": true,
+    "share_alike": false,
+    "checked_on": "2026-11-12"
+  },
+  "restrictions": [
+    "Give appropriate credit and say that the data were changed (CC BY 4.0); the EFFIS pages give no exact credit line, the wording above is ours",
+    "EFFIS' data-license page ties reuse to the Commission Decision of 12 December 2011 on reuse of documents: a teacher reads it once before the layer goes active"
+  ],
+  "access": {
+    "type": "geojson",
+    "url": "https://maps.effis.emergency.copernicus.eu/gwis",
+    "docs_url": "https://forest-fire.emergency.copernicus.eu/applications/data-and-services",
+    "auth": {
+      "type": "none"
+    },
+    "rate_limit": {
+      "per_minute": 1,
+      "per_day": 8
+    }
+  },
+  "coverage": {
+    "area": "Cyprus and nearby sea (box 31.3 to 34.9 E, 33.7 to 36.1 N)",
+    "bbox": [31.3, 33.7, 34.9, 36.1],
+    "resolution_m": 250
+  },
+  "update": {
+    "every": "PT6H",
+    "latency": "P1D",
+    "note": "EFFIS says burnt areas are updated daily; a fire is mapped a day or more after it, and only when it is large enough."
+  },
+  "variables": [
+    {
+      "id": "burnt_area_near_km2",
+      "unit": "km2",
+      "kind": "derived",
+      "note": "Sum of the mapped burnt areas whose centre is within 50 km of the city centre and that were updated in the last 30 days. 0 when none."
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 250
+  },
+  "quality": {
+    "kind": "satellite",
+    "uncertainty": "Outlines are mapped from satellite pictures, so edges are good to a few hundred metres. A fire is missing until it is mapped, and small fires may never be.",
+    "known_issues": [
+      "Only larger fires are mapped: roughly 30 hectares or more (EFFIS says Sentinel-2 now also helps map smaller ones)",
+      "A map comes a day or more after the fire, so a fire that is burning now is usually not here yet: use the fire-hotspots layer for the last 24 hours",
+      "The sum covers outlines whose centre is within 50 km, so a very large fire can reach beyond it and a nearby one can be left out",
+      "0 means none mapped, not that nothing burnt",
+      "UNVERIFIED: the request, the layer name (nrt.ba.poly) and the property names come from a third-party client's README, not from an EFFIS page; never read live from our sandbox"
+    ],
+    "stale_after": "P1D"
+  },
+  "upstream": [
+    {
+      "name": "EFFIS near-real-time burnt area perimeters, derived from MODIS, VIIRS and Sentinel-2 (the active fires EFFIS shows are NASA FIRMS data)",
+      "url": "https://forest-fire.emergency.copernicus.eu/"
+    }
+  ],
+  "agent_hints": {
+    "use_for": [
+      "Saying how much land near a city was mapped as burnt in the last 30 days"
+    ],
+    "not_for": [
+      "Saying that a fire is burning now: a burnt-area map comes a day or more late",
+      "Saying that no fire happened because 0 is shown: small fires are not mapped"
+    ]
+  },
+  "notes": "Shipped as a planned layer on purpose: the WFS request is not documented on an EFFIS page, only in a third-party client. EFFIS' own hotspot layers are WMS images of NASA FIRMS data (no key, but no numbers either), so hotspots come from the fire-hotspots layer. After the first line 'EFFIS answered: N perimeters ...' shows in the production log, a teacher can set status to active. A WMS fallback was not built.",
+  "x_rules": {
+    "window": "perimeters whose last update (finaldate, else initialdate) is within 30 days before the list was fetched",
+    "city": "the area-weighted centre of the outer rings is within 50 km of the city centre",
+    "area": "the property 'area' (hectares) is used, only when the outline (outer rings, worked out here) is between 0.3 and 3 times that area; otherwise the feature is dropped as unreadable",
+    "bad": "a feature without a Polygon or MultiPolygon, a positive area, or a valid date is dropped; when none can be read, the layer reports an error, never 0"
+  },
+  "added": {
+    "by": "sat-fire",
+    "on": "2026-11-12"
+  }
+}

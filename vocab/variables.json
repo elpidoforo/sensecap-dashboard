@@ -487,6 +487,17 @@
       "Πόσο μακριά από το κέντρο της πόλης είναι η πιο κοντινή θερμή κηλίδα των τελευταίων 24 ωρών, ψάχνοντας έως 100 km. Μια θερμή κηλίδα είναι θερμό σημείο που είδε δορυφόρος καθώς περνούσε (εικονοστοιχεία 375 m έως 1 km), όχι επιβεβαιωμένη φωτιά, γι' αυτό η απόσταση είναι σωστή μόνο περίπου ως 1 km. Αν δεν φάνηκε θερμή κηλίδα σε απόσταση έως 100 km, δεν υπάρχει τιμή, και αυτό δεν σημαίνει ότι δεν υπάρχει φωτιά. Αν δεις καπνό ή φωτιά, πάρε στο 112."
     ]
   },
+  "burnt_area_near_km2": {
+    "label": ["Burnt area mapped within 50 km (last 30 days)","Καμένη έκταση που χαρτογραφήθηκε σε ακτίνα 50 km (τελευταίες 30 ημέρες)"],
+    "unit": "km2",
+    "range": [0,8000],
+    "max_step": 8000,
+    "tolerance": null,
+    "explain": [
+      "How much land the European Forest Fire Information System (EFFIS) has mapped as burnt, in square kilometres, for fires whose centre is within 50 km of the city centre and that were updated in the last 30 days. The maps are drawn from satellite pictures, usually a day or more after the fire, and only larger fires (roughly 30 hectares or more) are mapped, so 0 does not mean there was no fire and a fire that is burning now is usually not here yet. A very large fire can reach beyond 50 km. 1 square kilometre is 100 hectares. If you see smoke or fire, call 112.",
+      "Πόση γη έχει χαρτογραφήσει ως καμένη το Ευρωπαϊκό Σύστημα Πληροφοριών για τις Δασικές Πυρκαγιές (EFFIS), σε τετραγωνικά χιλιόμετρα, για πυρκαγιές με κέντρο σε ακτίνα 50 km από το κέντρο της πόλης που ενημερώθηκαν τις τελευταίες 30 ημέρες. Οι χάρτες φτιάχνονται από δορυφορικές εικόνες, συνήθως μία ή περισσότερες μέρες μετά τη φωτιά, και χαρτογραφούνται μόνο οι μεγαλύτερες πυρκαγιές (περίπου 30 εκτάρια ή περισσότερο), γι' αυτό το 0 δεν σημαίνει ότι δεν έγινε φωτιά και μια φωτιά που καίει τώρα συνήθως δεν φαίνεται ακόμη. Μια πολύ μεγάλη φωτιά μπορεί να φτάνει πέρα από τα 50 km. Το 1 τετραγωνικό χιλιόμετρο είναι 100 εκτάρια. Αν δεις καπνό ή φωτιά, πάρε στο 112."
+    ]
+  },
   "dam_fill_level": {
     "label": [
       "Dam fill level",

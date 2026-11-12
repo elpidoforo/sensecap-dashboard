@@ -92,9 +92,9 @@ function noteFor(s, p, spec) {
     'Not a tree count; dry summer grass looks brown to the satellite.',
   ];
   const el = [
-    'Βαθμολογία πρασινάδας, περίπου 0 έως 1: κάτω από 0,2 κυρίως γυμνό έδαφος, στέγες και δρόμοι· 0,2 έως 0,5 χορτάρι και θάμνοι· πάνω από 0,6 πυκνά πράσινα φυτά.',
+    'Βαθμολογία πρασινάδας, περίπου 0 έως 1: κάτω από 0,2 κυρίως γυμνό έδαφος, στέγες, δρόμοι· 0,2 έως 0,5 χορτάρι, θάμνοι· πάνω από 0,6 πυκνά φυτά.',
     s.basis === 'mean'
-      ? `Μέσος όρος ${s.n} καθαρών εικονοστοιχείων (${spec.pixel} το καθένα) μπλοκ 3 x 3, ${spec.block[1]}, γύρω από το κέντρο της πόλης${c != null ? `· το κεντρικό εικονοστοιχείο μόνο ${M.fmtNum(c, 2, true)}` : ''}.`
+      ? `Μέσος όρος ${s.n} καθαρών εικονοστοιχείων (${spec.pixel} το καθένα) σε μπλοκ 3 x 3, ${spec.block[1]}${c != null ? `· το κεντρικό μόνο ${M.fmtNum(c, 2, true)}` : ''}.`
       : `Ένα καθαρό εικονοστοιχείο ${spec.pixel} στο κέντρο της πόλης.`,
     `Περίοδος ${p.days} ημερών ${M.periodText(p, true)}.`,
     'Δεν μετράει δέντρα· το ξερό καλοκαιρινό χορτάρι δεν φαίνεται πράσινο.',
@@ -138,7 +138,7 @@ module.exports = function create(ctx) {
     }
     const st = R.status();
     if (n) {
-      const bad = st.lastError && st.lastAttemptAt && st.lastAttemptAt > (st.lastOkAt || 0);
+      const bad = !!st.lastError;   // cleared by the next fully good round
       return {
         ok: true, n, at,
         note: `${n} of ${ids.length} cities, newest ${newest.p.days}-day period ${M.periodText(newest.p, false)} (${newest.spec.product})${bad ? '; the last refresh had a problem' : ''}`,

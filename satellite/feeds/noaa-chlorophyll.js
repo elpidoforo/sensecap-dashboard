@@ -5,7 +5,7 @@
  * Source: NOAA CoastWatch ERDDAP (keyless), https://coastwatch.pfeg.noaa.gov/erddap/griddap/nesdisVHNSQchlaDaily
  *   "Chlorophyll, NOAA S-NPP VIIRS, Science Quality, Global 4km, Level 3, 2012 to <latest>, Daily" (NOAA/NESDIS STAR ocean colour team).
  *   Variable chlor_a, mg m^-3, _FillValue -999 (ERDDAP shows it as null), valid range 0.001 to 100. dims: time, altitude (one value, 0), latitude
- *   (stored high to low, ERDDAP accepts a low:high pair), longitude. 0.0375 degree pixels (about 4 km). Science quality, nominal latency
+ *   (stored high to low: we write the pair high:low like the dataset; the griddap documentation says ERDDAP swaps a wrong pair, and if it refuses with 400/404/416 anyway lib/erddap.js getBox tries the other order once and remembers it), longitude. 0.0375 degree pixels (about 4 km). Science quality, nominal latency
  *   15 days: on 2026-11-12 the newest day on the server was 2026-11-01. The page was read on 2026-11-12; the service itself is NOT
  *   reachable from the build sandbox, so the request follows the documentation and local fixtures.
  *   NOT used: noaacwNPPN20VIIRSchlociDaily (ends 2021-09), noaacwN20VIIRSchlaWeekly (ends 2025-04), nesdisVHNSQchlaWeekly (ends 2026-08-20),
@@ -20,12 +20,12 @@ const { makeGridFeed } = require('../lib/gridfeed');
 
 const HOST = 'coastwatch.pfeg.noaa.gov';
 const DAY = 86400000;
-const DS = { dataset: 'nesdisVHNSQchlaDaily', value: 'chlor_a', pre: ['last-6:last', '0'], halfLat: 0.3, halfLng: 0.3, maxKm: 25, windowMs: 8 * DAY, min: 0.001, max: 100 };
+const DS = { dataset: 'nesdisVHNSQchlaDaily', value: 'chlor_a', pre: ['last-6:last', '0'], order: { latDesc: true }, halfLat: 0.3, halfLng: 0.3, maxKm: 25, windowMs: 8 * DAY, min: 0.001, max: 100 };
 
 // One city: the nearest pixel with a clear value in the newest few days; its newest clear value. null when the box is all cloud or land.
 async function readOne(place, get) {
   const box = E.boxAround(place.lat, place.lng, DS.halfLat, DS.halfLng);
-  const json = await get(E.griddapUrl({ host: HOST, dataset: DS.dataset, vars: [DS.value], pre: DS.pre, lat: box.lat, lng: box.lng }));
+  const json = await E.getBox(get, { host: HOST, dataset: DS.dataset, vars: [DS.value], pre: DS.pre, lat: box.lat, lng: box.lng }, DS.order);
   const { cells } = E.parseGrid(json, [DS.value]);
   if (!cells.length) return null;
   const newest = cells.reduce((m, c) => Math.max(m, c.t), 0);

@@ -48,6 +48,29 @@ const withTimeout = (p, ms, what) => new Promise((resolve, reject) => {
   Promise.resolve(p).then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
 });
 
+/* A feed runs its own timers. An error that escapes one of them (a rejected promise nobody awaits, a throw inside setInterval) would
+   otherwise stop the whole server. So the first registry installs two process handlers that are narrow on purpose: they act only on an
+   error that comes from satellite code (a SatelliteHttpError, or a stack that passes through satellite/ files), log ONE line and mark that
+   feed. Every other error is thrown again exactly as before, so the rest of the app behaves as it always did. */
+const registries = new Set();
+let guardInstalled = false;
+function installGuard() {
+  if (guardInstalled) return;
+  guardInstalled = true;
+  const take = (err, what) => {
+    const stack = String((err && err.stack) || '');
+    const dirs = [...registries].map((r) => r._t.feedsDir);   // where the feed files really are (the test folders too)
+    const fromSatellite = (err instanceof SatelliteHttpError) || stack.includes(__dirname + path.sep) || dirs.some((d) => stack.includes(d + path.sep));
+    if (!fromSatellite) return false;
+    let id = null;
+    for (const d of dirs) { const i = stack.indexOf(d + path.sep); if (i >= 0) { const m = /^(_?[a-z0-9-]+)\.js/.exec(stack.slice(i + d.length + 1)); if (m) { id = m[1]; break; } } }
+    for (const r of registries) if (r._t.escaped(id, what, err)) return true;
+    return false;
+  };
+  process.on('unhandledRejection', (reason) => { if (!take(reason, 'an unhandled promise rejection')) throw reason; });
+  process.on('uncaughtException', (err) => { if (!take(err, 'an uncaught error')) throw err; });
+}
+
 function createSatellite(opts) {
   const o = opts || {};
   const root = o.root || path.join(__dirname, '..');
@@ -59,6 +82,7 @@ function createSatellite(opts) {
   const timeouts = { ...TIMEOUTS, ...(o.timeouts || {}) };   // a test can make them short
   const feedsDir = o.feedsDir || path.join(__dirname, 'feeds');
   const baseDir = path.join(o.dataDir || fs.mkdtempSync(path.join(os.tmpdir(), 'satellite-')), 'satellite');
+  let me = null;
   const entries = new Map();   // id -> entry
   const logged = new Map();    // message -> time (the same line is not repeated within 10 minutes)
 
@@ -68,12 +92,14 @@ function createSatellite(opts) {
 
   // Secrets never leave: the value of any key a feed declared is cut out of every text the registry keeps or prints.
   const secretValues = () => { const out = []; for (const e of entries.values()) for (const n of e.envNames) { const v = env[n]; if (v && String(v).length >= 4) out.push(String(v)); } return out; };
-  const scrub = (text, e) => {
+  const scrub = (text, e, el) => {
     let t = clip(text, 400);
     for (const v of secretValues()) t = t.split(v).join('***');
-    if (e) for (const n of e.envNames) t = t.split(n).join('the key');
+    if (e) for (const n of e.envNames) t = t.split(n).join(el ? 'κλειδί' : 'key');   // "set FIRMS_MAP_KEY" -> "set key"; the page never shows the name of a secret
     return t;
   };
+  // The same, for an error message: it can name a file on the server (a failed require), and status() is public, so paths are cut out too.
+  const scrubErr = (text, e) => scrub(String(text == null ? '' : text).replace(/(?:[A-Za-z]:)?(?:[\\/][\w.@~+-]+){2,}/g, '(path)'), e);
   const say = (text, key) => {
     const k = key || text, t = now();
     if (logged.has(k) && t - logged.get(k) < 600000) return;
@@ -145,14 +171,14 @@ function createSatellite(opts) {
       if (!feed || typeof feed !== 'object' || typeof feed.then === 'function') throw new Error('create(ctx) must return the feed object (not a promise)');
       if (feed.id !== e.id) throw new Error(`feed.id is "${clip(feed.id, 60)}" but must be "${e.id}"`);
       if (typeof feed.probe !== 'function' || typeof feed.read !== 'function') throw new Error('a feed needs probe() and read(cityId)');
-      inner = makeGet({ id: e.id, hosts: feed.hosts, transport: o.transport, allowLocalHttp: !!o.allowLocalHttp, onResult: (err) => { const t = now(); if (err) { e.net.fail++; e.net.lastFailAt = t; e.net.lastError = scrub(err.message, e); } else { e.net.ok++; e.net.lastOkAt = t; } } });
+      inner = makeGet({ id: e.id, hosts: feed.hosts, transport: o.transport, allowLocalHttp: !!o.allowLocalHttp, onResult: (err) => { const t = now(); if (err) { e.net.fail++; e.net.lastFailAt = t; e.net.lastError = scrubErr(err.message, e); } else { e.net.ok++; e.net.lastOkAt = t; } } });
       e.hosts = [...new Set(feed.hosts.map((h) => String(h).toLowerCase()))];
       if (e.demo && feed.source && typeof feed.source === 'object') e.source = feed.source;
       e.feed = feed;
       e.state = 'ready';
     } catch (err) {
       e.state = 'failed';
-      e.error = scrub((err && err.message) || 'could not load', e);
+      e.error = scrubErr((err && err.message) || 'could not load', e);
       e.feed = null;
       say(`Satellite ${e.id}: could not load (${e.error})`);
     }
@@ -177,7 +203,7 @@ function createSatellite(opts) {
     }
   }
   function failFeed(e, what, err) {
-    e.lastError = scrub((err && err.message) || what + ' failed', e);
+    e.lastError = scrubErr((err && err.message) || what + ' failed', e);
     e.lastErrorAt = now();
     say(`Satellite ${e.id}: ${what} failed (${e.lastError})`);
   }
@@ -200,7 +226,7 @@ function createSatellite(opts) {
   function cleanProbe(r, e) {
     const x = r && typeof r === 'object' ? r : {};
     const at = msOf(x.at);
-    return { ok: !!x.ok, n: Math.max(0, Math.min(1e6, Math.round(num(x.n) || 0))), at: at && at > 0 ? at : null, note: scrub(x.note, e), noteEl: scrub(x.noteEl, e) };
+    return { ok: !!x.ok, n: Math.max(0, Math.min(1e6, Math.round(num(x.n) || 0))), at: at && at > 0 ? at : null, note: scrub(x.note, e), noteEl: scrub(x.noteEl, e, true) };
   }
   async function probe(id) {
     const e = entries.get(id);
@@ -236,8 +262,8 @@ function createSatellite(opts) {
       if (value == null || time == null || time <= 0) continue;
       out.push({
         variable: clip(r.variable, 60), value, unit: clip(r.unit, 20), time,
-        where: scrub(r.where, e), whereEl: scrub(r.whereEl || r.where, e),
-        ...(r.note ? { note: scrub(r.note, e), noteEl: scrub(r.noteEl || r.note, e) } : {}),
+        where: scrub(r.where, e), whereEl: scrub(r.whereEl || r.where, e, true),
+        ...(r.note ? { note: scrub(r.note, e), noteEl: scrub(r.noteEl || r.note, e, true) } : {}),
       });
     }
     e.readAt = now(); e.readCount = out.length;
@@ -389,8 +415,24 @@ function createSatellite(opts) {
     }
   }
 
+  // An error that escaped from a feed's own timer (see installGuard). The feed file name tells which feed; true means "handled".
+  function escaped(fileBase, what, err) {
+    const id = fileBase ? (fileBase[0] === '_' ? 'satellite-' + fileBase.slice(1) : fileBase) : null;
+    const e = id && entries.get(id);
+    if (e) {
+      e.lastError = scrubErr((err && err.message) || what, e); e.lastErrorAt = now();
+      say(`Satellite ${e.id}: ${what} came out of the feed (${e.lastError}); the server keeps running`, 'escaped:' + e.id + ':' + String(err && err.message).slice(0, 80));
+      return true;
+    }
+    say(`Satellite: ${what} came out of a feed (${scrub(err && err.message, null) || 'no message'}); the server keeps running`, 'escaped:' + String(err && err.message).slice(0, 80));
+    return true;
+  }
+
   scan();
-  return { enabled: true, demo, start, stop, status, probe, read, images, imageFile, has, ids, allIds, virtualSources, keyState, handle, _t: { entries, feedsDir, baseDir, scrub, tooMany } };
+  if (o.guardProcess !== false) { registries.add(api()); installGuard(); }
+  return api();
+
+  function api() { return me || (me = { enabled: true, demo, start, stop, status, probe, read, images, imageFile, has, ids, allIds, virtualSources, keyState, handle, _t: { entries, feedsDir, baseDir, scrub, tooMany, escaped } }); }
 }
 
 module.exports = { createSatellite, ID_RE, IMAGE_ID_RE };

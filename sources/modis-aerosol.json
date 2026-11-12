@@ -1,0 +1,105 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "modis-aerosol",
+  "name": "Haze from MODIS satellites",
+  "summary": "Satellite measurements of haze (aerosol optical depth) in 1 km pixels from the MODIS instruments, once a day. A candidate: needs a free NASA Earthdata login and is not connected yet.",
+  "layer": "model",
+  "status": "candidate",
+  "planned": false,
+  "tagline": "NASA MODIS MAIAC · daily",
+  "i18n": {
+    "el": {
+      "name": "Θολούρα από τους δορυφόρους MODIS",
+      "summary": "Δορυφορικές μετρήσεις θολούρας (οπτικό βάθος αερολυμάτων) σε εικονοστοιχεία 1 km από τα όργανα MODIS, μία φορά την ημέρα. Υποψήφια πηγή: χρειάζεται δωρεάν σύνδεση NASA Earthdata και δεν έχει συνδεθεί ακόμη.",
+      "tagline": "NASA MODIS MAIAC · καθημερινά"
+    }
+  },
+  "themes": [
+    "air quality",
+    "dust",
+    "satellite"
+  ],
+  "publisher": {
+    "name": "NASA (MODIS MCD19A2, distributed by LP DAAC)",
+    "url": "https://www.earthdata.nasa.gov/data/catalog/lpcloud-mcd19a2-061",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "CC0-1.0",
+    "url": "https://www.earthdata.nasa.gov/earth-observation-data/data-use-policy",
+    "attribution": "MODIS MCD19A2 (MAIAC) aerosol data from NASA LP DAAC. NASA is acknowledged as the source.",
+    "commercial_use": true,
+    "share_alike": false,
+    "checked_on": "2026-11-12"
+  },
+  "restrictions": [
+    "Needs a free NASA Earthdata login",
+    "AppEEARS works in steps: submit a task, wait, download a table"
+  ],
+  "access": {
+    "type": "rest-json",
+    "url": "https://appeears.earthdatacloud.nasa.gov/api",
+    "docs_url": "https://appeears.earthdatacloud.nasa.gov/api/",
+    "auth": {
+      "type": "basic",
+      "env": "EARTHDATA_USERNAME"
+    }
+  },
+  "coverage": {
+    "area": "Global",
+    "bbox": [
+      -180,
+      -90,
+      180,
+      90
+    ],
+    "resolution_m": 1000
+  },
+  "update": {
+    "every": "P1D",
+    "note": "Daily composite. How soon after the pass it is available was not checked."
+  },
+  "variables": [
+    {
+      "id": "aerosol_optical_depth",
+      "unit": "{AOD}",
+      "kind": "measured",
+      "note": "Band Optical_Depth_055 (name from the MAIAC guide, not yet checked in AppEEARS)."
+    }
+  ],
+  "representativeness": {
+    "environment": "outdoor",
+    "scale_m": 1000
+  },
+  "quality": {
+    "kind": "satellite",
+    "uncertainty": "Haze in the whole air column in 1 km pixels, only where there is no cloud, from one or two passes a day. The size of the error was not checked.",
+    "known_issues": [
+      "Cloud leaves gaps, sometimes for days.",
+      "A satellite sees haze but cannot tell dust from smoke or sea salt by itself.",
+      "The CAMS model takes MODIS haze data in, so model and MODIS are not independent."
+    ],
+    "stale_after": "P3D"
+  },
+  "upstream": [
+    {
+      "name": "MODIS instruments on the Terra and Aqua satellites",
+      "url": "https://modis.gsfc.nasa.gov/"
+    }
+  ],
+  "agent_hints": {
+    "use_for": [
+      "Checking the haze of the CAMS model against what a satellite sees",
+      "Showing a Saharan dust day from space"
+    ],
+    "not_for": [
+      "Hourly changes",
+      "Haze at street level"
+    ]
+  },
+  "notes": "Not connected. Checked on 2026-11-12: the ORNL DAAC MODIS web service lists land products and its documentation names no aerosol product, so it is not a route to haze. NASA AppEEARS may offer MCD19A2 for a point (ask GET /product); it needs an Earthdata login (user name and password) and several steps per request.",
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-12"
+  }
+}

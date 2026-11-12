@@ -5,12 +5,12 @@
   "summary": "Sea surface temperature from a daily satellite map (NASA MUR, served by NOAA) off Larnaka, Limassol and Paphos. Coastal cities only. It sees the sea's top skin and not through cloud.",
   "layer": "model",
   "status": "active",
-  "tagline": "Satellite · coastal cities only",
+  "tagline": "Daily map · coastal cities only",
   "i18n": {
     "el": {
       "name": "Θερμοκρασία θάλασσας από δορυφόρο",
       "summary": "Θερμοκρασία επιφάνειας θάλασσας από καθημερινό δορυφορικό χάρτη (NASA MUR, μέσω NOAA) στις ακτές Λάρνακας, Λεμεσού και Πάφου. Μόνο παράκτιες πόλεις. Βλέπει το λεπτό επιφανειακό στρώμα, όχι μέσα από σύννεφα.",
-      "tagline": "Δορυφόρος · μόνο παράκτιες πόλεις"
+      "tagline": "Ημερήσιος χάρτης · μόνο παράκτιες πόλεις"
     }
   },
   "themes": [

@@ -195,7 +195,7 @@ const cityOfDevice = (places, d) => {
   return Object.keys(places).find((id) => id[0] !== '_' && (places[id].words || []).some((w) => t.includes(w))) || null;
 };
 
-const UNIT_TEXT = { Cel: '°C', 'ug/m3': 'µg/m³', '[ppm]': 'ppm', 'm/s': 'm/s', '{AOD}': 'AOD', '{UVI}': 'UVI', '{index}': 'index', 'umol/m2': 'µmol/m²', 'mmol/m2': 'mmol/m²', 'W/m2': 'W/m²', 'kW.h/m2/d': 'kWh/m²/day' };
+const UNIT_TEXT = { Cel: '°C', 'ug/m3': 'µg/m³', '[ppm]': 'ppm', 'm/s': 'm/s', '{AOD}': 'AOD', '{UVI}': 'UVI', '{index}': 'index', 'umol/m2': 'µmol/m²', 'mmol/m2': 'mmol/m²', 'W/m2': 'W/m²', 'kW.h/m2/d': 'kWh/m²/day', 'mg/m3': 'mg/m³' };
 const unitText = (u) => UNIT_TEXT[u] || u;
 
 // Rounded the same way in the evidence, in the templates and in the check of the assistant's numbers.
@@ -556,14 +556,18 @@ function createLayers(opts) {
       } else if (usable.length) {
         const r = usable[0];
         const isMeasured = MEASURED.has(r.kind);
-        out.push({ id: 'single-' + variable, kind: 'single', variable, rows: usable.slice(0, 3), confidence: isMeasured ? 'medium' : 'low', why: [isMeasured ? 'One fresh measurement and nothing to check it against.' : 'A single model value and nothing to check it against.'], caveats: r.kind === 'model' ? ['A model value is for a grid cell about 11 km wide, not for one spot.'] : r.kind === 'satellite' ? ['A satellite value describes an area, only where the sky is clear, at the time the satellite passed over; it is not a sensor at the school.'] : [] });
+        out.push({ id: 'single-' + variable, kind: 'single', variable, rows: usable.slice(0, 3), confidence: isMeasured ? 'medium' : 'low', why: [isMeasured ? 'One fresh measurement and nothing to check it against.' : r.kind === 'satellite' ? 'A single satellite value and nothing to check it against.' : 'A single model value and nothing to check it against.'], caveats: r.kind === 'model' ? ['A model value is for a grid cell about 11 km wide, not for one spot.'] : r.kind === 'satellite' ? ['A satellite value describes an area, only where the sky is clear, at the time the satellite passed over; it is not a sensor at the school.'] : [] });
       }
     }
     // Air quality first (it is what the mission is about), then comfort and weather; within that, disagreements first.
-    const topic = { pm25: 0, pm10: 0, ozone: 0, dust: 0, co2: 0, aerosol_optical_depth: 0, nitrogen_dioxide: 1, sulphur_dioxide: 1, carbon_monoxide: 1, no2_column: 1, uv_aerosol_index: 1, uv_index: 3, noise: 1, temperature: 2, relative_humidity: 3, sea_surface_temperature: 3, wind_speed: 4, wave_height: 5, pressure: 5 };
+    const topic = { pm25: 0, pm10: 0, ozone: 0, dust: 0, co2: 0, aerosol_optical_depth: 0, nitrogen_dioxide: 1, sulphur_dioxide: 1, carbon_monoxide: 1, no2_column: 1, uv_aerosol_index: 0, uv_index: 3, noise: 1, temperature: 2, relative_humidity: 3, sea_surface_temperature: 3, chlorophyll_a: 5, wind_speed: 4, wave_height: 5, pressure: 5, solar_irradiance: 3, solar_energy_day: 3, solar_clear_sky_share: 5, solar_energy_day_nasa: 5, cloud_amount_nasa: 5 };
     const rank = { differ: 0, threshold: 0, agree: 1, single: 2 };
     out.sort((a, b) => (topic[a.variable] ?? 6) - (topic[b.variable] ?? 6) || rank[a.kind] - rank[b.kind]);
-    return out.slice(0, 5);
+    const top = out.slice(0, 5);
+    // Five findings fit. A satellite finding that would be cut off still gets the last place, so a layer that is on is not silently ignored.
+    const sat = out.slice(5).find((c) => c.rows.some((r) => r.kind === 'satellite'));
+    if (sat && !top.some((c) => c.rows.some((r) => r.kind === 'satellite'))) top[top.length - 1] = sat;
+    return top;
   }
 
   // Layers the person asked for that gave nothing, plus useful layers that are not connected yet.

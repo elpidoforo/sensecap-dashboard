@@ -25,8 +25,8 @@ const MAX_ERR = 3;          // a pixel whose own error estimate is above this (d
 const FRESH_ENOUGH = 10 * DAY;   // a map older than this and the backup is tried too (the newer of the two is kept)
 
 const DATASETS = [
-  { key: 'mur', name: 'MUR', dataset: 'jplMURSST41', value: 'analysed_sst', err: 'analysis_error', mask: 'mask', pre: ['(last)'], halfLat: 0.12, halfLng: 0.15, maxKm: 15, coarse: false },
-  { key: 'oisst', name: 'OISST', dataset: 'ncdcOisst21NrtAgg', value: 'sst', err: 'err', mask: null, pre: ['(last)', '0'], halfLat: 0.4, halfLng: 0.4, maxKm: 40, coarse: true },
+  { key: 'mur', name: 'MUR', dataset: 'jplMURSST41', value: 'analysed_sst', err: 'analysis_error', mask: 'mask', pre: ['(last)'], order: { latDesc: false }, halfLat: 0.12, halfLng: 0.15, maxKm: 15, coarse: false },
+  { key: 'oisst', name: 'OISST', dataset: 'ncdcOisst21NrtAgg', value: 'sst', err: 'err', mask: null, pre: ['(last)', '0'], order: { latDesc: false }, halfLat: 0.4, halfLng: 0.4, maxKm: 40, coarse: true },
 ];
 const BY_KEY = Object.fromEntries(DATASETS.map((d) => [d.key, d]));
 
@@ -34,7 +34,7 @@ const BY_KEY = Object.fromEntries(DATASETS.map((d) => [d.key, d]));
 async function readOne(ds, place, get) {
   const box = E.boxAround(place.lat, place.lng, ds.halfLat, ds.halfLng);
   const vars = [ds.value, ds.err, ds.mask].filter(Boolean);
-  const json = await get(E.griddapUrl({ host: HOST, dataset: ds.dataset, vars, pre: ds.pre, lat: box.lat, lng: box.lng }));
+  const json = await E.getBox(get, { host: HOST, dataset: ds.dataset, vars, pre: ds.pre, lat: box.lat, lng: box.lng }, ds.order);
   const { cells, units } = E.parseGrid(json, vars);
   if (!cells.length) return null;
   const newest = cells.reduce((m, c) => Math.max(m, c.t), 0);
