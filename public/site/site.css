@@ -258,7 +258,10 @@ body.nm-page { overflow-x: hidden; }
 .sm-fresh i { width: 8px; height: 8px; margin-top: 4px; border-radius: 50%; background: var(--nm-dot-ok); box-shadow: 0 0 8px var(--nm-dot-ok); flex: none; }
 .sm-fresh small { display: block; color: var(--nm-side-sub); font-weight: 400; font-size: 11.5px; }
 .sm-fresh i.stale { background: #F2B24C; box-shadow: 0 0 8px #F2B24C; }
-.sm-user { display: flex; align-items: center; gap: 11px; padding: 8px 6px; color: var(--nm-ink-soft); }
+.sm-user { display: flex; align-items: center; gap: 11px; padding: 8px 6px; border-radius: 14px; color: var(--nm-ink-soft); text-decoration: none; transition: background .2s; }
+.sm-user:hover { background: var(--nm-side-hover); }
+.sm-user:focus-visible { outline: 2px solid var(--nm-cyan); outline-offset: 2px; }
+.sm-user > div:last-child { min-width: 0; }
 .sm-user .av { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--nm-copper); color: #1c0f06; font: 700 13px/1 var(--nm-font); flex: none; }
 .sm-user b { display: block; font: 600 13.5px/1.2 var(--nm-font); }
 .sm-user small { display: block; font: 400 11.5px/1.3 var(--nm-font); color: var(--nm-side-sub); }

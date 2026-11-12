@@ -1,8 +1,8 @@
 /* Running projects: team projects in progress, with a progress gauge and a detail sheet.
-   Everyone sees the projects a teacher approved (scope=public). A class team (class code, no account) or a signed-in teacher also
+   Everyone sees the projects a teacher approved (scope=public). An approved student or a signed-in teacher also
    sees their own plans (scope=mine) and can move them between draft, running and done, and send them to a teacher.
    API: GET /studio/api/plans?scope=public|mine, PATCH /studio/api/plans/:id {status}, GET /studio/api/status,
-        POST /studio/api/class, POST /studio/api/class/leave, /api/devices (names only), /api/config (names, demo).
+        /api/devices (names only), /api/config (names, demo).
    Route: #/projects  or  #/projects/<id> (opens the detail sheet of that project). */
 (function () {
   'use strict';
@@ -100,9 +100,6 @@
     let alive = true, timer = 0, sheet = null;
     const live = el('div', { class: 'sr-only', role: 'status', 'aria-live': 'polite' });
     const headHost = el('div'), statsHost = el('div'), mineHost = el('div'), filterHost = el('div'), gridHost = el('div', { id: 'pr-grid' });
-    const codeIn = el('input', { class: 'nm-input', id: 'pr-code', type: 'text', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', maxlength: 40 });
-    const teamIn = el('input', { class: 'nm-input', id: 'pr-team', type: 'text', autocomplete: 'off', maxlength: 30 });
-    try { teamIn.value = SC.store.get(TEAM_KEY) || ''; } catch (e) { /* no storage */ }
     root.append(headHost, statsHost, mineHost, filterHost, gridHost, live);
 
     const V = () => (S.status && S.status.viewer) || { kind: 'visitor' };
@@ -157,8 +154,8 @@
         tags: S.demo ? [{ text: t('Demo data', 'Δεδομένα επίδειξης'), cls: 'demo' }] : [],
         actions: [el('a', { class: 'nm-btn nm-btn--primary', href: '#/start' }, ic('plus'), t('Start a project', 'Ξεκινήστε ένα έργο'))],
         help: [
-          'Each card is a project a student team is working on. The ring shows how many of its steps are done. Press Details to see the question, the sensors, the data it uses and the steps. Only projects a teacher approved are shown to everyone. If your class has a project, enter the class code to see and update your own plans: move them between Draft, Running and Done, and send one to your teacher when it is ready.',
-          'Κάθε κάρτα είναι ένα έργο στο οποίο δουλεύει μια ομάδα μαθητών. Ο κύκλος δείχνει πόσα από τα βήματά του έχουν γίνει. Πατήστε «Λεπτομέρειες» για να δείτε το ερώτημα, τους αισθητήρες, τα δεδομένα που χρησιμοποιεί και τα βήματα. Σε όλους εμφανίζονται μόνο τα έργα που ενέκρινε εκπαιδευτικός. Αν η τάξη σας έχει ένα έργο, βάλτε τον κωδικό τάξης για να δείτε και να ενημερώσετε τα δικά σας σχέδια: μετακινήστε τα ανάμεσα σε Προσχέδιο, Σε εξέλιξη και Ολοκληρωμένο και στείλτε ένα στον εκπαιδευτικό σας όταν είναι έτοιμο.',
+          'Each card is a project a student team is working on. The ring shows how many of its steps are done. Press Details to see the question, the sensors, the data it uses and the steps. Only projects a teacher approved are shown to everyone. If your team has a project, sign in with your account to see and update your own plans: move them between Draft, Running and Done, and send one to your teacher when it is ready.',
+          'Κάθε κάρτα είναι ένα έργο στο οποίο δουλεύει μια ομάδα μαθητών. Ο κύκλος δείχνει πόσα από τα βήματά του έχουν γίνει. Πατήστε «Λεπτομέρειες» για να δείτε το ερώτημα, τους αισθητήρες, τα δεδομένα που χρησιμοποιεί και τα βήματα. Σε όλους εμφανίζονται μόνο τα έργα που ενέκρινε εκπαιδευτικός. Αν η ομάδα σας έχει ένα έργο, συνδεθείτε με τον λογαριασμό σας για να δείτε και να ενημερώσετε τα δικά σας σχέδια: μετακινήστε τα ανάμεσα σε Προσχέδιο, Σε εξέλιξη και Ολοκληρωμένο και στείλτε ένα στον εκπαιδευτικό σας όταν είναι έτοιμο.',
         ],
       }));
     }
@@ -173,54 +170,15 @@
       el('div', { class: 'nm-callout nm-callout--info pr-priv' }, ic('lock'), el('span', null, el('b', null, t('Protecting students.', 'Προστασία των μαθητών.')), ' ' + t('Projects show a team name and a school, never a student. Sensors appear by name, never by position.', 'Τα έργα δείχνουν όνομα ομάδας και σχολείο, ποτέ μαθητή. Οι αισθητήρες εμφανίζονται με το όνομά τους, ποτέ με τη θέση τους.'))));
     }
 
-    /* ----- joining a class (the same panel as the Build studio) ----- */
-    async function joinClass() {
-      if (S.joinBusy) return;
-      const code = codeIn.value.trim(), team = teamIn.value.trim();
-      S.joinErr = '';
-      if (!code) { S.joinErr = t('Type the class code your teacher gave you.', 'Πληκτρολογήστε τον κωδικό τάξης που σας έδωσε ο εκπαιδευτικός.'); drawMine(); codeIn.focus(); return; }
-      if (!team) { S.joinErr = t('Type a team name.', 'Πληκτρολογήστε ένα όνομα ομάδας.'); drawMine(); teamIn.focus(); return; }
-      S.joinBusy = true; drawMine();
-      try {
-        const r = await SC.api('/studio/api/class', { method: 'POST', body: { code, team } });
-        SC.store.set(TEAM_KEY, r.team || team);
-        codeIn.value = '';
-        SC.toast(t('You are working as Team ' + r.team + '.', 'Δουλεύετε ως Ομάδα ' + r.team + '.'));
-        await loadStatus(); await loadMine();
-      } catch (e) {
-        const c2 = e.body && e.body.code;
-        S.joinErr = e.status === 403 && c2 === 'code' ? t('That class code is not right. Ask your teacher for the code.', 'Αυτός ο κωδικός τάξης δεν είναι σωστός. Ρωτήστε τον εκπαιδευτικό σας.')
-          : e.status === 429 ? t('Too many wrong codes. Wait a few minutes, then ask your teacher for the code.', 'Πάρα πολλοί λάθος κωδικοί. Περιμένετε λίγα λεπτά και ρωτήστε τον εκπαιδευτικό σας.')
-            : e.status === 400 && c2 === 'team' ? (SC.lang === 'el' ? 'Το όνομα ομάδας έχει έως 30 χαρακτήρες: μόνο γράμματα, αριθμοί, κενά και παύλες, και όχι αριθμός τηλεφώνου.' : errMsg(e))
-              : errMsg(e);
-      }
-      S.joinBusy = false;
-      if (alive) drawAll();
-    }
-    async function leaveClass() {
-      try { await SC.api('/studio/api/class/leave', { method: 'POST', body: {} }); } catch (e) { /* the cookie ends by itself */ }
-      await loadStatus(); await loadMine();
-      SC.toast(t('You left the class.', 'Αποχωρήσατε από την τάξη.'));
-      if (alive) drawAll();
-    }
+    /* ----- not signed in: point to the Join page (no class code any more) ----- */
     function gateForm() {
-      if (!S.gateOpen && !S.joinErr) {
-        return el('div', { class: 'pr-as pr-slim' }, el('span', { class: 'pr-tic' }, ic('user')),
-          el('div', { class: 'pr-as-t' }, el('b', null, t('Running a project with your class?', 'Κάνετε ένα έργο με την τάξη σας;')), el('small', null, t('Enter your class code to see and update your team’s own plans.', 'Βάλτε τον κωδικό τάξης για να δείτε και να ενημερώσετε τα δικά σας σχέδια.'))),
-          el('button', { class: 'nm-btn', type: 'button', onclick: () => { S.gateOpen = true; drawMine(); codeIn.focus(); } }, ic('lock'), t('Enter class code', 'Βάλτε κωδικό τάξης')));
-      }
-      const f = el('form', { class: 'pr-gate', novalidate: true },
-        el('div', { class: 'pr-eb cu' }, t('Your class', 'Η τάξη σας')),
-        el('h2', null, t('Running a project with your class?', 'Κάνετε ένα έργο με την τάξη σας;')),
-        el('p', { class: 'pr-hint' }, t('Your teacher gives you the class code. It is not a password and you do not need an account. Pick a team name your class will know. Do not use your real name.', 'Τον κωδικό τάξης τον δίνει ο εκπαιδευτικός σας. Δεν είναι κωδικός πρόσβασης και δεν χρειάζεστε λογαριασμό. Διαλέξτε ένα όνομα ομάδας που θα το γνωρίζει η τάξη σας. Μη χρησιμοποιήσετε το πραγματικό σας όνομα.')),
-        el('div', { class: 'pr-fields' },
-          el('div', { class: 'pr-field' }, el('label', { for: 'pr-code' }, t('Class code', 'Κωδικός τάξης')), codeIn),
-          el('div', { class: 'pr-field' }, el('label', { for: 'pr-team' }, t('Team name', 'Όνομα ομάδας')), teamIn)),
-        S.joinErr ? el('div', { class: 'err', role: 'alert' }, S.joinErr) : null,
-        el('div', { class: 'pr-actions' }, el('button', { class: 'nm-btn nm-btn--primary', type: 'submit', disabled: S.joinBusy }, ic('lock'), t('See my team’s projects', 'Δείτε τα έργα της ομάδας μου')),
-          el('a', { class: 'link', href: '#/approvals' }, t('Teachers: sign in', 'Εκπαιδευτικοί: συνδεθείτε'))));
-      f.addEventListener('submit', (ev) => { ev.preventDefault(); joinClass(); });
-      return f;
+      const acct = SC.account;
+      const waiting = Boolean(acct && acct.status === 'pending') || Boolean(V().pending);
+      return el('div', { class: 'pr-as pr-slim' }, el('span', { class: 'pr-tic' }, ic('user')),
+        el('div', { class: 'pr-as-t' },
+          el('b', null, waiting ? t('Your account is waiting for approval', 'Ο λογαριασμός σας περιμένει έγκριση') : t('Running a project with your team?', 'Κάνετε ένα έργο με την ομάδα σας;')),
+          el('small', null, waiting ? t('You will see and update your own plans here as soon as a teacher or an admin approves you.', 'Θα βλέπετε και θα ενημερώνετε τα δικά σας σχέδια εδώ μόλις σας εγκρίνει ένας εκπαιδευτικός ή ο διαχειριστής.') : t('Sign in with your account to see and update your own plans. No account yet? Ask to join with your city and team.', 'Συνδεθείτε με τον λογαριασμό σας για να δείτε και να ενημερώσετε τα δικά σας σχέδια. Δεν έχετε λογαριασμό; Ζητήστε να μπείτε με την πόλη και την ομάδα σας.'))),
+        el('a', { class: 'nm-btn', href: '#/join' }, ic('lock'), waiting ? t('See my request', 'Δείτε το αίτημά μου') : t('Join or sign in', 'Εγγραφή ή σύνδεση')));
     }
 
     /* ----- the cards ----- */
@@ -275,7 +233,7 @@
         SC.toast(m); live.textContent = m;
       } catch (e) {
         if (e.status === 401) { await loadStatus(); await loadMine(); }
-        SC.modal({ title: t('It was not saved', 'Δεν αποθηκεύτηκε'), body: el('p', null, e.status === 401 ? t('Your class session has ended. Enter the class code again.', 'Η συνεδρία της τάξης έληξε. Βάλτε ξανά τον κωδικό τάξης.') : errMsg(e)), actions: [{ label: t('Close', 'Κλείσιμο'), primary: true }] });
+        SC.modal({ title: t('It was not saved', 'Δεν αποθηκεύτηκε'), body: el('p', null, e.status === 401 ? t('You are signed out. Sign in again on the Join page.', 'Έχετε αποσυνδεθεί. Συνδεθείτε ξανά από τη σελίδα εγγραφής.') : errMsg(e)), actions: [{ label: t('Close', 'Κλείσιμο'), primary: true }] });
       }
       S.busyId = null;
       if (alive) drawAll();
@@ -302,16 +260,15 @@
       if (!S.loaded) { mineHost.replaceChildren(); return; }
       if (!canOwn()) {
         const g = gateForm();
-        mineHost.replaceChildren(g.classList.contains('pr-slim') ? g : el('section', { class: 'nm-card nm-card--glow pr-gatec', 'aria-label': t('Join your class', 'Μπείτε στην τάξη σας') }, g));
+        mineHost.replaceChildren(g);
         return;
       }
       const strip = el('div', { class: 'pr-as' }, el('span', { class: 'pr-tic' }, ic('user')),
-        el('div', { class: 'pr-as-t' }, el('b', null, isClass() ? t('Working as ', 'Δουλεύετε ως ') + asTeam() : t('Signed in as ' + (S.status.user ? S.status.user.name : 'a teacher'), 'Συνδεδεμένοι ως ' + (S.status.user ? S.status.user.name : 'εκπαιδευτικός'))),
-          el('small', null, isClass() ? t('Your own plans are below. Others only see them after a teacher approves.', 'Τα δικά σας σχέδια είναι παρακάτω. Οι άλλοι τα βλέπουν μόνο μετά την έγκριση εκπαιδευτικού.') : t('Your plans are below.', 'Τα σχέδιά σας είναι παρακάτω.'))),
-        isClass() ? el('button', { class: 'nm-btn nm-btn--sm', type: 'button', onclick: leaveClass }, t('Leave', 'Αποχώρηση')) : null);
+        el('div', { class: 'pr-as-t' }, el('b', null, t('Signed in as ' + (S.status.user ? S.status.user.name : 'a teacher'), 'Συνδεδεμένοι ως ' + (S.status.user ? S.status.user.name : 'εκπαιδευτικός'))),
+          el('small', null, isTeacher() ? t('Your plans are below.', 'Τα σχέδιά σας είναι παρακάτω.') : t('Your own plans are below. Others only see them after a teacher approves.', 'Τα δικά σας σχέδια είναι παρακάτω. Οι άλλοι τα βλέπουν μόνο μετά την έγκριση εκπαιδευτικού.'))));
       let body;
       if (S.mineErr && S.mineErr.status !== 401) body = el('div', null, el('div', { class: 'err', role: 'alert' }, t('Your plans could not be loaded. ', 'Τα σχέδιά σας δεν φορτώθηκαν. ') + errMsg(S.mineErr)), el('div', { style: { marginTop: '12px' } }, el('button', { class: 'nm-btn', type: 'button', onclick: async () => { await loadMine(); drawMine(); } }, t('Try again', 'Δοκιμάστε ξανά'))));
-      else if (!S.mine.length) body = el('div', { class: 'empty' }, el('b', { style: { display: 'block', color: 'var(--nm-ink-soft)' } }, (isClass() ? t('Your team has no project yet.', 'Η ομάδα σας δεν έχει ακόμη έργο.') : t('You have no project yet.', 'Δεν έχετε ακόμη έργο.'))), t('Start one in four steps: a question, sensors, data and a team note.', 'Ξεκινήστε ένα σε τέσσερα βήματα: ένα ερώτημα, αισθητήρες, δεδομένα και ένα σημείωμα ομάδας.'), el('div', { style: { marginTop: '14px' } }, el('a', { class: 'nm-btn nm-btn--primary', href: '#/start' }, ic('plus'), t('Start a project', 'Ξεκινήστε ένα έργο'))));
+      else if (!S.mine.length) body = el('div', { class: 'empty' }, el('b', { style: { display: 'block', color: 'var(--nm-ink-soft)' } }, (isTeacher() ? t('You have no project yet.', 'Δεν έχετε ακόμη έργο.') : t('Your team has no project yet.', 'Η ομάδα σας δεν έχει ακόμη έργο.'))), t('Start one in four steps: a question, sensors, data and a team note.', 'Ξεκινήστε ένα σε τέσσερα βήματα: ένα ερώτημα, αισθητήρες, δεδομένα και ένα σημείωμα ομάδας.'), el('div', { style: { marginTop: '14px' } }, el('a', { class: 'nm-btn nm-btn--primary', href: '#/start' }, ic('plus'), t('Start a project', 'Ξεκινήστε ένα έργο'))));
       else body = el('div', { class: 'pr-grid' }, S.mine.map((p) => card(p, true)));
       const hint = isTeacher() ? el('div', { class: 'nm-callout pr-tnote' }, t('Teachers decide on submitted projects on ', 'Οι εκπαιδευτικοί αποφασίζουν για τα έργα που υποβάλλονται στις '), el('a', { class: 'link', href: '#/submitted' }, t('Submitted work', 'Υποβολές')), '.') : null;
       mineHost.replaceChildren(el('section', { class: 'pr-mine', 'aria-labelledby': 'pr-mine-h' },

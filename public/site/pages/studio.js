@@ -79,7 +79,8 @@
   function why(e, kind) {
     const code = e && e.body && e.body.code, st = e && e.status;
     if (st === 0) return e.message;
-    if (st === 401 && code === 'class') return t('Your class session has ended. Enter the class code again. Your drafts are still in this browser.', 'Η συνεδρία της τάξης έληξε. Βάλτε ξανά τον κωδικό τάξης. Τα προσχέδιά σας είναι ακόμη σε αυτό το πρόγραμμα περιήγησης.');
+    if (st === 401 && code === 'signin') return t('Sign in with your account to build. No account yet? Ask to join on the Join page.', 'Συνδεθείτε με τον λογαριασμό σας για να φτιάξετε. Δεν έχετε ακόμη; Ζητήστε να μπείτε από τη σελίδα εγγραφής.');
+    if (st === 403 && code === 'pending') return t('Your account is waiting for approval. The Build studio opens as soon as a teacher or an admin approves it.', 'Ο λογαριασμός σας περιμένει έγκριση. Το στούντιο ανοίγει μόλις τον εγκρίνει ένας εκπαιδευτικός ή ο διαχειριστής.');
     if (st === 503 || code === 'not_configured') return t('The Build studio is not switched on yet. Ask your teacher or an admin.', 'Το στούντιο δεν έχει ενεργοποιηθεί ακόμη. Ρωτήστε τον εκπαιδευτικό σας ή έναν διαχειριστή.');
     if (st === 413) return t('The page is too big. Ask for a smaller one.', 'Η σελίδα είναι πολύ μεγάλη. Ζητήστε μια μικρότερη.');
     if (st === 429) {
@@ -158,7 +159,7 @@
     const S = {
       status: null, statusErr: null, gallery: [], galErr: null, mine: [], mineErr: null, loaded: false,
       drafts: readDrafts(), cur: null, convo: [], mode: 'update', building: false, work: '', reply: null, buildErr: null, ctrl: null,
-      preview: { state: 'none' }, joinErr: '', joinBusy: false, tick: 0,
+      preview: { state: 'none' }, tick: 0,
     };
     let alive = true, timer = 0;
     const stopBridge = bridge();
@@ -180,9 +181,6 @@
     const workHost = el('div'), boardHost = el('div', { id: 'sd-board' });
     const ta = el('textarea', { class: 'nm-input sd-ta', id: 'sd-ta', maxlength: MAX_TEXT, rows: 4 });
     const counter = el('span', { class: 'sd-cc' });
-    const codeIn = el('input', { class: 'nm-input', id: 'sd-code', type: 'text', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', maxlength: 40 });
-    const teamIn = el('input', { class: 'nm-input', id: 'sd-team', type: 'text', autocomplete: 'off', maxlength: 30 });
-    try { teamIn.value = SC.store.get(TEAM_KEY) || ''; } catch (e) { /* no storage */ }
     root.append(headHost, statsHost, makerHost, workHost, boardHost, live);
 
     /* ----- what the viewer owns ----- */
@@ -233,8 +231,8 @@
         tags: S.status && S.status.demo ? [{ text: t('Demo data', 'Δεδομένα επίδειξης'), cls: 'demo' }] : [],
         actions: [galleryBtn()],
         help: [
-          'Students build with the class code from their teacher and a team name: no account and no password. Describe a tool, the studio builds a draft, you preview it and change it, then send it to your teacher. Drafts stay in this browser until you send them. A teacher checks every tool before anyone else can open it. Approved tools are in the public gallery below.',
-          'Οι μαθητές φτιάχνουν με τον κωδικό τάξης από τον εκπαιδευτικό τους και ένα όνομα ομάδας: χωρίς λογαριασμό και χωρίς κωδικό πρόσβασης. Περιγράφετε ένα εργαλείο, το στούντιο φτιάχνει ένα προσχέδιο, το βλέπετε και το αλλάζετε και μετά το στέλνετε στον εκπαιδευτικό σας. Τα προσχέδια μένουν σε αυτό το πρόγραμμα περιήγησης μέχρι να τα στείλετε. Ένας εκπαιδευτικός ελέγχει κάθε εργαλείο πριν το ανοίξει οποιοσδήποτε άλλος. Τα εγκεκριμένα εργαλεία είναι στη δημόσια συλλογή παρακάτω.',
+          'Students build with their own account: ask to join on the Join page (no email, no class code), and a teacher or an admin approves you. Then describe a tool, the studio builds a draft, you preview it and change it, and you send it to your teacher. Drafts are saved to your account. A teacher checks every tool before anyone else can open it. Approved tools are in the public gallery below.',
+          'Οι μαθητές φτιάχνουν με τον δικό τους λογαριασμό: ζητήστε να μπείτε από τη σελίδα εγγραφής (χωρίς email, χωρίς κωδικό τάξης) και σας εγκρίνει ένας εκπαιδευτικός ή ο διαχειριστής. Μετά περιγράφετε ένα εργαλείο, το στούντιο φτιάχνει ένα προσχέδιο, το βλέπετε και το αλλάζετε και το στέλνετε στον εκπαιδευτικό σας. Τα προσχέδια αποθηκεύονται στον λογαριασμό σας. Ένας εκπαιδευτικός ελέγχει κάθε εργαλείο πριν το ανοίξει κάποιος άλλος. Τα εγκεκριμένα εργαλεία είναι στη δημόσια συλλογή παρακάτω.',
         ],
       }));
     }
@@ -247,55 +245,20 @@
       items.push([S.galErr ? '–' : S.gallery.length, t('public', 'δημόσια')]);
       statsHost.replaceChildren(el('div', { class: 'sd-stats', role: 'group', 'aria-label': t('Tools in numbers', 'Τα εργαλεία σε αριθμούς') },
         ...items.flatMap(([n, label], i) => [i ? el('span', { class: 'sep', 'aria-hidden': 'true' }) : null, el('span', null, el('b', null, String(n)), ' ' + label)]).filter(Boolean)),
-      el('div', { class: 'nm-callout nm-callout--info sd-open' }, ic('eye'), el('span', null, el('b', null, t('Anyone can open a published tool, no sign-in needed.', 'Οποιοσδήποτε μπορεί να ανοίξει ένα δημοσιευμένο εργαλείο, χωρίς σύνδεση.')), ' ' + t('Students build with their class code. Teachers sign in to approve.', 'Οι μαθητές φτιάχνουν με τον κωδικό τάξης. Οι εκπαιδευτικοί συνδέονται για να εγκρίνουν.'))));
+      el('div', { class: 'nm-callout nm-callout--info sd-open' }, ic('eye'), el('span', null, el('b', null, t('Anyone can open a published tool, no sign-in needed.', 'Οποιοσδήποτε μπορεί να ανοίξει ένα δημοσιευμένο εργαλείο, χωρίς σύνδεση.')), ' ' + t('Students build with their own approved account. Teachers approve every tool.', 'Οι μαθητές φτιάχνουν με τον δικό τους εγκεκριμένο λογαριασμό. Οι εκπαιδευτικοί εγκρίνουν κάθε εργαλείο.'))));
     }
 
     /* ----- the maker ----- */
-    async function joinClass() {
-      if (S.joinBusy) return;
-      const code = codeIn.value.trim(), team = teamIn.value.trim();
-      S.joinErr = '';
-      if (!code) { S.joinErr = t('Type the class code your teacher gave you.', 'Πληκτρολογήστε τον κωδικό τάξης που σας έδωσε ο εκπαιδευτικός.'); drawMaker(); codeIn.focus(); return; }
-      if (!team) { S.joinErr = t('Type a team name.', 'Πληκτρολογήστε ένα όνομα ομάδας.'); drawMaker(); teamIn.focus(); return; }
-      S.joinBusy = true; drawMaker();
-      try {
-        const r = await SC.api('/studio/api/class', { method: 'POST', body: { code, team } });
-        SC.store.set(TEAM_KEY, r.team || team);
-        codeIn.value = '';
-        SC.toast(t('You are building as Team ' + r.team + '.', 'Φτιάχνετε ως Ομάδα ' + r.team + '.'));
-        S.joinErr = '';
-        await loadStatus(); await loadMine();
-      } catch (e) {
-        const code2 = e.body && e.body.code;
-        S.joinErr = e.status === 403 && code2 === 'code' ? t('That class code is not right. Ask your teacher for the code.', 'Αυτός ο κωδικός τάξης δεν είναι σωστός. Ρωτήστε τον εκπαιδευτικό σας.')
-          : e.status === 429 ? t('Too many wrong codes. Wait a few minutes, then ask your teacher for the code.', 'Πάρα πολλοί λάθος κωδικοί. Περιμένετε λίγα λεπτά και ρωτήστε τον εκπαιδευτικό σας.')
-            : e.status === 400 && code2 === 'team' ? (SC.lang === 'el' ? 'Το όνομα ομάδας έχει έως 30 χαρακτήρες: μόνο γράμματα, αριθμοί, κενά και παύλες, και όχι αριθμός τηλεφώνου.' : e.message)
-              : errMsg(e);
-      }
-      S.joinBusy = false;
-      if (!alive) return;
-      drawAll();
-    }
-    async function leaveClass() {
-      try { await SC.api('/studio/api/class/leave', { method: 'POST', body: {} }); } catch (e) { /* the cookie ends by itself */ }
-      S.cur = null; S.convo = []; S.reply = null; S.buildErr = null; S.preview = { state: 'none' }; ta.value = '';
-      await loadStatus(); await loadMine();
-      SC.toast(t('You left the class.', 'Αποχωρήσατε από την τάξη.'));
-      if (alive) drawAll();
-    }
-
+    // Not signed in, or signed in and still waiting: say what to do next. There is no class code any more.
     function gateForm() {
-      const go = el('button', { class: 'nm-btn nm-btn--primary', type: 'submit', disabled: S.joinBusy }, ic('lock'), t('Start building', 'Έναρξη δημιουργίας'));
-      const f = el('form', { class: 'sd-gate', novalidate: true },
-        el('div', { class: 'sd-gate-h' }, el('b', null, t('Step 0: join your class', 'Βήμα 0: μπείτε στην τάξη σας'))),
-        el('p', { class: 'sd-hint' }, t('Your teacher gives you the class code. It is not a password and you do not need an account. Pick a team name your class will know. Do not use your real name.', 'Τον κωδικό τάξης τον δίνει ο εκπαιδευτικός σας. Δεν είναι κωδικός πρόσβασης και δεν χρειάζεστε λογαριασμό. Διαλέξτε ένα όνομα ομάδας που θα το γνωρίζει η τάξη σας. Μη χρησιμοποιήσετε το πραγματικό σας όνομα.')),
-        el('div', { class: 'sd-fields' },
-          el('div', { class: 'sd-field' }, el('label', { for: 'sd-code' }, t('Class code', 'Κωδικός τάξης')), codeIn),
-          el('div', { class: 'sd-field' }, el('label', { for: 'sd-team' }, t('Team name', 'Όνομα ομάδας')), teamIn)),
-        S.joinErr ? el('div', { class: 'err', role: 'alert' }, S.joinErr) : null,
-        el('div', { class: 'sd-actions' }, go, el('a', { class: 'link', href: '#/approvals' }, t('Teachers: sign in to build with your account', 'Εκπαιδευτικοί: συνδεθείτε για να φτιάξετε με τον λογαριασμό σας'))));
-      f.addEventListener('submit', (ev) => { ev.preventDefault(); joinClass(); });
-      return f;
+      const acct = SC.account;
+      const waiting = Boolean(acct && acct.status === 'pending') || Boolean(V().pending);
+      return el('div', { class: 'sd-gate' },
+        el('div', { class: 'sd-gate-h' }, el('b', null, waiting ? t('Your account is waiting for approval', 'Ο λογαριασμός σας περιμένει έγκριση') : t('Sign in to build', 'Συνδεθείτε για να φτιάξετε'))),
+        el('p', { class: 'sd-hint' }, waiting
+          ? t('A teacher or an admin is checking your request. The Build studio opens as soon as you are approved. Until then you can look at every tool in the public gallery below.', 'Ένας εκπαιδευτικός ή ο διαχειριστής ελέγχει το αίτημά σας. Το στούντιο ανοίγει μόλις εγκριθείτε. Μέχρι τότε μπορείτε να δείτε κάθε εργαλείο στη δημόσια συλλογή παρακάτω.')
+          : t('Make your own account, with your city and team (no email, no class code), or sign in. A teacher approves new accounts. You can open every published tool below without an account.', 'Φτιάξτε τον δικό σας λογαριασμό, με την πόλη και την ομάδα σας (χωρίς email, χωρίς κωδικό τάξης), ή συνδεθείτε. Ένας εκπαιδευτικός εγκρίνει τους νέους λογαριασμούς. Μπορείτε να ανοίξετε κάθε δημοσιευμένο εργαλείο παρακάτω χωρίς λογαριασμό.')),
+        el('div', { class: 'sd-actions' }, el('a', { class: 'nm-btn nm-btn--primary', href: '#/join' }, ic('lock'), waiting ? t('See my request', 'Δείτε το αίτημά μου') : t('Join or sign in', 'Εγγραφή ή σύνδεση'))));
     }
 
     // The "Team: Hermes" pill by the Build button: it opens a small panel with who is building, the school and how long the class session lasts.
@@ -304,7 +267,7 @@
         const strip = el('div', { class: 'sd-as' }, el('span', { class: 'sd-tic' }, ic('user')),
           el('div', { class: 'sd-as-t' }, el('b', null, v.kind === 'class' ? t('Building as ', 'Φτιάχνετε ως ') + asTeam() : t('Building as ' + (S.status.user ? S.status.user.name : 'you') + (v.role === 'teacher' ? ' (teacher)' : v.role === 'admin' ? ' (admin)' : ''), 'Φτιάχνετε ως ' + (S.status.user ? S.status.user.name : 'εσείς') + (v.role === 'teacher' ? ' (εκπαιδευτικός)' : v.role === 'admin' ? ' (διαχειριστής)' : ''))),
             v.kind === 'class' && v.expiresAt ? el('small', null, t('This class session lasts until ' + SC.time(v.expiresAt) + '.', 'Αυτή η συνεδρία τάξης διαρκεί έως τις ' + SC.time(v.expiresAt) + '.')) : v.kind === 'user' ? el('small', null, t('Your drafts are saved to your account.', 'Τα προσχέδιά σας αποθηκεύονται στον λογαριασμό σας.')) : null),
-          v.kind === 'class' ? el('button', { class: 'nm-btn nm-btn--sm', type: 'button', onclick: leaveClass }, t('Leave', 'Αποχώρηση')) : null);
+          null);
       const name = v.kind === 'class' ? v.team : (S.status.user ? S.status.user.name : '');
       const pop = el('div', { class: 'sd-pop', role: 'group', 'aria-label': t('Who is building', 'Ποιος φτιάχνει'), hidden: true }, strip);
       const btn = el('button', { class: 'sd-pill', type: 'button', 'aria-haspopup': 'true', 'aria-expanded': 'false' }, v.kind === 'class' ? t('Team: ', 'Ομάδα: ') : t('Signed in: ', 'Συνδεδεμένος: '), el('b', null, name), ic('chev'));
@@ -462,7 +425,7 @@
       else if (errText) S.buildErr = SC.lang === 'el' ? 'Το στούντιο δεν μπόρεσε να απαντήσει τώρα. Δοκιμάστε ξανά σε λίγο.' : errText;
       else if (!ans && !finalDraft) S.buildErr = t('The studio did not send an answer. Try again.', 'Το στούντιο δεν έστειλε απάντηση. Δοκιμάστε ξανά.');
       else { S.reply = { text: (ans && ans.text) || note || t('Your draft is ready.', 'Το προσχέδιό σας είναι έτοιμο.'), tools: (ans && ans.tools) || [] }; ta.value = ''; S.mode = 'update'; if (note) S.reply.text = note; }
-      if (httpErr && httpErr.status === 401 && httpErr.body && httpErr.body.code === 'class') { S.cur = null; await loadStatus(); await loadMine(); }
+      if (httpErr && httpErr.status === 401 && httpErr.body && httpErr.body.code === 'signin') { S.cur = null; await loadStatus(); await loadMine(); }
       live.textContent = S.buildErr || (S.reply ? t('The studio answered: ', 'Το στούντιο απάντησε: ') + S.reply.text.slice(0, 160) : '');
       if (!alive) return;
       loadStatus().then(() => { if (alive) { drawMaker(); drawStats(); } });

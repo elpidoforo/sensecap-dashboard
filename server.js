@@ -1047,6 +1047,7 @@ function startMetOffice() {
 const { createApp } = require('./school');
 const { createBot } = require('./bot');
 const { createStudio } = require('./studio');
+const { createNotifier } = require('./notify');
 const { createCouncil } = require('./council');
 const { createReports } = require('./reports');
 const { createLayers } = require('./layers');
@@ -1054,6 +1055,7 @@ const citiesApi = require('./cities');
 const { createClassLogin } = require('./classlogin');
 const classLogin = createClassLogin();
 let appCore = null;
+let notifier = null;
 let studio = null;
 let council = null;
 let reports = null;
@@ -1166,11 +1168,12 @@ function startApp() {
     data: botData, log: (m) => console.error(m),
   });
   assistant = bot;
-  appCore = createApp({ dataDir: DATA_DIR, bot, openJoin: (req) => classLogin.enabled && classLogin.valid(req), log: (m) => console.log(m) });
+  notifier = createNotifier({ log: (m) => console.log(m) });   // an email to the admin when something waits for approval (off until RESEND_API_KEY and NOTIFY_EMAIL are set)
+  appCore = createApp({ dataDir: DATA_DIR, bot, notify: notifier, log: (m) => console.log(m) });
   layers = createLayers({ root: __dirname, dataDir: DATA_DIR, appCore, data: botData, feeds, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });   // works without the student app too (only editing the mission needs a teacher sign-in)
   if (!appCore.enabled) return console.error('Student app is off: ' + appCore.reason);
   feeds.attach(appCore);   // from now on the on/off switches of the feeds are kept in the student database
-  studio = createStudio({ appCore, classValid: (req) => classLogin.enabled && classLogin.valid(req), bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });
+  studio = createStudio({ appCore, notify: notifier, classValid: (req) => classLogin.enabled && classLogin.valid(req), bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });
   council = createCouncil({ appCore, bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, viewer: (req) => (studio && studio.viewer ? studio.viewer(req) : null), log: (m) => console.error(m) });
   reports = createReports({ appCore, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });
   const st = bot.status();

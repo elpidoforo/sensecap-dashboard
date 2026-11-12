@@ -1,8 +1,8 @@
 /* Start a project: a four-step wizard (question, sensors, data, team) and a review screen. It creates a plan.
-   A class team (class code, no account) or a signed-in teacher can create one; a visitor joins the class in step 4 first
+   An approved student or a signed-in teacher can create one; a visitor or a pending account is sent to the Join page in step 4
    (the same panel as the Build studio). The draft is kept in this browser (localStorage) until the plan is created.
-   API: GET /api/devices (names only), GET /api/config (names, demo), GET /studio/api/status, POST /studio/api/class,
-        POST /studio/api/class/leave, POST /studio/api/plans {title, question, sensors:[eui], data:[mid|source], team, notes}. */
+   API: GET /api/devices (names only), GET /api/config (names, demo), GET /studio/api/status,
+        POST /studio/api/plans {title, question, sensors:[eui], data:[mid|source], team, notes}. */
 (function () {
   'use strict';
   const t = SC.t, el = SC.el;
@@ -112,9 +112,6 @@
     const noteIn = el('textarea', { class: 'nm-input st-note', id: 'st-note', maxlength: MAX_NOTE, rows: 3 });
     const noteCount = el('span', { class: 'st-cc' });
     const teamIn = el('input', { class: 'nm-input', id: 'st-team', type: 'text', maxlength: 30, autocomplete: 'off' });
-    const codeIn = el('input', { class: 'nm-input', id: 'st-code', type: 'text', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', maxlength: 40 });
-    const gTeamIn = el('input', { class: 'nm-input', id: 'st-gteam', type: 'text', maxlength: 30, autocomplete: 'off' });
-    try { gTeamIn.value = SC.store.get(TEAM_KEY) || ''; } catch (e) { /* no storage */ }
 
     const V = () => (S.status && S.status.viewer) || { kind: 'visitor' };
     const isClass = () => V().kind === 'class';
@@ -339,47 +336,15 @@
     }
 
     /* ----- step 4: the team (join the class first if needed) ----- */
-    async function joinClass() {
-      if (S.joinBusy) return;
-      const code = codeIn.value.trim(), team = gTeamIn.value.trim();
-      S.joinErr = '';
-      if (!code) { S.joinErr = t('Type the class code your teacher gave you.', 'Πληκτρολογήστε τον κωδικό τάξης που σας έδωσε ο εκπαιδευτικός.'); drawPanel(); codeIn.focus(); return; }
-      if (!team) { S.joinErr = t('Type a team name.', 'Πληκτρολογήστε ένα όνομα ομάδας.'); drawPanel(); gTeamIn.focus(); return; }
-      S.joinBusy = true; drawPanel();
-      try {
-        const r = await SC.api('/studio/api/class', { method: 'POST', body: { code, team } });
-        SC.store.set(TEAM_KEY, r.team || team);
-        codeIn.value = '';
-        SC.toast(t('You are working as Team ' + r.team + '.', 'Δουλεύετε ως Ομάδα ' + r.team + '.'));
-        await loadStatus();
-        if (isClass()) { S.team = V().team; if (S.group === 'all' && S.devices && schoolName() && S.devices.some((d) => sameStr(d.group, schoolName()))) S.group = schoolName(); }
-      } catch (e) {
-        const c2 = e.body && e.body.code;
-        S.joinErr = e.status === 403 && c2 === 'code' ? t('That class code is not right. Ask your teacher for the code.', 'Αυτός ο κωδικός τάξης δεν είναι σωστός. Ρωτήστε τον εκπαιδευτικό σας.')
-          : e.status === 429 ? t('Too many wrong codes. Wait a few minutes, then ask your teacher for the code.', 'Πάρα πολλοί λάθος κωδικοί. Περιμένετε λίγα λεπτά και ρωτήστε τον εκπαιδευτικό σας.')
-            : e.status === 400 && c2 === 'team' ? (SC.lang === 'el' ? 'Το όνομα ομάδας έχει έως 30 χαρακτήρες: μόνο γράμματα, αριθμοί, κενά και παύλες, και όχι αριθμός τηλεφώνου.' : errMsg(e))
-              : errMsg(e);
-      }
-      S.joinBusy = false;
-      if (alive) drawAll();
-    }
-    async function leaveClass() {
-      try { await SC.api('/studio/api/class/leave', { method: 'POST', body: {} }); } catch (e) { /* the cookie ends by itself */ }
-      await loadStatus(); S.team = '';
-      SC.toast(t('You left the class.', 'Αποχωρήσατε από την τάξη.'));
-      if (alive) drawAll();
-    }
     function gateForm() {
-      const f = el('form', { class: 'st-gate', novalidate: true },
-        el('div', { class: 'st-gate-h' }, el('b', null, t('Join your class first', 'Μπείτε πρώτα στην τάξη σας'))),
-        el('p', { class: 'st-hint' }, t('Your teacher gives you the class code. It is not a password and you do not need an account. Pick a team name your class will know. Do not use your real name. Your plan so far stays in this browser.', 'Τον κωδικό τάξης τον δίνει ο εκπαιδευτικός σας. Δεν είναι κωδικός πρόσβασης και δεν χρειάζεστε λογαριασμό. Διαλέξτε ένα όνομα ομάδας που θα το γνωρίζει η τάξη σας. Μη χρησιμοποιήσετε το πραγματικό σας όνομα. Το σχέδιό σας μέχρι τώρα μένει σε αυτό το πρόγραμμα περιήγησης.')),
-        el('div', { class: 'st-fields' },
-          el('div', { class: 'st-field' }, el('label', { for: 'st-code' }, t('Class code', 'Κωδικός τάξης')), codeIn),
-          el('div', { class: 'st-field' }, el('label', { for: 'st-gteam' }, t('Team name', 'Όνομα ομάδας')), gTeamIn)),
-        S.joinErr ? el('div', { class: 'err', role: 'alert' }, S.joinErr) : null,
-        el('div', { class: 'st-actions' }, el('button', { class: 'nm-btn nm-btn--primary', type: 'submit', disabled: S.joinBusy }, ic('lock'), t('Join the class', 'Μπείτε στην τάξη')), el('a', { class: 'link', href: '#/approvals' }, t('Teachers: sign in', 'Εκπαιδευτικοί: συνδεθείτε'))));
-      f.addEventListener('submit', (ev) => { ev.preventDefault(); joinClass(); });
-      return f;
+      const acct = SC.account;
+      const waiting = Boolean(acct && acct.status === 'pending') || Boolean(V().pending);
+      return el('div', { class: 'st-gate' },
+        el('div', { class: 'st-gate-h' }, el('b', null, waiting ? t('Your account is waiting for approval', 'Ο λογαριασμός σας περιμένει έγκριση') : t('Sign in to save your plan', 'Συνδεθείτε για να αποθηκεύσετε το σχέδιο'))),
+        el('p', { class: 'st-hint' }, waiting
+          ? t('A teacher or an admin is checking your request. You can save the plan as soon as you are approved. Your plan so far stays in this browser.', 'Ένας εκπαιδευτικός ή ο διαχειριστής ελέγχει το αίτημά σας. Θα μπορείτε να αποθηκεύσετε το σχέδιο μόλις εγκριθείτε. Το σχέδιό σας μέχρι τώρα μένει σε αυτό το πρόγραμμα περιήγησης.')
+          : t('Make your own account, with your city and team (no email, no class code), or sign in. A teacher approves new accounts. Your plan so far stays in this browser.', 'Φτιάξτε τον δικό σας λογαριασμό, με την πόλη και την ομάδα σας (χωρίς email, χωρίς κωδικό τάξης), ή συνδεθείτε. Ένας εκπαιδευτικός εγκρίνει τους νέους λογαριασμούς. Το σχέδιό σας μέχρι τώρα μένει σε αυτό το πρόγραμμα περιήγησης.')),
+        el('div', { class: 'st-actions' }, el('a', { class: 'nm-btn nm-btn--primary', href: '#/join' }, ic('lock'), waiting ? t('See my request', 'Δείτε το αίτημά μου') : t('Join or sign in', 'Εγγραφή ή σύνδεση'))));
     }
     async function loadSchools() {
       S.schoolsAsked = true;   // ask only once
@@ -392,8 +357,7 @@
       else if (!S.status) kids.push(el('div', null, el('div', { class: 'err', role: 'alert' }, t('The studio could not be reached, so a plan cannot be saved yet.', 'Δεν έγινε σύνδεση με το στούντιο, οπότε το σχέδιο δεν μπορεί να αποθηκευτεί ακόμη.')), el('div', { style: { marginTop: '12px' } }, el('button', { class: 'nm-btn', type: 'button', onclick: async () => { await loadStatus(); drawAll(); } }, t('Try again', 'Δοκιμάστε ξανά')))));
       else if (!canCreate()) kids.push(gateForm());
       else {
-        if (isClass()) kids.push(el('div', { class: 'st-as' }, el('span', { class: 'st-tic' }, ic('user')), el('div', { class: 'st-as-t' }, el('b', null, t('Working as ', 'Δουλεύετε ως ') + asTeam()), el('small', null, t('The team name comes from your class session.', 'Το όνομα της ομάδας προέρχεται από τη συνεδρία της τάξης σας.'))), el('button', { class: 'nm-btn nm-btn--sm', type: 'button', onclick: leaveClass }, t('Leave', 'Αποχώρηση'))));
-        else kids.push(el('div', { class: 'st-field' }, el('label', { for: 'st-team' }, t('Team name', 'Όνομα ομάδας')), teamIn, el('p', { class: 'st-hint' }, t('The team this plan is shown under, for example “Hermes”.', 'Η ομάδα με την οποία εμφανίζεται το σχέδιο, π.χ. «Hermes».'))));
+        kids.push(el('div', { class: 'st-field' }, el('label', { for: 'st-team' }, t('Team name', 'Όνομα ομάδας')), teamIn, el('p', { class: 'st-hint' }, t('The team this plan is shown under, for example “Hermes”.', 'Η ομάδα με την οποία εμφανίζεται το σχέδιο, π.χ. «Hermes».'))));
         if (needsSchool()) {
           if (!S.schoolsAsked) loadSchools();
           const sel = el('select', { class: 'nm-input st-sel', id: 'st-school', onchange: (e) => { S.schoolSlug = e.target.value; drawAside(); syncNext(); } },

@@ -179,3 +179,16 @@
   .ap-who { gap: 4px 12px; }
   .ap-who .dim { display: none; }
 }
+
+/* people tab and the temporary password */
+.ap-people .ap-tbl { overflow-x: auto; }
+.ap-people .nm-table th, .ap-people .nm-table td { text-align: left; vertical-align: middle; }
+.ap-people .ap-r { text-align: right; white-space: nowrap; }
+.ap-search { width: 100%; }
+.ap-team { width: 100%; }
+.ap-tmp { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; padding: 14px 16px; border-radius: 14px; background: rgba(255, 255, 255, .06); border: 1px solid var(--nm-edge); }
+.ap-tmp code { font: 700 22px/1 var(--nm-font-mono, ui-monospace, monospace); letter-spacing: .12em; color: #fff; user-select: all; }
+.ap-autoc li.warn { color: var(--nm-warn); }
+.ap-autoc li.warn svg { color: var(--nm-warn); }
+.ap-people .ap-sub { display: block; margin-top: 2px; color: var(--nm-muted); font-size: 12.5px; }
+.ap-people .nm-table td { padding-top: 10px; padding-bottom: 10px; }

@@ -226,9 +226,8 @@ function createStudio(opts) {
   function viewerOf(req) {
     const user = appCore.authorise(req);
     if (user) return { kind: 'user', user };
-    const c = readClassCookie(req);
-    if (c) return { kind: 'class', school: c.school, team: c.team, teamKey: nameKey(c.team), exp: c.exp };
-    return { kind: 'visitor' };
+    // Class codes are gone: a team no longer builds with a code and a team name. Only an approved account builds (an old class cookie is ignored).
+    return { kind: 'visitor', pending: typeof appCore.statusOf === 'function' && appCore.statusOf(req) === 'pending' };
   }
   function viewerJson(v) {
     if (v.kind === 'user') {
@@ -236,38 +235,22 @@ function createStudio(opts) {
       return { kind: 'user', school: schoolInfo(schoolOf(v.user.school_id)), team: team ? team.name : null, role: v.user.role };
     }
     if (v.kind === 'class') return { kind: 'class', school: schoolInfo(v.school), team: v.team, expiresAt: v.exp };
-    return { kind: 'visitor' };
+    return v.pending ? { kind: 'visitor', pending: true } : { kind: 'visitor' };
   }
-  const needViewer = (v) => { if (v.kind === 'visitor') fail(401, 'Enter your class code and team name first.', 'class'); };
+  // Whoever is not an approved account is told what to do next: sign in, or wait for approval.
+  const askSignIn = (v) => {
+    if (v && v.pending) fail(403, 'Your account is waiting for approval. The Build studio opens as soon as a teacher or an admin approves it.', 'pending');
+    return fail(401, 'Sign in with your account to build. No account yet? Ask to join from the Join page.', 'signin');
+  };
+  const needViewer = (v) => { if (v.kind === 'visitor') askSignIn(v); };
   function needUser(v) {
     if (v.kind === 'user') return v.user;
-    if (v.kind === 'class') fail(403, 'Class teams keep their drafts in the browser and send finished pages with Submit.', 'class_viewer');
-    return fail(401, 'Teachers: sign in to the student app first.', 'signin');
+    return askSignIn(v);
   }
 
-  // POST /studio/api/class { code, team }: the code is the school's student code from the student app.
-  async function classJoin(req, res) {
-    const ipk = ipKey(req);
-    const wait = hits.wait('class-fail:' + ipk, 8, 15 * 60000);
-    if (wait) fail(429, 'Too many wrong codes. Wait a few minutes and ask your teacher for the code.', 'rate', { retryAfter: wait });
-    const busy = hits.wait('class-join:' + ipk, 200, 15 * 60000);   // a whole class joins from one address, so this is only a ceiling
-    if (busy) fail(429, 'Too many tries from this network. Wait a few minutes.', 'rate', { retryAfter: busy });
-    hits.add('class-join:' + ipk, 15 * 60000);
-    const body = (await readJson(req, 4096)) || {};
-    const team = cleanTeam(body.team);
-    const got = normCode(String(body.code == null ? '' : body.code).slice(0, 64));
-    if (!got) fail(400, 'Type the class code your teacher gave you.', 'code');
-    let school = null;
-    for (const s of db.all('SELECT * FROM schools ORDER BY id')) {   // every school is compared, so the time does not tell which one is close
-      const want = normCode(s.student_code);
-      if (want.length >= 6 && sameStr(got, want)) school = s;
-    }
-    if (!school) {
-      hits.add('class-fail:' + ipk, 15 * 60000);
-      fail(403, 'That class code is not right. Ask your teacher.', 'code');
-    }
-    const c = classCookie(req, school, team);
-    return { json: { ok: true, school: schoolInfo(school), team, expiresAt: c.exp }, cookie: c.header };
+  // POST /studio/api/class used to take a class code and a team name. Codes are gone: the answer says where to go instead.
+  async function classJoin() {
+    return fail(410, 'Class codes are not used any more. Ask to join with your own account on the Join page, and a teacher will approve it.', 'gone');
   }
 
   /* ---------- projects ---------- */
@@ -347,6 +330,10 @@ function createStudio(opts) {
     if (p.status === 'approved') return p;
     db.run('UPDATE studio_projects SET status = ?, updated_at = ? WHERE id = ?', 'pending', Date.now(), p.id);
     audit(user, 'studio.submit', p.id);
+    if (p.status !== 'pending' && opts.notify && !isStaff(user)) {
+      const tm = teamOf(p.team_id);
+      opts.notify.event({ kind: 'tool', title: p.title, team: tm ? tm.name : null, school: (schoolOf(p.school_id) || {}).short || null, stillWaiting: () => { const q = db.get('SELECT status FROM studio_projects WHERE id = ?', p.id); return Boolean(q && q.status === 'pending'); } });
+    }
     return db.get('SELECT * FROM studio_projects WHERE id = ?', p.id);
   }
 
@@ -386,7 +373,7 @@ function createStudio(opts) {
       rows = u.role === 'admin' ? db.all("SELECT * FROM studio_projects WHERE status = 'pending' ORDER BY updated_at") : db.all("SELECT * FROM studio_projects WHERE status = 'pending' AND school_id = ? ORDER BY updated_at", u.school_id);
     } else if (v.kind === 'user') rows = db.all('SELECT * FROM studio_projects WHERE user_id = ?1 OR (?2 IS NOT NULL AND team_id = ?2) ORDER BY updated_at DESC LIMIT 100', v.user.id, v.user.team_id || null);
     else if (v.kind === 'class') rows = db.all("SELECT * FROM studio_projects WHERE author_kind = 'class' AND school_id = ? ORDER BY updated_at DESC LIMIT 300", v.school.id).filter((p) => classOwns(v, p)).slice(0, 100);
-    else fail(401, 'Enter your class code and team name first.', 'class');
+    else askSignIn(v);
     return rows.map((p) => publicProject(p, v, false));
   }
 
@@ -490,7 +477,7 @@ function createStudio(opts) {
       rows = u.role === 'admin' ? db.all("SELECT * FROM studio_plans WHERE status = 'submitted' ORDER BY submitted_at, id") : db.all("SELECT * FROM studio_plans WHERE status = 'submitted' AND school_id = ? ORDER BY submitted_at, id", u.school_id);
     } else if (v.kind === 'user') rows = db.all('SELECT * FROM studio_plans WHERE user_id = ?1 OR (?2 IS NOT NULL AND team_id = ?2) ORDER BY updated_at DESC, id DESC LIMIT 100', v.user.id, v.user.team_id || null);
     else if (v.kind === 'class') rows = db.all("SELECT * FROM studio_plans WHERE author_kind = 'class' AND school_id = ? ORDER BY updated_at DESC, id DESC LIMIT 300", v.school.id).filter((p) => planOwns(v, p)).slice(0, 100);
-    else fail(401, 'Enter your class code and team name first.', 'class');
+    else askSignIn(v);
     return rows.map((p) => planOut(p, v));
   }
 
@@ -593,6 +580,10 @@ function createStudio(opts) {
     const keys = Object.keys(cols);
     db.run(`UPDATE studio_plans SET ${keys.map((k) => k + ' = ?').join(', ')} WHERE id = ?`, ...keys.map((k) => cols[k]), p.id);
     audit(v.kind === 'user' ? v.user : null, 'studio.plan.update', p.id, `${p.status}->${status}`);
+    if (status === 'submitted' && p.status !== 'submitted' && opts.notify && !(v.kind === 'user' && isStaff(v.user))) {
+      const tm = teamOf(p.team_id), label = tm ? tm.name : p.team_label;
+      opts.notify.event({ kind: 'plan', title: p.title, team: label || null, school: (schoolOf(p.school_id) || {}).short || null, stillWaiting: () => { const q = db.get('SELECT status FROM studio_plans WHERE id = ?', p.id); return Boolean(q && q.status === 'submitted'); } });
+    }
     return planRow(p.id);
   }
 

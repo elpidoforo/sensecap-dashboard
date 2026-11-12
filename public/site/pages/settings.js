@@ -1,5 +1,5 @@
 /* Settings: the teacher-only page for the things a teacher or admin may change on the site.
-   Sections: Alert rules, Feeds, League switch, School codes, Handbook, Announcements, Team and roles.
+   Sections: Alert rules, Feeds, League switch, Schools, Handbook, Announcements, Team and roles.
    API: /app/api/login, /app/api/logout, /app/api/schools (sign-in card), GET|PUT /app/api/alerts/rules[/:id], GET /api/feeds + POST /api/feeds/:id,
         GET|PUT /app/api/league, GET /app/api/manage/overview + POST /app/api/manage/schools/:id (codes, vehicle words),
         GET /app/api/handbook + POST /app/api/manage/handbook[/:id/delete], GET /app/api/announcements + POST /app/api/messages (channel all)
@@ -62,8 +62,8 @@
     root.append(SC.head({
       title: t('Teacher sign-in', 'Σύνδεση εκπαιδευτικών'),
       help: [
-        'Settings is for teachers and admins. Sign in with the name and password you made in the student app and choose your school. After signing in you can change alert rules, switch feeds and the league, read your school codes, edit the handbook and post announcements.',
-        'Οι Ρυθμίσεις είναι για εκπαιδευτικούς και διαχειριστές. Συνδεθείτε με το όνομα και τον κωδικό που δημιουργήσατε στην εφαρμογή των μαθητών και επιλέξτε το σχολείο σας. Μετά τη σύνδεση μπορείτε να αλλάξετε κανόνες ειδοποιήσεων, να ενεργοποιείτε πηγές και το πρωτάθλημα, να διαβάζετε τους κωδικούς του σχολείου, να επεξεργάζεστε το εγχειρίδιο και να δημοσιεύετε ανακοινώσεις.',
+        'Settings is for teachers and admins. Sign in with the name and password of your account and choose your school. After signing in you can change alert rules, switch feeds and the league, set which vehicles belong to a school, edit the handbook and post announcements.',
+        'Οι Ρυθμίσεις είναι για εκπαιδευτικούς και διαχειριστές. Συνδεθείτε με το όνομα και τον κωδικό του λογαριασμού σας και επιλέξτε το σχολείο σας. Μετά τη σύνδεση μπορείτε να αλλάξετε κανόνες ειδοποιήσεων, να ενεργοποιείτε πηγές και το πρωτάθλημα, να ορίζετε ποια οχήματα ανήκουν σε σχολείο, να επεξεργάζεστε το εγχειρίδιο και να δημοσιεύετε ανακοινώσεις.',
       ],
     }));
     const school = el('select', { class: 'nm-input', id: 'st-school', required: true });
@@ -138,7 +138,7 @@
 
     const head = SC.head({
       title: t('Settings', 'Ρυθμίσεις'),
-      lede: t('The things a teacher can change: alert rules, data feeds, the league, school codes, the handbook and announcements. Visitors and students never see this page.', 'Όσα μπορεί να αλλάξει ένας εκπαιδευτικός: κανόνες ειδοποιήσεων, πηγές δεδομένων, το πρωτάθλημα, κωδικοί σχολείου, το εγχειρίδιο και ανακοινώσεις. Οι επισκέπτες και οι μαθητές δεν βλέπουν ποτέ αυτή τη σελίδα.'),
+      lede: t('The things a teacher can change: alert rules, data feeds, the league, which vehicles belong to a school, the handbook and announcements. Visitors and students never see this page.', 'Όσα μπορεί να αλλάξει ένας εκπαιδευτικός: κανόνες ειδοποιήσεων, πηγές δεδομένων, το πρωτάθλημα, ποια οχήματα ανήκουν σε σχολείο, το εγχειρίδιο και ανακοινώσεις. Οι επισκέπτες και οι μαθητές δεν βλέπουν ποτέ αυτή τη σελίδα.'),
       help: [
         'Pick a section with the tabs. Every change shows a message that says if it was saved or why it was not. Alert rules and feeds change what the whole site does, so take care. Codes and the handbook belong to your school; admins can also see the other schools.',
         'Επιλέξτε ενότητα από τις καρτέλες. Κάθε αλλαγή δείχνει μήνυμα που λέει αν αποθηκεύτηκε ή γιατί όχι. Οι κανόνες ειδοποιήσεων και οι πηγές αλλάζουν τι κάνει ολόκληρος ο ιστότοπος, γι’ αυτό προσοχή. Οι κωδικοί και το εγχειρίδιο ανήκουν στο σχολείο σας· οι διαχειριστές βλέπουν και τα άλλα σχολεία.'],
@@ -414,35 +414,9 @@
           el('a', { class: 'pill-link', href: '#/league' }, SC.icon('trophy', 16), t('Open the League page', 'Άνοιγμα της σελίδας πρωταθλήματος')))));
     }
 
-    /* ---------- school codes ---------- */
+    /* ---------- schools (the vehicle words; people join on the Join page, there are no school codes) ---------- */
     function schoolCard(s, redraw) {
       const msg = msgBox();
-      const studentCode = el('span', { class: 'st-code', tabindex: '0', 'aria-label': t('Student code', 'Κωδικός μαθητών') }, s.student_code || '');
-      const teacherShown = { v: false };
-      const teacherCode = el('span', { class: 'st-code', tabindex: '0', 'aria-label': t('Teacher code', 'Κωδικός εκπαιδευτικών') }, '••••••');
-      const eye = el('button', { class: 'nm-btn nm-btn--sm', type: 'button', 'aria-pressed': 'false' }, ic('eye', 16), t('Show', 'Εμφάνιση'));
-      eye.addEventListener('click', () => { teacherShown.v = !teacherShown.v; teacherCode.textContent = teacherShown.v ? s.teacher_code : '••••••'; eye.replaceChildren(ic('eye', 16), teacherShown.v ? t('Hide', 'Απόκρυψη') : t('Show', 'Εμφάνιση')); eye.setAttribute('aria-pressed', teacherShown.v ? 'true' : 'false'); });
-      async function regenerate(kind, btn) {
-        btn.disabled = true; msg.clear();
-        try {
-          const r = await SC.api('/app/api/manage/schools/' + encodeURIComponent(s.id), { method: 'POST', body: { regenerate: kind } });
-          if (!alive) return;
-          const ns = r && r.school;
-          if (ns) { if (kind === 'student') { s.student_code = ns.student_code; studentCode.textContent = s.student_code; } else { s.teacher_code = ns.teacher_code; teacherCode.textContent = teacherShown.v ? s.teacher_code : '••••••'; } }
-          ovMemo = null;
-          msg.ok(kind === 'student' ? t('Made a new student code. The old one no longer works; people who already joined are not affected.', 'Δημιουργήθηκε νέος κωδικός μαθητών. Ο παλιός δεν λειτουργεί πια· όσοι έχουν ήδη εγγραφεί δεν επηρεάζονται.') : t('Made a new teacher code. The old one no longer works.', 'Δημιουργήθηκε νέος κωδικός εκπαιδευτικών. Ο παλιός δεν λειτουργεί πια.'));
-        } catch (e) {
-          if (!alive || lost(e)) return;
-          msg.bad(t('No new code was made. ', 'Δεν δημιουργήθηκε νέος κωδικός. ') + failText(e, t('change codes', 'αλλάξετε κωδικούς')));
-        } finally { btn.disabled = false; }
-      }
-      const codeRow = (label, node, extra, kind) => {
-        const copy = el('button', { class: 'nm-btn nm-btn--sm', type: 'button' }, ic('copy', 16), t('Copy', 'Αντιγραφή'));
-        copy.addEventListener('click', () => copyText(kind === 'student' ? s.student_code : s.teacher_code, node));
-        const nw = el('button', { class: 'nm-btn nm-btn--sm', type: 'button' }, ic('refresh', 16), t('New code', 'Νέος κωδικός'));
-        nw.addEventListener('click', () => confirmBox(kind === 'student' ? t('Make a new student code?', 'Νέος κωδικός μαθητών;') : t('Make a new teacher code?', 'Νέος κωδικός εκπαιδευτικών;'), kind === 'student' ? t('The old code stops working. People who already joined are not affected.', 'Ο παλιός κωδικός σταματά να λειτουργεί. Όσοι έχουν ήδη εγγραφεί δεν επηρεάζονται.') : t('The old code stops working. Give the new one only to teachers.', 'Ο παλιός κωδικός σταματά να λειτουργεί. Δώστε τον νέο μόνο σε εκπαιδευτικούς.'), t('New code', 'Νέος κωδικός'), () => regenerate(kind, nw)));
-        return el('div', { class: 'st-coderow' }, el('span', { class: 'st-lb' }, label), el('div', { class: 'st-codeline' }, node, extra, copy, nw));
-      };
       const match = el('input', { class: 'nm-input', id: 'st-match-' + s.id, type: 'text', value: s.match || '', maxlength: 200, placeholder: 'larnaka, larnaca', autocomplete: 'off' });
       const matchBtn = el('button', { class: 'nm-btn nm-btn--sm', type: 'button' }, ic('save', 16), t('Save', 'Αποθήκευση'));
       matchBtn.addEventListener('click', async () => {
@@ -460,27 +434,25 @@
       });
       return el('li', { class: 'nm-card st-school' },
         el('h3', null, s.name),
-        codeRow(t('Student code', 'Κωδικός μαθητών'), studentCode, null, 'student'),
-        s.teacher_code != null ? codeRow(t('Teacher code (give only to teachers)', 'Κωδικός εκπαιδευτικών (μόνο σε εκπαιδευτικούς)'), teacherCode, eye, 'teacher') : null,
         isAdmin ? el('div', { class: 'st-coderow' }, el('label', { class: 'st-lb', for: 'st-match-' + s.id }, t('Vehicle words (separated by commas)', 'Λέξεις οχημάτων (χωρισμένες με κόμμα)')),
           el('p', { class: 'st-hint2' }, t('A vehicle belongs to this school when its name or SenseCAP group contains one of these words.', 'Ένα όχημα ανήκει σε αυτό το σχολείο όταν το όνομά του ή η ομάδα SenseCAP περιέχει μία από αυτές τις λέξεις.')),
           el('div', { class: 'st-codeline' }, el('div', { class: 'st-grow' }, match), matchBtn)) : null,
+        !isAdmin ? el('p', { class: 'muted st-fine' }, t('Only an admin can change which vehicles belong to a school.', 'Μόνο ένας διαχειριστής μπορεί να αλλάξει ποια οχήματα ανήκουν σε σχολείο.')) : null,
         msg);
     }
     async function secCodes(host) {
       const ov = await overview(true);
       if (!alive) return;
       const schools = Array.isArray(ov && ov.schools) ? ov.schools : [];
-      const link = location.origin + '/app/';
+      const link = location.origin + '/#/join';
       const linkNode = el('span', { class: 'st-code st-link', tabindex: '0' }, link);
       const copyLink = el('button', { class: 'nm-btn nm-btn--sm', type: 'button' }, ic('copy', 16), t('Copy link', 'Αντιγραφή συνδέσμου'));
       copyLink.addEventListener('click', () => copyText(link, linkNode));
       host.replaceChildren(el('div', { class: 'st-sec' },
-        el('section', { class: 'nm-card st-intro' }, ...sectionHead(t('Joining', 'Εγγραφή'), t('School codes', 'Κωδικοί σχολείου'),
-          t('People join with the link below and the code of their school. New accounts wait for a teacher in Approvals. Treat codes like keys: share them only with the people who should join.', 'Οι άνθρωποι εγγράφονται με τον παρακάτω σύνδεσμο και τον κωδικό του σχολείου τους. Οι νέοι λογαριασμοί περιμένουν έναν εκπαιδευτικό στις Εγκρίσεις. Μεταχειριστείτε τους κωδικούς σαν κλειδιά: μοιραστείτε τους μόνο με όσους πρέπει να εγγραφούν.')),
+        el('section', { class: 'nm-card st-intro' }, ...sectionHead(t('Joining', 'Εγγραφή'), t('Schools', 'Σχολεία'),
+          t('People join with the link below: they pick their city and team, and a teacher or an admin approves them in Approvals. There are no school codes and no class codes.', 'Οι άνθρωποι εγγράφονται με τον παρακάτω σύνδεσμο: διαλέγουν την πόλη και την ομάδα τους και ένας εκπαιδευτικός ή ο διαχειριστής τους εγκρίνει στις Εγκρίσεις. Δεν υπάρχουν κωδικοί σχολείου ούτε κωδικοί τάξης.')),
           el('div', { class: 'st-codeline' }, linkNode, copyLink)),
-        schools.length ? el('ul', { class: 'st-rules' }, schools.map((s) => schoolCard(s))) : el('div', { class: 'empty' }, t('No schools are listed.', 'Δεν υπάρχουν καταχωρημένα σχολεία.')),
-        !isAdmin ? el('p', { class: 'muted st-fine' }, t('You see your own school. Only an admin can see the teacher code, change it, or change which vehicles belong to a school.', 'Βλέπετε το δικό σας σχολείο. Μόνο ένας διαχειριστής μπορεί να δει τον κωδικό εκπαιδευτικών, να τον αλλάξει ή να αλλάξει ποια οχήματα ανήκουν σε σχολείο.')) : null));
+        schools.length ? el('ul', { class: 'st-rules' }, schools.map((s) => schoolCard(s))) : el('div', { class: 'empty' }, t('No schools are listed.', 'Δεν υπάρχουν καταχωρημένα σχολεία.'))));
     }
 
     /* ---------- handbook ---------- */
@@ -682,7 +654,7 @@
       { id: 'rules', label: ['Alert rules', 'Κανόνες ειδοποιήσεων'], run: secRules },
       { id: 'feeds', label: ['Feeds', 'Πηγές'], run: secFeeds },
       { id: 'league', label: ['League', 'Πρωτάθλημα'], run: secLeague },
-      { id: 'codes', label: ['School codes', 'Κωδικοί σχολείου'], run: secCodes },
+      { id: 'codes', label: ['Schools', 'Σχολεία'], run: secCodes },
       { id: 'handbook', label: ['Handbook', 'Εγχειρίδιο'], run: secHandbook },
       { id: 'news', label: ['Announcements', 'Ανακοινώσεις'], run: secNews },
       { id: 'team', label: ['Team and roles', 'Ομάδα και ρόλοι'], run: secTeam },

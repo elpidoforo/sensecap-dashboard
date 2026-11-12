@@ -278,6 +278,9 @@ function createApp(opts = {}) {
     );
   `);
 
+  // Databases made before sign-up asked for a team have no team_request column (the name of a new team a student wants a teacher to create).
+  if (!db.prepare('PRAGMA table_info(users)').all().some((c) => c.name === 'team_request')) db.exec('ALTER TABLE users ADD COLUMN team_request TEXT');
+
   // Databases made before the public Ask have no visitor column. Adding it changes no existing row.
   if (!db.prepare('PRAGMA table_info(bot_logs)').all().some((c) => c.name === 'visitor')) db.exec('ALTER TABLE bot_logs ADD COLUMN visitor TEXT');
   db.exec('CREATE INDEX IF NOT EXISTS bot_logs_visitor ON bot_logs(visitor, created_at); CREATE INDEX IF NOT EXISTS bot_logs_time ON bot_logs(created_at);');
@@ -333,6 +336,7 @@ function createApp(opts = {}) {
       school: school ? { id: school.id, name: school.name, short: school.short, lat: school.lat, lng: school.lng, match: school.match } : null,
       team: team ? { id: team.id, name: team.name, device: team.device_eui || null } : null,
     };
+    if (forSelf && u.team_request) out.team_request = u.team_request;
     if (forSelf) { out.muted_until = u.muted_until > Date.now() ? u.muted_until : 0; out.mute_reason = out.muted_until ? u.mute_reason : null; out.must_change = !!u.must_change; }
     return out;
   }
@@ -447,7 +451,7 @@ function createApp(opts = {}) {
   // ---- public ----
   route('GET', /^\/app\/api\/schools$/, 'none', ({ req }) => ({
     schools: all('SELECT id, name, short FROM schools ORDER BY id'),
-    open_join: Boolean(opts.openJoin && opts.openJoin(req)),
+    open_join: false,   // nobody joins with a code any more: every request waits for a teacher or an admin
   }));
 
   // Names only: no join codes, no members.
@@ -456,7 +460,7 @@ function createApp(opts = {}) {
     const teams = all('SELECT id, school_id, name, device_eui FROM teams ORDER BY name COLLATE NOCASE, id');
     return {
       schools: all('SELECT id, slug, name, short, match, lat, lng FROM schools ORDER BY id').map((s) => ({
-        slug: s.slug, name: s.name, short: s.short, lat: s.lat, lng: s.lng, match: s.match || '',
+        id: s.id, slug: s.slug, name: s.name, short: s.short, lat: s.lat, lng: s.lng, match: s.match || '',
         teams: teams.filter((t) => t.school_id === s.id).map((t) => ({ id: t.id, name: t.name, device_eui: t.device_eui || null })),
       })),
     };
@@ -478,31 +482,55 @@ function createApp(opts = {}) {
     return out;
   });
 
+  // Anyone can ask for an account. There is no school code: a person at the school (a teacher, or an admin) has to approve the request,
+  // and until then the account can see the same public pages as a visitor and nothing more.
+  const JOIN_PER_IP_HOUR = envInt('JOIN_PER_IP_HOUR', 60);
+  const JOIN_PENDING_PER_SCHOOL = envInt('JOIN_PENDING_PER_SCHOOL', 150);
+  const JOIN_PENDING_TEACHERS = envInt('JOIN_PENDING_TEACHERS', 20);
+  const cleanTeamName = (raw) => {
+    const n = String(raw == null ? '' : raw).trim().replace(/\s+/g, ' ');
+    if (n.length < 2 || n.length > 40 || !/^[\p{L}\p{N}][\p{L}\p{N} ._'’&+-]*$/u.test(n) || /\d{5,}/.test(n)) fail(400, 'A team name has 2 to 40 letters or numbers, and no phone numbers.', 'team');
+    if (unsafeText(n)) fail(400, 'A team name cannot hold links, e-mail addresses or phone numbers.', 'team');
+    return n;
+  };
   route('POST', /^\/app\/api\/join$/, 'none', async ({ req, res, body }) => {
-    // A whole class joins from one school network, so only wrong codes are counted tightly.
-    if (limiter.count('join-fail:' + clientIp(req), 15 * 60000) >= 10) fail(429, 'Too many wrong codes. Wait 15 minutes and ask your teacher for the code.', 'rate');
-    if (limiter.take('join:' + clientIp(req), 200, 15 * 60000)) fail(429, 'Too many tries. Wait a few minutes.', 'rate');
-    const school = schoolOf(Number(body.school_id));
+    const wait = limiter.take('join:' + clientIp(req), JOIN_PER_IP_HOUR, 60 * 60000);
+    if (wait) fail(429, 'Many requests came from this network just now. Wait a little and try again.', 'rate', { retry_after: wait });
     const role = body.role === 'teacher' ? 'teacher' : 'student';
-    if (!school) fail(400, 'Choose your school.', 'school');
-    // With the shared class sign-in on, a student who has signed in to it picks a school, a name and a password: no code.
-    const open = role === 'student' && Boolean(opts.openJoin && opts.openJoin(req));
-    const want = role === 'teacher' ? school.teacher_code : school.student_code;
-    if (!open && !same(normCode(body.code), normCode(want))) limiter.take('join-fail:' + clientIp(req), 1000, 15 * 60000);
-    if (!open && !same(normCode(body.code), normCode(want))) fail(403, role === 'teacher' ? 'That teacher code is not right for this school.' : 'That school code is not right. Ask your teacher.', 'code');
-    if (body.consent !== true) fail(400, 'Please tick the box to confirm you understand how the app works.', 'consent');
+    const school = schoolOf(Number(body.school_id));
+    if (!school) fail(400, 'Choose your city and school.', 'school');
+    if (body.consent !== true) fail(400, 'Please tick the box to confirm you understand how the site works.', 'consent');
     const name = checkName(body.name, role);
     checkPassword(body.password, name);
+    // Students choose a team that exists at their school, or ask for a new one. A teacher is not part of a team.
+    let teamId = null, teamRequest = null;
+    if (role === 'student') {
+      if (body.team_id != null && body.team_id !== '') {
+        const team = teamOf(Number(body.team_id));
+        if (!team || team.school_id !== school.id) fail(400, 'Choose a team from your school, or ask for a new one.', 'team');
+        teamId = team.id;
+      } else if (body.new_team != null && String(body.new_team).trim() !== '') {
+        const wanted = cleanTeamName(body.new_team);
+        const found = get('SELECT id FROM teams WHERE school_id = ? AND lower(name) = lower(?)', school.id, wanted);
+        if (found) teamId = found.id; else teamRequest = wanted;
+      } else fail(400, 'Choose your team, or ask for a new one.', 'team');
+    }
     const { salt, hash } = await hashPw(body.password);
     const key = nameKey(name);
     const id = tx(() => {
       if (get('SELECT 1 AS x FROM users WHERE school_id = ? AND name_key = ? AND status != ?', school.id, key, 'removed')) fail(409, 'Someone at your school already uses that name. Add an initial or a number.', 'name');
-      return run('INSERT INTO users(school_id, name, name_key, pw_salt, pw_hash, role, status, created_at, consent_at, last_seen) VALUES (?,?,?,?,?,?,?,?,?,?)',
-        school.id, name, key, salt, hash, role, open ? 'active' : 'pending', Date.now(), Date.now(), Date.now()).id;
+      if (role === 'student' && get("SELECT COUNT(*) AS n FROM users WHERE school_id = ? AND role = 'student' AND status = 'pending'", school.id).n >= JOIN_PENDING_PER_SCHOOL) fail(429, 'Many requests are waiting at your school. Ask a teacher to approve some, then try again.', 'full');
+      if (role === 'teacher' && get("SELECT COUNT(*) AS n FROM users WHERE role = 'teacher' AND status = 'pending'").n >= JOIN_PENDING_TEACHERS) fail(429, 'Many teacher requests are waiting. Ask an admin to approve some, then try again.', 'full');
+      return run('INSERT INTO users(school_id, name, name_key, pw_salt, pw_hash, role, status, team_id, team_request, created_at, consent_at, last_seen) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+        school.id, name, key, salt, hash, role, 'pending', teamId, teamRequest, Date.now(), Date.now(), Date.now()).id;
     });
     const token = createSession(id);
     res.setHeader('Set-Cookie', cookie(req, token, SESSION_DAYS * 86400));
     broadcast((u) => u.role === 'admin' || (u.role === 'teacher' && u.school_id === school.id && role === 'student'), 'refresh', { what: 'pending' });
+    if (opts.notify) {
+      const team = teamId ? teamOf(teamId) : null;
+      opts.notify.event({ kind: 'account', name, role, school: school.short, team: team ? team.name : null, newTeam: teamRequest, stillWaiting: () => { const u = userRow(id); return Boolean(u && u.status === 'pending'); } });
+    }
     return { user: publicUser(userRow(id), true) };
   });
 
@@ -954,8 +982,8 @@ function createApp(opts = {}) {
     const sid = scopeSchool(user);
     const where = sid == null ? '' : 'WHERE school_id = ?';
     const args = sid == null ? [] : [sid];
-    const schools = all(`SELECT id, name, short, match, student_code${user.role === 'admin' ? ', teacher_code' : ''} FROM schools ${sid == null ? '' : 'WHERE id = ?'} ORDER BY id`, ...args);
-    const members = all(`SELECT id, school_id, name, role, status, team_id, created_at, last_seen, muted_until, mute_reason FROM users ${sid == null ? "WHERE status != 'removed'" : "WHERE school_id = ? AND status != 'removed'"} ORDER BY status = 'pending' DESC, role, name`, ...args);
+    const schools = all(`SELECT id, name, short, match FROM schools ${sid == null ? '' : 'WHERE id = ?'} ORDER BY id`, ...args);
+    const members = all(`SELECT id, school_id, name, role, status, team_id, team_request, created_at, last_seen, muted_until, mute_reason FROM users ${sid == null ? "WHERE status != 'removed'" : "WHERE school_id = ? AND status != 'removed'"} ORDER BY status = 'pending' DESC, role, name`, ...args);
     const teams = all(`SELECT id, school_id, name, device_eui FROM teams ${where} ORDER BY school_id, name`, ...args);
     // Reports about answers that visitors got belong to no school, so every teacher sees them.
     let reports = all(`SELECT * FROM reports WHERE resolved_at IS NULL ${sid == null ? '' : "AND ((school_id = ? AND (author_role = 'student' OR author_role = 'assistant')) OR (school_id IS NULL AND kind = 'bot'))"} ORDER BY id DESC LIMIT 100`, ...args);
@@ -973,7 +1001,19 @@ function createApp(opts = {}) {
     if (action === 'approve') {
       if (t.status !== 'pending') fail(400, 'That member is not waiting for approval.');
       if (t.role === 'teacher' && user.role !== 'admin') fail(403, 'Only an admin can approve a teacher.');
-      run("UPDATE users SET status = 'active', approved_by = ?, approved_at = ? WHERE id = ?", user.id, Date.now(), t.id);
+      // A student who asked for a team that does not exist yet gets it now (an admin or a teacher of that school is the one approving).
+      let teamId = t.team_id;
+      if (body.team_id != null && body.team_id !== '') {
+        const team = teamOf(Number(body.team_id));
+        if (!team || team.school_id !== t.school_id) fail(400, 'That team belongs to another school.');
+        teamId = team.id;
+      }
+      if (!teamId && t.team_request && t.role === 'student') {
+        const found = get('SELECT id FROM teams WHERE school_id = ? AND lower(name) = lower(?)', t.school_id, t.team_request);
+        teamId = found ? found.id : run('INSERT INTO teams(school_id, name, device_eui, created_at) VALUES (?,?,?,?)', t.school_id, t.team_request, null, Date.now()).id;
+        if (!found) audit(user, 'team-create', teamId, t.team_request);
+      }
+      run("UPDATE users SET status = 'active', approved_by = ?, approved_at = ?, team_id = ?, team_request = NULL WHERE id = ?", user.id, Date.now(), teamId, t.id);
       audit(user, 'approve', t.id, t.name);
       sendTo(t.id, 'refresh', { what: 'me' });
     } else if (action === 'reject') {
@@ -1004,7 +1044,7 @@ function createApp(opts = {}) {
     } else if (action === 'team') {
       let teamId = body.team_id == null || body.team_id === '' ? null : Number(body.team_id);
       if (teamId != null) { const team = teamOf(teamId); if (!team || team.school_id !== t.school_id) fail(400, 'That team belongs to another school.'); }
-      run('UPDATE users SET team_id = ? WHERE id = ?', teamId, t.id);
+      run('UPDATE users SET team_id = ?, team_request = NULL WHERE id = ?', teamId, t.id);
       audit(user, 'team', t.id, teamId);
       sendTo(t.id, 'refresh', { what: 'me' });
     }
@@ -1077,17 +1117,13 @@ function createApp(opts = {}) {
   route('POST', /^\/app\/api\/manage\/schools\/(\d+)$/, 'staff', ({ user, params, body }) => {
     const s = schoolOf(Number(params[0]));
     if (!s || (user.role !== 'admin' && s.id !== user.school_id)) fail(404, 'School not found.');
-    if (body.regenerate === 'student') { run('UPDATE schools SET student_code = ? WHERE id = ?', makeCode(), s.id); audit(user, 'code-student', s.id, ''); }
-    else if (body.regenerate === 'teacher') {
-      if (user.role !== 'admin') fail(403, 'Only an admin can change the teacher code.');
-      run('UPDATE schools SET teacher_code = ? WHERE id = ?', makeCode(), s.id); audit(user, 'code-teacher', s.id, '');
-    }
+    // School codes are gone: nobody joins with a code any more, so there is nothing to regenerate.
     if (body.match != null) {
       if (user.role !== 'admin') fail(403, 'Only an admin can change how vehicles are matched.');
       run('UPDATE schools SET match = ? WHERE id = ?', String(body.match).toLowerCase().slice(0, 200), s.id);
       audit(user, 'school-match', s.id, body.match);
     }
-    const out = get(`SELECT id, name, short, match, student_code${user.role === 'admin' ? ', teacher_code' : ''} FROM schools WHERE id = ?`, s.id);
+    const out = get('SELECT id, name, short, match FROM schools WHERE id = ?', s.id);
     return { school: out };
   });
 
@@ -1191,6 +1227,8 @@ function createApp(opts = {}) {
     handle,
     // The user behind the cookie when they are an approved member; the dashboard pages accept this instead of the password.
     authorise: (req) => { const u = sessionUser(req); return u && u.status === 'active' ? u : null; },
+    // 'pending' for a signed-in account that waits for approval, 'active' for an approved one, null when nobody is signed in.
+    statusOf: (req) => { const u = sessionUser(req); return u ? u.status : null; },
     info: () => ({ users: get('SELECT COUNT(*) AS n FROM users').n, schools: get('SELECT COUNT(*) AS n FROM schools').n, db: dbFile }),
     db: { get, all, run },
     // provide('league', async () => ({ schools: { [schoolId]: { online, tools, plans } }, partial, demo })): the figures the League is built from.

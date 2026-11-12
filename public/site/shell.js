@@ -222,7 +222,7 @@
     { items: [['home', 'globe', 'The whole project', 'Όλο το έργο']] },
     { h: ['Today', 'Σήμερα'], items: [['board', 'board', 'City board', 'Πίνακας πόλης'], ['city3d', 'globe', 'Cyprus 3D', 'Κύπρος 3D'], ['alerts', 'bell', 'Alerts', 'Ειδοποιήσεις']] },
     { h: ['The record', 'Το αρχείο'], items: [['layers', 'layers', 'Data layers', 'Στρώματα δεδομένων'], ['weather', 'check', 'Met Office record', 'Μετεωρολογικό αρχείο'], ['explore', 'search', 'Explore data', 'Εξερεύνηση'], ['library', 'db', 'Library', 'Βιβλιοθήκη']] },
-    { h: ['Schools and places', 'Σχολεία και τόποι'], items: [['schools', 'users', 'Schools and teams', 'Σχολεία και ομάδες'], ['districts', 'bars', 'Districts and neighbourhoods', 'Επαρχίες και γειτονιές'], ['guides', 'bolt', 'Sensor guides', 'Οδηγοί αισθητήρων']] },
+    { h: ['Schools and places', 'Σχολεία και τόποι'], items: [['join', 'users', 'Join or sign in', 'Εγγραφή ή σύνδεση'], ['schools', 'users', 'Schools and teams', 'Σχολεία και ομάδες'], ['districts', 'bars', 'Districts and neighbourhoods', 'Επαρχίες και γειτονιές'], ['guides', 'bolt', 'Sensor guides', 'Οδηγοί αισθητήρων']] },
     { h: ['Think', 'Σκέψη'], items: [['council', 'shield', 'Council room', 'Αίθουσα συμβουλίου'], ['mirror', 'users', 'Mirror', 'Καθρέφτης'], ['whatif', 'refresh', 'What-if', 'Σενάρια'], ['reports', 'file', 'Reports', 'Αναφορές']] },
     { h: ['In the field', 'Στο πεδίο'], items: [['map', 'map', 'Live map', 'Ζωντανός χάρτης'], ['vehicles', 'bus', 'Vehicles', 'Οχήματα'], ['trip', 'route', 'Follow one trip', 'Ακολουθήστε μία διαδρομή'], ['desk', 'home', 'Today’s desk', 'Το γραφείο σήμερα'], ['projects', 'flag', 'Running projects', 'Ενεργά έργα'], ['start', 'layers', 'Start a project', 'Νέο έργο']] },
     { h: ['Data sources', 'Πηγές δεδομένων'], items: [['research', 'search', 'Research', 'Έρευνα'], ['archive', 'layers', 'Data archive', 'Αρχείο δεδομένων'], ['feeds', 'sensor', 'Feed list', 'Λίστα πηγών'], ['helpers', 'bolt', 'Helpers', 'Βοηθοί'], ['warnings', 'mic', 'Warnings watch', 'Παρακολούθηση προειδοποιήσεων']] },
@@ -262,11 +262,12 @@
     approvals: ['Teacher sign-in only: tools, reports and accounts waiting for a decision.', 'Μόνο με σύνδεση εκπαιδευτικού: εργαλεία, αναφορές και λογαριασμοί που περιμένουν απόφαση.'],
     opsmap: ['Sensors, server, feeds and the assistant as nodes with live status. Read-only for visitors.', 'Αισθητήρες, διακομιστής, πηγές και βοηθός ως κόμβοι με ζωντανή κατάσταση. Μόνο ανάγνωση για τους επισκέπτες.'],
     league: ['Off by default. If on: schools only, based on data collected, never people.', 'Ανενεργό από προεπιλογή. Αν ενεργοποιηθεί: μόνο σχολεία, με βάση τα δεδομένα που συλλέγουν, ποτέ πρόσωπα.'],
-    settings: ['Teacher sign-in only: alert thresholds, school codes, handbook, feeds.', 'Μόνο με σύνδεση εκπαιδευτικού: όρια ειδοποιήσεων, κωδικοί σχολείων, εγχειρίδιο, πηγές.'],
+    settings: ['Teacher sign-in only: alert thresholds, schools, handbook, feeds.', 'Μόνο με σύνδεση εκπαιδευτικού: όρια ειδοποιήσεων, σχολεία, εγχειρίδιο, πηγές.'],
+    join: ['Ask for your own account with your city and team, or sign in. A teacher approves every request. No email and no class code.', 'Ζητήστε τον δικό σας λογαριασμό με την πόλη και την ομάδα σας ή συνδεθείτε. Κάθε αίτημα το εγκρίνει ένας εκπαιδευτικός. Χωρίς email και χωρίς κωδικό τάξης.'],
     ask: ['A full-screen assistant. Answers come from live tools and the handbook, with source chips. Never exact vehicle positions.', 'Βοηθός πλήρους οθόνης. Οι απαντήσεις προέρχονται από ζωντανά εργαλεία και το εγχειρίδιο, με ετικέτες πηγών. Ποτέ ακριβείς θέσεις οχημάτων.'],
   };
   // Pages that exist. The lead adds an id here, or lists it in public/site/pages/index.json (read at start, see loadPagesIndex).
-  const READY = new Set(['alerts', 'approvals', 'archive', 'ask', 'board', 'city3d', 'council', 'desk', 'districts', 'explore', 'feeds', 'guides', 'helpers', 'home', 'layers', 'league', 'library', 'map', 'mirror', 'opsmap', 'projects', 'reports', 'research', 'schools', 'settings', 'start', 'studio', 'submitted', 'trip', 'vehicles', 'warnings', 'weather', 'whatif']);
+  const READY = new Set(['alerts', 'approvals', 'archive', 'ask', 'board', 'city3d', 'council', 'desk', 'districts', 'explore', 'feeds', 'guides', 'helpers', 'home', 'join', 'layers', 'league', 'library', 'map', 'mirror', 'opsmap', 'projects', 'reports', 'research', 'schools', 'settings', 'start', 'studio', 'submitted', 'trip', 'vehicles', 'warnings', 'weather', 'whatif']);
   SC.ready = READY;
   window.SC_PAGES = window.SC_PAGES || [];
   const isReady = (id) => READY.has(id) || window.SC_PAGES.indexOf(id) >= 0;
@@ -290,6 +291,7 @@
   }
 
   SC.me = null;   // { name, role, school } when a teacher is signed in, else null
+  SC.account = null;   // { name, role, status, school, team } for anybody signed in (a student waiting for approval, an approved student, a teacher), else null
   const isTeacher = () => Boolean(SC.me && (SC.me.role === 'teacher' || SC.me.role === 'admin'));
   const showable = (id) => isReady(id) && (!TEACHER_ONLY.has(id) || isTeacher());
 
@@ -381,17 +383,19 @@
       const items = g.items.filter((it) => showable(it[0]));
       if (!items.length) return;
       if (g.h) nav.append(SC.el('div', { class: 'nm-side-h' }, SC.t(g.h[0], g.h[1])));
-      items.forEach(([id, ic, en, el]) => nav.append(SC.el('a', { class: 'nm-side-a' + (id === active ? ' on' : ''), href: id === 'home' ? '#/' : '#/' + id, 'data-id': id, 'aria-current': id === active ? 'page' : null }, SC.icon(ic), SC.el('span', null, SC.t(en, el)))));
+      items.forEach(([id, ic, en, el]) => { if (id === 'join' && SC.account) { en = 'My account'; el = 'Ο λογαριασμός μου'; } nav.append(SC.el('a', { class: 'nm-side-a' + (id === active ? ' on' : ''), href: id === 'home' ? '#/' : '#/' + id, 'data-id': id, 'aria-current': id === active ? 'page' : null }, SC.icon(ic), SC.el('span', null, SC.t(en, el)))); });
     });
     side.append(nav);
     side.append(SC.el('a', { class: 'sm-ask' + (active === 'ask' ? ' on' : ''), href: '#/ask', 'data-id': 'ask-link' }, SC.icon('sparkle'), SC.el('span', null, SC.t('Ask', 'Ρωτήστε'), SC.el('small', null, SC.t('opens full screen', 'ανοίγει σε πλήρη οθόνη')))));
-    const t = isTeacher();
-    const initials = t ? String((SC.me.name || 'T').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('')).toUpperCase() || 'T' : 'SC';
+    const A = SC.me || SC.account;
+    const initials = A ? String((A.name || 'A').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('')).toUpperCase() || 'A' : 'SC';
+    const who = !A ? [SC.t('Visitor', 'Επισκέπτης'), SC.t('Sign in or join · no account needed to look around', 'Σύνδεση ή εγγραφή · δεν χρειάζεται λογαριασμός για να δείτε')]
+      : [A.name, [A.role === 'admin' ? SC.t('Admin', 'Διαχειριστής') : A.role === 'teacher' ? SC.t('Teacher', 'Εκπαιδευτικός') : A.status === 'pending' ? SC.t('Waiting for approval', 'Περιμένει έγκριση') : '', A.school && (A.school.short || A.school.name), A.role === 'student' && A.team ? A.team.name : ''].filter(Boolean).join(' · ')];
     side.append(SC.el('div', { class: 'sm-foot' },
       SC.el('div', { class: 'nm-side-card sm-fresh' }, SC.el('i', { id: 'fresh-dot' }), SC.el('div', null, SC.el('span', { id: 'fresh-text' }, SC.t('Live from 4 schools and the Met Office', 'Ζωντανά από 4 σχολεία και τη Μετεωρολογική')), SC.el('small', { id: 'fresh-sub' }, SC.t('checking the sensors…', 'έλεγχος αισθητήρων…')))),
-      SC.el('div', { class: 'sm-user' }, SC.el('div', { class: 'av' }, initials), SC.el('div', null,
-        SC.el('b', null, t ? SC.t('Teacher', 'Εκπαιδευτικός') : SC.t('Visitor', 'Επισκέπτης')),
-        SC.el('small', null, t ? [SC.me.name, SC.me.school && (SC.me.school.short || SC.me.school.name)].filter(Boolean).join(' · ') : SC.t('No sign-in needed · teachers sign in', 'Χωρίς σύνδεση · οι εκπαιδευτικοί συνδέονται'))))));
+      SC.el('a', { class: 'sm-user', href: '#/join', 'data-id': 'join-card', 'aria-label': A ? SC.t('My account', 'Ο λογαριασμός μου') : SC.t('Sign in or join', 'Σύνδεση ή εγγραφή') }, SC.el('div', { class: 'av' }, initials), SC.el('div', null,
+        SC.el('b', null, who[0]),
+        SC.el('small', null, who[1])))));
     paintBadges();
     refreshFresh();
   }
@@ -657,7 +661,7 @@
   async function start() {
     buildTopbar();
     drawerEvents();
-    const meCall = SC.api('/app/api/me').then((r) => { const u = r && (r.user || r.me); if (u && (u.role === 'teacher' || u.role === 'admin') && u.status !== 'pending') SC.me = u; }).catch(() => { /* not signed in */ });
+    const meCall = SC.api('/app/api/me').then((r) => { const u = r && (r.user || r.me); if (u && (u.status === 'active' || u.status === 'pending')) SC.account = u; if (u && (u.role === 'teacher' || u.role === 'admin') && u.status !== 'pending') SC.me = u; }).catch(() => { /* not signed in */ });
     await Promise.all([meCall, loadPagesIndex()]);
     await show();
     loadAlertsCore();   // lazily, right after the first page; a 404 is fine

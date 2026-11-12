@@ -15,7 +15,7 @@ One page app at `/`, in the Nemesis Classic look (navy glass, copper and cyan, s
 | The record | `weather`, `explore` | Met Office record (warnings, forecast, radar, sea, stations); Explore data (compare, timeline, number finder, sensor vs official, download) |
 | Schools and places | `schools` | Schools and teams, announcements from teachers |
 | In the field | `map`, `vehicles` | Live map (embeds `/map.html?embed=1`); vehicles and trips |
-| Output | `studio` | Build studio: gallery of approved tools; students build with the class code |
+| Output | `studio` | Build studio: gallery of approved tools; students build with their own approved account |
 | Ask | `ask` | The assistant, open to visitors with limits |
 | Oversight (teachers only) | `approvals` | Approve tools and accounts |
 
@@ -45,7 +45,9 @@ Open http://localhost:3000.
 | `LOCK_DASHBOARD` | no | `1` locks the whole site for anyone who is not signed in to the student app (or has `DASHBOARD_PASSWORD`). Off by default: the site is open to everybody |
 | `PUBLIC_POS_DELAY_MIN` | no | Minutes a vehicle position must be old before visitors may see it (default 120). See Privacy of vehicle positions |
 | `PUBLIC_POS_GRID` | no | Size in degrees of the grid public positions are rounded to (default 0.01, about 1 km) |
-| `ADMIN_SETUP_CODE` | no | Secret that lets the first admin create an account at `/app/#/staff`. Leave it empty once the admins exist |
+| `ADMIN_SETUP_CODE` | no | Secret that lets the first admin create an account on the Join page (`/#/join`, Site owner box). Delete it once the admins exist |
+| `RESEND_API_KEY`, `NOTIFY_EMAIL` | no | Turn on approval emails to the admin (see Approval emails). `NOTIFY_FROM`, `SITE_URL`, `NOTIFY_DELAY_MIN` are optional |
+| `JOIN_PER_IP_HOUR`, `JOIN_PENDING_PER_SCHOOL`, `JOIN_PENDING_TEACHERS` | no | Limits on account requests: per network address per hour (60), waiting students per school (150), waiting teachers (20) |
 | `CLASS_LOGIN_USER`, `CLASS_LOGIN_PASSWORD` | no | An optional shared sign-in, off by default (the site has no visitor login). When both are set the whole site needs it (or a student-app account). It cannot tell students apart, so it only opens the site: it never gives exact vehicle positions |
 | `ANTHROPIC_API_KEY` | no | Switches the Ask assistant on. Without it the app works and the assistant says it is not switched on |
 | `BOT_MODEL` | no | Model for the assistant (default `claude-sonnet-5-5`) |
@@ -201,9 +203,9 @@ What it does:
 
 ### Setting it up
 
-1. Set `ADMIN_SETUP_CODE` (a long random secret) on Railway and open `/app/#/staff`. Create your admin account with that code, then remove the variable.
-2. Open Manage, Codes. Each school has a student code and a teacher code. Give the student code to the class and the teacher code to the teachers. Codes can be regenerated at any time.
-3. Teachers join with the teacher code and you approve them (Manage, Approvals). Students join with the student code and their own teacher approves them.
+1. Set `ADMIN_SETUP_CODE` (a long random secret) on Railway. Open the site's Join page (`/#/join`), expand "Site owner: make the first admin account", type that code, a name and a password. Then delete the variable so nobody can make more admins. An admin's own password cannot be reset on the site (only an admin can reset others), so keep it safe.
+2. Students and teachers make their own account on the Join page: they pick a city, a team (or ask for a new one) and a password. There are no school codes and no class codes, and no email.
+3. New accounts wait in Approvals. A teacher approves the students of their own school; only an admin approves teachers. Approving a student who asked for a new team creates the team. The People tab resets a lost password (a temporary one is shown once and must be changed at the next sign-in).
 4. Manage, Teams: create teams and add members. Each team gets its own chat channel.
 5. Manage, Codes, Vehicle matching: a vehicle is shown to a school when its name or group contains one of the school's match words (default: the city name, for example `Larnaka, Larnaca`). Name the SenseCAP devices or groups accordingly, or change the words.
 6. Add `ANTHROPIC_API_KEY` to switch on the assistant. Vehicle positions are delayed and rounded for everybody except teachers and admins (see Privacy of vehicle positions below).
@@ -223,15 +225,15 @@ Students pick a display name and a password; there are no email addresses. A tea
 `/cities/` is the new front door for the four schools. Students sign in at `/cities/login.html` with the shared class sign-in (see `CLASS_LOGIN_USER` and `CLASS_LOGIN_PASSWORD`), then reach the dashboard, the layered map, 3D Cyprus and the student app.
 
 - **Shared sign-in:** one user name and password for everyone, kept in server variables, not in git. Rate limited (8 wrong tries per 15 minutes per address) and signed cookie for 7 days. Changing the password signs everyone out. It does not identify students, so chat, the Ask assistant, the Build studio and saved projects stay with individual student-app accounts.
-- **Build studio (`studio.js`):** no account for students. A student types their school's class code (the school's existing student code from the student app, any letter case, with or without the dash) and a team name (1 to 30 letters, digits, spaces or hyphens; the page tells them to use a team name, not their own name). That sets the signed cookie `sc_class` (HttpOnly, SameSite=Lax, 8 hours; the signing secret is stored in the database in `meta`, or set `STUDIO_CLASS_SECRET`). Regenerating a school's student code ends that school's class sessions. A team builds with Claude (the draft stays in the browser) and presses Submit: only submitted pages are stored, as pending pages with the team name and school, for the teachers of that school (admins see all). A teacher approves or rejects; approved pages and the gallery (`GET /studio/api/projects?scope=gallery`, `/studio/p/<id>`) are public to everybody, anything else is private to its team and the reviewers. Pages run in a sandbox with no network and no top-window navigation (CSP `sandbox allow-scripts`; a page opened directly is wrapped in a sandboxed frame). Teachers and old student-app accounts keep the server-side drafts flow. Needs `ANTHROPIC_API_KEY`. The Build studio only reads the public view of the data (see Privacy above) and `get_vehicle_series` refuses GPS.
+- **Build studio (`studio.js`):** students build with their own approved account (Join page). A visitor or a pending account can open the public gallery but not build; the studio says to sign in or wait for approval. Class codes are gone: `POST /studio/api/class` answers 410. Drafts, previews, builds and submissions behave as before for accounts. Approvals are decided by the teacher of the school or an admin.
   - `STUDIO_SCHOOL_DAILY` (25): builds per school per day for class teams. `STUDIO_IP_DAILY` (40): builds per network address per day for class teams; a whole school usually sits behind one address, so raise it if classes build together. `STUDIO_GLOBAL_DAILY` (300): builds per day for everybody together. `STUDIO_DAILY_LIMIT` (25): builds per signed-in person per day. `STUDIO_SCHOOL_PENDING` (10): submitted pages per school waiting for a teacher (a team may have 3). `0` switches that kind of build off. The day is a rolling 24 hours. Also: 4 builds a minute per team, 8 wrong class codes per 15 minutes per address, and `STUDIO_CLASS_SECRET` (optional signing secret). Addresses are counted as a keyed hash, never stored.
   - New columns on `studio_projects` (`author_kind`, `team_label`, `data_json`) and `studio_use` (`school_id`, `ip`) are added automatically; old rows keep working. A class author has `user_id` 0 and `author_kind` `class`.
 - **MCP endpoint (`/mcp`):** Model Context Protocol over HTTP (JSON responses) for adults and teachers who use their own Claude (for example Claude Code or the API). A teacher creates a project token (`POST /studio/api/tokens`, shown once); the client sends it as `Authorization: Bearer <token>`. Tools: the assistant's read-only data tools plus `get_vehicle_series`, `list_my_projects`, `get_project`, `save_project` and `submit_project`. It can save drafts only, never publish. 120 calls per hour per token. Claude.ai's own custom connectors expect OAuth, which this endpoint does not implement yet.
 - Students under 18 should not use their own Claude.ai accounts; the Build studio inside the site is the route for them.
 
-### Joining without a school code
+### Approval emails
 
-When the shared class sign-in is on, a student who has signed in to `/cities/` can join the student app by choosing a school, a display name and a password. No school code, no approval wait. Teachers still see the chat, can mute or remove people, and approve every Build studio project before others see it. Without the class sign-in, joining still needs the school code and teacher approval.
+When something waits for approval (a new account, a tool or a team plan sent for review) the admin gets one short email. Requests that come close together are collected into one email (5 minutes by default), at most 24 emails a day. The email holds only a display name, school, team or tool title and a link to Approvals, never a password. It uses the Resend HTTPS API and switches itself off when the variables are not set: `RESEND_API_KEY`, `NOTIFY_EMAIL` (with Resend's default sender `onboarding@resend.dev` this must be the address the Resend account was made with), and optionally `NOTIFY_FROM`, `SITE_URL`, `NOTIFY_DELAY_MIN`. Council sessions and weekly reports do not send email.
 
 ### Build studio workspace and student tools
 

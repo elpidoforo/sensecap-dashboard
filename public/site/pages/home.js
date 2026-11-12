@@ -139,7 +139,7 @@
         { id: 'approvals', ic: 'check', n: T('Approvals', 'Εγκρίσεις'), v: () => P.chips([T('Tool', 'Εργαλείο'), T('Report', 'Αναφορά'), T('Account', 'Λογαριασμός')]), f: () => T('Tools, reports and accounts waiting', 'Εργαλεία, αναφορές και λογαριασμοί σε αναμονή'), sch: 1 },
         { id: 'opsmap', ic: 'layers', n: T('Operations map', 'Χάρτης λειτουργιών'), v: () => P.dots(6, 6), f: () => T('Sensors, server, feeds, assistant', 'Αισθητήρες, διακομιστής, πηγές, βοηθός'), sch: 1 },
         { id: 'league', ic: 'trophy', n: T('League', 'Πρωτάθλημα'), v: () => P.cities([0.6, 0.9, 0.5, 0.7]), f: () => T('Off unless teachers switch it on', 'Ανενεργό εκτός αν το ενεργοποιήσουν'), sch: 1 },
-        { id: 'settings', ic: 'gear', n: T('Settings', 'Ρυθμίσεις'), v: () => P.gear(), f: () => T('Thresholds, school codes, handbook, feeds', 'Όρια, κωδικοί σχολείων, εγχειρίδιο, πηγές'), sch: 1 }] },
+        { id: 'settings', ic: 'gear', n: T('Settings', 'Ρυθμίσεις'), v: () => P.gear(), f: () => T('Thresholds, schools, handbook, feeds', 'Όρια, σχολεία, εγχειρίδιο, πηγές'), sch: 1 }] },
   ];
   const TAG_GATE = ['gate', T('TEACHER ◆', 'ΕΚΠΑΙΔΕΥΤΙΚΟΣ ◆'), T('a person decides here', 'εδώ αποφασίζει άνθρωπος')];
   const isTeacher = () => Boolean(SC.me && (SC.me.role === 'teacher' || SC.me.role === 'admin'));

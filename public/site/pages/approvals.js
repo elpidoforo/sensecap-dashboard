@@ -75,8 +75,8 @@
     root.append(SC.head({
       title: t('Teacher sign-in', 'Σύνδεση εκπαιδευτικών'),
       help: [
-        'Teachers sign in with the name and password they made in the student app, and choose their school. After signing in, this page shows the student tools and the new accounts that wait for a teacher.',
-        'Οι εκπαιδευτικοί συνδέονται με το όνομα και τον κωδικό που δημιούργησαν στην εφαρμογή των μαθητών και επιλέγουν το σχολείο τους. Μετά τη σύνδεση, η σελίδα δείχνει τα εργαλεία μαθητών και τους νέους λογαριασμούς που περιμένουν έγκριση.',
+        'Teachers sign in with the name and password of their account, and choose their school. No account yet? Ask to join on the Join page: an admin approves teacher accounts. After signing in, this page shows the student tools and the new accounts that wait for a teacher.',
+        'Οι εκπαιδευτικοί συνδέονται με το όνομα και τον κωδικό του λογαριασμού τους και επιλέγουν το σχολείο τους. Δεν έχετε λογαριασμό; Ζητήστε να μπείτε από τη σελίδα εγγραφής: τους λογαριασμούς εκπαιδευτικών τους εγκρίνει ο διαχειριστής. Μετά τη σύνδεση, η σελίδα δείχνει τα εργαλεία μαθητών και τους νέους λογαριασμούς που περιμένουν έγκριση.',
       ],
     }));
     const msg = el('div', { 'aria-live': 'polite' });
@@ -144,7 +144,7 @@
         el('h2', { id: 'ap-si-h' }, t('Teachers sign in here', 'Εδώ συνδέονται οι εκπαιδευτικοί')),
         el('p', { class: 'ap-lead' }, t('Sign in to approve student tools and new accounts. Nothing a team builds is public until a teacher says yes.', 'Συνδεθείτε για να εγκρίνετε εργαλεία μαθητών και νέους λογαριασμούς. Τίποτα από ό,τι φτιάχνει μια ομάδα δεν γίνεται δημόσιο αν δεν πει ναι ένας εκπαιδευτικός.')),
         msg, form,
-        el('p', { class: 'ap-visitor' }, t('This page is for teachers. Just visiting? You never need to sign in: everything public on this site opens without an account. ', 'Αυτή η σελίδα είναι για εκπαιδευτικούς. Απλώς επισκέπτεστε; Δεν χρειάζεται ποτέ να συνδεθείτε: ό,τι είναι δημόσιο σε αυτόν τον ιστότοπο ανοίγει χωρίς λογαριασμό. '), el('a', { href: '#/' }, t('Back to the whole project', 'Πίσω στο ολόκληρο έργο'))))));
+        el('p', { class: 'ap-visitor' }, t('This page is for teachers. Just visiting? You never need to sign in: everything public on this site opens without an account. ', 'Αυτή η σελίδα είναι για εκπαιδευτικούς. Απλώς επισκέπτεστε; Δεν χρειάζεται ποτέ να συνδεθείτε: ό,τι είναι δημόσιο σε αυτόν τον ιστότοπο ανοίγει χωρίς λογαριασμό. '), el('a', { href: '#/' }, t('Back to the whole project', 'Πίσω στο ολόκληρο έργο')), ' · ', el('a', { href: '#/join' }, t('No account yet? Ask to join', 'Δεν έχετε λογαριασμό; Ζητήστε να μπείτε'))))));
     loadSchools();
     return () => {};
   }
@@ -205,8 +205,8 @@
         lede: t('Check each tool and each new account. Nothing is public until a teacher says yes. Every decision is saved in the trail, so students can see why.', 'Ελέγξτε κάθε εργαλείο και κάθε νέο λογαριασμό. Τίποτα δεν γίνεται δημόσιο αν δεν πει ναι ένας εκπαιδευτικός. Κάθε απόφαση καταγράφεται στο ιστορικό, ώστε οι μαθητές να βλέπουν το γιατί.'),
         tags: S.demo ? [{ text: t('Demo data', 'Δεδομένα επίδειξης'), cls: 'demo' }] : [],
         help: [
-          'Tools that student teams send for review wait here, one card at a time. Open the preview, tick your three checks (safe, honest, clear), then approve it, or send it back with a note the team can read. New student accounts wait on the Accounts tab. Visitors never see this page.',
-          'Τα εργαλεία που στέλνουν οι ομάδες για έλεγχο περιμένουν εδώ, μία κάρτα τη φορά. Ανοίξτε την προεπισκόπηση, επιλέξτε τους τρεις ελέγχους (ασφαλές, ειλικρινές, κατανοητό) και μετά εγκρίνετέ το ή στείλτε το πίσω με σημείωμα που μπορεί να διαβάσει η ομάδα. Οι νέοι λογαριασμοί μαθητών περιμένουν στην καρτέλα Λογαριασμοί. Οι επισκέπτες δεν βλέπουν ποτέ αυτή τη σελίδα.',
+          'Tools that student teams send for review wait here, one card at a time. Open the preview, tick your three checks (safe, honest, clear), then approve it, or send it back with a note the team can read. New student accounts wait on the Accounts tab, and the People tab resets a lost password. Visitors never see this page.',
+          'Τα εργαλεία που στέλνουν οι ομάδες για έλεγχο περιμένουν εδώ, μία κάρτα τη φορά. Ανοίξτε την προεπισκόπηση, επιλέξτε τους τρεις ελέγχους (ασφαλές, ειλικρινές, κατανοητό) και μετά εγκρίνετέ το ή στείλτε το πίσω με σημείωμα που μπορεί να διαβάσει η ομάδα. Οι νέοι λογαριασμοί μαθητών περιμένουν στην καρτέλα Λογαριασμοί και η καρτέλα Άτομα κάνει επαναφορά ενός χαμένου κωδικού. Οι επισκέπτες δεν βλέπουν ποτέ αυτή τη σελίδα.',
         ],
       });
     }
@@ -260,9 +260,8 @@
           el('div', { class: 'ap-gate-n' }, S.ov ? String(nA) : '–'),
           el('h3', null, t('Accounts to approve', 'Λογαριασμοί προς έγκριση')),
           el('p', null, !S.ov ? t('The list could not be loaded just now.', 'Η λίστα δεν φορτώθηκε αυτή τη στιγμή.')
-            : nA ? (isAdmin ? (nA === 1 ? t('Someone asked to join with a school code. Check you know them, then let them in.', 'Κάποιος ζήτησε να μπει με κωδικό σχολείου. Ελέγξτε ότι τον γνωρίζετε και μετά αφήστε τον να μπει.') : t('People asked to join with a school code. Check you know them, then let them in.', 'Άτομα που ζήτησαν να μπουν με κωδικό σχολείου. Ελέγξτε ότι τα γνωρίζετε και μετά αφήστε τα να μπουν.'))
-              : nA === 1 ? t('A student asked to join ' + (school ? school.name : 'your school') + ' with the school code. Check you know them, then let them in.', 'Ένας μαθητής ζήτησε να μπει ' + at()[1] + ' με τον κωδικό σχολείου. Ελέγξτε ότι τον γνωρίζετε και μετά αφήστε τον να μπει.')
-              : t('Students asked to join ' + (school ? school.name : 'your school') + ' with the school code. Check you know them, then let them in.', 'Μαθητές ζήτησαν να μπουν ' + at()[1] + ' με τον κωδικό σχολείου. Ελέγξτε ότι τους γνωρίζετε και μετά αφήστε τους να μπουν.'))
+            : nA ? (nA === 1 ? t('Someone asked to join' + (isAdmin ? '' : ' ' + (school ? school.name : 'your school')) + '. Check you know them, then let them in.', 'Κάποιος ζήτησε να μπει' + (isAdmin ? '' : ' ' + at()[1]) + '. Ελέγξτε ότι τον γνωρίζετε και μετά αφήστε τον να μπει.')
+              : t('People asked to join' + (isAdmin ? '' : ' ' + (school ? school.name : 'your school')) + '. Check you know them, then let them in.', 'Άτομα ζήτησαν να μπουν' + (isAdmin ? '' : ' ' + at()[1]) + '. Ελέγξτε ότι τα γνωρίζετε και μετά αφήστε τα να μπουν.'))
               : t('No one is waiting to join.', 'Κανείς δεν περιμένει να μπει.')),
           nA ? el('button', { class: 'nm-btn nm-btn--primary', type: 'button', onclick: () => setTab('accounts', true) }, t('Review ' + nA + (nA === 1 ? ' account' : ' accounts'), 'Έλεγχος ' + nA + (nA === 1 ? ' λογαριασμού' : ' λογαριασμών'))) : null),
         art(ART_ACCT));
@@ -272,6 +271,7 @@
     const TABS = () => [
       ['tools', t('Tools waiting', 'Εργαλεία σε αναμονή') + ' · ' + S.tools.length],
       ['accounts', t('Accounts', 'Λογαριασμοί') + ' · ' + accounts().length],
+      ['people', t('People', 'Άτομα')],
       ['rules', t('Approval checklist', 'Λίστα ελέγχου')],
     ];
     function drawTabs() {
@@ -389,18 +389,27 @@
     /* ----- accounts ----- */
     function acctCard(m) {
       const sc = schoolOf(m.school_id), tm = teamOf(m.team_id);
+      const teams = S.ov ? S.ov.teams.filter((x) => x.school_id === m.school_id) : [];
       const err = el('div', { 'aria-live': 'assertive' });
-      const ok = el('button', { class: 'nm-btn nm-btn--primary', type: 'button' }, ic('checkc'), t('Approve account', 'Έγκριση λογαριασμού'));
+      const makes = m.role === 'student' && !tm && m.team_request;
+      const ok = el('button', { class: 'nm-btn nm-btn--primary', type: 'button' }, ic('checkc'), makes ? t('Approve and create the team', 'Έγκριση και δημιουργία ομάδας') : t('Approve account', 'Έγκριση λογαριασμού'));
       const no = el('button', { class: 'nm-btn nm-btn--danger-outline', type: 'button' }, t('Decline', 'Απόρριψη'));
+      // A teacher can change the team before approving. The first choice is what the student asked for.
+      const pick = m.role === 'student' && teams.length ? el('select', { class: 'nm-input ap-team', id: 'ap-team-' + m.id, 'aria-label': t('Team', 'Ομάδα') },
+        el('option', { value: '' }, tm ? t('Their choice: ' + tm.name, 'Η επιλογή τους: ' + tm.name) : m.team_request ? t('Create the team “' + m.team_request + '”', 'Δημιουργία της ομάδας «' + m.team_request + '»') : t('No team yet', 'Χωρίς ομάδα')),
+        ...teams.filter((x) => !tm || x.id !== tm.id).map((x) => el('option', { value: String(x.id) }, x.name))) : null;
       async function act(kind) {
         ok.disabled = no.disabled = true; err.replaceChildren();
         try {
-          await SC.api('/app/api/manage/users/' + m.id + '/' + kind, { method: 'POST', body: {} });
+          const body = {};
+          if (kind === 'approve' && pick && pick.value) body.team_id = Number(pick.value);
+          await SC.api('/app/api/manage/users/' + m.id + '/' + kind, { method: 'POST', body });
           S.decisions.unshift({ at: Date.now(), kind: kind === 'approve' ? 'accountok' : 'declined', title: m.name, who: sc ? sc.short || sc.name : '', id: 'u' + m.id });
           S.ov.members = S.ov.members.filter((x) => x.id !== m.id);
           const msg = kind === 'approve' ? t('Account approved.', 'Ο λογαριασμός εγκρίθηκε.') : t('Account declined.', 'Ο λογαριασμός απορρίφθηκε.');
           SC.toast(msg); live.textContent = msg;
           drawGates(); drawTabs(); drawPane(); drawTrail(); drawWeek(); focusCard();
+          refreshOv();
           if (isAdmin) refreshAudit();
         } catch (e) {
           ok.disabled = no.disabled = false;
@@ -412,7 +421,7 @@
       ok.addEventListener('click', () => act('approve'));
       no.addEventListener('click', () => SC.modal({
         title: t('Decline this account?', 'Απόρριψη αυτού του λογαριασμού;'),
-        body: el('p', null, t(m.name + ' will not be able to sign in. They can ask again with the school code.', 'Ο/Η ' + m.name + ' δεν θα μπορεί να συνδεθεί. Μπορεί να ζητήσει ξανά με τον κωδικό σχολείου.')),
+        body: el('p', null, t(m.name + ' will not be able to sign in. They can ask again with a new account request.', 'Ο/Η ' + m.name + ' δεν θα μπορεί να συνδεθεί. Μπορεί να ζητήσει ξανά με νέο αίτημα λογαριασμού.')),
         actions: [{ label: t('Keep waiting', 'Να περιμένει') }, { label: t('Decline', 'Απόρριψη'), primary: true, run: () => act('reject') }],
       }));
       const roleTxt = m.role === 'teacher' ? t('Teacher account', 'Λογαριασμός εκπαιδευτικού') : t('Student account', 'Λογαριασμός μαθητή');
@@ -422,20 +431,79 @@
         el('h3', null, m.name),
         el('div', { class: 'ap-who' }, el('span', null, roleTxt), el('span', { class: 'dim' }, '·'), el('span', null, sc ? sc.name : t('Unknown school', 'Άγνωστο σχολείο')), el('span', { class: 'dim' }, '·'), el('span', null, t('Asked ', 'Ζήτησε ') + when(m.created_at))),
         el('ul', { class: 'ap-autoc' },
-          el('li', null, ic('checkc'), t('Joined with the correct ' + (m.role === 'teacher' ? 'teacher' : 'school') + ' code for this school', 'Μπήκε με τον σωστό κωδικό ' + (m.role === 'teacher' ? 'εκπαιδευτικού' : 'σχολείου') + ' για αυτό το σχολείο')),
-          tm ? el('li', null, ic('checkc'), t('Team: ' + tm.name, 'Ομάδα: ' + tm.name)) : el('li', { class: 'neutral' }, ic('user'), t('No team chosen yet. You can set it in the student app.', 'Δεν έχει επιλεγεί ομάδα ακόμη. Μπορείτε να την ορίσετε στην εφαρμογή των μαθητών.'))),
+          el('li', null, ic('checkc'), t('Chose this city themselves', 'Διάλεξε μόνος/η την πόλη')),
+          m.role === 'teacher' ? el('li', { class: 'neutral' }, ic('user'), t('Teacher accounts need an admin. Check you know this person.', 'Οι λογαριασμοί εκπαιδευτικών χρειάζονται διαχειριστή. Ελέγξτε ότι γνωρίζετε αυτό το πρόσωπο.'))
+            : tm ? el('li', null, ic('checkc'), t('Chose the team: ' + tm.name, 'Διάλεξε την ομάδα: ' + tm.name))
+              : m.team_request ? el('li', { class: 'warn' }, ic('warn'), t('Asks for a new team: ' + m.team_request + '. Approving creates it.', 'Ζητά νέα ομάδα: ' + m.team_request + '. Η έγκριση τη δημιουργεί.'))
+                : el('li', { class: 'neutral' }, ic('user'), t('No team chosen. You can set one below.', 'Δεν έχει επιλεγεί ομάδα. Μπορείτε να ορίσετε μία παρακάτω.'))),
+        pick ? el('div', { class: 'ap-field', style: { marginTop: '14px', maxWidth: '360px' } }, el('label', { for: 'ap-team-' + m.id }, t('Team to approve into', 'Ομάδα για την έγκριση')), pick) : null,
         err,
         el('div', { class: 'ap-decide' }, ok, no));
+    }
+    async function refreshOv() {
+      try { S.ov = await SC.api('/app/api/manage/overview'); S.ovError = null; } catch (e) { /* the next quiet refresh tries again */ }
+      if (alive && S.tab === 'people' && !paneHost.contains(document.activeElement)) drawPane();
     }
     function accountsPane() {
       if (!S.ov) return errCard(S.ovError, () => reload());
       const list = accounts();
       if (!list.length) {
         return el('article', { class: 'nm-card nm-card--glow ap-clear' }, el('div', { class: 'ap-eb cy' }, t('All clear', 'Όλα εντάξει')), el('h2', null, t('No accounts are waiting.', 'Κανένας λογαριασμός δεν περιμένει.')),
-          el('p', null, isAdmin ? t('When someone joins with a school code, their account appears here until you let them in.', 'Όταν κάποιος μπει με κωδικό σχολείου, ο λογαριασμός του εμφανίζεται εδώ μέχρι να τον εγκρίνετε.')
-            : t('When a student joins ' + (school ? school.name : 'your school') + ' with the school code, their account appears here until you let them in.', 'Όταν ένας μαθητής μπει ' + at()[1] + ' με τον κωδικό σχολείου, ο λογαριασμός του εμφανίζεται εδώ μέχρι να τον εγκρίνετε.')));
+          el('p', null, isAdmin ? t('When someone asks to join, their account appears here until you let them in.', 'Όταν κάποιος ζητήσει να μπει, ο λογαριασμός του εμφανίζεται εδώ μέχρι να τον εγκρίνετε.')
+            : t('When a student asks to join ' + (school ? school.name : 'your school') + ', their account appears here until you let them in.', 'Όταν ένας μαθητής ζητήσει να μπει ' + at()[1] + ', ο λογαριασμός του εμφανίζεται εδώ μέχρι να τον εγκρίνετε.')));
       }
       return el('div', { class: 'ap-accts' }, list.map(acctCard), !isAdmin ? el('p', { class: 'muted', style: { margin: '2px 4px 0', fontSize: '13px' } }, t('Teacher accounts are approved by an admin.', 'Τους λογαριασμούς εκπαιδευτικών τους εγκρίνει ένας διαχειριστής.')) : null);
+    }
+
+    /* ----- people: everyone approved, and the lost-password button ----- */
+    function peoplePane() {
+      if (!S.ov) return errCard(S.ovError, () => reload());
+      const q = (S.q || '').trim().toLowerCase();
+      const list = S.ov.members.filter((m) => m.status === 'active' && m.id !== me.id && (isAdmin || m.role === 'student') && (!q || String(m.name).toLowerCase().includes(q)));
+      const search = el('input', { class: 'nm-input ap-search', type: 'search', id: 'ap-q', value: S.q || '', placeholder: t('Find a name', 'Βρείτε ένα όνομα'), 'aria-label': t('Find a name', 'Βρείτε ένα όνομα'), autocomplete: 'off' });
+      search.addEventListener('input', () => { S.q = search.value; const keep = search.selectionStart; drawPane(); const again = paneHost.querySelector('#ap-q'); if (again) { again.focus(); again.setSelectionRange(keep, keep); } });
+      const rows = list.slice(0, 200).map((m) => {
+        const sc = schoolOf(m.school_id), tm = teamOf(m.team_id);
+        const rst = el('button', { class: 'nm-btn nm-btn--sm', type: 'button', 'aria-label': t('Reset the password of ' + m.name, 'Επαναφορά κωδικού για ' + m.name) }, ic('refresh'), t('Reset password', 'Επαναφορά κωδικού'));
+        rst.addEventListener('click', () => SC.modal({
+          title: t('Reset the password of ' + m.name + '?', 'Επαναφορά κωδικού για ' + m.name + ';'),
+          body: el('p', null, t(m.name + ' is signed out. You get a temporary password to tell them. They choose a new one the first time they sign in.', 'Ο/Η ' + m.name + ' αποσυνδέεται. Παίρνετε έναν προσωρινό κωδικό για να του/της τον πείτε. Επιλέγει νέο την πρώτη φορά που συνδέεται.')),
+          actions: [{ label: t('Cancel', 'Άκυρο') }, { label: t('Reset password', 'Επαναφορά κωδικού'), primary: true, run: () => resetPw(m) }],
+        }));
+        return el('tr', null,
+          el('td', null, el('b', null, m.name), el('small', { class: 'ap-sub' }, m.role === 'teacher' ? t('Teacher', 'Εκπαιδευτικός') : t('Student', 'Μαθητής') + (m.last_seen ? ' · ' + when(m.last_seen) : ''))),
+          isAdmin ? el('td', null, sc ? sc.short || sc.name : '–') : null,
+          el('td', null, tm ? tm.name : '–'),
+          el('td', { class: 'ap-r' }, rst));
+      });
+      return el('article', { class: 'nm-card nm-card--glow ap-people', 'aria-labelledby': 'ap-ppl-h' },
+        el('div', { class: 'ap-eb cy' }, t('Approved accounts', 'Εγκεκριμένοι λογαριασμοί')),
+        el('h2', { id: 'ap-ppl-h' }, t('People', 'Άτομα')),
+        el('p', null, t('There is no email reset. If someone loses their password, reset it here and tell them the temporary one. Passwords are never stored in a readable form, so nobody can look one up.', 'Δεν υπάρχει επαναφορά με email. Αν κάποιος χάσει τον κωδικό του, κάντε επαναφορά εδώ και πείτε του τον προσωρινό. Οι κωδικοί δεν αποθηκεύονται ποτέ σε αναγνώσιμη μορφή, οπότε κανείς δεν μπορεί να δει έναν.')),
+        el('div', { class: 'ap-field', style: { maxWidth: '360px', margin: '12px 0' } }, search),
+        list.length ? el('div', { class: 'ap-tbl' }, el('table', { class: 'nm-table' },
+          el('thead', null, el('tr', null, el('th', null, t('Person', 'Άτομο')), isAdmin ? el('th', null, t('School', 'Σχολείο')) : null, el('th', null, t('Team', 'Ομάδα')), el('th', null))),
+          el('tbody', null, rows)))
+          : el('p', { class: 'none' }, q ? t('Nobody with that name.', 'Κανείς με αυτό το όνομα.') : t('Nobody has been approved yet.', 'Κανείς δεν έχει εγκριθεί ακόμη.')),
+        list.length > 200 ? el('p', { class: 'muted' }, t('Showing the first 200. Search to find the rest.', 'Εμφανίζονται οι πρώτοι 200. Αναζητήστε για να βρείτε τους υπόλοιπους.')) : null);
+    }
+    async function resetPw(m) {
+      try {
+        const r = await SC.api('/app/api/manage/users/' + m.id + '/reset-password', { method: 'POST', body: {} });
+        const pw = r && r.temporary_password;
+        const copy = el('button', { class: 'nm-btn nm-btn--sm', type: 'button' }, t('Copy', 'Αντιγραφή'));
+        copy.addEventListener('click', async () => { try { await navigator.clipboard.writeText(pw); copy.textContent = t('Copied', 'Αντιγράφηκε'); } catch (e) { copy.textContent = t('Select and copy it', 'Επιλέξτε και αντιγράψτε το'); } });
+        SC.modal({
+          title: t('Temporary password for ' + m.name, 'Προσωρινός κωδικός για ' + m.name),
+          body: el('div', null, el('p', null, t('Tell ' + m.name + ' this password. It is shown only now. They choose a new one when they sign in.', 'Πείτε στον/στην ' + m.name + ' αυτόν τον κωδικό. Εμφανίζεται μόνο τώρα. Επιλέγουν νέο όταν συνδεθούν.')),
+            el('div', { class: 'ap-tmp' }, el('code', null, pw || ''), copy)),
+          actions: [{ label: t('Done', 'Έτοιμο'), primary: true }],
+        });
+        if (isAdmin) refreshAudit();
+      } catch (e) {
+        if (e.status === 401) { signedOut(); return; }
+        SC.toast(t('The password was not reset: ', 'Ο κωδικός δεν επαναφέρθηκε: ') + errText(e));
+      }
     }
 
     function rulesPane() {
@@ -454,7 +522,7 @@
     }
 
     function drawPane() {
-      paneHost.replaceChildren(S.tab === 'tools' ? toolsPane() : S.tab === 'accounts' ? accountsPane() : rulesPane());
+      paneHost.replaceChildren(S.tab === 'tools' ? toolsPane() : S.tab === 'accounts' ? accountsPane() : S.tab === 'people' ? peoplePane() : rulesPane());
     }
 
     /* ----- decision trail ----- */
@@ -567,7 +635,7 @@
     function drawMore() {
       const reports = S.ov ? (S.ov.reports || []).length : null;
       moreHost.replaceChildren(...[el('h2', { id: 'ap-more-h' }, t('More teacher tools', 'Περισσότερα εργαλεία εκπαιδευτικών')),
-        el('p', null, t('Teams, school codes, reports, the handbook and member settings live in the student app.', 'Οι ομάδες, οι κωδικοί σχολείου, οι αναφορές, το εγχειρίδιο και οι ρυθμίσεις μελών βρίσκονται στην εφαρμογή των μαθητών.')),
+        el('p', null, t('Teams, reports, the handbook and member settings live in the student app.', 'Οι ομάδες, οι αναφορές, το εγχειρίδιο και οι ρυθμίσεις μελών βρίσκονται στην εφαρμογή των μαθητών.')),
         reports != null ? el('ul', null, el('li', null, ic('flag'), el('span', null, el('b', null, String(reports)), ' ' + (reports === 1 ? t('open report to look at', 'ανοιχτή αναφορά για έλεγχο') : t('open reports to look at', 'ανοιχτές αναφορές για έλεγχο'))))) : null,
         el('a', { class: 'nm-btn', href: '/app/#/manage' }, ic('gear'), t('Open teacher tools', 'Άνοιγμα εργαλείων εκπαιδευτικών'))].filter(Boolean));
     }
