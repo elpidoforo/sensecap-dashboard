@@ -79,10 +79,12 @@ function agent() {
     await page.screenshot({ path: `${SHOTS}/${tag}_3c_preview_view.png` });
     ok((await fr.locator('svg').first().boundingBox()).width > 200, tag + ': the chart in the preview has room');
     ok(await page.locator('[data-k="add-alert"]').isEnabled(), tag + ': can add more alerts');
+    { const all = await page.locator('.bk').innerText(); ok(!/\b(null|undefined|NaN|\[object)/.test(all), tag + ': no stray null / undefined / NaN in the builder text'); }
 
     // save a draft
     await page.click(`.bk-acts button:has-text("${L('Save draft', 'Αποθήκευση προσχεδίου')}")`);
     await page.waitForSelector('.bk-done', { timeout: 15000 });
+    { const all = await page.locator('.bk').innerText(); ok(!/\b(null|undefined|NaN|\[object)/.test(all), tag + ': no stray null / undefined / NaN after saving'); }
     ok(true, tag + ': saved');
     await page.waitForSelector(`.sd-kc button:has-text("${L('Edit blocks', 'Επεξεργασία μπλοκ')}")`, { timeout: 15000 });
     ok(await page.locator('.sd-kc:has(button:has-text("' + L('Edit blocks', 'Επεξεργασία μπλοκ') + '")) h3', { hasText: L('Warm classroom', 'Ζεστή τάξη') }).count() === 1, tag + ': the draft card is listed with its title');

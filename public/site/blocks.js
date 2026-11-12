@@ -253,12 +253,12 @@
     function drawActions() {
       if (!actionsBox) return;
       const dis = S.busy || S.previewState === 'error' || !S.recipe || !S.recipe.show.measurement;
-      actionsBox.replaceChildren(
+      actionsBox.replaceChildren(...[
         el('button', { class: 'nm-btn nm-btn--primary', type: 'button', disabled: S.busy, onclick: () => { preview(0); const f = root.querySelector('.bk-frame iframe'); if (f) f.focus({ preventScroll: true }); } }, icon('play', 18), t('Run my blocks', 'Τρέξε τα μπλοκ μου')),
         el('button', { class: 'nm-btn', type: 'button', disabled: dis, onclick: () => save(false) }, t('Save draft', 'Αποθήκευση προσχεδίου')),
         el('button', { class: 'nm-btn', type: 'button', disabled: dis, onclick: async () => { const p = await save(false); if (p && o.onWords) o.onWords(p); } }, t('Change it with words', 'Άλλαξέ το με λόγια')),
         el('button', { class: 'nm-btn', type: 'button', disabled: dis, onclick: sendDialog }, t('Send to my teacher', 'Αποστολή στον εκπαιδευτικό μου')),
-        S.id ? el('button', { class: 'nm-btn nm-btn--danger-outline', type: 'button', disabled: S.busy, onclick: confirmDelete }, t('Delete this draft', 'Διαγραφή προσχεδίου')) : null);
+        S.id ? el('button', { class: 'nm-btn nm-btn--danger-outline', type: 'button', disabled: S.busy, onclick: confirmDelete }, t('Delete this draft', 'Διαγραφή προσχεδίου')) : null].filter(Boolean));   // replaceChildren would write a null as the word "null"
     }
 
     // A saved draft can be thrown away (the same call the studio's own "Discard this draft" makes). The stack starts again, empty of choices.
