@@ -73,7 +73,10 @@
     const box = el('div', { class: 'sd-th', 'aria-hidden': 'true', style: { '--sc': color || 'var(--nm-c5)' } }, svg);
     return box;
   }
-  const galleryLabel = (p) => (p.team ? t('Team ' + p.team, 'Ομάδα ' + p.team) : t('A student team', 'Μια ομάδα μαθητών')) + (p.school ? ' · ' + p.school : '');   // never a person's name
+  const teamText = (p) => (p.team ? t('Team ' + p.team, 'Ομάδα ' + p.team) : t('A student team', 'Μια ομάδα μαθητών'));
+  // A person's name is shown only when the author ticked the box ("Mia K.": first name and the first letter of the surname, set by the server).
+  const byText = (p) => (p.creator ? t('by ', 'από ') + p.creator + ' · ' : '') + teamText(p);
+  const galleryLabel = (p) => byText(p) + (p.school ? ' · ' + p.school : '');
   function paras(text) { return String(text || '').split(/\n{2,}/).map((s) => s.trim()).filter(Boolean).map((s) => el('p', null, s)); }
   const errMsg = (e) => (e && e.message) || t('Something went wrong. Try again.', 'Κάτι πήγε στραβά. Δοκιμάστε ξανά.');
 
@@ -658,18 +661,23 @@
     function confirmSend() {
       const D = S.cur; if (!D) return;
       if (!(D.title || '').trim()) { SC.toast(t('Give the tool a title first.', 'Δώστε πρώτα έναν τίτλο στο εργαλείο.')); return; }
+      const showBox = el('input', { type: 'checkbox', id: 'sd-shown', checked: true });
+      const first = String((SC.account && SC.account.name) || '').trim().split(/\s+/);
+      const sample = first[0] ? (first.length > 1 ? first[0] + ' ' + [...first[first.length - 1]][0].toUpperCase() + '.' : first[0]) : '';
+      const nameRow = isUser() ? el('label', { class: 'sd-nm', for: 'sd-shown' }, showBox, el('span', null, el('b', null, t('Show my name on the tile', 'Εμφάνιση του ονόματός μου στην κάρτα')),
+        el('small', null, t('People would see ' + (sample ? '“' + sample + '”' : 'your first name and the first letter of your surname') + ' and your team. Untick it to show only the team. You can change this later.', 'Οι άνθρωποι θα βλέπουν ' + (sample ? '«' + sample + '»' : 'το μικρό σου όνομα και το αρχικό του επωνύμου') + ' και την ομάδα σου. Ξε-τσέκαρέ το για να φαίνεται μόνο η ομάδα. Μπορείς να το αλλάξεις αργότερα.')))) : null;
       SC.modal({
         title: t('Send to your teacher?', 'Αποστολή στον εκπαιδευτικό σας;'),
         body: el('div', null, el('p', null, t('"' + D.title + '" goes to a teacher' + (schoolName() ? ' at ' + schoolName() : '') + '. They check it before anyone else can open it. They may send it back with a note.', 'Το «' + D.title + '» πηγαίνει σε έναν εκπαιδευτικό' + (schoolName() ? ' στο ' + schoolName() : '') + '. Το ελέγχει πριν το ανοίξει κάποιος άλλος. Μπορεί να το στείλει πίσω με σημείωμα.')),
-          el('p', { class: 'muted' }, t('Check that it has no names, photos or exact places.', 'Βεβαιωθείτε ότι δεν έχει ονόματα, φωτογραφίες ή ακριβή σημεία.'))),
-        actions: [{ label: t('Not yet', 'Όχι ακόμη') }, { label: t('Send to teacher', 'Αποστολή στον εκπαιδευτικό'), primary: true, run: () => doSend(D) }],
+          el('p', { class: 'muted' }, t('Check that it has no names, photos or exact places.', 'Βεβαιωθείτε ότι δεν έχει ονόματα, φωτογραφίες ή ακριβή σημεία.')), nameRow),
+        actions: [{ label: t('Not yet', 'Όχι ακόμη') }, { label: t('Send to teacher', 'Αποστολή στον εκπαιδευτικό'), primary: true, run: () => doSend(D, isUser() ? showBox.checked : undefined) }],
       });
     }
-    async function doSend(D) {
+    async function doSend(D, showName) {
       if (W.send) W.send.disabled = true;
       try {
-        if (D.serverId) await SC.api('/studio/api/projects/' + D.serverId + '/submit', { method: 'POST', body: {} });
-        else await SC.api('/studio/api/projects/submit', { method: 'POST', body: { title: D.title.trim(), prompt: String(D.prompt || '').slice(0, MAX_TEXT), html: D.html } });
+        if (D.serverId) await SC.api('/studio/api/projects/' + D.serverId + '/submit', { method: 'POST', body: showName === undefined ? {} : { show_name: showName } });
+        else await SC.api('/studio/api/projects/submit', { method: 'POST', body: Object.assign({ title: D.title.trim(), prompt: String(D.prompt || '').slice(0, MAX_TEXT), html: D.html }, showName === undefined ? {} : { show_name: showName }) });
         if (D.fromId) { try { await SC.api('/studio/api/projects/' + D.fromId + '/delete', { method: 'POST', body: {} }); } catch (e) { /* the old page stays listed */ } }
         S.drafts = S.drafts.filter((x) => x.id !== D.id); persist();
         S.cur = null; S.reply = null; S.preview = { state: 'none' }; S.mode = 'update'; S.buildErr = null; ta.value = '';
@@ -690,14 +698,42 @@
     function card(o) {
       return el('article', { class: 'sd-kc' + (o.sel ? ' sel' : '') },
         thumb(o.seed, o.color),
-        el('div', { class: 'sd-kx' }, el('h3', null, o.title), el('div', { class: 'sd-who' }, el('i', { style: { background: o.color } }), el('span', null, o.who))),
+        el('div', { class: 'sd-kx' }, el('h3', null, o.title), el('div', { class: 'sd-who' }, o.avatar ? el('b', { class: 'sd-av', 'aria-hidden': 'true', style: { background: o.color } }, o.avatar) : el('i', { style: { background: o.color } }), el('span', null, o.who))),
         o.note ? el('div', { class: 'sd-note' }, o.note) : null,
         el('div', { class: 'sd-ft' }, el('span', { class: 'nm-badge' + (o.badge[0] ? ' nm-badge--' + o.badge[0] : '') }, o.badge[1]),
           (o.meta || o.buttons.some((b) => b.link)) ? el('span', { class: 'sd-fm' }, el('span', null, o.meta || ''),
             o.buttons.filter((b) => b.link).map((b) => el('button', { class: 'sd-link', type: 'button', 'aria-label': b.label + ': ' + o.title, onclick: b.run }, b.label))) : null,
           el('span', { class: 'sd-fb' }, o.buttons.filter((b) => !b.link).map((b) => el('button', { class: 'nm-btn nm-btn--sm' + (b.ghost ? ' nm-btn--ghost' : ''), type: 'button', 'aria-label': b.label + ': ' + o.title, onclick: b.run }, b.label)))));
     }
-    const galCard = (p) => card({ title: p.title, who: galleryLabel(p), color: schoolColor(p.school), seed: p.id, badge: ['ok', t('Public', 'Δημόσιο')], meta: t('Published ', 'Δημοσιεύτηκε ') + SC.date(p.updatedAt), buttons: [{ label: t('Open', 'Άνοιγμα'), run: () => openViewer(p, galleryLabel(p), el('span', { class: 'nm-badge nm-badge--ok' }, t('Public', 'Δημόσιο'))) }] });
+    // Under a school heading the school is already known, so the tile says who made it: the creator (if they chose to) and the team.
+    async function setName(p, show) {
+      try { await SC.api('/studio/api/projects/' + p.id + '/name', { method: 'POST', body: { show } }); await loadGallery(); drawStats(); drawBoard(); SC.toast(show ? t('Your name is shown on the tile.', 'Το όνομά σου εμφανίζεται στην κάρτα.') : t('The name is hidden. The tile shows only the team.', 'Το όνομα κρύφτηκε. Η κάρτα δείχνει μόνο την ομάδα.')); }
+      catch (e) { SC.toast(why(e)); }
+    }
+    const galCard = (p) => {
+      const btns = [{ label: t('Open', 'Άνοιγμα'), run: () => openViewer(p, galleryLabel(p), el('span', { class: 'nm-badge nm-badge--ok' }, t('Public', 'Δημόσιο'))) }];
+      if (p.mine) btns.push({ label: p.showName ? t('Hide my name', 'Απόκρυψη ονόματος') : t('Show my name', 'Εμφάνιση ονόματος'), link: true, run: () => setName(p, !p.showName) });
+      else if (p.creator && isStaff() && p.canHideName) btns.push({ label: t('Hide name', 'Απόκρυψη ονόματος'), link: true, run: () => setName(p, false) });
+      return card({ title: p.title, who: byText(p), avatar: p.creator ? p.creator.charAt(0) : '', color: schoolColor(p.school), seed: p.id, badge: ['ok', t('Public', 'Δημόσιο')], meta: t('Published ', 'Δημοσιεύτηκε ') + SC.date(p.updatedAt), buttons: btns });
+    };
+    // The gallery, one section per school (the viewer's own school first), so a tool sits with the school that made it.
+    function gallerySections(errNote) {
+      const list = (S.status && S.status.schools) || [];
+      const names = list.map((x) => x.short);
+      for (const p of S.gallery) if (p.school && !names.includes(p.school)) names.push(p.school);
+      const mine = schoolName();
+      names.sort((a, b) => (a === mine ? -1 : 0) - (b === mine ? -1 : 0));
+      return names.map((nm) => {
+        const rows = S.gallery.filter((p) => p.school === nm);
+        const id = 'sd-sch-' + names.indexOf(nm);
+        return el('section', { class: 'sd-sch', 'aria-labelledby': id },
+          el('div', { class: 'sd-sch-h' }, el('i', { style: { background: schoolColor(nm) }, 'aria-hidden': 'true' }), el('h3', { id }, nm), el('span', null, plural1(rows.length))),
+          rows.length ? el('div', { class: 'sd-grid' }, rows.map(galCard))
+            : el('div', { class: 'empty sd-sch-e' }, t('No tool from this school yet.', 'Κανένα εργαλείο από αυτό το σχολείο ακόμη.') + ' ' + (canBuild() && nm === mine ? t('Describe one above and send it to a teacher.', 'Περιγράψτε ένα παραπάνω και στείλτε το σε έναν εκπαιδευτικό.') : t('Students there can describe one and send it to a teacher.', 'Οι μαθητές εκεί μπορούν να περιγράψουν ένα και να το στείλουν σε έναν εκπαιδευτικό.'))));
+      });
+    }
+    const plural1 = (n) => (n === 1 ? t('1 tool', '1 εργαλείο') : t(n + ' tools', n + ' εργαλεία'));
+    const isStaff = () => V().kind === 'user' && (V().role === 'teacher' || V().role === 'admin');
 
     async function editServer(p) {
       try {
@@ -746,21 +782,23 @@
       return el('section', { class: 'nm-card sd-col', 'aria-label': title }, el('div', { class: 'sd-col-h' }, el('span', { class: 'ic' }, ic(icon)), el('h2', null, title, el('span', null, '·'), String(n))), el('p', { class: 'sd-col-sub' }, sub),
         el('div', { class: 'sd-cards' }, cards, !cards.length && slot ? el('div', { class: 'sd-slot' }, el('b', null, slot[0]), slot[1]) : null));
     }
+    function galleryBlock(pubErr) {
+      return el('section', { class: 'sd-gal', 'aria-labelledby': 'sd-gal-h' },
+        el('div', { class: 'sd-gal-h' }, el('h2', { id: 'sd-gal-h' }, t('Public gallery', 'Δημόσια συλλογή'), el('span', null, '·'), String(pubErr ? 0 : S.gallery.length)), el('p', { class: 'card-sub' }, t('Tools that teachers approved, grouped by school. Anyone can open them, no sign-in needed.', 'Εργαλεία που ενέκριναν εκπαιδευτικοί, ομαδοποιημένα ανά σχολείο. Οποιοσδήποτε μπορεί να τα ανοίξει, χωρίς σύνδεση.'))),
+        pubErr || el('div', { class: 'sd-schs' }, gallerySections()));
+    }
     function drawBoard() {
       if (!S.loaded) { boardHost.replaceChildren(el('div', { class: 'loading' }, t('Loading', 'Φόρτωση'))); return; }
       const own = canBuild() ? ownCards() : { draft: [], review: [] };
       const pubErr = S.galErr ? el('div', null, el('div', { class: 'err', role: 'alert' }, t('The public gallery could not be loaded. ', 'Η δημόσια συλλογή δεν φορτώθηκε. ') + errMsg(S.galErr)), el('div', { style: { marginTop: '12px' } }, el('button', { class: 'nm-btn', type: 'button', onclick: async () => { await loadGallery(); drawStats(); drawBoard(); } }, t('Try again', 'Δοκιμάστε ξανά')))) : null;
-      const pub = S.gallery.map(galCard);
       const errNote = S.mineErr && canBuild() && S.mineErr.status !== 401 ? el('div', { class: 'err', role: 'alert' }, t('Your own pages could not be loaded. ', 'Οι δικές σας σελίδες δεν φορτώθηκαν. ') + errMsg(S.mineErr) + ' ', el('button', { class: 'link', type: 'button', onclick: async () => { await loadMine(); drawStats(); drawBoard(); } }, t('Try again', 'Δοκιμάστε ξανά'))) : null;
       if (own.draft.length || own.review.length) {
-        boardHost.replaceChildren(...[el('div', { class: 'sd-kan' },
+        boardHost.replaceChildren(...[el('div', { class: 'sd-kan sd-kan2' },
           col('file', t('Draft', 'Προσχέδιο'), own.draft.length, isClass() ? t('Only in this browser. Send one to a teacher when it is ready.', 'Μόνο σε αυτό το πρόγραμμα περιήγησης. Στείλτε ένα στον εκπαιδευτικό όταν είναι έτοιμο.') : t('Saved to your account. Only you and the teachers can see these.', 'Αποθηκευμένα στον λογαριασμό σας. Μόνο εσείς και οι εκπαιδευτικοί τα βλέπετε.'), own.draft, [t('No drafts yet.', 'Δεν υπάρχουν προσχέδια ακόμη.'), t('Describe a tool above.', 'Περιγράψτε ένα εργαλείο παραπάνω.')]),
           col('clock', t('In review', 'Σε έλεγχο'), own.review.length, t('Waiting for a teacher to check them.', 'Περιμένουν έναν εκπαιδευτικό να τα ελέγξει.'), own.review, [t('Finished a draft?', 'Τελειώσατε ένα προσχέδιο;'), t('Press Send to teacher. It moves here.', 'Πατήστε «Αποστολή στον εκπαιδευτικό». Μετακινείται εδώ.')]),
-          pubErr ? el('section', { class: 'nm-card sd-col' }, el('h2', { class: 'sd-gh' }, t('Published', 'Δημοσιευμένα')), pubErr) : col('checkc', t('Published', 'Δημοσιευμένα'), pub.length, t('In the public gallery. No sign-in needed.', 'Στη δημόσια συλλογή. Χωρίς σύνδεση.'), pub, [t('Nothing public yet.', 'Τίποτα δημόσιο ακόμη.'), t('The first approved tool appears here.', 'Το πρώτο εγκεκριμένο εργαλείο εμφανίζεται εδώ.')])), errNote].filter(Boolean));
+          ), errNote, galleryBlock(pubErr)].filter(Boolean));
       } else {
-        boardHost.replaceChildren(el('section', { class: 'sd-gal', 'aria-labelledby': 'sd-gal-h' },
-          el('div', { class: 'sd-gal-h' }, el('h2', { id: 'sd-gal-h' }, t('Public gallery', 'Δημόσια συλλογή'), el('span', null, '·'), String(pubErr ? 0 : pub.length)), el('p', { class: 'card-sub' }, t('Tools that teachers approved. Anyone can open them, no sign-in needed.', 'Εργαλεία που ενέκριναν εκπαιδευτικοί. Οποιοσδήποτε μπορεί να τα ανοίξει, χωρίς σύνδεση.'))),
-          pubErr || (pub.length ? el('div', { class: 'sd-grid' }, pub) : el('div', { class: 'empty' }, el('b', { style: { display: 'block', color: 'var(--nm-ink-soft)' } }, t('No tool is public yet.', 'Κανένα εργαλείο δεν είναι δημόσιο ακόμη.')), canBuild() ? t('Describe a tool above, build a draft and send it to a teacher.', 'Περιγράψτε ένα εργαλείο παραπάνω, φτιάξτε ένα προσχέδιο και στείλτε το σε έναν εκπαιδευτικό.') : t('When a teacher approves a student tool, it appears here. Students can build one with their class code.', 'Όταν ένας εκπαιδευτικός εγκρίνει ένα εργαλείο μαθητών, εμφανίζεται εδώ. Οι μαθητές μπορούν να φτιάξουν ένα με τον κωδικό τάξης.'))), errNote));
+        boardHost.replaceChildren(...[galleryBlock(pubErr), errNote].filter(Boolean));
       }
     }
 

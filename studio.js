@@ -159,6 +159,8 @@ function createStudio(opts) {
   addCol('studio_projects', 'author_kind', 'TEXT');
   addCol('studio_projects', 'team_label', 'TEXT');
   addCol('studio_projects', 'data_json', 'TEXT');
+  // 1 = the author chose to show their name on the public tile. NULL or 0 = hidden (every tool approved before this column existed stays hidden).
+  addCol('studio_projects', 'show_name', 'INTEGER');
   // A class build is a studio_use row with user_id 0, the school, and a keyed hash of the network address (never the address itself).
   addCol('studio_use', 'school_id', 'INTEGER');
   addCol('studio_use', 'ip', 'TEXT');
@@ -275,6 +277,21 @@ function createStudio(opts) {
     const who = !a ? 'Student' : a.role === 'student' ? (t ? t.name : 'Student') : 'Teacher';
     return short ? `${who}, ${short}` : who;
   }
+  // "Mia Konstantinou" becomes "Mia K.": a first name and the first letter of the last name, never more.
+  function shortName(full) {
+    const parts = String(full || '').normalize('NFC').replace(/[\u0000-\u001f\u007f<>]/g, ' ').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return null;
+    const first = parts[0].slice(0, 24);
+    if (parts.length === 1) return first;
+    const last = [...parts[parts.length - 1]][0];
+    return first + ' ' + last.toUpperCase() + '.';
+  }
+  // The name on a public tile: only an approved tool of a signed-in author who ticked the box. A class page has no person to name.
+  function creatorOf(p) {
+    if (p.status !== 'approved' || p.show_name !== 1 || p.author_kind === 'class') return null;
+    const a = db.get('SELECT name FROM users WHERE id = ?', p.user_id);
+    return a ? shortName(a.name) : null;
+  }
   function publicProject(p, v, withHtml) {
     const s = schoolOf(p.school_id), t = teamOf(p.team_id);
     const klass = p.author_kind === 'class';
@@ -284,7 +301,9 @@ function createStudio(opts) {
     const author = reveal && !klass ? (db.get('SELECT name FROM users WHERE id = ?', p.user_id) || { name: 'Deleted user' }).name : label;
     const out = {
       id: p.id, title: p.title, idea: p.idea, status: p.status, school: s ? s.short : null, team: klass ? p.team_label : (t ? t.name : null),
-      author, author_label: label, authorKind: klass ? 'class' : 'user',
+      author, author_label: label, authorKind: klass ? 'class' : 'user', creator: creatorOf(p), showName: p.show_name === 1,
+      mine: Boolean(v && v.kind === 'user' && p.author_kind !== 'class' && p.user_id === v.user.id),
+      canHideName: Boolean(v && v.kind === 'user' && isStaff(v.user) && (v.user.role === 'admin' || v.user.school_id === p.school_id)),
       createdAt: p.created_at, updatedAt: p.updated_at, reviewNote: showNote && (p.status === 'rejected' || p.status === 'approved') ? p.review_note : null, via: p.via || 'studio',
       bytes: p.html.length,
     };
@@ -328,10 +347,12 @@ function createStudio(opts) {
     audit(user, 'studio.create', id, via);
     return db.get('SELECT * FROM studio_projects WHERE id = ?', id);
   }
-  function submitProject(user, id) {
+  // showName: true or false from the student's tick box; undefined (an older client) keeps what is stored, which is hidden for a new tool.
+  function submitProject(user, id, showName) {
     const p = db.get('SELECT * FROM studio_projects WHERE id = ?', Number(id));
     if (!p || !canEdit(user, p)) fail(404, 'No such project.');
     if (p.status === 'approved') return p;
+    if (typeof showName === 'boolean' && p.user_id === user.id) db.run('UPDATE studio_projects SET show_name = ? WHERE id = ?', showName ? 1 : 0, p.id);
     db.run('UPDATE studio_projects SET status = ?, updated_at = ? WHERE id = ?', 'pending', Date.now(), p.id);
     audit(user, 'studio.submit', p.id);
     if (p.status !== 'pending' && opts.notify && !isStaff(user)) {
@@ -619,7 +640,7 @@ function createStudio(opts) {
     const toolRows = pending
       ? (wide ? db.all("SELECT * FROM studio_projects WHERE status = 'pending' ORDER BY updated_at LIMIT 100") : db.all("SELECT * FROM studio_projects WHERE status = 'pending' AND school_id = ? ORDER BY updated_at LIMIT 100", u.school_id))
       : db.all("SELECT * FROM studio_projects WHERE status = 'approved' ORDER BY updated_at DESC LIMIT 100");
-    for (const p of toolRows) items.push({ kind: 'tool', id: p.id, title: p.title, author_label: authorLabel(p, null), school: (schoolOf(p.school_id) || {}).short || null, at: p.updated_at, status: pending ? 'pending' : 'approved', url: '/studio/p/' + p.id });
+    for (const p of toolRows) items.push({ kind: 'tool', id: p.id, title: p.title, author_label: authorLabel(p, null), creator: pending ? null : creatorOf(p), school: (schoolOf(p.school_id) || {}).short || null, at: p.updated_at, status: pending ? 'pending' : 'approved', url: '/studio/p/' + p.id });
     const planRows = pending
       ? (wide ? db.all("SELECT * FROM studio_plans WHERE status = 'submitted' ORDER BY submitted_at LIMIT 100") : db.all("SELECT * FROM studio_plans WHERE status = 'submitted' AND school_id = ? ORDER BY submitted_at LIMIT 100", u.school_id))
       : db.all("SELECT * FROM studio_plans WHERE status = 'approved' ORDER BY updated_at DESC LIMIT 100");
@@ -1080,6 +1101,7 @@ function createStudio(opts) {
         enabled: true, configured: !!apiKey, model: apiKey ? model : null, demo: !!data.demo,
         user: user ? { id: user.id, name: user.name, role: user.role, team: user.team_id || null } : null,
         viewer: viewerJson(v), limits: limitsFor(v, req), maxHtml: MAX_HTML,
+        schools: db.all('SELECT id, name, short FROM schools ORDER BY id').map((x) => ({ id: x.id, name: x.name, short: x.short })),
       });
     }
     if (req.method === 'POST' && url.pathname === '/studio/api/class') {
@@ -1110,7 +1132,7 @@ function createStudio(opts) {
         if (dj.length > MAX_DATA) fail(413, `The data is too large (limit ${MAX_DATA} characters).`);
         db.run('UPDATE studio_projects SET data_json = ? WHERE id = ?', dj, saved.id);
       }
-      return sendJson(res, 200, { project: publicProject(submitProject(user, saved.id), v, false) });
+      return sendJson(res, 200, { project: publicProject(submitProject(user, saved.id, typeof body.show_name === 'boolean' ? body.show_name : undefined), v, false) });
     }
     if (req.method === 'POST' && url.pathname === '/studio/api/projects') {
       needUser(v);
@@ -1119,7 +1141,22 @@ function createStudio(opts) {
     }
     if (req.method === 'POST' && (r = m(/^\/studio\/api\/projects\/(\d+)\/submit$/))) {
       needUser(v);
-      return sendJson(res, 200, { project: publicProject(submitProject(user, r[1]), v, false) });
+      const body = (await readJson(req)) || {};
+      return sendJson(res, 200, { project: publicProject(submitProject(user, r[1], typeof body.show_name === 'boolean' ? body.show_name : undefined), v, false) });
+    }
+    // The author can show or hide their own name at any time. A teacher of the school or an admin can only hide it; teammates cannot change it.
+    if (req.method === 'POST' && (r = m(/^\/studio\/api\/projects\/(\d+)\/name$/))) {
+      needUser(v);
+      const body = (await readJson(req)) || {};
+      const p = db.get('SELECT * FROM studio_projects WHERE id = ?', Number(r[1]));
+      if (!p || !canEdit(user, p)) fail(404, 'No such project.');
+      if (typeof body.show !== 'boolean') fail(400, 'Say whether to show the name.');
+      const author = p.user_id === user.id;
+      if (body.show && !author) fail(403, 'Only the person who made the tool can show their name.');
+      if (!body.show && !author && !isStaff(user)) fail(403, 'Only the author or a teacher can hide the name.');
+      db.run('UPDATE studio_projects SET show_name = ? WHERE id = ?', body.show ? 1 : 0, p.id);
+      audit(user, body.show ? 'studio.name_show' : 'studio.name_hide', p.id);
+      return sendJson(res, 200, { project: publicProject(db.get('SELECT * FROM studio_projects WHERE id = ?', p.id), v, false) });
     }
     if (req.method === 'POST' && (r = m(/^\/studio\/api\/projects\/(\d+)\/review$/))) {
       needUser(v);
@@ -1129,6 +1166,7 @@ function createStudio(opts) {
       if (!p || (user.role === 'teacher' && p.school_id !== user.school_id)) fail(404, 'No such project.');
       if (!['approve', 'reject'].includes(body.decision)) fail(400, 'Choose approve or reject.');
       db.run('UPDATE studio_projects SET status = ?, reviewed_by = ?, review_note = ?, updated_at = ? WHERE id = ?', body.decision === 'approve' ? 'approved' : 'rejected', user.id, String(body.note || '').slice(0, 300), Date.now(), p.id);
+      if (body.hide_name === true) db.run('UPDATE studio_projects SET show_name = 0 WHERE id = ?', p.id);   // a teacher can only hide a name, never show one
       audit(user, 'studio.' + body.decision, p.id);
       return sendJson(res, 200, { project: publicProject(db.get('SELECT * FROM studio_projects WHERE id = ?', p.id), v, false) });
     }
@@ -1293,7 +1331,7 @@ function createStudio(opts) {
     const id = Number(/^\/studio\/p\/(\d+)$/.exec(url.pathname)[1]);
     const p = db.get('SELECT * FROM studio_projects WHERE id = ?', id);
     if (!p || !canViewProject(v, p)) return notFound(res);
-    return pageResponse(req, res, p.html, { title: p.title, label: p.status === 'approved' ? `${authorLabel(p, null)} · student tool, approved by a teacher` : `${authorLabel(p, v)} · not public yet`, path: url.pathname });
+    return pageResponse(req, res, p.html, { title: p.title, label: p.status === 'approved' ? `${creatorOf(p) ? 'by ' + creatorOf(p) + ' · ' : ''}${authorLabel(p, null)} · student tool, approved by a teacher` : `${authorLabel(p, v)} · not public yet`, path: url.pathname });
   }
   function handlePreviewPage(req, res, url) {
     const v = viewerOf(req);

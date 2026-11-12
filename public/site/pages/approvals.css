@@ -192,3 +192,9 @@
 .ap-autoc li.warn svg { color: var(--nm-warn); }
 .ap-people .ap-sub { display: block; margin-top: 2px; color: var(--nm-muted); font-size: 12.5px; }
 .ap-people .nm-table td { padding-top: 10px; padding-bottom: 10px; }
+
+/* hide the creator's name */
+.ap-hide { display: flex; gap: 12px; align-items: flex-start; margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: rgba(255, 255, 255, .05); border: 1px solid var(--nm-edge); color: var(--nm-text); cursor: pointer; }
+.ap-hide input { flex: none; width: 20px; height: 20px; margin-top: 2px; accent-color: var(--nm-copper); }
+.ap-hide b { display: block; color: #fff; font: 600 15px/1.3 var(--nm-font); }
+.ap-hide small { display: block; margin-top: 3px; font-size: 13px; line-height: 1.45; color: var(--nm-muted); }

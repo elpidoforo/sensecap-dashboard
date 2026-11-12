@@ -299,6 +299,12 @@
       const boxes = checks.map(([id]) => el('input', { type: 'checkbox', id: 'ap-ck-' + id }));
       const note = el('textarea', { class: 'nm-input ap-note', id: 'ap-note', maxlength: 300, 'aria-label': t('Note to the team', 'Σημείωμα προς την ομάδα'), placeholder: t('Note to the team. Shown to them if you send it back.', 'Σημείωμα προς την ομάδα. Το διαβάζουν αν στείλετε το εργαλείο πίσω.') });
       const errBox = el('div', { 'aria-live': 'assertive' });
+      // The student may have chosen to show their name on the public tile ("Mia K."). A teacher can only hide it, never show it.
+      const parts = String(p.author || '').trim().split(/\s+/).filter(Boolean);
+      const sample = parts.length ? (parts.length > 1 ? parts[0] + ' ' + [...parts[parts.length - 1]][0].toUpperCase() + '.' : parts[0]) : '';
+      const hideBox = p.showName ? el('input', { type: 'checkbox', id: 'ap-hide' }) : null;
+      const hideRow = p.showName ? el('label', { class: 'ap-hide', for: 'ap-hide' }, hideBox, el('span', null, el('b', null, t('Hide the creator’s name on the public tile', 'Απόκρυψη του ονόματος του δημιουργού στη δημόσια κάρτα')),
+        el('small', null, t('The student chose to show “' + sample + '” and the team. Tick this to show only the team.', 'Ο μαθητής επέλεξε να φαίνεται το «' + sample + '» και η ομάδα. Επιλέξτε το για να φαίνεται μόνο η ομάδα.')))) : null;
       const ok = el('button', { class: 'nm-btn nm-btn--primary', type: 'button', disabled: true }, ic('checkc'), t('Approve and publish', 'Έγκριση και δημοσίευση'));
       const back = el('button', { class: 'nm-btn', type: 'button', disabled: true }, ic('back'), t('Send back', 'Επιστροφή'));
       const skip = n > 1 ? el('button', { class: 'nm-btn nm-btn--ghost', type: 'button', onclick: () => { S.curId = S.tools[(S.tools.indexOf(p) + 1) % S.tools.length].id; drawPane(); focusCard(); } }, t('Skip for now', 'Προσωρινή παράλειψη')) : null;
@@ -317,7 +323,7 @@
         if (S.busy) return;
         S.busy = true; sync(); errBox.replaceChildren();
         try {
-          await SC.api('/studio/api/projects/' + p.id + '/review', { method: 'POST', body: { decision, note: note.value.trim() } });
+          await SC.api('/studio/api/projects/' + p.id + '/review', { method: 'POST', body: Object.assign({ decision, note: note.value.trim() }, decision === 'approve' && hideBox && hideBox.checked ? { hide_name: true } : {}) });
           S.decisions.unshift({ at: Date.now(), kind: decision === 'approve' ? 'approved' : 'back', title: p.title, who: p.author_label, note: note.value.trim(), id: p.id });
           S.tools = S.tools.filter((x) => x.id !== p.id);
           S.curId = S.tools[0] ? S.tools[0].id : null;
@@ -363,7 +369,7 @@
         el('hr', { class: 'ap-hr' }),
         el('div', { class: 'ap-eb' }, t('Your three checks', 'Οι τρεις έλεγχοί σας')),
         el('div', { class: 'ap-chk3' }, checks.map(([id, h, small], k) => el('label', { for: 'ap-ck-' + id }, boxes[k], el('span', null, el('b', null, h), el('small', null, small))))),
-        note, hint, errBox,
+        note, hideRow, hint, errBox,
         el('div', { class: 'ap-decide' }, ok, back, skip));
     }
 
