@@ -104,7 +104,9 @@ class GuideProvider {
       if (!booting) booting = boot();
       const srv = await booting;
       const vars = (context && context.vars) || {};
-      const history = Array.isArray(vars.history) ? vars.history.filter((h) => h && (h.role === 'user' || h.role === 'assistant') && typeof h.text === 'string') : [];
+      let earlier = vars.history;   // earlier turns of a longer chat, as a JSON text (promptfoo would split a YAML list into separate tests): [{"role":"user","text":"..."},{"role":"assistant","text":"..."}]
+      if (typeof earlier === 'string') { try { earlier = JSON.parse(earlier); } catch (e) { return { error: 'The history variable is not valid JSON.' }; } }
+      const history = Array.isArray(earlier) ? earlier.filter((h) => h && (h.role === 'user' || h.role === 'assistant') && typeof h.text === 'string') : [];
       const messages = [...history, { role: 'user', text: String(prompt) }];
       for (let attempt = 0; attempt < 5; attempt++) {
         const student = srv.students[srv.next++ % srv.students.length];

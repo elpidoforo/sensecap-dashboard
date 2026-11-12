@@ -24,6 +24,7 @@
 .ea-chart { display: block; width: 100%; height: auto; overflow: visible; }
 .ea-sw { flex: none; }
 .ea-grid { stroke: rgba(255, 255, 255, .12); stroke-width: 1; }
+.ea-tick { stroke: rgba(255, 255, 255, .3); stroke-width: 1; }
 .ea-ax { fill: var(--nm-mute); font: 500 11.5px var(--nm-font); }
 .ea-line { fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .ea-line-se { stroke: var(--nm-copper-2); }
@@ -58,7 +59,7 @@
 .ea-tablewrap { overflow-x: auto; padding: 0 14px 12px; }
 .ea-table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
 .ea-table th, .ea-table td { padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--nm-edge); white-space: nowrap; }
-.ea-table thead th { font: 700 11px/1.3 var(--nm-font); letter-spacing: .06em; text-transform: uppercase; color: var(--nm-muted); }
+.ea-table thead th { font: 700 12px/1.3 var(--nm-font); color: var(--nm-muted); text-transform: none; }   /* no capitals: they would turn the unit µg/m³ into MG/M³ */
 .ea-table th:first-child, .ea-table td:first-child { text-align: left; }
 .ea-table tbody th { font-weight: 500; color: var(--nm-text); }
 
@@ -81,6 +82,11 @@
 }
 @media (max-width: 560px) {
   .ea-card { padding: 16px 14px; }
+  .ea-tablewrap { padding: 0 6px 10px; }
+  .ea-table { font-size: 13px; }
+  .ea-table th, .ea-table td { padding: 6px 5px; white-space: normal; }
+  .ea-table thead th { font-size: 11.5px; }
+  .ea-fig { padding: 10px 6px 4px; }
   .ea-station { grid-template-columns: minmax(0, 1fr); }
   .ea-row { grid-template-columns: minmax(0, 1fr); }
   .ea-pick { max-width: none; }

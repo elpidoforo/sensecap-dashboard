@@ -50,7 +50,8 @@ exports.readingsComeFromTools = (output, context) => {
 
 // At most N questions (the guide is told to ask one or two at a time).
 exports.maxQuestions = (output, context) => {
-  const max = cfg(context).max || 2, n = (String(output).match(/[?;;]/g) || []).length;   // ? and the Greek question mark
+  const max = cfg(context).max || 2;
+  const n = (String(output).match(greekShare(output) > 0.5 ? /[?;\u037e]/g : /\?/g) || []).length;   // in Greek the question mark looks like a semicolon
   return result(n <= max, `The answer asks ${n} questions (limit ${max}).`);
 };
 

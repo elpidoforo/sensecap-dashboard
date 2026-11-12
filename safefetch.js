@@ -290,7 +290,7 @@ function once(step, addresses, cfg, signal) {
       if (decoder) {
         res.on('data', (c) => { raw += c.length; if (raw > cfg.maxBytes) { res.destroy(); decoder.destroy(); fail(new SafeFetchError('too_large', 'The answer is larger than the limit.')); } else decoder.write(c); });
         res.on('end', () => decoder.end());
-        decoder.on('data', take); decoder.on('end', end);
+        decoder.on('data', take); decoder.on('end', () => { end(); res.destroy(); });   // the packed data is complete: anything after it is not read
         decoder.on('error', () => fail(new SafeFetchError('bad_encoding', 'The answer could not be unpacked.')));
       } else { res.on('data', take); res.on('end', end); }
       res.on('close', () => { if (!res.complete) fail(new SafeFetchError('network', 'The connection closed before the answer was complete.')); });

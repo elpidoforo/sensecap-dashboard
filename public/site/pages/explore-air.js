@@ -24,8 +24,8 @@
 
   /* ---------- the chart: two lines, hour by hour ---------- */
   const STEPS = [5, 10, 15, 20, 30, 40, 50, 75, 100, 150, 200, 300, 500, 1000];
-  function chart(pairs, days) {
-    const W = 680, H = 220, L = 46, R = 12, Tp = 12, B = 28;
+  function chart(pairs, days, width) {
+    const W = Math.max(280, Math.min(680, Math.round(width || 680))), H = W < 480 ? 210 : 232, L = 42, R = 12, Tp = 26, B = 28;   // drawn at the width it is shown at, so the letters stay readable on a phone
     const pts = pairs.filter((p) => isFinite(p[0])).sort((a, b) => a[0] - b[0]);
     if (pts.length < 2) return null;
     const t0 = pts[0][0], t1 = pts[pts.length - 1][0] + HOUR;
@@ -47,12 +47,18 @@
     [0, top / 2, top].forEach((v) => {
       svg.append(SC.svgEl('line', { class: 'ea-grid', x1: L, x2: W - R, y1: y(v), y2: y(v) }), SC.svgEl('text', { class: 'ea-ax', x: L - 7, y: y(v) + 4, 'text-anchor': 'end' }, String(v)));
     });
-    svg.append(SC.svgEl('text', { class: 'ea-ax', x: 4, y: Tp - 1, 'text-anchor': 'start' }, UG));
-    const ticks = (t1 - t0) <= 36 * HOUR ? 5 : Math.min(7, Math.round((t1 - t0) / (24 * HOUR)) + 1);
-    for (let i = 0; i < ticks; i++) {
-      const t = t0 + ((t1 - t0) * i) / (ticks - 1 || 1);
-      svg.append(SC.svgEl('text', { class: 'ea-ax', x: x(t), y: H - 8, 'text-anchor': i === 0 ? 'start' : i === ticks - 1 ? 'end' : 'middle' }, (t1 - t0) <= 36 * HOUR ? SC.time(t) : SC.date(t)));
+    svg.append(SC.svgEl('text', { class: 'ea-ax', x: 4, y: 11, 'text-anchor': 'start' }, UG));
+    // labels sit on whole hours (a day or less) or on Cyprus midnights (longer), so the dates never skip
+    const short = (t1 - t0) <= 36 * HOUR, marks = [];
+    for (let t = Math.ceil(t0 / HOUR) * HOUR; t < t1; t += HOUR) {
+      const label = SC.time(t), hour = Number(label.slice(0, 2));
+      if (short ? hour % 6 === 0 : label === '00:00') marks.push([t, short ? label : SC.date(t)]);
     }
+    const every = Math.max(1, Math.ceil((marks.length * 52) / (W - L - R)));
+    marks.filter((_, i) => i % every === 0).forEach(([t, label]) => {
+      const px = x(t), edge = px < L + 22 ? 'start' : px > W - R - 22 ? 'end' : 'middle';
+      svg.append(SC.svgEl('line', { class: 'ea-tick', x1: px, x2: px, y1: H - B, y2: H - B + 4 }), SC.svgEl('text', { class: 'ea-ax', x: px, y: H - 8, 'text-anchor': edge }, label));
+    });
     svg.append(SC.svgEl('path', { class: 'ea-line ea-line-st', d: line(2) }), SC.svgEl('path', { class: 'ea-line ea-line-se', d: line(1) }));
     return svg;
   }
@@ -134,13 +140,13 @@
       h('div', null, h('small', null, T('Distance from the city centre (' + lang(c.sensor.place) + ')', 'Απόσταση από το κέντρο της πόλης (' + lang(c.sensor.place) + ')')), h('b', { class: 'ea-km' }, n1(st.distanceKm) + ' km'), h('span', null, near)));
   }
 
-  function answer(c, days) {
+  function answer(c, days, width) {
     const pairs = c.pairs || [];
     const hs = c.hourly || {};
     const bias = hs.meanBias;
     const biasLine = bias == null ? null : h('p', { class: 'ea-bias' }, T('On average your sensor read ' + n1(Math.abs(bias)) + ' ' + UG + (bias >= 0 ? ' higher' : ' lower') + ' than the station' + (hs.meanBiasPct != null ? ' (' + n0(Math.abs(hs.meanBiasPct)) + ' %)' : '') + '.',
       'Κατά μέσο όρο ο αισθητήρας σου έδειξε ' + n1(Math.abs(bias)) + ' ' + UG + (bias >= 0 ? ' περισσότερο' : ' λιγότερο') + ' από τον σταθμό' + (hs.meanBiasPct != null ? ' (' + n0(Math.abs(hs.meanBiasPct)) + ' %)' : '') + '.'));
-    const svg = pairs.length >= 2 ? chart(pairs, days) : null;
+    const svg = pairs.length >= 2 ? chart(pairs, days, width - 26) : null;
     const rows = pairs.slice(-24).reverse();
     const noVerdict = c.fairness === 'too-far' || c.fairness === 'unknown';
     const age = c.eea && c.eea.ageMin != null ? SC.ago(Date.now() - c.eea.ageMin * 60000) : null;
@@ -198,7 +204,7 @@
       card.append(h('div', { class: 'empty', role: 'status' }, T('None of the school sensors that report right now measures PM2.5, the small particles. When one does, you can compare it here with the official station.', 'Κανένας από τους αισθητήρες των σχολείων που αναφέρουν τώρα δεν μετρά PM2.5, τα μικρά σωματίδια. Όταν κάποιος αρχίσει να τα μετρά, θα μπορείς να τον συγκρίνεις εδώ με τον επίσημο σταθμό.')));
       return () => { card.remove(); };
     }
-    let cur = opts[0], days = 7, tok = 0;
+    let cur = opts[0], days = 7, tok = 0, last = null, drawn = 0, ro = null;
     const sel = h('select', { id: id + '-s', class: 'ex-sel', onchange: () => { cur = opts[Number(sel.value)] || opts[0]; run(); } }, opts.map((x, i) => h('option', { value: String(i) }, x.label)));
     const rng = h('span', { class: 'ex-rng', role: 'group', 'aria-label': T('Period', 'Περίοδος') });
     const btns = new Map();
@@ -222,10 +228,17 @@
       let c;
       try { c = await (fresh ? SC.api(url) : SC.cached(url, 60000)); } catch (e) { c = { ok: false, reason: 'error' }; }
       if (my !== tok || !alive()) return;
-      try { fill(out, c && c.ok === true ? answer(c, days) : problem(c && c.reason)); } catch (e) { fill(out, problem('error')); }
+      last = c && c.ok === true ? { c, days } : null;
+      try { drawn = out.clientWidth; fill(out, last ? answer(c, days, drawn) : problem(c && c.reason)); } catch (e) { fill(out, problem('error')); }
     }
     run();
-    return () => { tok++; card.remove(); };
+    // turning the phone: draw the chart again at the new width
+    if (typeof ResizeObserver === 'function') {
+      let timer = 0;
+      ro = new ResizeObserver(() => { clearTimeout(timer); timer = setTimeout(() => { if (last && alive() && out.isConnected && Math.abs(out.clientWidth - drawn) > 40) { try { drawn = out.clientWidth; fill(out, answer(last.c, last.days, drawn)); } catch (e) { /* keep what is shown */ } } }, 150); });
+      ro.observe(out);
+    }
+    return () => { tok++; if (ro) ro.disconnect(); card.remove(); };
   }
 
   window.SCExploreAir = { mount };
