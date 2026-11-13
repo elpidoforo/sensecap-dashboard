@@ -69,6 +69,25 @@ const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + 
     if (!fits) console.log(await p.evaluate((sel) => [...document.querySelectorAll(sel + ' .lv-tag2')].filter((e) => e.scrollHeight > e.clientHeight + 2 || e.querySelector('.lv-tg-h').scrollWidth > e.querySelector('.lv-tg-h').clientWidth + 2).map((e) => e.innerText.slice(0, 60) + ' ' + e.scrollHeight + '/' + e.clientHeight), skyBox));
     ok(fits, name + ': the text fits inside every tag');
     ok(await p.locator(skyBox + ' .lv-scene').count() === 1, name + ': one scene from space to sea');
+    // all our data: the flow and the levels
+    await tab(p, 'all'); await p.waitForSelector('.fl-src', { state: 'attached' }); await p.locator('.fl-stage').scrollIntoViewIfNeeded(); await p.waitForTimeout(2500);
+    ok(await p.locator('.fl-src').count() >= 5, name + ': a dot for every connected layer');
+    ok(await p.locator('.fl-riv').count() >= 2 && await p.locator('.fl-city').count() === 4, name + ': rivers and the four cities');
+    const flowInk = await p.evaluate(() => { const c = document.querySelector('.fl-cv'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 30) n++; return n; });
+    ok(flowInk > 500, name + ': the flow is drawn (' + flowInk + ' pixels)');
+    ok(await p.evaluate(() => { const st = document.querySelector('.fl-stage').getBoundingClientRect(); return [...document.querySelectorAll('.fl-riv, .fl-city, .fl-src')].every((e) => { const r = e.getBoundingClientRect(); return r.left >= st.left - 1 && r.right <= st.right + 1; }); }), name + ': every dot, river and city is inside the scene');
+    await p.locator('.fl-riv').first().click({ force: true });
+    ok(/°C|%|m\/s|ppm|hPa/.test(await p.locator('.fl-info').innerText()), name + ': pressing a river says what its sources read');
+    ok(await p.locator('.fl-src.dim').count() >= 1, name + ': the layers outside that river are dimmed');
+    await p.locator('.fl-riv').first().click({ force: true });
+    await p.locator('.fl-src').first().click();
+    ok((await p.locator('.fl-info').innerText()).length > 20 && await p.locator('.fl-info .fl-more').count() === 1, name + ': pressing a layer says its value and links to it');
+    await p.locator('.fl-city').nth(1).click();
+    ok(await p.locator('.fl-city.cur').count() === 1 && await p.locator('.fl-city').nth(1).getAttribute('class').then((c) => /cur/.test(c)), name + ': pressing a city makes the rivers show that city');
+    ok(!/\b(lat|lng|latitude|longitude|GPS)\b/i.test(await p.locator('.fl').innerText()), name + ': no positions anywhere in the view');
+    ok(await p.locator('.fl-band').count() === 6 && await p.locator('.fl-chip:not(.soon)').count() >= 5 && await p.locator('.fl-chip.star').count() === 3, name + ': six levels, live chips and the three starred sources');
+    await p.locator('.fl-chip.star').first().click();
+    ok(await p.locator('.fl-detail:not([hidden])').count() === 1 && (await p.locator('.fl-detail:not([hidden])').innerText()).length > 30, name + ': pressing a dashed chip explains it');
     // stack still works
     await tab(p, 'stack'); await p.waitForSelector('.ly-plane');
     ok(await p.locator('.ly-plane').count() === 4, name + ': the stack view is still there');
@@ -86,6 +105,10 @@ const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + 
   await p.goto(BASE + '/#/layers'); await p.waitForSelector('.lv-map .lv-sch span'); await p.waitForTimeout(1500);
   const anim = await p.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running' && a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('.ly-stagecard')).length);
   ok(anim === 0, 'reduced motion: no running animation in the live views (' + anim + ')');
+  await p.click('.ly-top .nm-pillbar button[data-v="all"]'); await p.waitForSelector('.fl-src', { state: 'attached' }); await p.waitForTimeout(800);
+  const f1 = await p.evaluate(() => document.querySelector('.fl-cv').toDataURL().length); await p.waitForTimeout(700);
+  ok(f1 === await p.evaluate(() => document.querySelector('.fl-cv').toDataURL().length) && await p.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running' && a.effect.target.closest && a.effect.target.closest('.ly-stagecard')).length) === 0, 'reduced motion: the data flow is one still picture');
+  await p.click('.ly-top .nm-pillbar button[data-v="live"]'); await p.waitForSelector('.lv-map .lv-sch span');
   const a1 = await p.evaluate(() => document.querySelector('.lv-wind').toDataURL().length); await p.waitForTimeout(700);
   ok(a1 === await p.evaluate(() => document.querySelector('.lv-wind').toDataURL().length), 'reduced motion: the wind is one still picture');
   await b.close(); srv.kill();

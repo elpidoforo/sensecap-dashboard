@@ -869,11 +869,28 @@ const lc = (s) => String(s).replace(/^\S+/, (w) => (/[A-Z0-9]/.test(w.slice(1)) 
       }
       return { id: c.id, group: c.group, name: c.name, nameEl: c.nameEl, kind: c.kind, state: c.state, lastAt: c.lastAt, everyMs: isoMs(c.every) || null, count: c.count, note: c.note, noteEl: c.noteEl, tagline: c.tagline, taglineEl: c.taglineEl, head, spark, ...(s.own[c.id] ? { sensors: s.own[c.id].n, fresh: s.own[c.id].fresh } : {}) };
     });
+    // "rivers": a measurement that two or more layers have for the same city. Whether they agree is decided exactly as the brain does it
+    // (outdoor, fresh readings, the tolerance of vocab/variables.json); indoor readings are never compared with the street.
+    const riverMap = new Map();
+    for (const cityId of cityIds()) {
+      const byVar = new Map();
+      for (const r of s.cities[cityId].ev.rows) { if (r.stale || r.env === 'indoor') continue; if (!byVar.has(r.variable)) byVar.set(r.variable, []); byVar.get(r.variable).push(r); }
+      for (const [variable, list] of byVar) {
+        const ids = [...new Set(list.map((r) => r.source))];
+        if (ids.length < 2) continue;
+        const vals = uniqueRows(list).map((r) => r.value), tol = tolerance(variable, vals), spread = Math.max(...vals) - Math.min(...vals);
+        if (!riverMap.has(variable)) riverMap.set(variable, { variable, label: vocab(variable).label || [variable, variable], unit: unitText(vocab(variable).unit), sources: new Set(), cities: {} });
+        const rv = riverMap.get(variable);
+        ids.forEach((id) => rv.sources.add(id));
+        rv.cities[cityId] = { state: tol == null ? 'unknown' : spread > tol ? 'differ' : 'agree', spread: Number(fmt(spread)), tolerance: tol == null ? null : Number(fmt(tol)), sources: ids, low: Number(fmt(Math.min(...vals))), high: Number(fmt(Math.max(...vals))) };
+      }
+    }
+    const rivers = [...riverMap.values()].map((r) => ({ ...r, sources: [...r.sources] })).sort((a, b) => b.sources.length - a.sources.length || a.variable.localeCompare(b.variable)).slice(0, 6);
     const sat = layersOut.filter((l) => l.kind === 'satellite' && l.state === 'live' && l.lastAt).sort((a, b) => b.lastAt - a.lastAt)[0];
     return {
       at: s.at, since: isFinite(first) ? first : null, every: PULSE_EVERY, counts: s.view.counts, layers: layersOut,
       cities: Object.fromEntries(cityIds().map((id) => [id, { name: reg.places[id].name, rows: s.cities[id].ev.rows.map(pubRow) }])),
-      map: s.map, newestSatellite: sat ? { id: sat.id, name: sat.name, nameEl: sat.nameEl, at: sat.lastAt } : null,
+      rivers, map: s.map, newestSatellite: sat ? { id: sat.id, name: sat.name, nameEl: sat.nameEl, at: sat.lastAt } : null,
     };
   }
   // The last day as the live map replays it: for each city, what our own sensors read, the outdoor air temperature, the wind and the sea, at the moments of the log.

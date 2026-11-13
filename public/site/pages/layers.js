@@ -31,6 +31,7 @@
     ['pulse', 'Pulse', 'Παλμός', 'The pulse board', 'Ο πίνακας παλμού', 'Every layer is a row with a heartbeat: what is alive, what just spoke, what went quiet and when it speaks next.', 'Κάθε στρώμα είναι μια γραμμή με παλμό: τι είναι ζωντανό, τι μόλις μίλησε, τι σώπασε και πότε θα ξαναμιλήσει.'],
     ['compare', 'Compare', 'Σύγκριση', 'Same question, every source', 'Ίδια ερώτηση, κάθε πηγή', 'Pick one thing to measure and see every layer that knows about it. Lines that agree build trust. Lines that differ start a good question.', 'Διάλεξε κάτι να μετρήσεις και δες κάθε στρώμα που το γνωρίζει. Γραμμές που συμφωνούν χτίζουν εμπιστοσύνη. Γραμμές που διαφέρουν ξεκινούν μια καλή ερώτηση.'],
     ['sky', 'Sky to ground', 'Από ουρανό σε γη', 'From space down to the sea', 'Από το διάστημα μέχρι τη θάλασσα', 'Each layer sits at the height where its data is born, from a satellite, through the air, to a sensor in a classroom.', 'Κάθε στρώμα βρίσκεται στο ύψος όπου γεννιούνται τα δεδομένα του: από έναν δορυφόρο, μέσα από τον αέρα, μέχρι έναν αισθητήρα σε μια τάξη.'],
+    ['all', 'All our data', 'Όλα τα δεδομένα', 'Every source, flowing', 'Κάθε πηγή, σε ροή', 'Every layer sends its data down to the master brain. Layers that measure the same thing join into a river, smooth when they agree and rough when they differ. Under it: every level, from space to the sea.', 'Κάθε στρώμα στέλνει τα δεδομένα του κάτω στον κύριο εγκέφαλο. Στρώματα που μετρούν το ίδιο πράγμα ενώνονται σε ποτάμι: ήρεμο όταν συμφωνούν, ταραγμένο όταν διαφέρουν. Από κάτω: κάθε επίπεδο, από το διάστημα μέχρι τη θάλασσα.'],
     ['stack', 'Stack', 'Στοίβα', 'Cyprus · layers stacked', 'Κύπρος · στρώματα στοιβαγμένα', 'Each plane is one group of layers over the same island. The brain at the top reads every plane that is on.', 'Κάθε επίπεδο είναι μια ομάδα στρωμάτων πάνω από το ίδιο νησί. Ο εγκέφαλος στην κορυφή διαβάζει κάθε επίπεδο που είναι ενεργό.'],
   ];
   const PLANE_ORDER = ['context', 'model', 'official', 'own'];   // bottom of the stack first
@@ -283,7 +284,7 @@
 
       /* ----- the live views (pages/layers-live.js): they share one answer of GET /layers/api/live, asked again every 30 s ----- */
       let liveView = null, liveKind = '', liveLib = null, liveTimer = 0, liveBusy = false;
-      const isLiveView = (v) => v === 'live' || v === 'pulse' || v === 'compare' || v === 'sky';
+      const isLiveView = (v) => v === 'live' || v === 'pulse' || v === 'compare' || v === 'sky' || v === 'all';
       const liveApi = {
         openLayer: (id) => openLayer(id),
         city: () => (S.city === 'all' ? (S.cityList[0] || {}).id || 'larnaka' : S.city),
@@ -293,14 +294,9 @@
       };
       function setView(id) { S.view = id; seg.querySelectorAll('button').forEach((b) => { const on = b.dataset.v === id; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); }); drawStage(); }
       function loadLiveLib() {
-        if (SC.layersLive) return Promise.resolve(true);
-        return liveLib || (liveLib = new Promise((done) => {
-          const sc = document.createElement('script');
-          sc.src = '/site/pages/layers-live.js?v=1';
-          sc.onload = () => done(Boolean(SC.layersLive));
-          sc.onerror = () => { liveLib = null; sc.remove(); done(false); };
-          document.head.append(sc);
-        }));
+        if (SC.layersLive && SC.layersLive.all) return Promise.resolve(true);
+        const one = (src) => new Promise((done) => { const sc = document.createElement('script'); sc.src = src; sc.onload = () => done(true); sc.onerror = () => { sc.remove(); done(false); }; document.head.append(sc); });
+        return liveLib || (liveLib = one('/site/pages/layers-live.js?v=2').then((a) => (a ? one('/site/pages/layers-flow.js?v=1') : false)).then((ok2) => { const good = Boolean(ok2 && SC.layersLive && SC.layersLive.all); if (!good) liveLib = null; return good; }));
       }
       async function fetchLive() {
         if (liveBusy || dead) return;
@@ -556,7 +552,7 @@
         if (S.city === id) return;
         S.city = id; S.answerNode = null; S.err = null; S.lastQuestion = '';
         drawBrainLeft(); fetchBrain(false);
-        if (liveView && liveKind === 'compare' && S.live) liveView.update(S.live);
+        if (liveView && (liveKind === 'compare' || liveKind === 'all') && S.live) liveView.update(S.live);
       }
       async function ask(q) {
         q = String(q || '').trim();

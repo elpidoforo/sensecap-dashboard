@@ -37,6 +37,8 @@ const up = async () => { for (let i = 0; i < 100; i++) { try { await fetch(BASE 
   ok(L.map.stations.every((s) => s.src === 'cydom-stations' || s.src === 'metar-airports'), 'privacy: every point with a name is an official station');
   ok(!/2CF7F1|eui|"gps"|4197|4198/i.test(r.text), 'privacy: no device id and no GPS measurement anywhere in the answer');
   ok(L.map.wind.length > 4 && L.map.wind.every((p) => p.ws >= 0 && p.wd >= 0 && p.wd <= 360), 'live: the wind points have a speed and a direction');
+  ok(Array.isArray(L.rivers) && L.rivers.length >= 2 && L.rivers.every((x) => x.sources.length >= 2 && x.label.length === 2 && Object.values(x.cities).every((c) => ['agree', 'differ', 'unknown'].includes(c.state) && c.low <= c.high)), 'live: rivers (a measurement that several layers share) say whether the sources agree');
+  ok(L.rivers.every((x) => Object.values(x.cities).every((c) => c.state !== 'agree' || c.spread <= c.tolerance)), 'live: "agree" only when the spread is inside the tolerance');
   ok(r.text.length < 120000, 'live: the answer is small (' + r.text.length + ' bytes)');
 
   // compare
