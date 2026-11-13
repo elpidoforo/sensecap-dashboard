@@ -61,9 +61,14 @@ const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + 
     await p.locator('.lv-vars button').nth(1).click(); await p.waitForTimeout(900);
     ok(await p.locator('.lv-vars button.on').count() === 1 && await p.locator('.lv-chart').count() === 1, name + ': another measurement can be picked');
     // sky
-    await tab(p, 'sky'); await p.waitForSelector('.lv-tag');
-    ok(await p.locator('.lv-tag').count() === 8 && await p.locator('.lv-tag.is-on').count() >= 4, name + ': eight tags, the live ones lit');
-    ok(await p.locator('.lv-bandrow').count() === 5, name + ': five heights from space to sea');
+    await tab(p, 'sky'); await p.waitForSelector('.lv-scene', { state: 'attached' }); await p.waitForTimeout(500);
+    const skyBox = (await p.locator('.lv-sky-full').isVisible()) ? '.lv-sky-full' : '.lv-sky-narrow';
+    ok(await p.locator(skyBox + ' .lv-tag2').count() === 8 && await p.locator(skyBox + ' .lv-tag2.is-on').count() >= 4, name + ': eight tags, the live ones lit');
+    ok(await p.locator(skyBox + ' .lv-pkt').count() >= 4, name + ': a dot travels on the line of every live tag');
+    const fits = await p.evaluate((sel) => [...document.querySelectorAll(sel + ' .lv-tag2')].every((e) => e.scrollHeight <= e.clientHeight + 2 && [...e.querySelectorAll('.lv-tg-h')].every((x) => x.scrollWidth <= x.clientWidth + 2)), skyBox);
+    if (!fits) console.log(await p.evaluate((sel) => [...document.querySelectorAll(sel + ' .lv-tag2')].filter((e) => e.scrollHeight > e.clientHeight + 2 || e.querySelector('.lv-tg-h').scrollWidth > e.querySelector('.lv-tg-h').clientWidth + 2).map((e) => e.innerText.slice(0, 60) + ' ' + e.scrollHeight + '/' + e.clientHeight), skyBox));
+    ok(fits, name + ': the text fits inside every tag');
+    ok(await p.locator(skyBox + ' .lv-scene').count() === 1, name + ': one scene from space to sea');
     // stack still works
     await tab(p, 'stack'); await p.waitForSelector('.ly-plane');
     ok(await p.locator('.ly-plane').count() === 4, name + ': the stack view is still there');

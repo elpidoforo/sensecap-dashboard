@@ -497,82 +497,122 @@
     };
   }
 
-  /* ================================================================== 4. sky to ground ======================================= */
+  /* ================================================================== 4. sky to ground =======================================
+     One scene from space down to the sea, as in the approved picture: two satellites with their beams, the wind, the model's grid
+     of numbers, a school with a sensor, a bus (a drawing: no vehicle position exists here), a weather mast, the city and the sea.
+     A dotted line runs from each of them to its tag, and a dot travels along it while that layer is answering. On a wide card the
+     tags are part of the scene; on a narrow one the scene is on top and the tags are listed under it, so the text stays readable. */
   function sky(host, api) {
     const wrap = h('div', { class: 'lv-sky' });
     host.replaceChildren(wrap);
-    const art = {
-      space: () => { const s = sv('svg', { viewBox: '0 0 320 150', 'aria-hidden': 'true' });
-        for (let i = 0; i < 26; i++) s.append(sv('circle', { cx: (i * 73) % 320, cy: (i * 37) % 120 + 6, r: 0.7 + (i % 3) * 0.4, fill: '#fff', opacity: 0.25 + (i % 4) * 0.15 }));
-        s.append(sv('path', { d: 'M-10 120 Q 160 -30 330 110', fill: 'none', stroke: COL.model, 'stroke-opacity': 0.5, 'stroke-dasharray': '4 7' }));
-        const sat = sv('g', { class: 'lv-sat' }, sv('path', { d: 'M0 14 L-34 150 L34 150 Z', fill: 'url(#lvBeam)' }), sv('rect', { x: -8, y: -8, width: 16, height: 16, rx: 3, fill: '#cfc6f7', stroke: COL.model }), sv('rect', { x: -34, y: -5, width: 22, height: 10, fill: '#6f63b8', stroke: COL.model }), sv('rect', { x: 12, y: -5, width: 22, height: 10, fill: '#6f63b8', stroke: COL.model }));
-        s.prepend(sv('defs', null, sv('linearGradient', { id: 'lvBeam', x1: 0, y1: 0, x2: 0, y2: 1 }, sv('stop', { offset: 0, 'stop-color': COL.model, 'stop-opacity': 0.55 }), sv('stop', { offset: 1, 'stop-color': COL.model, 'stop-opacity': 0 }))));
-        s.append(sat); return s; },
-      wind: () => { const s = sv('svg', { viewBox: '0 0 320 110', 'aria-hidden': 'true' });
-        [[20, 26, 70], [120, 52, 96], [40, 80, 84], [210, 30, 60]].forEach(([x, y, l], i) => s.append(sv('g', { class: 'lv-arrow', style: 'animation-delay:' + (-i * 0.9) + 's' }, sv('path', { d: 'M' + x + ' ' + y + 'h' + l + 'm-8 -5.5l8 5.5l-8 5.5', fill: 'none', stroke: '#CFEFFA', 'stroke-width': 2.2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }))));
-        return s; },
-      grid: () => { const s = sv('svg', { viewBox: '0 0 320 110', 'aria-hidden': 'true' });
-        for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) s.append(sv('rect', { class: 'lv-cell', style: 'animation-delay:' + (-(c * 3 + r * 5) % 7) * 0.5 + 's', x: 8 + c * 51, y: 10 + r * 31, width: 46, height: 26, rx: 5, fill: COL.model, 'fill-opacity': 0.12 + ((c * 3 + r * 5) % 7) * 0.05, stroke: COL.model, 'stroke-opacity': 0.5 }));
-        return s; },
-      ground: () => { const s = sv('svg', { viewBox: '0 0 320 130', 'aria-hidden': 'true' });
-        s.append(sv('path', { d: 'M0 112 L60 104 L130 116 L210 102 L270 112 L320 106 L320 130 L0 130 Z', fill: '#14281f', stroke: COL.context, 'stroke-opacity': 0.4 }),
-          sv('rect', { x: 18, y: 44, width: 104, height: 64, rx: 4, fill: '#20344f', stroke: COL.own, 'stroke-opacity': 0.75 }));
-        [0, 1, 2, 3].forEach((i) => s.append(sv('rect', { x: 28 + i * 23, y: 58, width: 14, height: 14, rx: 2, fill: COL.own, opacity: i === 1 ? 1 : 0.35 })));
-        s.append(sv('circle', { class: 'lv-beat', cx: 58, cy: 65, r: 14, fill: 'none', stroke: COL.own, 'stroke-width': 2 }),
-          sv('g', { class: 'lv-bus' }, sv('rect', { x: 140, y: 84, width: 60, height: 24, rx: 6, fill: COL.own, stroke: '#1c0f06', 'stroke-width': 2 }), sv('rect', { x: 146, y: 89, width: 12, height: 8, rx: 2, fill: '#0C1626' }), sv('rect', { x: 162, y: 89, width: 12, height: 8, rx: 2, fill: '#0C1626' }), sv('rect', { x: 178, y: 89, width: 12, height: 8, rx: 2, fill: '#0C1626' }), sv('circle', { cx: 154, cy: 110, r: 4.5, fill: '#0C1626' }), sv('circle', { cx: 186, cy: 110, r: 4.5, fill: '#0C1626' })),
-          sv('path', { d: 'M236 110 V28 M220 38 h32', stroke: COL.official, 'stroke-width': 3, fill: 'none' }), sv('circle', { cx: 236, cy: 22, r: 7, fill: '#0C1626', stroke: COL.official, 'stroke-width': 3 }),
-          sv('path', { class: 'lv-wave', d: 'M254 58 q14 -8 28 0 M254 70 q14 -8 28 0', stroke: COL.official, 'stroke-opacity': 0.7, fill: 'none', 'stroke-width': 2 }));
-        [0, 1, 2].forEach((i) => s.append(sv('rect', { x: 274 + i * 14, y: 110 - 34 - (i % 2) * 14, width: 11, height: 34 + (i % 2) * 14, fill: COL.context, opacity: 0.45 + i * 0.12 })));
-        return s; },
-      sea: () => { const s = sv('svg', { viewBox: '0 0 320 100', 'aria-hidden': 'true', preserveAspectRatio: 'none' });
-        const wave = (y, a, o) => { let d = 'M-40 ' + y; for (let x = -40; x <= 360; x += 20) d += 'L' + x + ' ' + (y + Math.sin((x + o) / 26) * a).toFixed(1); return d; };
-        s.append(sv('path', { class: 'lv-swell', d: wave(22, 5, 0) + 'L360 100L-40 100Z', fill: 'rgba(47,183,201,.42)' }), sv('path', { class: 'lv-swell b', d: wave(46, 4, 40), fill: 'none', stroke: '#CFEFFA', 'stroke-opacity': 0.45 }), sv('path', { class: 'lv-swell', d: wave(70, 4, 90), fill: 'none', stroke: '#CFEFFA', 'stroke-opacity': 0.3 }));
-        return s; },
-    };
-    const band = (cls, title, artFn, tags) => h('section', { class: 'lv-bandrow lv-b-' + cls }, h('div', { class: 'lv-art' }, h('em', null, title), artFn()), h('div', { class: 'lv-tags' }, tags));
+    const W = 724, H = 980, SW = 452, TX = 458, TW = 258, GROUND = 706, SEA = 790, GY = 446;
+    let uid = 0;
+    function scene(tags, grid, full) {
+      const id = 'lvS' + (++uid);
+      const vw = full ? W : SW;
+      const svg = sv('svg', { viewBox: '0 0 ' + vw + ' ' + H, class: 'lv-scene', role: 'img', 'aria-label': T('Where each layer is born, from space down to the sea', 'Πού γεννιέται κάθε στρώμα, από το διάστημα μέχρι τη θάλασσα') });
+      const grad = (gid, stops) => sv('linearGradient', { id: id + gid, x1: 0, y1: 0, x2: 0, y2: 1 }, ...stops.map(([o, c, a]) => sv('stop', { offset: o, 'stop-color': c, 'stop-opacity': a == null ? 1 : a })));
+      svg.append(sv('defs', null,
+        grad('sk', [[0, '#0a1020'], [0.24, '#152848'], [0.55, '#1b3a5e'], [0.7, '#173149'], [1, '#0f2a42']]),
+        grad('bm', [[0, COL.model, 0.6], [1, COL.model, 0]]), grad('sw', [[0, '#2FB7C9', 0.6], [1, '#0d3550', 0.95]]),
+        sv('clipPath', { id: id + 'cc' }, sv('rect', { width: vw, height: H, rx: 22 }))));
+      const g = sv('g', { 'clip-path': 'url(#' + id + 'cc)' });
+      svg.append(g);
+      g.append(sv('rect', { width: vw, height: H, fill: 'url(#' + id + 'sk)' }));
+      for (let i = 0; i < 44; i++) g.append(sv('circle', { class: i % 5 === 0 ? 'lv-tw' : null, style: i % 5 === 0 ? 'animation-delay:' + (-(i % 7) * 0.6) + 's' : null, cx: 60 + ((i * 97) % 380), cy: 10 + ((i * 53) % 200), r: 0.7 + (i % 3) * 0.45, fill: '#fff', opacity: 0.25 + (i % 4) * 0.14 }));
+      g.append(sv('path', { d: 'M24 196 Q 220 30 440 200', fill: 'none', stroke: COL.model, 'stroke-opacity': 0.55, 'stroke-dasharray': '4 7' }), sv('path', { d: 'M60 124 Q 250 14 440 142', fill: 'none', stroke: COL.model, 'stroke-opacity': 0.35, 'stroke-dasharray': '4 7' }));
+      const sat = (x, y, rot, cls) => sv('g', { class: 'lv-sat2 ' + cls }, sv('path', { d: 'M' + x + ' ' + (y + 14) + ' L' + (x - 54) + ' 300 L' + (x + 56) + ' 300 Z', fill: 'url(#' + id + 'bm)' }),
+        sv('g', { transform: 'translate(' + x + ' ' + y + ') rotate(' + rot + ')' }, sv('rect', { x: -8, y: -8, width: 16, height: 16, rx: 3, fill: '#cfc6f7', stroke: COL.model }), sv('rect', { x: -34, y: -5, width: 22, height: 10, fill: '#6f63b8', stroke: COL.model }), sv('rect', { x: 12, y: -5, width: 22, height: 10, fill: '#6f63b8', stroke: COL.model })));
+      g.append(sat(150, 96, -22, 'a'), sat(330, 112, 18, 'b'));
+      [236, 428, 612, GROUND + 52].forEach((y) => g.append(sv('line', { x1: 62, y1: y, x2: 446, y2: y, stroke: 'rgba(255,255,255,.16)', 'stroke-dasharray': '2 6' })));
+      [[118, T('Space', 'Διάστημα')], [332, T('Air', 'Αέρας')], [660, T('Ground', 'Έδαφος')], [880, T('Sea', 'Θάλασσα')]].forEach(([y, t]) => g.append(sv('text', { x: 24, y, class: 'lv-zone', transform: 'rotate(-90 24 ' + y + ')', 'text-anchor': 'middle' }, t)));
+      [[78, 318, 70], [150, 352, 96], [60, 388, 84], [230, 330, 60], [260, 392, 80]].forEach(([x, y, l], i) => g.append(sv('g', { class: 'lv-arrow', style: 'animation-delay:' + (-i * 0.8) + 's' }, sv('path', { d: 'M' + x + ' ' + y + 'h' + l + 'm-8 -5.5l8 5.5l-8 5.5', fill: 'none', stroke: '#CFEFFA', 'stroke-width': 2.2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }))));
+      g.append(sv('ellipse', { cx: 300, cy: 420, rx: 88, ry: 15, fill: COL.model, opacity: 0.22 }));
+      // the model's grid: real numbers of the air-quality model when it answers (fine particles, µg/m³)
+      const lo = grid.length ? Math.min(...grid) : 0, hi = grid.length ? Math.max(...grid) : 1;
+      for (let i = 0; i < 24; i++) {
+        const c = i % 6, r = Math.floor(i / 6), v = grid.length ? grid[i % grid.length] : null;
+        g.append(sv('rect', { class: 'lv-cell', style: 'animation-delay:' + (-((c * 3 + r * 5) % 7) * 0.5) + 's', x: 64 + c * 60, y: GY + r * 28, width: 56, height: 24, rx: 4, fill: COL.model, 'fill-opacity': v == null ? 0.1 : 0.1 + (hi > lo ? (v - lo) / (hi - lo) : 0.5) * 0.32, stroke: COL.model, 'stroke-opacity': 0.5 }),
+          sv('text', { x: 64 + c * 60 + 28, y: GY + r * 28 + 17, class: 'lv-gn', 'text-anchor': 'middle' }, v == null ? '·' : String(Math.round(v))));
+      }
+      g.append(sv('path', { d: 'M0 ' + GROUND + ' L80 ' + (GROUND - 10) + ' L170 ' + (GROUND + 4) + ' L270 ' + (GROUND - 12) + ' L350 ' + GROUND + ' L446 ' + (GROUND - 8) + ' L446 ' + (GROUND + 44) + ' L0 ' + (GROUND + 44) + ' Z', fill: '#14281f', stroke: COL.context, 'stroke-opacity': 0.4 }),
+        sv('rect', { x: 66, y: GROUND - 78, width: 118, height: 72, rx: 4, fill: '#20344f', stroke: COL.own, 'stroke-opacity': 0.75 }));
+      [0, 1, 2, 3].forEach((i) => g.append(sv('rect', { x: 78 + i * 26, y: GROUND - 62, width: 15, height: 15, rx: 2, fill: COL.own, opacity: i === 1 ? 1 : 0.35 })));
+      g.append(sv('circle', { class: 'lv-beat', cx: 111, cy: GROUND - 54, r: 13, fill: 'none', stroke: COL.own, 'stroke-width': 2 }), sv('circle', { cx: 111, cy: GROUND - 54, r: 12, fill: 'none', stroke: COL.own, 'stroke-width': 2, opacity: 0.7 }));
+      const bus = sv('g', { class: 'lv-bus' }, sv('rect', { x: 200, y: GROUND - 30, width: 66, height: 26, rx: 6, fill: COL.own, stroke: '#1c0f06', 'stroke-width': 2 }), sv('circle', { cx: 218, cy: GROUND - 3, r: 5, fill: '#0C1626' }), sv('circle', { cx: 250, cy: GROUND - 3, r: 5, fill: '#0C1626' }));
+      [0, 1, 2].forEach((i) => bus.append(sv('rect', { x: 206 + i * 18, y: GROUND - 25, width: 14, height: 9, rx: 2, fill: '#0C1626' })));
+      g.append(bus, sv('path', { d: 'M330 ' + (GROUND - 4) + ' V' + (GROUND - 92) + ' M312 ' + (GROUND - 82) + ' h36', stroke: COL.official, 'stroke-width': 3, fill: 'none' }), sv('circle', { cx: 330, cy: GROUND - 98, r: 7, fill: '#0C1626', stroke: COL.official, 'stroke-width': 3 }),
+        sv('path', { class: 'lv-wave', d: 'M352 ' + (GROUND - 60) + ' q18 -9 36 0 m-36 11 q18 -9 36 0', stroke: COL.official, 'stroke-opacity': 0.7, fill: 'none', 'stroke-width': 2 }));
+      [0, 1, 2, 3].forEach((i) => g.append(sv('rect', { x: 384 + i * 15, y: GROUND - 4 - 38 - (i % 2) * 16, width: 12, height: 38 + (i % 2) * 16, fill: COL.context, opacity: 0.4 + i * 0.1 })));
+      const wave = (y, a, o) => { let d = 'M-30 ' + y; for (let x = -30; x <= 476; x += 20) d += 'L' + x + ' ' + (y + Math.sin((x + o) / 26) * a).toFixed(1); return d; };
+      const seaClip = sv('clipPath', { id: id + 'sc' }, sv('rect', { x: 0, y: SEA - 12, width: 446, height: H }));
+      svg.querySelector('defs').append(seaClip);
+      g.append(sv('g', { 'clip-path': 'url(#' + id + 'sc)' }, sv('path', { class: 'lv-swell', d: wave(SEA, 5, 0) + ' L476 ' + (H + 10) + ' L-30 ' + (H + 10) + ' Z', fill: 'url(#' + id + 'sw)' }), sv('path', { class: 'lv-swell b', d: wave(SEA + 30, 4, 40), fill: 'none', stroke: '#CFEFFA', 'stroke-opacity': 0.5 }), sv('path', { class: 'lv-swell', d: wave(SEA + 62, 4, 90), fill: 'none', stroke: '#CFEFFA', 'stroke-opacity': 0.3 })),
+        sv('g', { class: 'lv-buoy' }, sv('path', { d: 'M230 ' + (SEA + 100) + ' v-22', stroke: COL.model, 'stroke-width': 3.2 }), sv('circle', { cx: 230, cy: SEA + 110, r: 10, fill: '#0C1626', stroke: COL.model, 'stroke-width': 3.2 })));
+      // the wires: level from the thing, one bend, then to the middle of its tag (or to the edge of a narrow scene)
+      tags.forEach((t, k) => t.from.forEach(([x1, y1], j) => {
+        const jx = 418 + ((k + j) % 4) * 9, ty = full ? t.y + t.h / 2 : y1, endX = full ? TX : SW;
+        const dir = Math.sign(ty - y1);
+        const d = dir === 0 ? 'M' + x1 + ' ' + y1 + 'H' + endX : 'M' + x1 + ' ' + y1 + 'H' + (jx - 10) + 'Q' + jx + ' ' + y1 + ' ' + jx + ' ' + (y1 + dir * 10) + 'V' + (ty - dir * 10) + 'Q' + jx + ' ' + ty + ' ' + (jx + 10) + ' ' + ty + 'H' + endX;
+        g.append(sv('path', { d, fill: 'none', stroke: t.col, 'stroke-width': 1.7, 'stroke-dasharray': '3 5', opacity: t.on ? 0.8 : 0.3 }));
+        if (t.on) g.append(sv('circle', { class: 'lv-pkt', r: 4.6, fill: t.col, style: "offset-path:path('" + d + "');animation-duration:" + t.trip + 's;animation-delay:' + (-(k * 0.7 + j * 1.3)) + 's' }));
+      }));
+      if (full) tags.forEach((t) => {
+        const fo = sv('foreignObject', { x: TX, y: t.y, width: TW, height: t.h });
+        fo.append(tagNode(t));
+        g.append(fo);
+      });
+      return svg;
+    }
+    function tagNode(t) {
+      const b = h(t.id ? 'button' : 'div', { class: 'lv-tag2' + (t.on ? ' is-on' : ' is-off'), ...(t.id ? { type: 'button', onclick: () => api.openLayer(t.id) } : {}) },
+        h('span', { class: 'lv-tg-h' }, h('b', null, t.title), h('u', null, t.big || '')), t.lines.filter(Boolean).slice(0, 3).map((x) => h('small', null, x)));
+      setVar(b, '--c', t.col);
+      return b;
+    }
     return {
       update(live) {
         const L = (id) => live.layers.find((l) => l.id === id);
+        const on = (id) => isLive(L(id) || {});
         const rowsOf = (variable, pick) => Object.values(live.cities).flatMap((c) => c.rows).filter((r) => r.variable === variable && !r.stale && (!pick || pick(r)));
         const avg = (rows) => (rows.length ? rows.reduce((a, r) => a + r.value, 0) / rows.length : null);
-        const tag = (group, title, big, lines, ids, on) => {
-          const id = (ids || [])[0];
-          const b = h(id ? 'button' : 'div', { class: 'lv-tag' + (on ? ' is-on' : ' is-off'), ...(id ? { type: 'button', onclick: () => api.openLayer(id) } : {}) },
-            h('span', { class: 'lv-wire', 'aria-hidden': 'true' }, h('i')), h('span', { class: 'lv-tg-h' }, h('b', null, title), h('u', null, big || '')), lines.filter(Boolean).map((x) => h('small', null, x)));
-          setVar(b, '--c', COL[group]);
-          const l = id ? L(id) : null;
-          setVar(b, '--trip', (l && l.everyMs ? clamp(l.everyMs / 60000 / 4, 2.2, 9) : 5) + 's');   // a reading "travels" faster for a layer that updates more often
-          return b;
-        };
-        const sats = live.layers.filter((l) => l.kind === 'satellite'), satOn = sats.filter(isLive);
-        const newest = live.newestSatellite;
+        const trip = (id) => { const l = L(id); return l && l.everyMs ? clamp(l.everyMs / 60000 / 3, 3.5, 11) : 7; };
+        const ago = (id) => { const l = L(id); return l && l.lastAt ? SC.ago(l.lastAt) : null; };
+        const sats = live.layers.filter((l) => l.kind === 'satellite'), satOn = sats.filter(isLive), newest = live.newestSatellite;
         const sst = avg(rowsOf('sea_surface_temperature')), wave = avg(rowsOf('wave_height'));
         const wind = live.map.wind || [], windKmh = wind.length ? (wind.reduce((a, p) => a + p.ws, 0) / wind.length) * 3.6 : null;
+        let from = null; if (wind.length) { let u = 0, v = 0; wind.forEach((p) => { const a = (p.wd * Math.PI) / 180; u += Math.sin(a) * p.ws; v += Math.cos(a) * p.ws; }); from = compass((Math.atan2(u, v) * 180) / Math.PI); }
         const pm = avg(rowsOf('pm25', (r) => r.kind === 'model'));
         const cls = L('sensecap-classrooms'), bus = L('sensecap-buses'), car = L('sensecap-cars');
-        const co2 = avg(rowsOf('co2', (r) => r.source === 'sensecap-classrooms')), ownT = avg(rowsOf('temperature', (r) => OWN.includes(r.source)));
+        const co2 = avg(rowsOf('co2', (r) => r.source === 'sensecap-classrooms')), ownT = avg(rowsOf('temperature', (r) => r.source === 'sensecap-buses' || r.source === 'sensecap-cars'));
         const offT = avg(rowsOf('temperature', (r) => r.kind === 'reference-station'));
-        const off = live.layers.filter((l) => l.group === 'official' && l.status !== 'candidate' && l.state !== 'planned' && l.state !== 'candidate'), offOn = off.filter(isLive);
-        const gt = L('gtfs-public-transport'), ctx = live.layers.filter((l) => l.group === 'context');
+        const off = live.layers.filter((l) => l.group === 'official' && l.state !== 'planned' && l.state !== 'candidate'), offOn = off.filter(isLive);
+        const ctx = live.layers.filter((l) => l.group === 'context'), ctxOn = ctx.filter(isLive), gt = L('gtfs-public-transport');
         const veh = [bus, car].filter(Boolean), vehN = veh.reduce((a, l) => a + (l.sensors || 0), 0), vehF = veh.reduce((a, l) => a + (l.fresh || 0), 0);
-        const ago = (l) => (l && l.lastAt ? SC.ago(l.lastAt) : null);
-        const brainBar = h('div', { class: 'lv-brainbar' }, h('i', { 'aria-hidden': 'true' }), h('span', null, h('b', null, T('The master brain', 'Ο κύριος εγκέφαλος')), T(' reads every tag that is lit, ' + (live.counts.connected || 0) + ' layers right now.', ' διαβάζει κάθε ετικέτα που είναι αναμμένη, ' + (live.counts.connected || 0) + ' στρώματα αυτή τη στιγμή.')));
+        const tags = [
+          { y: 16, h: 118, col: COL.model, from: [[150, 96], [330, 112]], id: newest ? newest.id : (sats[0] || {}).id, on: satOn.length > 0, trip: 9, title: T('Satellites', 'Δορυφόροι'), big: satOn.length + T(' of ', ' από ') + sats.length,
+            lines: [T('Heat, haze, plants, sea colour', 'Ζέστη, θολούρα, φυτά, χρώμα θάλασσας'), newest ? T('Newest: ', 'Νεότερο: ') + nm(newest) : T('None is answering right now', 'Κανένας δεν απαντά τώρα'), newest ? SC.ago(newest.at) : null] },
+          { y: 150, h: 96, col: COL.model, from: [[300, 352]], id: 'openmeteo-weather', on: on('openmeteo-weather'), trip: trip('openmeteo-weather'), title: T('Weather model', 'Μοντέλο καιρού'), big: windKmh == null ? '' : num(windKmh) + ' km/h',
+            lines: [from ? T('Wind from the ', 'Άνεμος από ') + from : null, T('Squares about 11 km wide, ', 'Τετράγωνα περίπου 11 km, ') + (ago('openmeteo-weather') || '')] },
+          { y: 262, h: 96, col: COL.model, from: [[340, GY + 14]], id: 'openmeteo-air', on: on('openmeteo-air'), trip: trip('openmeteo-air'), title: T('Air model', 'Μοντέλο αέρα'), big: pm == null ? '' : num(pm) + ' µg/m³',
+            lines: [T('Fine particles in each square', 'Λεπτά σωματίδια σε κάθε τετράγωνο'), T('Not one street, a whole square', 'Όχι ένας δρόμος, όλο το τετράγωνο')] },
+          { y: 374, h: 96, col: COL.own, from: [[111, GROUND - 76]], id: 'sensecap-classrooms', on: on('sensecap-classrooms'), trip: 3.5, title: T('Classrooms', 'Τάξεις'), big: co2 != null ? num(co2) + ' ppm' : '',
+            lines: [cls && cls.sensors ? T(cls.fresh + ' of ' + cls.sensors + ' sensors, ', cls.fresh + ' από ' + cls.sensors + ' αισθητήρες, ') + (ago('sensecap-classrooms') || '') : T('No classroom sensor reports yet', 'Κανένας αισθητήρας τάξης ακόμη'), T('CO₂, temperature, humidity', 'CO₂, θερμοκρασία, υγρασία')] },
+          { y: 486, h: 96, col: COL.own, from: [[268, GROUND - 17]], id: bus ? 'sensecap-buses' : 'sensecap-cars', on: veh.some(isLive), trip: 3.5, title: T('Buses and cars', 'Οχήματα'), big: vehN ? vehF + T(' of ', ' από ') + vehN : '',
+            lines: [ownT != null ? T('Air around them ', 'Ο αέρας γύρω τους ') + num(ownT) + ' °C' : T('No vehicle reports right now', 'Κανένα όχημα δεν στέλνει τώρα'), T('Only counted, never mapped', 'Μόνο μετριούνται, ποτέ σε χάρτη')] },
+          { y: 598, h: 96, col: COL.official, from: [[330, GROUND - 98]], id: (offOn[0] || off[0] || {}).id, on: offOn.length > 0, trip: trip((offOn[0] || {}).id), title: T('Official stations', 'Επίσημοι σταθμοί'), big: offT != null ? num(offT) + ' °C' : '',
+            lines: [T('Airports and weather masts', 'Αεροδρόμια και μετεωρολογικοί ιστοί'), offOn.length + T(' of ', ' από ') + off.length + T(' answering', ' απαντούν')] },
+          { y: 710, h: 96, col: COL.context, from: [[440, GROUND - 22]], id: gt ? gt.id : (ctx[0] || {}).id, on: ctxOn.length > 0, trip: 11, title: T('City context', 'Πλαίσιο πόλης'), big: gt && gt.count ? num(gt.count) : '',
+            lines: [gt ? T('Bus stops in the timetables', 'Στάσεις στα δρομολόγια') : null, (ctx.length - ctxOn.length) ? T((ctx.length - ctxOn.length) + ' more not connected yet', (ctx.length - ctxOn.length) + ' ακόμη δεν έχουν συνδεθεί') : null] },
+          { y: 822, h: 96, col: COL.model, from: [[240, SEA + 110]], id: 'openmeteo-marine', on: on('openmeteo-marine'), trip: trip('openmeteo-marine'), title: T('Sea model', 'Μοντέλο θάλασσας'), big: sst == null ? '' : num(sst) + ' °C',
+            lines: [wave != null ? T('Waves ', 'Κύματα ') + num(wave) + ' m' : null, ago('openmeteo-marine')] },
+        ];
+        const grid = (live.map.air || []).map((p) => p.pm25).filter((v) => v != null).slice(0, 24);
         wrap.replaceChildren(
-          h('div', { class: 'lv-hd' }, h('h3', null, T('Where each layer is born', 'Πού γεννιέται κάθε στρώμα')), liveBadge(), h('span', { class: 'lv-sub' }, T('a dot travels each time a source answers', 'μια τελεία ταξιδεύει κάθε φορά που απαντά μια πηγή'))),
-          band('space', T('Space, about 700 km up', 'Διάστημα, περίπου 700 km ψηλά'), art.space, [
-            tag('model', T('Satellites', 'Δορυφόροι'), satOn.length + T(' of ', ' από ') + sats.length, [T('Heat, haze, plants, sea colour, sunshine.', 'Ζέστη, θολούρα, φυτά, χρώμα θάλασσας, ηλιοφάνεια.'), newest ? T('Newest data: ', 'Νεότερα δεδομένα: ') + nm(newest) + ', ' + SC.ago(newest.at) : T('No satellite layer is answering.', 'Κανένα δορυφορικό στρώμα δεν απαντά.')], [newest ? newest.id : (sats[0] || {}).id], satOn.length > 0)]),
-          band('air', T('Air: the weather model', 'Αέρας: το μοντέλο καιρού'), art.wind, [
-            tag('model', T('Weather model', 'Μοντέλο καιρού'), windKmh == null ? '' : num(windKmh) + ' km/h', [T('Wind, temperature and humidity in squares about 11 km wide.', 'Άνεμος, θερμοκρασία και υγρασία σε τετράγωνα πλάτους περίπου 11 km.'), ago(L('openmeteo-weather'))], ['openmeteo-weather'], isLive(L('openmeteo-weather') || {}))]),
-          band('air2', T('Air: the air-quality model', 'Αέρας: το μοντέλο ποιότητας αέρα'), art.grid, [
-            tag('model', T('Air-quality model', 'Μοντέλο ποιότητας αέρα'), pm == null ? '' : num(pm) + ' µg/m³', [T('Fine particles and dust for a whole square, not one street.', 'Λεπτά σωματίδια και σκόνη για ολόκληρο τετράγωνο, όχι για έναν δρόμο.'), ago(L('openmeteo-air'))], ['openmeteo-air'], isLive(L('openmeteo-air') || {}))]),
-          band('ground', T('Ground, 2 m above it', 'Έδαφος, 2 m πάνω του'), art.ground, [
-            tag('own', T('Classroom sensors', 'Αισθητήρες στις τάξεις'), co2 != null ? num(co2) + ' ppm' : '', [cls && cls.sensors ? T(cls.fresh + ' of ' + cls.sensors + ' reporting', cls.fresh + ' από ' + cls.sensors + ' στέλνουν') : T('No classroom sensor is named yet.', 'Κανένας αισθητήρας τάξης δεν έχει όνομα ακόμη.'), T('CO₂, temperature, humidity.', 'CO₂, θερμοκρασία, υγρασία.')], ['sensecap-classrooms'], isLive(cls || {})),
-            tag('own', T('Buses and cars', 'Λεωφορεία και αυτοκίνητα'), vehN ? vehF + T(' of ', ' από ') + vehN : '', [ownT != null ? T('Air around them: ', 'Ο αέρας γύρω τους: ') + num(ownT) + ' °C' : null, T('Only counted, never put on a map.', 'Μόνο μετριούνται, ποτέ δεν μπαίνουν σε χάρτη.')], [bus ? 'sensecap-buses' : 'sensecap-cars'], veh.some(isLive)),
-            tag('official', T('Official stations', 'Επίσημοι σταθμοί'), offT != null ? num(offT) + ' °C' : '', [T('Airports, weather masts, air-quality stations.', 'Αεροδρόμια, μετεωρολογικοί ιστοί, σταθμοί ποιότητας αέρα.'), offOn.length + T(' of ', ' από ') + off.length + T(' answering', ' απαντούν')], [(offOn[0] || off[0] || {}).id], offOn.length > 0),
-            tag('context', T('City context', 'Πλαίσιο πόλης'), gt && gt.count ? num(gt.count) : '', [gt ? T('Bus timetables: stops across Cyprus.', 'Δρομολόγια λεωφορείων: στάσεις σε όλη την Κύπρο.') : null, ctx.filter((l) => !isLive(l)).length ? T(ctx.filter((l) => !isLive(l)).length + ' more are planned or candidates.', ctx.filter((l) => !isLive(l)).length + ' ακόμη σχεδιάζονται ή είναι υποψήφια.') : null], [gt ? gt.id : (ctx[0] || {}).id], ctx.some(isLive))]),
-          band('sea', T('Sea, at the surface', 'Θάλασσα, στην επιφάνεια'), art.sea, [
-            tag('model', T('Sea model', 'Μοντέλο θάλασσας'), sst == null ? '' : num(sst) + ' °C', [wave != null ? T('Waves ', 'Κύματα ') + num(wave) + ' m' : null, ago(L('openmeteo-marine'))], ['openmeteo-marine'], isLive(L('openmeteo-marine') || {}))]),
-          brainBar);
+          h('div', { class: 'lv-hd' }, h('h3', null, T('Where each layer is born', 'Πού γεννιέται κάθε στρώμα')), liveBadge(), h('span', { class: 'lv-sub' }, T('a dot travels while a source is answering', 'μια τελεία ταξιδεύει όσο απαντά μια πηγή'))),
+          h('div', { class: 'lv-sky-full' }, scene(tags, grid, true)),
+          h('div', { class: 'lv-sky-narrow' }, scene(tags, grid, false), h('div', { class: 'lv-tags2' }, tags.map(tagNode))),
+          h('div', { class: 'lv-brainbar' }, h('i', { 'aria-hidden': 'true' }), h('span', null, h('b', null, T('The master brain', 'Ο κύριος εγκέφαλος')), T(' reads every tag that is lit, ' + (live.counts.connected || 0) + ' layers right now.', ' διαβάζει κάθε ετικέτα που είναι αναμμένη, ' + (live.counts.connected || 0) + ' στρώματα αυτή τη στιγμή.')), grid.length ? h('small', null, T('The numbers in the grid are the model’s fine particles (PM2.5, µg/m³) around Cyprus right now.', 'Οι αριθμοί στο πλέγμα είναι τα λεπτά σωματίδια του μοντέλου (PM2.5, µg/m³) γύρω από την Κύπρο αυτή τη στιγμή.')) : null));
       },
       destroy() { /* CSS animations only: nothing to stop */ },
     };
