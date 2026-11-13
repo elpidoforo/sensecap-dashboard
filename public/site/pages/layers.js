@@ -1,7 +1,7 @@
 /*
   Data layers: every open source we know about for Cyprus's cities, stacked as layers, and the master brain that reads
   the layers that are switched on and writes findings for one city at a time.
-  Route: #/layers.   Data: GET /layers/api/register, GET /layers/api/layers/<id>, POST /layers/api/brain { city, layers, question? },
+  Route: #/layers.   The live views of the centre card are in pages/layers-live.js.   Data: GET /layers/api/register, GET /layers/api/layers/<id>, POST /layers/api/brain { city, layers, question? },
   PUT /layers/api/mission and POST /layers/api/mission/reset (teachers).   Needs window.ISLAND (island.js) for the map shapes.
   The brain never gets coordinates: the planes below are a drawing of where the schools and stations are, not of any vehicle.
 */
@@ -25,6 +25,14 @@
     context: { en: 'City context', el: 'Πλαίσιο πόλης', col: '#7FD3A0' },
   };
   const LIST_ORDER = ['own', 'official', 'model', 'context'];
+  // the views of the centre card: id, tab name (en, el), small heading (en, el), one line on what you see (en, el)
+  const VIEWS = [
+    ['live', 'Live map', 'Ζωντανός χάρτης', 'Cyprus · every layer, live', 'Κύπρος · κάθε στρώμα, ζωντανά', 'One map where the layers move: wind, sea, our schools, official stations and the newest satellite data. Press a school or a station to read it.', 'Ένας χάρτης όπου τα στρώματα κινούνται: άνεμος, θάλασσα, τα σχολεία μας, οι επίσημοι σταθμοί και τα νεότερα δορυφορικά δεδομένα. Πάτα ένα σχολείο ή έναν σταθμό για να το διαβάσεις.'],
+    ['pulse', 'Pulse', 'Παλμός', 'The pulse board', 'Ο πίνακας παλμού', 'Every layer is a row with a heartbeat: what is alive, what just spoke, what went quiet and when it speaks next.', 'Κάθε στρώμα είναι μια γραμμή με παλμό: τι είναι ζωντανό, τι μόλις μίλησε, τι σώπασε και πότε θα ξαναμιλήσει.'],
+    ['compare', 'Compare', 'Σύγκριση', 'Same question, every source', 'Ίδια ερώτηση, κάθε πηγή', 'Pick one thing to measure and see every layer that knows about it. Lines that agree build trust. Lines that differ start a good question.', 'Διάλεξε κάτι να μετρήσεις και δες κάθε στρώμα που το γνωρίζει. Γραμμές που συμφωνούν χτίζουν εμπιστοσύνη. Γραμμές που διαφέρουν ξεκινούν μια καλή ερώτηση.'],
+    ['sky', 'Sky to ground', 'Από ουρανό σε γη', 'From space down to the sea', 'Από το διάστημα μέχρι τη θάλασσα', 'Each layer sits at the height where its data is born, from a satellite, through the air, to a sensor in a classroom.', 'Κάθε στρώμα βρίσκεται στο ύψος όπου γεννιούνται τα δεδομένα του: από έναν δορυφόρο, μέσα από τον αέρα, μέχρι έναν αισθητήρα σε μια τάξη.'],
+    ['stack', 'Stack', 'Στοίβα', 'Cyprus · layers stacked', 'Κύπρος · στρώματα στοιβαγμένα', 'Each plane is one group of layers over the same island. The brain at the top reads every plane that is on.', 'Κάθε επίπεδο είναι μια ομάδα στρωμάτων πάνω από το ίδιο νησί. Ο εγκέφαλος στην κορυφή διαβάζει κάθε επίπεδο που είναι ενεργό.'],
+  ];
   const PLANE_ORDER = ['context', 'model', 'official', 'own'];   // bottom of the stack first
   const STATE = {
     live: ['Live', 'Ζωντανό', 'live'], checking: ['Checking', 'Έλεγχος', 'off'], late: ['Late', 'Αργεί', 'late'], down: ['Down', 'Εκτός', 'down'], off: ['Off', 'Κλειστό', 'off'],
@@ -84,20 +92,6 @@
     featureNodes(group, on).forEach((n) => svg.append(n));
     return svg;
   }
-  function flatSvg(on) {
-    const svg = SC.svgEl('svg', { viewBox: '0 0 ' + ISLAND.W + ' ' + ISLAND.H, role: 'img', 'aria-label': T('Cyprus with the layers that are on', 'Η Κύπρος με τα στρώματα που είναι ενεργά') });
-    const base = SC.svgEl('g', { fill: 'rgba(255,255,255,.06)', stroke: 'rgba(143,227,247,.3)', 'stroke-width': 0.6 });
-    Object.keys(ISLAND.districts).forEach((n) => base.append(SC.svgEl('path', { d: ISLAND.districts[n] })));
-    svg.append(base);
-    PLANE_ORDER.forEach((g) => { if (!on[g]) return; featureNodes(g, true).slice(1).forEach((n) => svg.append(n)); });
-    (ISLAND.schools || []).forEach((s) => {
-      const q = projectPt(s.lng, s.lat), id = s.id.charAt(0).toUpperCase() + s.id.slice(1);
-      svg.append(SC.svgEl('text', { x: q[0] + 14, y: q[1] - 12, fill: '#E6EEF8', 'font-size': 15, 'font-family': 'inherit', 'font-weight': 600, 'paint-order': 'stroke', stroke: '#0C1626', 'stroke-width': 3 }, placeLabel(id)));
-    });
-    return svg;
-  }
-  function placeLabel(id) { return ({ larnaka: T('Larnaka', 'Λάρνακα'), lefkosia: T('Lefkosia', 'Λευκωσία'), limassol: T('Limassol', 'Λεμεσός'), paphos: T('Paphos', 'Πάφος') })[id.toLowerCase()] || id; }
-
   /* ---------------------------------------------------------------- satellite pictures in a layer's dialog ----
      A satellite feed (satellite/index.js) may keep its newest pictures. GET /api/satellite/images lists them (newest first, with the
      feed id); the dialog of a layer shows the ones of that layer: the latest large, the earlier days as small pictures you can press.
@@ -174,7 +168,7 @@
       let dead = false;
       const timers = [];
       const S = {
-        reg: null, off: loadOff(), view: 'stack', city: 'larnaka', cityList: [],
+        reg: null, off: loadOff(), view: 'live', live: null, city: 'larnaka', cityList: [],
         results: new Map(), loading: false, err: null, answer: null, asking: false, question: '', brainTok: 0,
       };
       const R = {};   // the parts of the page we redraw
@@ -280,12 +274,58 @@
       R.viewbox = h('div', { class: 'ly-viewbox' });
       R.cover = h('div', { class: 'ly-cover' });
       const seg = h('div', { class: 'nm-pillbar', role: 'tablist', 'aria-label': T('View', 'Προβολή') },
-        [['stack', 'Stack', 'Στοίβα'], ['flat', 'Flat map', 'Επίπεδος χάρτης'], ['time', 'Timeline', 'Χρονολόγιο']].map(([id, en, el]) =>
+        VIEWS.map(([id, en, el]) =>
           h('button', { type: 'button', role: 'tab', 'data-v': id, 'aria-selected': id === S.view ? 'true' : 'false', class: id === S.view ? 'on' : '', onclick: () => { S.view = id; seg.querySelectorAll('button').forEach((b) => { const on = b.dataset.v === id; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); }); drawStage(); } }, T(en, el))));
       R.stage.append(
-        h('div', { class: 'ly-top' }, h('div', null, h('div', { class: 'ly-eb' }, T('Cyprus · layers stacked', 'Κύπρος · στρώματα στοιβαγμένα')),
+        h('div', { class: 'ly-top' }, h('div', null, h('div', { class: 'ly-eb', 'data-ly': 'eb' }),
           h('p', { 'data-ly': 'cap' })), seg),
         R.viewbox, R.cover);
+
+      /* ----- the live views (pages/layers-live.js): they share one answer of GET /layers/api/live, asked again every 30 s ----- */
+      let liveView = null, liveKind = '', liveLib = null, liveTimer = 0, liveBusy = false;
+      const isLiveView = (v) => v === 'live' || v === 'pulse' || v === 'compare' || v === 'sky';
+      const liveApi = {
+        openLayer: (id) => openLayer(id),
+        city: () => (S.city === 'all' ? (S.cityList[0] || {}).id || 'larnaka' : S.city),
+        setCity: (id) => pickCity(id),
+        cities: () => S.cityList,
+        setView: (v) => setView(v),
+      };
+      function setView(id) { S.view = id; seg.querySelectorAll('button').forEach((b) => { const on = b.dataset.v === id; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); }); drawStage(); }
+      function loadLiveLib() {
+        if (SC.layersLive) return Promise.resolve(true);
+        return liveLib || (liveLib = new Promise((done) => {
+          const sc = document.createElement('script');
+          sc.src = '/site/pages/layers-live.js?v=1';
+          sc.onload = () => done(Boolean(SC.layersLive));
+          sc.onerror = () => { liveLib = null; sc.remove(); done(false); };
+          document.head.append(sc);
+        }));
+      }
+      async function fetchLive() {
+        if (liveBusy || dead) return;
+        liveBusy = true;
+        try { const l = await SC.api(API + '/live'); if (!dead) { S.live = l; if (liveView && isLiveView(S.view)) liveView.update(l); } }
+        catch (e) { if (!dead && !S.live && isLiveView(S.view) && !liveView) R.viewbox.replaceChildren(h('div', { class: 'err', role: 'alert' }, errMsg(e)), btn('nm-btn', T('Try again', 'Δοκιμάστε ξανά'), () => { drawStage(); })); }
+        liveBusy = false;
+      }
+      function dropLive() { if (liveView) { liveView.destroy(); liveView = null; liveKind = ''; } }
+      async function drawLive() {
+        const kind = S.view;
+        if (liveView && liveKind === kind) { if (S.live) liveView.update(S.live); return; }
+        dropLive();
+        R.viewbox.style.height = '';
+        R.viewbox.replaceChildren(h('div', { class: 'ly-skel', style: { height: '360px' } }));
+        const okLib = await loadLiveLib();
+        if (dead || S.view !== kind) return;
+        if (!okLib) { R.viewbox.replaceChildren(h('div', { class: 'err', role: 'alert' }, T('This view could not be loaded. Check the connection and try again.', 'Αυτή η προβολή δεν φορτώθηκε. Έλεγξε τη σύνδεση και δοκίμασε ξανά.')), btn('nm-btn', T('Try again', 'Δοκιμάστε ξανά'), () => drawStage())); return; }
+        const box = h('div', { class: 'lv-host' });
+        R.viewbox.replaceChildren(box);
+        liveView = SC.layersLive[kind === 'live' ? 'island' : kind](box, liveApi); liveKind = kind;
+        if (S.live && Date.now() - S.live.at < 45000) liveView.update(S.live); else fetchLive();
+      }
+      liveTimer = setInterval(() => { if (!document.hidden && isLiveView(S.view)) fetchLive(); }, 30000);
+      timers.push(() => { clearInterval(liveTimer); dropLive(); });
 
       let stackParts = null, scale = 1, ro = null;
       function buildStack() {
@@ -338,28 +378,6 @@
           lab.style.top = (best.y - ir.top) / scale - 14 + 'px';
         });
       }
-      function drawFlat() {
-        const on = groupOn();
-        R.viewbox.style.height = '';
-        R.viewbox.replaceChildren(h('div', { class: 'ly-flat' }, flatSvg(on),
-          h('div', { class: 'ly-legend' }, LIST_ORDER.map((g) => h('span', { class: 'ly-' + g, style: { opacity: on[g] ? 1 : 0.55 } }, h('i'), T(GROUPS[g].en, GROUPS[g].el), ' · ', on[g] ? T('on', 'ενεργό') : T('off', 'ανενεργό'))),
-            h('span', null, T('Schools are marked as circles. Vehicles are never drawn.', 'Τα σχολεία σημειώνονται με κύκλους. Τα οχήματα δεν σχεδιάζονται ποτέ.')))));
-      }
-      function drawTimeline() {
-        R.viewbox.style.height = '';
-        const rows = layers().filter((l) => l.status === 'active');
-        const now = Date.now();
-        R.viewbox.replaceChildren(h('div', { class: 'ly-tl', role: 'list' },
-          rows.map((l) => {
-            const age = l.lastAt ? now - l.lastAt : null;
-            const pos = age == null ? null : 100 - Math.min(1, Math.max(0, age / (24 * HOUR))) * 100;
-            return h('div', { class: 'ly-tl-r ly-' + l.group, role: 'listitem', style: { opacity: isOn(l) ? 1 : 0.5 } },
-              h('span', { title: nameOf(l) }, nameOf(l)),
-              h('div', { class: 'ly-tl-t' }, pos == null ? null : h('i', { style: { left: Math.min(98, Math.max(2, pos)) + '%' } }), h('em', null, l.lastAt ? SC.ago(l.lastAt) : T('no reading yet', 'καμία μέτρηση ακόμη'))));
-          }),
-          h('div', { class: 'ly-tl-ax' }, h('span'), h('div', null, h('span', null, T('24 hours ago', 'πριν 24 ώρες')), h('span', null, T('now', 'τώρα')))),
-          h('p', { class: 'ly-fine' }, T('Each dot is the newest reading of that layer. Layers that are switched off are dimmed.', 'Κάθε τελεία είναι η πιο πρόσφατη μέτρηση του στρώματος. Τα απενεργοποιημένα στρώματα εμφανίζονται αχνά.'))));
-      }
       function drawCover() {
         const c = (S.reg && S.reg.counts) || { total: 0 };
         const tot = Math.max(1, c.total), pc = (n) => Math.round((n / tot) * 1000) / 10 + '%';
@@ -378,15 +396,16 @@
       }
       function drawStage() {
         const cap = R.stage.querySelector('[data-ly="cap"]');
-        cap.textContent = S.view === 'stack' ? T('Each plane is one group of layers over the same island. The brain at the top reads every plane that is on.', 'Κάθε επίπεδο είναι μια ομάδα στρωμάτων πάνω από το ίδιο νησί. Ο εγκέφαλος στην κορυφή διαβάζει κάθε επίπεδο που είναι ενεργό.')
-          : S.view === 'flat' ? T('The same island seen from above. Only the groups that are on are drawn.', 'Το ίδιο νησί από ψηλά. Σχεδιάζονται μόνο οι ομάδες που είναι ενεργές.')
-            : T('When each layer last gave us a reading.', 'Πότε έδωσε μέτρηση το κάθε στρώμα τελευταία φορά.');
+        const v = VIEWS.find((x) => x[0] === S.view) || VIEWS[0];
+        R.stage.querySelector('[data-ly="eb"]').textContent = T(v[3], v[4]);
+        cap.textContent = T(v[5], v[6]);
         if (S.view === 'stack') {
+          dropLive();
           if (!stackParts) buildStack();
           if (R.viewbox.firstChild !== stackParts.inner) { R.viewbox.replaceChildren(stackParts.inner); }
           paintStack();
           requestAnimationFrame(fitStack);
-        } else if (S.view === 'flat') drawFlat(); else drawTimeline();
+        } else drawLive();
         drawCover();
       }
 
@@ -537,6 +556,7 @@
         if (S.city === id) return;
         S.city = id; S.answerNode = null; S.err = null; S.lastQuestion = '';
         drawBrainLeft(); fetchBrain(false);
+        if (liveView && liveKind === 'compare' && S.live) liveView.update(S.live);
       }
       async function ask(q) {
         q = String(q || '').trim();
@@ -557,7 +577,9 @@
       async function openLayer(id) {
         const known = layerById(id);
         const body = h('div', { class: 'ly-det' }, h('p', { class: 'ly-wait' }, T('Loading…', 'Φόρτωση…')));
-        SC.modal({ title: known ? nameOf(known) : id, body, actions: [{ label: T('Close', 'Κλείσιμο'), primary: true }] });
+        const liveRow = S.live ? S.live.layers.find((l) => l.id === id) : null;
+        const cmp = liveRow && liveRow.head ? { label: T('Compare with the other layers', 'Σύγκριση με τα άλλα στρώματα'), run: () => { S.view = 'compare'; seg.querySelectorAll('button').forEach((b) => { const on = b.dataset.v === 'compare'; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); }); drawStage(); const want = liveRow.head.variable; const go = () => { if (liveView && liveKind === 'compare' && liveView.setVariable) liveView.setVariable(want); else if (!dead && S.view === 'compare') setTimeout(go, 150); }; go(); R.stage.scrollIntoView({ block: 'start', behavior: 'smooth' }); } } : null;
+        SC.modal({ title: known ? nameOf(known) : id, body, actions: [{ label: T('Close', 'Κλείσιμο'), primary: true }].concat(cmp ? [cmp] : []) });
         try {
           const r = await SC.api(API + '/layers/' + encodeURIComponent(id));
           const s = r.layer, st = r.status, i18n = (s.i18n && s.i18n.el) || {};

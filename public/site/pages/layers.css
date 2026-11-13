@@ -209,3 +209,11 @@
   .ly-sat { padding: 10px; }
   .ly-sat-th { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+
+/* the centre card now holds five views: the tabs scroll sideways on a narrow screen, and the live views (layers-live.css) size to the card */
+.ly-viewbox { container: lystage / inline-size; }
+.ly-top .nm-pillbar { max-width: 100%; overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
+.ly-top .nm-pillbar::-webkit-scrollbar { display: none; }
+.ly-top .nm-pillbar > button { white-space: nowrap; flex: none; }
+.ly-top p { max-width: 60ch; }
+.ly-stagecard { align-self: start; }

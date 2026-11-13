@@ -64,6 +64,13 @@ const up = async () => { for (let i = 0; i < 100; i++) { try { await fetch(BASE 
   r = await get('/layers/api/live');
   ok(r.json.layers.find((l) => l.id === 'openmeteo-weather').spark.length >= 2 && r.json.since > 0, 'log: the trend line of a layer has points');
   const since = r.json.since;
+  r = await get('/layers/api/replay');
+  const RP = r.json;
+  ok(r.status === 200 && RP.times.length >= 2 && RP.times.every((t, i, x) => i === 0 || t > x[i - 1]), 'replay: the moments of the log, in order (' + (RP.times || []).length + ')');
+  ok(['larnaka', 'lefkosia', 'limassol', 'paphos'].every((c) => RP.cities[c] && ['own', 'air', 'wind', 'sea'].every((k) => RP.cities[c][k] === null || RP.cities[c][k].values.length === RP.times.length)), 'replay: every series has one value per moment');
+  ok(RP.cities.larnaka.air && RP.cities.larnaka.own && /sensecap/.test(RP.cities.larnaka.own.source), 'replay: Larnaka has outdoor air and our own sensors');
+  ok(!/"lat"|"lng"|eui|"name"/i.test(r.text), 'replay: numbers only, no positions or ids');
+
   ok(fs.existsSync(path.join(dataDir, 'layers-pulse.json')), 'log: saved in the data folder');
   srv.kill(); await wait(600);
   srv = start(); await up();

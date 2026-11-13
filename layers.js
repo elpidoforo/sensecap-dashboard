@@ -876,6 +876,33 @@ const lc = (s) => String(s).replace(/^\S+/, (w) => (/[A-Z0-9]/.test(w.slice(1)) 
       map: s.map, newestSatellite: sat ? { id: sat.id, name: sat.name, nameEl: sat.nameEl, at: sat.lastAt } : null,
     };
   }
+  // The last day as the live map replays it: for each city, what our own sensors read, the outdoor air temperature, the wind and the sea, at the moments of the log.
+  function replayView() {
+    const cut = Date.now() - 24 * HOUR;
+    let times = [...new Set([...hist.values()].flatMap((pts) => pts.map((p) => p[0])).filter((t) => t > cut))].sort((a, b) => a - b);
+    if (times.length > 144) { const step = Math.ceil(times.length / 144); times = times.filter((_, i) => i % step === 0 || i === times.length - 1); }
+    const idx = new Map(times.map((t, i) => [t, i]));
+    const OWN = ['sensecap-classrooms', 'sensecap-buses', 'sensecap-cars'];
+    const pick = (city, variable, order) => {
+      for (const src of order) {
+        const pts = hist.get(city + '|' + src + '|' + variable);
+        if (!pts || !pts.length) continue;
+        const values = new Array(times.length).fill(null);
+        for (const [t, v] of pts) if (idx.has(t)) values[idx.get(t)] = v;
+        if (values.some((v) => v != null)) return { source: src, variable, unit: unitText(vocab(variable).unit), values };
+      }
+      return null;
+    };
+    return {
+      at: Date.now(), every: PULSE_EVERY, times,
+      cities: Object.fromEntries(cityIds().map((c) => [c, {
+        own: pick(c, 'co2', OWN) || pick(c, 'temperature', OWN),
+        air: pick(c, 'temperature', ['cydom-stations', 'metar-airports', 'openmeteo-weather']),
+        wind: pick(c, 'wind_speed', ['cydom-stations', 'metar-airports', 'openmeteo-weather']),
+        sea: pick(c, 'sea_surface_temperature', ['openmeteo-marine', 'noaa-sst']),
+      }])),
+    };
+  }
   async function compareView(cityId, variable) {
     if (!reg.places[cityId] || cityId[0] === '_') fail(400, 'Unknown city. Use one of: ' + cityIds().join(', ') + '.');
     const s = await getSnap();
@@ -902,6 +929,7 @@ const lc = (s) => String(s).replace(/^\S+/, (w) => (/[A-Z0-9]/.test(w.slice(1)) 
     const p = url.pathname;
     if (req.method === 'GET' && p === '/layers/api/register') return sendJson(res, 200, await registerView());
     if (req.method === 'GET' && p === '/layers/api/live') return sendJson(res, 200, await liveView());
+    if (req.method === 'GET' && p === '/layers/api/replay') return sendJson(res, 200, replayView());
     if (req.method === 'GET' && p === '/layers/api/compare') return sendJson(res, 200, await compareView(String(url.searchParams.get('city') || ''), String(url.searchParams.get('variable') || '').slice(0, 60) || null));
     let m;
     if (req.method === 'GET' && (m = /^\/layers\/api\/layers\/([a-z0-9-]+)$/.exec(p))) {
