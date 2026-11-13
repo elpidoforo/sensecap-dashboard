@@ -101,6 +101,9 @@ const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + 
       if (cid === 'bathing-water-history') ok(/95/.test(text) && !/score|improved|βαθμολογ/i.test(text), name + ': bathing water compares the 95 shared sites and gives no score');
       await p.keyboard.press('Escape'); await p.waitForTimeout(200);
     }
+    // the platform's name and logo
+    ok(await p.evaluate((g) => { const b = document.querySelector('.sm-brand'); return !!b && b.querySelector('b').textContent === (g ? 'ΑΘΗΝΑ' : 'ATHENA') && /Smart Cities/.test(b.querySelector('small').textContent) && b.querySelectorAll('svg path').length >= 2; }, el), name + ': the menu carries the Athena name and mark');
+    ok(/ · Athena$/.test(await p.title()) && await p.evaluate(() => document.querySelector('link[rel=icon]').getAttribute('href')) === '/site/logo.svg', name + ': the tab title and icon are Athena');
     // replay the day
     await tab(p, 'day'); await p.waitForSelector('.dy-c', { timeout: 15000 });
     const nb = await p.locator('.dy-b').count();
@@ -132,6 +135,7 @@ const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + 
     ok(await p.locator('.cn-pi').count() >= 3 && await p.locator('.cn-po').count() === 6, name + ': the core has its layers in and six ways out');
     ok(await p.evaluate(() => { const c = document.querySelector('.cn-gl'); return !!c && c.width > 100 && c.height > 100; }), name + ': the 3D canvas is drawn at a real size');
     ok(/\d/.test(await p.locator('.cn-tot').innerText()) && /\d/.test(await p.locator('.cn-words').innerText()), name + ': the core gives its totals in the bar and in words');
+    ok(new RegExp(el ? 'ΑΘΗΝΑ' : 'ATHENA').test(await p.locator('.cn-top b').innerText()), name + ': the scene carries the name');
     ok(/decoration|διακοσμητικ/.test(await p.locator('.cn-words').innerText()), name + ': the core says the shape and the map carry no numbers');
     await p.waitForTimeout(3200);
     ok((await p.locator('.cn-tick').innerText()).length > 12 && !/Replaying|Επανάληψη/.test(await p.locator('.cn-tick').innerText()), name + ': a real reading is named in the bottom line');
@@ -141,7 +145,7 @@ const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + 
     const fr1 = await p.locator('.cn-beat').evaluate((e) => e.style.opacity + e.querySelector('u').style.width); await p.waitForTimeout(600);
     ok(fr1 === await p.locator('.cn-beat').evaluate((e) => e.style.opacity + e.querySelector('u').style.width), name + ': a paused scene stands still');
     await p.locator('.cn-pause').click();
-    if (el) ok(/Πυρήνας δεδομένων/.test(await p.locator('.ly-top .nm-pillbar').innerText()) && /ΚΥΠΡΟΣ/.test(await p.locator('.cn-top').innerText()) && /Με λόγια/.test(await p.locator('.cn-words').innerText()), name + ': the core is in Greek');
+    if (el) ok(/Πυρήνας δεδομένων/.test(await p.locator('.ly-top .nm-pillbar').innerText()) && /ΑΘΗΝΑ · SMART CITIES ΚΥΠΡΟΣ/.test(await p.locator('.cn-top').innerText()) && /Με λόγια/.test(await p.locator('.cn-words').innerText()), name + ': the core is in Greek');
     ok(await p.evaluate(() => { const s = document.querySelector('.cn'), r = s.getBoundingClientRect(); return [...s.querySelectorAll('.cn-pi, .cn-po, .cn-top, .cn-bot')].every((e) => { const q = e.getBoundingClientRect(); return q.left >= r.left - 1 && q.right <= r.right + 1; }); }), name + ': the panels stay inside the scene');
     ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), name + ': the core does not scroll sideways');
     const want = await p.locator('.cn-po b').nth(2).innerText();

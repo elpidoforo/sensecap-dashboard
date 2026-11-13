@@ -363,8 +363,8 @@
   /* ---------- side menu ---------- */
   function brandSvg() {
     const s = SC.svgEl('svg', { viewBox: '0 0 38 38', 'aria-hidden': 'true' });
-    // the Prometheas mark: a flame (knowledge) with a sensor dot inside and signal arcs on both sides
-    s.innerHTML = '<defs><linearGradient id="lg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#4CCBEA"/><stop offset=".55" stop-color="#F2A56B"/><stop offset="1" stop-color="#F7C46B"/></linearGradient></defs><rect x="1" y="1" width="36" height="36" rx="10" fill="#10223a" stroke="url(#lg)" stroke-width="1.5"/><path d="M19.6 5.8c.6 4.6 6.9 7.3 6.9 14.4a7.5 7.5 0 01-15 0c0-3.3 1.700-5.300 3.100-7.500.5 2.300 1.500 3.500 2.700 3.900 1.700-2.900.9-7.200 2.300-10.800z" fill="none" stroke="url(#lg)" stroke-width="1.9" stroke-linejoin="round"/><circle cx="19" cy="21.4" r="2.7" fill="url(#lg)"/><path d="M7.6 15.8a11.5 11.5 0 000 12.4M30.400 15.800a11.500 11.500 0 010 12.400" fill="none" stroke="url(#lg)" stroke-width="1.8" stroke-linecap="round"/>';
+    // the Athena mark: her owl, with eyes drawn like sensor rings
+    s.innerHTML = '<defs><linearGradient id="lg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#4CCBEA"/><stop offset=".55" stop-color="#F2A56B"/><stop offset="1" stop-color="#F7C46B"/></linearGradient></defs><rect x="1" y="1" width="36" height="36" rx="10" fill="#10223a" stroke="url(#lg)" stroke-width="1.5"/><path d="M8 7.500c1 4.500 5 6.500 11 8.500 6-2 10-4 11-8.500" fill="none" stroke="url(#lg)" stroke-width="1.900" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 7.500v13.500c0 6 4.500 10.500 11 10.500s11-4.500 11-10.500V7.500" fill="none" stroke="url(#lg)" stroke-width="1.900" stroke-linecap="round" stroke-linejoin="round"/><circle cx="13.800" cy="19.800" r="3.700" fill="none" stroke="url(#lg)" stroke-width="1.700"/><circle cx="24.200" cy="19.800" r="3.700" fill="none" stroke="url(#lg)" stroke-width="1.700"/><circle cx="13.800" cy="19.800" r="1.400" fill="url(#lg)"/><circle cx="24.200" cy="19.800" r="1.400" fill="url(#lg)"/><path d="M19 22.800l-1.700 2.500 1.700 2 1.700-2z" fill="url(#lg)"/>';
     return s;
   }
 
@@ -374,7 +374,7 @@
     side.replaceChildren();
     const steps = tourSteps();
     side.append(
-      SC.el('div', { class: 'sm-brand' }, brandSvg(), SC.el('div', null, SC.el('b', null, SC.t('PROMETHEAS', 'ΠΡΟΜΗΘΕΑΣ')), SC.el('small', null, SC.t('Smart Cities · Cyprus', 'Smart Cities · Κύπρος')))),
+      SC.el('div', { class: 'sm-brand' }, brandSvg(), SC.el('div', null, SC.el('b', null, SC.t('ATHENA', 'ΑΘΗΝΑ')), SC.el('small', null, SC.t('Smart Cities · Cyprus', 'Smart Cities · Κύπρος')))),
       SC.el('button', { class: 'sm-search', type: 'button', style: { width: '100%', textAlign: 'left', cursor: 'pointer' }, onclick: openPalette }, SC.icon('search', 16), SC.el('span', null, SC.t('Search or jump to…', 'Αναζήτηση…')), SC.el('kbd', null, 'Ctrl K')),
       SC.el('div', { class: 'sm-brief' + (tourOn ? ' on' : ''), id: 'tour-card', role: 'switch', 'aria-checked': tourOn ? 'true' : 'false', tabindex: 0, onclick: toggleTour, onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTour(); } } },
         SC.el('div', null, SC.el('b', null, SC.t('Tour mode', 'Λειτουργία ξενάγησης')), SC.el('small', null, SC.t('A ' + steps.length + '-step route', 'Διαδρομή ' + steps.length + ' βημάτων'))), SC.el('i')));
@@ -545,7 +545,7 @@
     const logo = brandSvg(); logo.setAttribute('class', 'wl-logo');
     logo.querySelector('linearGradient').setAttribute('id', 'lg2'); logo.querySelectorAll('[stroke="url(#lg)"]').forEach((n) => n.setAttribute('stroke', 'url(#lg2)')); logo.querySelectorAll('[fill="url(#lg)"]').forEach((n) => n.setAttribute('fill', 'url(#lg2)'));
     const h1 = SC.el('h1', { id: 'wl-h' }, SC.el('span', { class: 'wl-w wl-w1' }, SC.t('Our schools.', 'Τα σχολεία μας.')), ' ', SC.el('span', { class: 'wl-w wl-w2' }, SC.t('One live city.', 'Μία ζωντανή πόλη.')));
-    const hero = SC.el('div', { class: 'wl-v' }, svg, SC.el('div', { class: 'wl-brand' }, logo, SC.el('b', null, SC.t('PROMETHEAS', 'ΠΡΟΜΗΘΕΑΣ'))),
+    const hero = SC.el('div', { class: 'wl-v' }, svg, SC.el('div', { class: 'wl-brand' }, logo, SC.el('b', null, SC.t('ATHENA', 'ΑΘΗΝΑ'))),
       SC.el('div', { class: 'wl-mt' }, h1, SC.el('p', { class: 'wl-tag' }, SC.t('Live readings you can check', 'Ζωντανές μετρήσεις που μπορείτε να ελέγξετε'))));
     const CARDS = [
       ['#4CCBEA', 'sensor', SC.t('Live from our schools', 'Ζωντανά από τα σχολεία μας'), SC.t('Readings from sensors on buses, cars and classrooms at four schools, in one place.', 'Μετρήσεις από αισθητήρες σε λεωφορεία, αυτοκίνητα και τάξεις τεσσάρων σχολείων, σε ένα σημείο.')],
@@ -609,7 +609,7 @@
     const lab = labelOf[id], d = DESC[id];
     const known = Boolean(lab);
     const title = known ? SC.t(lab[0], lab[1]) : SC.t('Nothing here yet', 'Δεν υπάρχει τίποτα εδώ ακόμα');
-    document.title = title + ' · Prometheas';
+    document.title = title + ' · Athena';
     const next = ['board', 'vehicles', 'weather'].filter((x) => isReady(x));
     view.append(SC.head({ title, help: false }),
       SC.el('section', { class: 'nm-card nm-card--glow sc-soon' },
@@ -635,7 +635,7 @@
     const fresh = view.cloneNode(false);
     fresh.id = 'view'; fresh.className = 'nm-enter'; fresh.tabIndex = -1;
     view.replaceWith(fresh);
-    document.title = SC.t(labelOf[id] ? labelOf[id][0] : 'Smart Cities', labelOf[id] ? labelOf[id][1] : 'Smart Cities') + ' · Prometheas';
+    document.title = SC.t(labelOf[id] ? labelOf[id][0] : 'Smart Cities', labelOf[id] ? labelOf[id][1] : 'Smart Cities') + ' · Athena';
     fresh.append(SC.el('div', { class: 'loading' }, SC.t('Loading', 'Φόρτωση')));
     let def = null;
     if (/^[a-z0-9_-]+$/i.test(id)) { try { def = await loadPage(id); } catch (e) { def = null; } }
