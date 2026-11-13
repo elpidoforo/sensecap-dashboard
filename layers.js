@@ -761,12 +761,148 @@ const lc = (s) => String(s).replace(/^\S+/, (w) => (/[A-Z0-9]/.test(w.slice(1)) 
     return value;
   }
 
+  /* ----- the pulse: the newest value of every layer for every city, and a log of them for the last day -----
+     Feeds the live map, the pulse board and the compare chart of the Data layers page. Every PULSE_EVERY the evidence of the four
+     cities is read (the same evidenceFor() the brain uses: school-level and station-level numbers, never a vehicle position) and one
+     point per city, source and measurement is added to the log. The log is kept for KEEP hours and saved in the data folder, so it
+     survives a restart. Nothing here calls an outside service: it reads what the server already fetched. */
+  const PULSE_EVERY = Math.max(5, envInt('LAYERS_PULSE_SECONDS', 300)) * 1000, KEEP = 26 * HOUR;   // LAYERS_PULSE_SECONDS is only made shorter by the tests
+  const pulseFile = dataDir ? path.join(dataDir, 'layers-pulse.json') : null;
+  const hist = new Map();   // "city|source|variable" -> [[t, value], ...] oldest first
+  try {
+    const saved = pulseFile ? JSON.parse(fs.readFileSync(pulseFile, 'utf8')) : null;
+    const cut = Date.now() - KEEP;
+    for (const [k, pts] of Object.entries((saved && saved.series) || {})) {
+      const clean = (Array.isArray(pts) ? pts : []).filter((p) => Array.isArray(p) && isFinite(p[0]) && isFinite(p[1]) && p[0] > cut && p[0] <= Date.now() + 60000);
+      if (clean.length && /^[a-z]+\|[a-z0-9-]+\|[a-z0-9_]+$/.test(k)) hist.set(k, clean);
+    }
+  } catch (e) { /* no log yet */ }
+  const r2 = (v) => Math.round(v * 100) / 100;
+  let snap = null, pulseBusy = null, lastLogged = 0, lastSaved = 0;
+  const cityIds = () => Object.keys(reg.places).filter((k) => k[0] !== '_');
+  function savePulse() {
+    if (!pulseFile) return;
+    try {
+      fs.mkdirSync(path.dirname(pulseFile), { recursive: true });
+      fs.writeFileSync(pulseFile + '.tmp', JSON.stringify({ at: Date.now(), series: Object.fromEntries(hist) }));
+      fs.renameSync(pulseFile + '.tmp', pulseFile);
+      lastSaved = Date.now();
+    } catch (e) { log('Layers: the pulse log could not be saved: ' + plain(e && e.message, 120)); }
+  }
+  async function mapExtras(usable) {
+    const out = { wind: [], sea: [], stations: [], air: [] };
+    const pt = (p) => isFinite(Number(p.lat)) && isFinite(Number(p.lng));
+    const jobs = [];
+    const want = (id, fn) => { if (usable.has(id)) jobs.push(timeout(Promise.resolve().then(fn), 6000, 'The map data').catch(() => { /* this part of the map is left out */ })); };
+    want('openmeteo-weather', async () => { const w = await data.weather(); out.wind = (w.points || []).filter((p) => pt(p) && num(p.ws) != null && num(p.wd) != null).slice(0, 60).map((p) => ({ lat: r2(p.lat), lng: r2(p.lng), ws: r2(p.ws), wd: Math.round(p.wd), t: num(p.t) == null ? null : r2(p.t) })); });
+    want('openmeteo-marine', async () => { const s = await data.sea(); out.sea = (s.points || []).filter((p) => pt(p) && num(p.sst) != null).slice(0, 40).map((p) => ({ lat: r2(p.lat), lng: r2(p.lng), sst: r2(p.sst), wave: num(p.wave) == null ? null : r2(p.wave) })); });
+    want('openmeteo-air', async () => { const a = await data.air(); out.air = (a.points || []).filter((p) => pt(p) && num(p.pm25) != null).slice(0, 60).map((p) => ({ lat: r2(p.lat), lng: r2(p.lng), pm25: r2(p.pm25) })); });
+    want('cydom-stations', async () => { const c = await data.cydom(); for (const p of (c.points || []).filter((x) => pt(x) && num(x.temp) != null).slice(0, 40)) out.stations.push({ src: 'cydom-stations', name: plain(p.name, 40), lat: Number(p.lat), lng: Number(p.lng), temp: r2(p.temp), at: toMs(p.time) }); });
+    want('metar-airports', async () => { const m = await data.metar(); for (const p of (m.points || []).filter((x) => pt(x) && num(x.temp) != null).slice(0, 6)) out.stations.push({ src: 'metar-airports', name: plain(p.name, 40), lat: Number(p.lat), lng: Number(p.lng), temp: r2(p.temp), at: toMs(p.time) }); });
+    await Promise.all(jobs);
+    return out;
+  }
+  async function takePulse() {
+    if (pulseBusy) return pulseBusy;
+    pulseBusy = (async () => {
+      const view = await registerView(9000);
+      const usable = new Set(view.layers.filter((l) => l.state === 'live' || l.state === 'late').map((l) => l.id));
+      const ids = [...usable].filter((id) => readsNumbers(srcById(id) || {})).sort();
+      const now = Date.now(), cities = {};
+      const logNow = now - lastLogged >= PULSE_EVERY - 5000;
+      for (const cityId of cityIds()) {
+        let ev = { rows: [] };
+        try { ev = ids.length ? await evidenceFor(cityId, ids) : ev; } catch (e) { log('Layers: the pulse could not read ' + cityId + ': ' + plain(e && e.message, 120)); }
+        cities[cityId] = { ev };
+        if (!logNow) continue;
+        const seen = new Set();
+        for (const r of ev.rows) {
+          const k = cityId + '|' + r.source + '|' + r.variable;
+          if (r.stale || seen.has(k)) continue;
+          seen.add(k);
+          if (!hist.has(k)) hist.set(k, []);
+          hist.get(k).push([now, r2(r.value)]);
+        }
+      }
+      if (logNow) {
+        lastLogged = now;
+        for (const [k, pts] of hist) { while (pts.length && pts[0][0] < now - KEEP) pts.shift(); if (!pts.length) hist.delete(k); }
+        if (now - lastSaved >= PULSE_EVERY - 5000) savePulse();
+      }
+      const own = {};
+      for (const id of ['sensecap-classrooms', 'sensecap-buses', 'sensecap-cars']) { const s = srcById(id); if (s) { const st = await status(s, 200); own[id] = { n: st.n || 0, fresh: st.fresh || 0 }; } }
+      snap = { at: now, view, usable, cities, own, map: await mapExtras(usable) };
+      return snap;
+    })().finally(() => { pulseBusy = null; });
+    return pulseBusy;
+  }
+  const getSnap = async () => (snap && Date.now() - snap.at < 60000 ? snap : takePulse());
+  if (opts.pulse !== false) {
+    const first = setTimeout(() => takePulse().catch((e) => log('Layers: the first pulse failed: ' + plain(e && e.message, 120))), envInt('LAYERS_PULSE_FIRST_MS', 25000));
+    const every = setInterval(() => takePulse().catch(() => { /* the next one tries again */ }), PULSE_EVERY);
+    if (first.unref) first.unref();
+    if (every.unref) every.unref();
+  }
+  // the series of one source and measurement: one city, or the average of the cities at each moment
+  function seriesOf(source, variable, cityId) {
+    if (cityId) return (hist.get(cityId + '|' + source + '|' + variable) || []).filter((p) => p[0] > Date.now() - 24 * HOUR);
+    const by = new Map();
+    for (const c of cityIds()) for (const [t, v] of hist.get(c + '|' + source + '|' + variable) || []) { if (t <= Date.now() - 24 * HOUR) continue; const b = by.get(t) || [0, 0]; b[0] += v; b[1]++; by.set(t, b); }
+    return [...by].sort((a, b) => a[0] - b[0]).map(([t, [s, n]]) => [t, r2(s / n)]);
+  }
+  const pubRow = (r) => ({ source: r.source, variable: r.variable, value: Number(fmt(r.value)), unit: unitText(r.unit), kind: r.kind, env: r.env, ageMin: r.ageMin, stale: !!r.stale, n: r.n || null });
+  async function liveView() {
+    const s = await getSnap();
+    const first = [...hist.values()].reduce((m, pts) => Math.min(m, pts[0][0]), Infinity);
+    const layersOut = s.view.layers.map((c) => {
+      const src = srcById(c.id) || {};
+      let head = null, spark = [];
+      if (s.usable.has(c.id)) {
+        for (const v of (src.variables || []).map((x) => x.id)) {
+          const rows = cityIds().map((id) => s.cities[id].ev.rows.find((r) => r.source === c.id && r.variable === v && !r.stale)).filter(Boolean);
+          if (!rows.length) continue;
+          head = { variable: v, label: vocab(v).label || [v, v], value: Number(fmt(rows.reduce((a, r) => a + r.value, 0) / rows.length)), unit: unitText(rows[0].unit), cities: rows.length };
+          spark = seriesOf(c.id, v, null).map((p) => p[1]);
+          if (spark.length > 96) { const step = Math.ceil(spark.length / 96); spark = spark.filter((_, i) => i % step === 0 || i === spark.length - 1); }
+          break;
+        }
+      }
+      return { id: c.id, group: c.group, name: c.name, nameEl: c.nameEl, kind: c.kind, state: c.state, lastAt: c.lastAt, everyMs: isoMs(c.every) || null, count: c.count, note: c.note, noteEl: c.noteEl, tagline: c.tagline, taglineEl: c.taglineEl, head, spark, ...(s.own[c.id] ? { sensors: s.own[c.id].n, fresh: s.own[c.id].fresh } : {}) };
+    });
+    const sat = layersOut.filter((l) => l.kind === 'satellite' && l.state === 'live' && l.lastAt).sort((a, b) => b.lastAt - a.lastAt)[0];
+    return {
+      at: s.at, since: isFinite(first) ? first : null, every: PULSE_EVERY, counts: s.view.counts, layers: layersOut,
+      cities: Object.fromEntries(cityIds().map((id) => [id, { name: reg.places[id].name, rows: s.cities[id].ev.rows.map(pubRow) }])),
+      map: s.map, newestSatellite: sat ? { id: sat.id, name: sat.name, nameEl: sat.nameEl, at: sat.lastAt } : null,
+    };
+  }
+  async function compareView(cityId, variable) {
+    if (!reg.places[cityId] || cityId[0] === '_') fail(400, 'Unknown city. Use one of: ' + cityIds().join(', ') + '.');
+    const s = await getSnap();
+    const rows = s.cities[cityId].ev.rows;
+    const vars = [...new Set(rows.map((r) => r.variable))].map((v) => ({ id: v, label: vocab(v).label || [v, v], unit: unitText(vocab(v).unit), sources: new Set(rows.filter((r) => r.variable === v).map((r) => r.source)).size }))
+      .sort((a, b) => b.sources - a.sources || a.id.localeCompare(b.id));
+    const v = variable && vars.some((x) => x.id === variable) ? variable : (vars[0] || {}).id || null;
+    if (variable && v !== variable) fail(404, 'No layer has that measurement for this city right now.', 'no_variable');
+    const mine = uniqueRows(rows.filter((r) => r.variable === v));
+    const c = v ? candidates(cityId, { rows: rows.filter((r) => r.variable === v) })[0] : null;
+    const t = c ? template(c, cityId) : null;
+    return {
+      at: s.at, since: (() => { const f = mine.map((r) => (hist.get(cityId + '|' + r.source + '|' + v) || [[Infinity]])[0][0]).filter(isFinite); return f.length ? Math.min(...f) : null; })(),
+      every: PULSE_EVERY, city: cityId, cityName: reg.places[cityId].name, variable: v, variables: vars,
+      series: mine.map((r) => { const src = srcById(r.source) || {}; return { ...pubRow(r), name: srcName(r.source), nameEl: srcName(r.source, true), group: src.layer, kindWord: KIND_WORDS[r.kind] || null, points: seriesOf(r.source, v, cityId) }; }),
+      finding: c ? { kind: c.kind, confidence: c.confidence, title: t.title, body: t.body, spread: c.spread == null ? null : Number(fmt(c.spread)), tolerance: c.tolerance == null ? null : Number(fmt(c.tolerance)), by: 'template' } : null,
+    };
+  }
+
   /* ----- HTTP ----- */
   const isStaff = (u) => u && (u.role === 'teacher' || u.role === 'admin');
 
   async function handleApi(req, res, url) {
     const p = url.pathname;
     if (req.method === 'GET' && p === '/layers/api/register') return sendJson(res, 200, await registerView());
+    if (req.method === 'GET' && p === '/layers/api/live') return sendJson(res, 200, await liveView());
+    if (req.method === 'GET' && p === '/layers/api/compare') return sendJson(res, 200, await compareView(String(url.searchParams.get('city') || ''), String(url.searchParams.get('variable') || '').slice(0, 60) || null));
     let m;
     if (req.method === 'GET' && (m = /^\/layers\/api\/layers\/([a-z0-9-]+)$/.exec(p))) {
       const l = reg.layers.find((x) => x.src.id === m[1]);
@@ -821,7 +957,7 @@ const lc = (s) => String(s).replace(/^\S+/, (w) => (/[A-Z0-9]/.test(w.slice(1)) 
     }
   }
 
-  return { enabled: true, configured: !!apiKey, handle, reload, register: registerView, _t: { schemaCheck, checkSource, loadRegister, evidenceFor, candidates, numbersOk, allowedNumbers, template, registerView, brain, fmt, independent } };
+  return { enabled: true, configured: !!apiKey, handle, reload, register: registerView, _t: { takePulse, liveView, compareView, hist, schemaCheck, checkSource, loadRegister, evidenceFor, candidates, numbersOk, allowedNumbers, template, registerView, brain, fmt, independent } };
 }
 
 module.exports = { createLayers, loadRegister, checkSource, schemaCheck, DEFAULT_MISSION };
