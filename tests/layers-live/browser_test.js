@@ -204,11 +204,26 @@ const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + 
     ok(await p3.evaluate(() => { const a = document.querySelector('.hm-route'), c = document.querySelector('.hm-core'), s = document.querySelector('.hm-stage'); return a.getBoundingClientRect().bottom <= c.getBoundingClientRect().top + 1 && c.getBoundingClientRect().bottom <= s.getBoundingClientRect().top + 60; }), name + ': the scene sits between the tour route and the island');
     ok(await p3.locator('.hm-core .cn-po').count() === 6 && /\d/.test(await p3.locator('.hm-core .cn-words').innerText()), name + ': the scene has its panels and its sentence');
     ok(await p3.locator('.hm-stage .hm-plane').count() === 1, name + ': the island is still there');
+    ok(await p3.locator('.hm-win .hm-wd').count() === 8 && (await p3.locator('.hm-win .hm-wd').first().innerText()).length > 40, name + ': every window says what is inside');
+    await p3.waitForFunction(() => document.querySelector('.hm-wins.on'), null, { timeout: 5000 }).catch(() => {});
+    ok(await p3.evaluate(() => { const k = [...document.querySelectorAll('.hm-wins.on > .hm-win')]; if (k.length !== 8) return false; const r = k.map((e) => e.getBoundingClientRect()); for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) { const a = r[i], b = r[j]; if (a.left < b.right - 2 && b.left < a.right - 2 && a.top < b.bottom - 2 && b.top < a.bottom - 2) return false; } return true; }), name + ': the eight windows are packed without overlapping');
+    ok(await p3.evaluate(() => document.querySelectorAll('.hm-core .cn-po .cn-rx').length === 6 && getComputedStyle(document.querySelector('.hm-core .cn-wrap')).borderRadius === '22px'), name + ': the scene is a rounded tile and its boxes have a stream');
+    if (/desktop/.test(name)) {
+      ok(await p3.evaluate(() => getComputedStyle(document.getElementById('side')).visibility === 'hidden' && document.querySelector('.main-col').getBoundingClientRect().left === 0), name + ': the menu is tucked away and the page has the full width');
+      await p3.mouse.move(500, 300); await p3.mouse.move(3, 300); await p3.waitForTimeout(500);
+      ok(await p3.evaluate(() => document.body.classList.contains('peek') && getComputedStyle(document.getElementById('side')).visibility === 'visible'), name + ': the pointer at the left edge brings the menu in');
+      await p3.mouse.move(800, 300); await p3.waitForTimeout(900);
+      ok(await p3.evaluate(() => !document.body.classList.contains('peek')), name + ': the menu goes back when the pointer leaves');
+      await p3.click('#burger'); await p3.waitForTimeout(400);
+      ok(await p3.evaluate(() => document.body.classList.contains('drawer') && document.getElementById('side').contains(document.activeElement)), name + ': the Menu button opens the menu and moves the keyboard into it');
+      await p3.keyboard.press('Escape'); await p3.waitForTimeout(300);
+      ok(await p3.evaluate(() => !document.body.classList.contains('drawer')), name + ': Escape closes the menu');
+    }
     ok(await p3.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), name + ': the home page does not scroll sideways');
-    await p3.locator('.hm-core .cn-po').nth(3).click(); await p3.waitForSelector('.ly-chip.on');
+    await p3.locator('.hm-core .cn-po').nth(3).click({ force: true });   // the tile floats, so it never stands still for the test's click await p3.waitForSelector('.ly-chip.on');
     ok(/#\/layers/.test(p3.url()) && /paphos/i.test(await p3.locator('.ly-chip.on').first().innerText()), name + ': pressing a city opens the Data layers page on that city');
     await p3.goto(BASE + '/#/home'); await p3.waitForSelector('.hm-core .cn-po', { timeout: 30000 });
-    await p3.locator('.hm-core .cn-po').nth(5).click(); await p3.waitForSelector('.dy', { timeout: 15000 });
+    await p3.locator('.hm-core .cn-po').nth(5).click({ force: true });   // the tile floats, so it never stands still for the test's click await p3.waitForSelector('.dy', { timeout: 15000 });
     ok(await p3.locator('.ly-top .nm-pillbar button.on').getAttribute('data-v') === 'day', name + ': "Replay the day" opens that view');
     ok(e3.length === 0, name + ': no script errors (' + e3.slice(0, 2).join(' | ') + ')');
     await c3.close();
