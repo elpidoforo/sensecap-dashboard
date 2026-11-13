@@ -1697,7 +1697,7 @@ const server = http.createServer(async (req, res) => {
         return res.end('Not found');
       }
       const csp = inApp ? APP_CSP : url.pathname.startsWith('/cities') ? CITIES_CSP : url.pathname === '/3d.html' ? policy3d(buf) : url.pathname === '/' || url.pathname.startsWith('/site/') ? SITE_CSP : null;
-      const headers = { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream', 'Cache-Control': url.pathname.startsWith('/vendor/three-r160/') ? 'public, max-age=31536000, immutable' : 'no-cache', 'Accept-Ranges': 'bytes', ...(csp ? { 'Content-Security-Policy': csp, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' } : {}) };
+      const headers = { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream', 'Cache-Control': /^\/vendor\/three-r\d+\//.test(url.pathname) ? 'public, max-age=31536000, immutable' : 'no-cache', 'Accept-Ranges': 'bytes', ...(csp ? { 'Content-Security-Policy': csp, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' } : {}) };
       const range = req.headers.range ? parseRange(req.headers.range, buf.length) : null;
       if (range === 'bad') {
         res.writeHead(416, { ...headers, 'Content-Range': `bytes */${buf.length}`, 'Content-Length': 0 });

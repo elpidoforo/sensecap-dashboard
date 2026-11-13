@@ -1,0 +1,6 @@
+three.js r128 (MIT licence, see LICENSE in this folder). Copied unmodified from the Nemesis project's vendor folder.
+Source:  https://github.com/mrdoob/three.js  tag r128
+Files:   three.min.js (the classic global build) and, from examples/js: CopyShader.js, EffectComposer.js, RenderPass.js, ShaderPass.js,
+         LuminosityHighPassShader.js, UnrealBloomPass.js (classic scripts that add to the global THREE).
+Used by: /site/pages/layers-cine-gl.js (the "Data core" view of the Data layers page), loaded only when that view is opened.
+Why not r160: the site pages have no import map (the policy allows no inline script), and the r160 add-ons need one.
