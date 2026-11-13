@@ -1,0 +1,111 @@
+/* Four toolkit pages: forecast, beforeafter, timemachine, askmap. Classes start with t3-.
+   The look follows "Replay the day" (dy-* in layers-live.css): a dark navy stage, rounded panels, cyan for what was measured or came
+   before, amber for the forecast, the action and what is selected. Text is never smaller than 12.5px. */
+.t3 { --t3-line: rgba(120, 200, 255, .16); --t3-hot: #FFC857; --t3-cy: #4CCBEA; display: grid; gap: 10px; padding: 12px; border-radius: 18px; background: radial-gradient(120% 80% at 50% 0, #0d1c30 0, #060b14 70%); border: 1px solid var(--t3-line); color: #e6eef8; min-width: 0; }
+.t3 > *, .t3-panel > *, .t3-out > *, .t3-step > *, .t3-cols > *, .t3-grid2 > * { min-width: 0; }
+.t3-panel { padding: 14px 16px; border: 1px solid var(--t3-line); border-radius: 14px; background: rgba(8, 16, 28, .72); min-width: 0; display: grid; gap: 10px; align-content: start; }
+.t3-h { margin: 0; font: 700 17px/1.3 var(--nm-font); color: #fff; }
+.t3-say { margin: 0; font: 500 15.5px/1.55 var(--nm-font); color: #e6eef8; max-width: 80ch; }
+.t3-note { margin: 0; font: 400 13px/1.55 var(--nm-font); color: #9db0c8; max-width: 90ch; overflow-wrap: anywhere; }
+.t3-note.t3-foot { padding: 0 4px; }
+.t3-warn { margin: 0; padding: 8px 10px; border: 1px solid rgba(255, 200, 87, .35); border-radius: 10px; font: 400 13px/1.5 var(--nm-font); color: #ffe2a3; }
+.t3-empty { margin: 0; padding: 18px 14px; font: 400 14px/1.5 var(--nm-font); color: #9db0c8; }
+.t3-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.t3-kl { display: block; font: 700 12.5px/1.3 var(--nm-font); letter-spacing: .06em; text-transform: uppercase; color: #9db0c8; }
+.t3-list { margin: 0; padding: 0 0 0 18px; display: grid; gap: 6px; font: 400 14px/1.55 var(--nm-font); color: #d3deec; max-width: 90ch; } .t3-list b { color: #fff; }
+.t3-warnbox { border-color: rgba(255, 200, 87, .3); } .t3-warnbox .t3-h { color: var(--t3-hot); }
+.t3 .err, .t3 .empty { margin: 0; }
+
+/* chips, round buttons, form */
+.t3-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.t3-chip { border: 1px solid rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .04); color: #dbe5f1; padding: 8px 13px; min-height: 38px; border-radius: 999px; font: 500 13.5px/1.2 var(--nm-font); cursor: pointer; }
+.t3-chip:hover { background: rgba(255, 255, 255, .1); } .t3-chip.on { background: var(--t3-hot); border-color: var(--t3-hot); color: #1a1204; font-weight: 700; }
+.t3-ctl { display: flex; gap: 8px; align-items: center; }
+.t3-round { width: 44px; height: 44px; border-radius: 50%; border: 0; background: rgba(255, 200, 87, .16); color: var(--t3-hot); font: 700 13px var(--nm-font); cursor: pointer; }
+.t3-round:hover:not(:disabled) { background: rgba(255, 200, 87, .3); } .t3-round:disabled { opacity: .4; cursor: default; }
+.t3-round.play { width: 52px; height: 52px; background: var(--t3-hot); color: #1a1204; font-size: 15px; } .t3-round.play.on { box-shadow: 0 0 0 4px rgba(255, 200, 87, .25); }
+.t3-chip:focus-visible, .t3-round:focus-visible, .t3-range:focus-visible, .t3-sb:focus-visible, .t3-scroll:focus-visible, .t3-details summary:focus-visible, .t3 .nm-btn:focus-visible { outline: 3px solid rgba(255, 200, 87, .9); outline-offset: 2px; }
+.t3-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 12px; align-items: end; }
+.t3-field { display: grid; gap: 5px; min-width: 0; } .t3-field[hidden] { display: none; }
+.t3-field label { font: 600 13px/1.3 var(--nm-font); color: #c6d3e4; }
+.t3-field .nm-input { min-width: 0; color-scheme: dark; }
+.t3-range { width: 100%; min-width: 0; height: 28px; accent-color: #FFC857; margin: 0; }
+.t3-rangerow { display: flex; gap: 10px; align-items: center; min-height: 46px; } .t3-out-n { flex: none; min-width: 58px; text-align: right; font: 700 15px var(--nm-font); color: var(--t3-hot); font-variant-numeric: tabular-nums; }
+
+/* legend */
+.t3-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font: 400 13px/1.4 var(--nm-font); color: #c6d3e4; }
+.t3-legend span { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.t3-legend i { flex: none; width: 14px; height: 14px; border-radius: 50%; background: #8793A6; }
+.t3-legend .k-fc { background: var(--t3-hot); } .t3-legend .k-st { background: var(--t3-cy); border-radius: 2px; } .t3-legend .k-mo { height: 0; width: 18px; border-radius: 0; background: none; border-top: 2px dashed #9db0c8; }
+.t3-legend .k-band { border-radius: 2px; width: 18px; background: rgba(76, 203, 234, .22); border: 1px solid rgba(76, 203, 234, .4); }
+.t3-legend .k-mixed { border-radius: 3px; background: repeating-linear-gradient(45deg, rgba(255, 200, 87, .8) 0 3px, rgba(76, 203, 234, .35) 3px 7px); }
+.t3-legend .k-grey { border-radius: 3px; background: rgba(255, 255, 255, .1); border: 1px dashed rgba(255, 255, 255, .35); }
+.t3-legend .k-ramp { width: 46px; border-radius: 3px; background: linear-gradient(90deg, #4CCBEA, #FFC857); }
+.t3-legend .k-school { border-radius: 2px; background: #fff; transform: rotate(45deg) scale(.8); } .t3-legend .k-dim { width: 8px; height: 8px; background: rgba(255, 255, 255, .28); }
+
+/* charts */
+.t3-chart { display: block; width: 100%; max-width: 720px; height: auto; }
+.t3-grid { stroke: rgba(120, 200, 255, .13); stroke-width: 1; } .t3-ax { fill: #9db0c8; font: 500 12.5px var(--nm-font); } .t3-ax-hot { fill: var(--t3-hot); font-weight: 700; }
+.t3-l-fc { fill: none; stroke: #FFC857; stroke-width: 2.4; stroke-linejoin: round; } .t3-l-st { fill: none; stroke: #4CCBEA; stroke-width: 2.4; stroke-linejoin: round; } .t3-l-model { fill: none; stroke: #9db0c8; stroke-width: 1.6; stroke-dasharray: 5 5; }
+.t3-p-fc { fill: #FFC857; stroke: #060b14; stroke-width: 1.5; } .t3-p-st { fill: #4CCBEA; stroke: #060b14; stroke-width: 1.5; } .t3-gap { stroke: rgba(255, 255, 255, .35); stroke-width: 1.4; }
+.t3-band { fill: rgba(76, 203, 234, .14); stroke: rgba(76, 203, 234, .3); stroke-width: 1; } .t3-m-b { stroke: #4CCBEA; stroke-width: 2.4; } .t3-m-a { stroke: #FFC857; stroke-width: 2.4; }
+.t3-act { stroke: #fff; stroke-width: 1.6; stroke-dasharray: 4 4; } .t3-u-b { fill: #4CCBEA; stroke: #060b14; stroke-width: 1.5; } .t3-u-a { fill: #FFC857; stroke: #060b14; stroke-width: 1.5; }
+
+/* forecast */
+.t3-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.t3-details summary { cursor: pointer; padding: 8px 2px; font: 600 13.5px var(--nm-font); color: var(--t3-hot); border-radius: 8px; }
+.t3-scroll { overflow-x: auto; max-width: 100%; border-radius: 10px; }
+.t3-table { width: 100%; border-collapse: collapse; font: 400 13px/1.45 var(--nm-font); color: #d3deec; }
+.t3-table th, .t3-table td { padding: 7px 10px; text-align: left; vertical-align: top; border-top: 1px solid rgba(120, 200, 255, .12); }
+.t3-table thead th { border-top: 0; color: #9db0c8; font-weight: 600; } .t3-table tbody th { color: #fff; font-weight: 600; } .t3-table small { display: block; font-size: 12.5px; color: #8ea2bb; }
+.t3-table td { font-variant-numeric: tabular-nums; }
+
+/* before and after */
+.t3-out { display: grid; gap: 10px; min-width: 0; }
+.t3-verdict { margin: 0; padding: 12px 14px; border-radius: 12px; font: 600 16px/1.5 var(--nm-font); max-width: 90ch; }
+.t3-verdict.no { background: rgba(255, 255, 255, .06); border: 1px dashed rgba(255, 255, 255, .35); color: #fff; } .t3-verdict.yes { background: rgba(255, 200, 87, .12); border: 1px solid rgba(255, 200, 87, .5); color: #ffe9bd; }
+.t3-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.t3-kpi { padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(120, 200, 255, .2); background: rgba(10, 20, 34, .9); display: grid; gap: 3px; min-width: 0; }
+.t3-kpi b { font: 800 26px/1.15 var(--nm-font); color: #fff; font-variant-numeric: tabular-nums; } .t3-kpi small { font: 400 12.5px/1.45 var(--nm-font); color: #9db0c8; overflow-wrap: anywhere; }
+.t3-kpi.b { border-left: 4px solid #4CCBEA; } .t3-kpi.a { border-left: 4px solid #FFC857; } .t3-kpi.d { border-left: 4px solid rgba(255, 255, 255, .5); }
+
+/* island */
+.t3-island { display: block; width: 100%; height: auto; }
+.t3-d { fill: rgba(76, 203, 234, .08); stroke: rgba(143, 227, 247, .35); stroke-width: .6; stroke-linejoin: round; transition: fill .35s, fill-opacity .35s; }
+.t3-d.none, .t3-d.thin { fill: rgba(255, 255, 255, .07); stroke: rgba(255, 255, 255, .28); stroke-dasharray: 3 3; } .t3-d.pick { fill: rgba(255, 200, 87, .2); stroke: #FFC857; stroke-width: 1.4; }
+.t3-site { stroke: #060b14; stroke-width: 1.1; } .t3-pt { stroke: #060b14; stroke-width: 1.3; } .t3-dim { fill: rgba(255, 255, 255, .25); }
+.t3-ring { fill: rgba(255, 200, 87, .08); stroke: #FFC857; stroke-width: 1.6; stroke-dasharray: 6 5; }
+.t3-school rect { fill: #fff; stroke: #060b14; stroke-width: 1.4; } .t3-school.on rect { fill: #FFC857; }
+.t3-school text { fill: #fff; font: 700 21px var(--nm-font); paint-order: stroke; stroke: #060b14; stroke-width: 4px; }
+.t3-cols { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 10px; align-items: start; }
+
+/* time machine */
+.t3-tmhead { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+.t3-year { display: block; font: 800 44px/1 var(--nm-font); color: var(--t3-hot); font-variant-numeric: tabular-nums; }
+.t3-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 3px; align-items: end; height: 92px; }
+.t3-sb { display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; height: 100%; min-width: 0; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 5px; }
+.t3-sbcol { display: flex; flex-direction: column-reverse; border-radius: 4px 4px 0 0; overflow: hidden; opacity: .55; } .t3-sbcol i { display: block; min-height: 2px; } .t3-sbcol .void { flex: 1; background: rgba(255, 255, 255, .12); }
+.t3-sb:hover .t3-sbcol, .t3-sb.cur .t3-sbcol { opacity: 1; } .t3-sb.cur .t3-sbcol { box-shadow: 0 0 0 2px #FFC857; }
+.t3-sb small { height: 16px; margin-top: 4px; text-align: center; font: 500 12.5px/1 var(--nm-font); color: #8ea2bb; } .t3-sb.cur small { color: var(--t3-hot); font-weight: 700; }
+.t3-dlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.t3-dl { display: grid; gap: 5px; padding: 9px 11px; border-radius: 11px; border: 1px solid rgba(76, 203, 234, .25); background: rgba(10, 20, 34, .9); font: 400 13.5px/1.45 var(--nm-font); color: #d3deec; }
+.t3-dl b { color: #fff; font-size: 14.5px; } .t3-dl.none, .t3-dl.thin { border-style: dashed; border-color: rgba(255, 255, 255, .25); color: #9db0c8; }
+.t3-stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: rgba(255, 255, 255, .08); } .t3-stack i { display: block; } .t3-stack .void { flex: 1; }
+.t3-dl.thin .t3-stack { opacity: .45; }
+
+/* ask the map */
+.t3-ask { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+.t3-step { margin: 0; padding: 10px 12px 12px; border: 1px solid rgba(120, 200, 255, .18); border-radius: 12px; display: grid; gap: 10px; min-width: 0; }
+.t3-step legend { padding: 0 6px; font: 700 14px var(--nm-font); color: #fff; display: flex; gap: 8px; align-items: center; }
+.t3-step legend i { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--t3-hot); color: #1a1204; font: 800 13px var(--nm-font); font-style: normal; }
+.t3-mapbox { min-width: 0; width: 100%; max-width: 820px; margin: 0 auto; }
+
+@media (max-width: 900px) {
+  .t3-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } .t3-grid2, .t3-cols, .t3-ask { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .t3 { padding: 8px; } .t3-panel { padding: 12px; } .t3-form, .t3-kpis { grid-template-columns: minmax(0, 1fr); }
+  .t3-year { font-size: 36px; } .t3-sb small { visibility: hidden; } .t3-sb:first-child small, .t3-sb:last-child small, .t3-sb.cur small { visibility: visible; }
+  .t3-school text { font-size: 40px; stroke-width: 7px; } .t3-ax { font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) { .t3-d { transition: none; } }

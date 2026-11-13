@@ -1076,6 +1076,7 @@ const { createEea } = require('./eea');
 const { createSatellite } = require('./satellite');
 const citiesApi = require('./cities');
 const { createClassLogin } = require('./classlogin');
+const toolkitForecast = require('./toolkit-forecast').createToolkitForecast({ root: __dirname, dataDir: DATA_DIR, mock: MOCK, omJson, omBase: OM_BASE, enabled: () => feeds.enabled('openmeteo'), cydom, history: () => history, log: (m) => console.error(m) });   // #/forecast: saves tomorrow's forecast once a day and compares it later (toolkit-forecast.js)
 const classLogin = createClassLogin();
 let appCore = null;
 let notifier = null;
@@ -1599,6 +1600,7 @@ const server = http.createServer(async (req, res) => {
     if (to) { res.writeHead(302, { Location: to, 'Cache-Control': 'no-store' }); return res.end(); }
     if (await sourceRoutes(req, res, url)) return;   // /api/feeds, helpers, archive, ops, search, dom/watch
     if (await toolkitWatch.handle(req, res, url)) return;   // /watch/api/title: checks a title, stores nothing
+    if (await toolkitForecast.handle(req, res, url)) return;   // /api/toolkit/forecast: saved forecasts against what was measured, read only
     if (gtfs && (await gtfs.handle(req, res, url))) return;   // /api/transit/*: official bus timetables, read only, rate limited
     if (eea && (await eea.handle(req, res, url))) return;     // /api/eea/*: official air-quality stations and the school-sensor comparison, read only
     if (satellite && (await satellite.handle(req, res, url))) return;   // /api/satellite/*: satellite feed status and pictures, read only, rate limited
