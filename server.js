@@ -1071,6 +1071,7 @@ const { createCouncil } = require('./council');
 const { createReports } = require('./reports');
 const { createLayers } = require('./layers');
 const { createGtfs } = require('./gtfs');
+const toolkitWatch = require('./toolkit-watch');   // /watch/api/title: the privacy check for a rule title on the My watch page (stores nothing)
 const { createEea } = require('./eea');
 const { createSatellite } = require('./satellite');
 const citiesApi = require('./cities');
@@ -1597,6 +1598,7 @@ const server = http.createServer(async (req, res) => {
     const to = redirectFor(url);
     if (to) { res.writeHead(302, { Location: to, 'Cache-Control': 'no-store' }); return res.end(); }
     if (await sourceRoutes(req, res, url)) return;   // /api/feeds, helpers, archive, ops, search, dom/watch
+    if (await toolkitWatch.handle(req, res, url)) return;   // /watch/api/title: checks a title, stores nothing
     if (gtfs && (await gtfs.handle(req, res, url))) return;   // /api/transit/*: official bus timetables, read only, rate limited
     if (eea && (await eea.handle(req, res, url))) return;     // /api/eea/*: official air-quality stations and the school-sensor comparison, read only
     if (satellite && (await satellite.handle(req, res, url))) return;   // /api/satellite/*: satellite feed status and pictures, read only, rate limited
