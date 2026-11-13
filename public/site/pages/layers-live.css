@@ -218,3 +218,18 @@
 .fl-levels .lv-brainbar { border-radius: 0 0 16px 16px; margin-top: 0; }
 @container lystage (max-width: 620px) { .fl-band { grid-template-columns: minmax(0, 1fr); } .fl-art svg { max-height: 90px; } .fl-riv { font-size: 12px; padding: 5px 8px; } .fl-city { font-size: 12px; padding: 5px 8px; } .fl-lv { font-size: 11.5px; max-width: 27%; } }
 @media (prefers-reduced-motion: reduce) { .fl-src i::after, .fl-riv.differ, .fl-brain i { animation: none; } .fl-src, .fl-riv { transition: none; } }
+
+/* ---------- a context layer in a layer's dialog (contextView in pages/layers-flow.js). Classes start with cx-. ---------- */
+.cx { margin: 12px 0; display: grid; gap: 10px; } .cx h4 { margin: 8px 0 0; font: 600 16px/1.2 var(--nm-font); color: #fff; } .cx > p, .cx div > p { margin: 0; font: 400 14px/1.5 var(--nm-font); color: var(--nm-text); }
+.cx-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font: 500 14px var(--nm-font); color: var(--nm-lede, #B9C8DA); }
+.cx-lab { font: 600 14px var(--nm-font); color: #fff; } .cx-sel { min-height: 40px; margin-left: 6px; padding: 6px 10px; border-radius: 10px; background: #0C1626; border: 1px solid rgba(255, 255, 255, .28); color: #fff; font: 600 15px var(--nm-font); }
+.cx-chips { display: flex; flex-wrap: wrap; gap: 6px 14px; font: 500 14px var(--nm-font); color: #fff; } .cx-chips i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 7px; background: var(--c); vertical-align: -1px; }
+.cx-map { display: block; width: 100%; height: auto; border-radius: 12px; background: rgba(12, 22, 38, .6); border: 1px solid var(--nm-edge); }
+.cx-t { width: 100%; border-collapse: collapse; margin-top: 8px; font: 400 14px/1.4 var(--nm-font); } .cx-t th { text-align: left; font-weight: 600; color: var(--nm-lede, #B9C8DA); padding: 6px 8px; border-bottom: 1px solid var(--nm-edge-2); } .cx-t td { padding: 6px 8px; border-bottom: 1px solid var(--nm-edge); color: #fff; } .cx-t td:last-child, .cx-t th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.cx-bars { display: grid; gap: 8px; } .cx-bars > div { display: grid; grid-template-columns: 48px minmax(60px, 1fr) auto; gap: 10px; align-items: center; font: 400 14px var(--nm-font); color: var(--nm-text); } .cx-bars b { color: #fff; font-variant-numeric: tabular-nums; }
+.cx-bar { display: block; height: 16px; border-radius: 8px; background: rgba(255, 255, 255, .08); overflow: hidden; } .cx-bar i { display: block; height: 100%; border-radius: 8px; background: #7FD3A0; } .cx-bars em { font-style: normal; margin-left: 8px; padding: 2px 8px; border-radius: 99px; border: 1px dashed #F2CF86; color: #F2CF86; font-size: 12.5px; }
+.cx-sol { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; } .cx-sol > div { padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, .05); border: 1px solid var(--nm-edge); display: grid; gap: 4px; font: 400 14px var(--nm-font); color: var(--nm-text); } .cx-sol b { color: #fff; }
+.cx-mon { display: block; width: 100%; height: auto; margin-top: 4px; } .cx-m { font: 500 9px var(--nm-font); fill: #9fb2ca; }
+.cx-foot { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--nm-edge); } .cx-foot p { font-size: 13px !important; color: var(--nm-muted) !important; } .cx-foot b { color: var(--nm-lede, #B9C8DA); } .cx-foot .ly-btn { justify-self: start; }
+.fl-src.own-page i { background: transparent; border: 2.5px solid var(--c); box-shadow: none; box-sizing: border-box; } .fl-src.own-page i::after { display: none; }
+.fl-key .k5 { border: 2.5px solid #7FD3A0; box-sizing: border-box; }

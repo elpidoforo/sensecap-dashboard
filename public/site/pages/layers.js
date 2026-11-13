@@ -260,7 +260,7 @@
             h('h4', null, T(GROUPS[g].en, GROUPS[g].el), h('small', null, T(on + ' of ' + n + ' on', on + ' από ' + n + ' ενεργά'))),
             items.map((l) => {
               const st = STATE[l.state] || STATE.off, locked = !live(l), checked = isOn(l);
-              const sub = locked || l.state === 'late' ? (l.state === 'late' || l.state === 'down' ? (isEl() ? l.noteEl : l.note) : (isEl() ? l.taglineEl : l.tagline)) : (isEl() ? l.taglineEl : l.tagline);
+              const sub = l.context && l.period && !locked ? l.period[isEl() ? 1 : 0] : locked || l.state === 'late' ? (l.state === 'late' || l.state === 'down' ? (isEl() ? l.noteEl : l.note) : (isEl() ? l.taglineEl : l.tagline)) : (isEl() ? l.taglineEl : l.tagline);
               return h('div', { class: 'ly-row' + (locked ? ' ly-dim' : '') },
                 h('button', { class: 'ly-tg', type: 'button', role: 'switch', 'aria-checked': checked ? 'true' : 'false', disabled: locked, 'aria-label': T('Read ' + nameOf(l) + ' in the findings', 'Ανάγνωση «' + nameOf(l) + '» στα ευρήματα'), onclick: () => toggle(l) }),
                 h('button', { class: 'ly-nm', type: 'button', onclick: () => openLayer(l.id) }, layerLabel(l), l.kind === 'satellite' ? kindChip() : null, sub ? h('small', null, sub) : null),
@@ -297,7 +297,7 @@
       function loadLiveLib() {
         if (SC.layersLive && SC.layersLive.all) return Promise.resolve(true);
         const one = (src) => new Promise((done) => { const sc = document.createElement('script'); sc.src = src; sc.onload = () => done(true); sc.onerror = () => { sc.remove(); done(false); }; document.head.append(sc); });
-        return liveLib || (liveLib = one('/site/pages/layers-live.js?v=2').then((a) => (a ? one('/site/pages/layers-flow.js?v=1') : false)).then((ok2) => { const good = Boolean(ok2 && SC.layersLive && SC.layersLive.all); if (!good) liveLib = null; return good; }));
+        return liveLib || (liveLib = one('/site/pages/layers-live.js?v=3').then((a) => (a ? one('/site/pages/layers-flow.js?v=2') : false)).then((ok2) => { const good = Boolean(ok2 && SC.layersLive && SC.layersLive.all); if (!good) liveLib = null; return good; }));
       }
       async function fetchLive() {
         if (liveBusy || dead) return;
@@ -583,14 +583,17 @@
           const row = (k, v) => (v == null || v === '' ? null : [h('dt', null, k), h('dd', null, v)]);
           const link = (u) => (u ? h('a', { href: u, target: '_blank', rel: 'noopener' }, u.replace(/^https?:\/\//, '').slice(0, 60)) : null);
           const stt = STATE[(known && known.state) || st.state] || STATE.off;
+          const ctxSlot = h('div', { class: 'ly-ctx-slot' });   // a context layer shows what it holds here (pages/layers-flow.js)
+          if (s['x_context']) loadLiveLib().then((okLib) => { if (okLib && SC.layersLive.contextView && ctxSlot.isConnected) SC.layersLive.contextView(ctxSlot, id); });
           const sat = h('div', { class: 'ly-sat-slot' });   // the satellite pictures of this layer, when its feed has any
           body.replaceChildren(
             h('p', null, isEl() && i18n.summary ? i18n.summary : s.summary),
-            sat,
+            sat, ctxSlot,
             h('dl', null,
               row(T('Group', 'Ομάδα'), T(GROUPS[s.layer].en, GROUPS[s.layer].el)),
               row(T('Status', 'Κατάσταση'), T(stt[0], stt[1]) + (st.note ? ' · ' + (isEl() ? st.noteEl : st.note) : '')),
               row(T('Last reading', 'Τελευταία μέτρηση'), st.at ? SC.ago(st.at) : null),
+              row(T('Period', 'Περίοδος'), st.period ? st.period[isEl() ? 1 : 0] : null),
               row(T('Publisher', 'Εκδότης'), s.publisher && s.publisher.name),
               row(T('Licence', 'Άδεια'), s.licence && (s.licence.id === 'unknown' ? T('not confirmed yet', 'δεν έχει επιβεβαιωθεί ακόμη') : s.licence.id) + (s.licence && s.licence.attribution ? ' · ' + s.licence.attribution : '')),
               row(T('Measures', 'Μετρά'), (s.variables || []).map((v) => { const lb = r.varLabels && r.varLabels[v.id]; return lb ? lb[isEl() ? 1 : 0] : v.id.replace(/_/g, ' '); }).join(', ')),

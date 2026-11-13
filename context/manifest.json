@@ -1,0 +1,17 @@
+{
+  "bathing-water-history": {
+    "file": "bathing-water-history.json",
+    "sha256": "72944331950ed55761abf77002d5bf94e3c9b3b9a8dcd715eb1eaaf16e41b8bc",
+    "bytes": 105663
+  },
+  "waste-generation-national": {
+    "file": "waste-generation-national.json",
+    "sha256": "6d3118d0b5244a52a400ce83f52eec9c615651a96e112fb6e8f239b8a9b685ce",
+    "bytes": 2196
+  },
+  "pv-solar-scenarios": {
+    "file": "pv-solar-scenarios.json",
+    "sha256": "6365a01c4f82b982c5dac2b6c0e0950d28d941d6cb7d91e68b2d592a8570a23e",
+    "bytes": 11117
+  }
+}

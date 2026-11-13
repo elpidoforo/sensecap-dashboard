@@ -1,0 +1,84 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "bathing-water-history",
+  "name": "Bathing-water quality by year",
+  "summary": "The official yearly quality label of every bathing site in Cyprus, from 2004 to 2025. History only: it is not a statement about the water today.",
+  "layer": "context",
+  "status": "active",
+  "tagline": "yearly labels, 2004 to 2025",
+  "i18n": {
+    "el": {
+      "name": "Ποιότητα νερών κολύμβησης ανά έτος",
+      "summary": "Η επίσημη ετήσια κατάταξη ποιότητας κάθε σημείου κολύμβησης στην Κύπρο, από το 2004 έως το 2025. Μόνο ιστορικό: δεν λέει πώς είναι το νερό σήμερα.",
+      "tagline": "ετήσιες κατατάξεις, 2004 έως 2025"
+    }
+  },
+  "themes": [
+    "water",
+    "sea",
+    "health"
+  ],
+  "publisher": {
+    "name": "European Environment Agency (EEA) and DG Environment",
+    "url": "https://www.eea.europa.eu/en/datahub/datahubitem-view/c3858959-90da-4c1b-b9ca-492db0e514df",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "CC-BY-4.0",
+    "url": "https://www.eea.europa.eu/en/datahub/datahubitem-view/c3858959-90da-4c1b-b9ca-492db0e514df",
+    "attribution": "European Environment Agency and DG Environment, bathing water status 1990-2025",
+    "commercial_use": true,
+    "share_alike": false,
+    "checked_on": "2026-11-13"
+  },
+  "access": {
+    "type": "file",
+    "url": "https://sdi.eea.europa.eu/catalogue/datahub/api/records/070d9baa-448d-4168-8514-7dadb3ad876d"
+  },
+  "coverage": {
+    "area": "Cyprus",
+    "bbox": [
+      32.2,
+      34.5,
+      34.7,
+      35.8
+    ]
+  },
+  "update": {
+    "every": "P1Y",
+    "note": "One release a year, months after the season ends. The server reads a reviewed copy kept in context/ and never fetches a newer one by itself."
+  },
+  "variables": [],
+  "representativeness": {
+    "environment": "not-applicable"
+  },
+  "quality": {
+    "kind": "statistics",
+    "uncertainty": "A label for a whole season from samples taken over several seasons. It is not a measurement of today and not a count of bacteria.",
+    "known_issues": [
+      "The rules for the labels changed over the years, so 2004 and 2025 are not fully comparable",
+      "The list of sites changes: a site missing in one year was not necessarily closed"
+    ]
+  },
+  "restrictions": [
+    "Credit the EEA and DG Environment (CC BY 4.0) wherever this is shown, and say that it was filtered to Cyprus",
+    "Never show it as safety advice for today, never as a score or an average"
+  ],
+  "agent_hints": {
+    "use_for": [
+      "How a beach was labelled in a past season",
+      "How many sites were in the list each year"
+    ],
+    "not_for": [
+      "Whether the water is safe today",
+      "Comparing with our sensors or any measurement"
+    ]
+  },
+  "notes": "Reviewed, frozen release eea_t_bathing-water-status_p_1990-2025_v01_r00 (published 2 June 2026), prepared in the research handoff of 13 November 2026 and kept as context/bathing-water-history.json (hash in context/manifest.json). Read by context.js. The brain does not read this layer (x_reads).",
+  "x_reads": false,
+  "x_context": true,
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-13"
+  }
+}

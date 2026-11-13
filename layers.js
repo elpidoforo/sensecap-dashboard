@@ -270,6 +270,7 @@ function createLayers(opts) {
   const feeds = opts.feeds || null;
   const appCore = opts.appCore || null;
   const gtfs = opts.gtfs || null;   // the bus timetable reader (gtfs.js): its layer is shown, the brain does not read it
+  const context = opts.context || null;   // yearly and modelled context read from reviewed files (context.js): shown with a period, never read by the brain
   const satellite = opts.satellite || null;   // the satellite feeds (satellite/index.js): probes and readings for every source that has a feed there
   const log = opts.log || ((m) => console.log(m));
   const apiKey = opts.apiKey || '';
@@ -334,6 +335,7 @@ function createLayers(opts) {
     'openmeteo-marine': async () => { const s = await data.sea(); return { ok: !!(s.points && s.points.length), n: (s.points || []).length, at: toMs(s.updated), note: `${(s.points || []).length} sea points`, noteEl: `${(s.points || []).length} σημεία θάλασσας` }; },
   };
   for (const id of satellite ? satellite.allIds() : []) if (!PROBES[id]) PROBES[id] = () => satellite.probe(id);   // satellite feeds: the registry answers for each (it never throws)
+  for (const id of context ? context.ids : []) if (!PROBES[id]) PROBES[id] = async () => context.probe(id);   // a context layer answers with its period; its "at" stays empty because it has no freshness
   // A source reads numbers for the brain only when it has variables: an imagery-only satellite layer (variables: []) is shown on its own page.
   const readsNumbers = (s) => s['x_reads'] !== false && (s.variables || []).length > 0;
 
@@ -380,6 +382,7 @@ function createLayers(opts) {
     publisher: src.publisher && src.publisher.name, licence: src.licence && src.licence.id, licenceUrl: src.licence && src.licence.url || null,
     environment: src.representativeness && src.representativeness.environment, kind: src.quality && src.quality.kind,
     variables: (src.variables || []).map((v) => v.id), every: src.update && src.update.every, warnings: warnings || [],
+    context: !!src['x_context'], period: st.period || null, reads: readsNumbers(src),
   });
 
   async function registerView(waitMs) {
@@ -885,7 +888,7 @@ const lc = (s) => String(s).replace(/^\S+/, (w) => (/[A-Z0-9]/.test(w.slice(1)) 
           break;
         }
       }
-      return { id: c.id, group: c.group, name: c.name, nameEl: c.nameEl, kind: c.kind, state: c.state, lastAt: c.lastAt, everyMs: isoMs(c.every) || null, count: c.count, note: c.note, noteEl: c.noteEl, tagline: c.tagline, taglineEl: c.taglineEl, head, spark, ...(s.own[c.id] ? { sensors: s.own[c.id].n, fresh: s.own[c.id].fresh } : {}) };
+      return { id: c.id, group: c.group, name: c.name, nameEl: c.nameEl, kind: c.kind, state: c.state, lastAt: c.lastAt, everyMs: isoMs(c.every) || null, count: c.count, note: c.note, noteEl: c.noteEl, tagline: c.tagline, taglineEl: c.taglineEl, head, spark, reads: c.reads, context: c.context, period: c.period, ...(s.own[c.id] ? { sensors: s.own[c.id].n, fresh: s.own[c.id].fresh } : {}) };
     });
     // "rivers": a measurement that two or more layers have for the same city. Whether they agree is decided exactly as the brain does it
     // (outdoor, fresh readings, the tolerance of vocab/variables.json); indoor readings are never compared with the street.
@@ -964,6 +967,18 @@ const lc = (s) => String(s).replace(/^\S+/, (w) => (/[A-Z0-9]/.test(w.slice(1)) 
     const p = url.pathname;
     if (req.method === 'GET' && p === '/layers/api/register') return sendJson(res, 200, await registerView());
     if (req.method === 'GET' && p === '/layers/api/live') return sendJson(res, 200, await liveView());
+    let cm;
+    if (req.method === 'GET' && (cm = /^\/layers\/api\/context\/([a-z0-9-]+)(\.csv)?$/.exec(p))) {
+      if (!context || !context.has(cm[1])) fail(404, 'No such context layer.');
+      if (cm[2]) {
+        const text = context.csv(cm[1]);
+        if (text == null) fail(503, 'This layer is not available right now.');
+        res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="${cm[1]}.csv"`, 'Cache-Control': 'no-cache', 'X-Content-Type-Options': 'nosniff' });
+        return res.end('\ufeff' + text);
+      }
+      const num = (k) => (/^\d{4}$/.test(String(url.searchParams.get(k) || '')) ? Number(url.searchParams.get(k)) : null);
+      return sendJson(res, 200, context.view(cm[1], { season: num('season'), base: num('base') }));
+    }
     if (req.method === 'GET' && p === '/layers/api/replay') return sendJson(res, 200, replayView());
     if (req.method === 'GET' && p === '/layers/api/compare') return sendJson(res, 200, await compareView(String(url.searchParams.get('city') || ''), String(url.searchParams.get('variable') || '').slice(0, 60) || null));
     let m;

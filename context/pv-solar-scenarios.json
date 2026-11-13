@@ -1,0 +1,482 @@
+[
+  {
+    "city": "larnaka",
+    "status": "available",
+    "result": {
+      "request_id": "072f6790e4e5ad78f461a06ce8ce43205f43b16803676ee51186691e11bd6ace",
+      "source_sha256": "bb919c9373db758f17bef2e088422ae5a74302da6e6d71b374bc79a01515dbfc",
+      "normalizer": "pvgis53-fixed-annual-v1",
+      "kind": "annual_climatology",
+      "reference_years": [
+        2005,
+        2023
+      ],
+      "annual_energy": {
+        "value": 1668.2,
+        "unit": "kWh/y"
+      },
+      "monthly_energy": [
+        {
+          "month": 1,
+          "value": 99.01,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 2,
+          "value": 108.19,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 3,
+          "value": 139.36,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 4,
+          "value": 149.01,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 5,
+          "value": 161.92,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 6,
+          "value": 163.41,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 7,
+          "value": 170.46,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 8,
+          "value": 168.34,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 9,
+          "value": 156.35,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 10,
+          "value": 137.48,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 11,
+          "value": 114.49,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 12,
+          "value": 100.18,
+          "unit": "kWh/mo"
+        }
+      ],
+      "provider_inputs": {
+        "location": {
+          "latitude": 34.92,
+          "longitude": 33.63,
+          "elevation": 11.0
+        },
+        "meteo_data": {
+          "radiation_db": "PVGIS-SARAH3",
+          "meteo_db": "ERA5",
+          "year_min": 2005,
+          "year_max": 2023,
+          "use_horizon": true,
+          "horizon_db": "DEM-calculated"
+        },
+        "mounting_system": {
+          "fixed": {
+            "slope": {
+              "value": 30,
+              "optimal": false
+            },
+            "azimuth": {
+              "value": 0,
+              "optimal": false
+            },
+            "type": "free-standing"
+          }
+        },
+        "pv_module": {
+          "technology": "c-Si",
+          "peak_power": 1.0,
+          "system_loss": 14.0
+        },
+        "economic_data": {
+          "system_cost": null,
+          "interest": null,
+          "lifetime": null
+        }
+      },
+      "resolution": "gridded model context, not roof survey",
+      "result_id": "b05aa7e107cbd6e8d400c3594f75258d958eabb85323356b7855eb34c6f286bc"
+    }
+  },
+  {
+    "city": "lefkosia",
+    "status": "available",
+    "result": {
+      "request_id": "130d4d1ba6b06ebf2af513ab37993fbf91f2457da10cd80d0b06d6224b1379dc",
+      "source_sha256": "a982bfd551f4338c1725c9cfd445c32676e0de5bf3ed08f3efa61381f2a80e19",
+      "normalizer": "pvgis53-fixed-annual-v1",
+      "kind": "annual_climatology",
+      "reference_years": [
+        2005,
+        2023
+      ],
+      "annual_energy": {
+        "value": 1630.96,
+        "unit": "kWh/y"
+      },
+      "monthly_energy": [
+        {
+          "month": 1,
+          "value": 101.59,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 2,
+          "value": 109.6,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 3,
+          "value": 142.36,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 4,
+          "value": 146.78,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 5,
+          "value": 152.91,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 6,
+          "value": 153.99,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 7,
+          "value": 162.58,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 8,
+          "value": 159.64,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 9,
+          "value": 148.56,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 10,
+          "value": 135.09,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 11,
+          "value": 115.98,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 12,
+          "value": 101.86,
+          "unit": "kWh/mo"
+        }
+      ],
+      "provider_inputs": {
+        "location": {
+          "latitude": 35.17,
+          "longitude": 33.36,
+          "elevation": 156.0
+        },
+        "meteo_data": {
+          "radiation_db": "PVGIS-SARAH3",
+          "meteo_db": "ERA5",
+          "year_min": 2005,
+          "year_max": 2023,
+          "use_horizon": true,
+          "horizon_db": "DEM-calculated"
+        },
+        "mounting_system": {
+          "fixed": {
+            "slope": {
+              "value": 30,
+              "optimal": false
+            },
+            "azimuth": {
+              "value": 0,
+              "optimal": false
+            },
+            "type": "free-standing"
+          }
+        },
+        "pv_module": {
+          "technology": "c-Si",
+          "peak_power": 1.0,
+          "system_loss": 14.0
+        },
+        "economic_data": {
+          "system_cost": null,
+          "interest": null,
+          "lifetime": null
+        }
+      },
+      "resolution": "gridded model context, not roof survey",
+      "result_id": "f6775772af606b0c3892d4edcaad6701206c89e8e202e2fcca4b2304ead181da"
+    }
+  },
+  {
+    "city": "limassol",
+    "status": "available",
+    "result": {
+      "request_id": "d834dbb08ffeeb0df7f74b877f21b481ccdbca58c8fe480eefbeea9cfc2844bb",
+      "source_sha256": "601e90a4e51e270e5eb6d5f25712d89d5bf4e4305888312979d6851288209de7",
+      "normalizer": "pvgis53-fixed-annual-v1",
+      "kind": "annual_climatology",
+      "reference_years": [
+        2005,
+        2023
+      ],
+      "annual_energy": {
+        "value": 1713.67,
+        "unit": "kWh/y"
+      },
+      "monthly_energy": [
+        {
+          "month": 1,
+          "value": 100.71,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 2,
+          "value": 111.95,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 3,
+          "value": 146.15,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 4,
+          "value": 156.2,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 5,
+          "value": 166.17,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 6,
+          "value": 166.68,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 7,
+          "value": 171.39,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 8,
+          "value": 170.0,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 9,
+          "value": 160.4,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 10,
+          "value": 142.12,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 11,
+          "value": 118.36,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 12,
+          "value": 103.54,
+          "unit": "kWh/mo"
+        }
+      ],
+      "provider_inputs": {
+        "location": {
+          "latitude": 34.68,
+          "longitude": 33.04,
+          "elevation": 15.0
+        },
+        "meteo_data": {
+          "radiation_db": "PVGIS-SARAH3",
+          "meteo_db": "ERA5",
+          "year_min": 2005,
+          "year_max": 2023,
+          "use_horizon": true,
+          "horizon_db": "DEM-calculated"
+        },
+        "mounting_system": {
+          "fixed": {
+            "slope": {
+              "value": 30,
+              "optimal": false
+            },
+            "azimuth": {
+              "value": 0,
+              "optimal": false
+            },
+            "type": "free-standing"
+          }
+        },
+        "pv_module": {
+          "technology": "c-Si",
+          "peak_power": 1.0,
+          "system_loss": 14.0
+        },
+        "economic_data": {
+          "system_cost": null,
+          "interest": null,
+          "lifetime": null
+        }
+      },
+      "resolution": "gridded model context, not roof survey",
+      "result_id": "204fcb6d3c158fb770d5f7297d0a51bfcdf9dca01ecc428f9545c35711b63b23"
+    }
+  },
+  {
+    "city": "paphos",
+    "status": "available",
+    "result": {
+      "request_id": "96c05da70f41dc063ae12b9a8fd9b01a1cca17a8ace026e9703754f7c399a298",
+      "source_sha256": "80df54144a33ca11c1605513fb4b9bb16f0e8263d479aa53b1dad44bae83d60d",
+      "normalizer": "pvgis53-fixed-annual-v1",
+      "kind": "annual_climatology",
+      "reference_years": [
+        2005,
+        2023
+      ],
+      "annual_energy": {
+        "value": 1708.72,
+        "unit": "kWh/y"
+      },
+      "monthly_energy": [
+        {
+          "month": 1,
+          "value": 97.37,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 2,
+          "value": 110.22,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 3,
+          "value": 144.01,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 4,
+          "value": 155.87,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 5,
+          "value": 166.74,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 6,
+          "value": 166.54,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 7,
+          "value": 174.35,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 8,
+          "value": 172.25,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 9,
+          "value": 160.07,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 10,
+          "value": 142.93,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 11,
+          "value": 118.2,
+          "unit": "kWh/mo"
+        },
+        {
+          "month": 12,
+          "value": 100.17,
+          "unit": "kWh/mo"
+        }
+      ],
+      "provider_inputs": {
+        "location": {
+          "latitude": 34.77,
+          "longitude": 32.42,
+          "elevation": 33.0
+        },
+        "meteo_data": {
+          "radiation_db": "PVGIS-SARAH3",
+          "meteo_db": "ERA5",
+          "year_min": 2005,
+          "year_max": 2023,
+          "use_horizon": true,
+          "horizon_db": "DEM-calculated"
+        },
+        "mounting_system": {
+          "fixed": {
+            "slope": {
+              "value": 30,
+              "optimal": false
+            },
+            "azimuth": {
+              "value": 0,
+              "optimal": false
+            },
+            "type": "free-standing"
+          }
+        },
+        "pv_module": {
+          "technology": "c-Si",
+          "peak_power": 1.0,
+          "system_loss": 14.0
+        },
+        "economic_data": {
+          "system_cost": null,
+          "interest": null,
+          "lifetime": null
+        }
+      },
+      "resolution": "gridded model context, not roof survey",
+      "result_id": "baed4e0c2313b0db9f390ca4089b841f68aedd616258dc64c68b80d208bf3848"
+    }
+  }
+]

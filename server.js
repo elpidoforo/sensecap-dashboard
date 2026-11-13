@@ -1229,7 +1229,7 @@ function startApp() {
     satellite = createSatellite({ root: __dirname, dataDir: DATA_DIR, log: (m) => console.error(m), demo: process.env.SATELLITE !== '0' && process.env.SATELLITE_DEMO === '1', off: process.env.SATELLITE === '0' || (MOCK && process.env.SATELLITE_LIVE !== '1'), offReason: process.env.SATELLITE === '0' ? 'switched off with SATELLITE=0' : 'test mode' });
     satellite.start();
   } catch (e) { console.error('Satellite feeds: not started (' + e.message + ')'); satellite = null; }
-  layers = createLayers({ root: __dirname, dataDir: DATA_DIR, appCore, data: botData, feeds, gtfs, satellite, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });   // works without the student app too (only editing the mission needs a teacher sign-in)
+  layers = createLayers({ root: __dirname, dataDir: DATA_DIR, appCore, data: botData, feeds, gtfs, satellite, context: require('./context').createContext({ root: __dirname, log: (m) => console.error(m) }), apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });   // works without the student app too (only editing the mission needs a teacher sign-in)
   if (!appCore.enabled) return console.error('Student app is off: ' + appCore.reason);
   feeds.attach(appCore);   // from now on the on/off switches of the feeds are kept in the student database
   studio = createStudio({ appCore, notify: notifier, layers, classValid: (req) => classLogin.enabled && classLogin.valid(req), bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });

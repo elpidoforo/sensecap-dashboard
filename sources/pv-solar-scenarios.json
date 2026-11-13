@@ -1,0 +1,88 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "pv-solar-scenarios",
+  "name": "Solar panel scenarios",
+  "summary": "A model of how much electricity a standard 1 kWp solar panel set would make in an average year in each of the four cities. A worked example, not a measurement of any roof.",
+  "layer": "context",
+  "status": "active",
+  "tagline": "a model, average year 2005 to 2023",
+  "i18n": {
+    "el": {
+      "name": "Σενάρια φωτοβολταϊκών",
+      "summary": "Ένα μοντέλο για το πόσο ρεύμα θα παρήγαγε ένα τυπικό σύστημα φωτοβολταϊκών (1 kWp) σε ένα μέσο έτος σε καθεμία από τις τέσσερις πόλεις. Παράδειγμα υπολογισμού, όχι μέτρηση κάποιας στέγης.",
+      "tagline": "μοντέλο, μέσο έτος 2005 έως 2023"
+    }
+  },
+  "themes": [
+    "energy",
+    "solar"
+  ],
+  "publisher": {
+    "name": "European Commission, Joint Research Centre (PVGIS)",
+    "url": "https://joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis_en",
+    "kind": "research"
+  },
+  "licence": {
+    "id": "LicenseRef-JRC-PVGIS",
+    "url": "https://joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis_en",
+    "attribution": "PVGIS, European Commission Joint Research Centre",
+    "commercial_use": "unknown",
+    "share_alike": false,
+    "checked_on": "2026-11-13"
+  },
+  "access": {
+    "type": "file",
+    "url": "https://re.jrc.ec.europa.eu/api/v5_3/PVcalc"
+  },
+  "coverage": {
+    "area": "Cyprus",
+    "bbox": [
+      32.2,
+      34.5,
+      34.7,
+      35.8
+    ]
+  },
+  "update": {
+    "every": "static",
+    "note": "A fixed calculation for one scenario. The server reads a reviewed copy kept in context/ and does not call PVGIS."
+  },
+  "variables": [],
+  "representativeness": {
+    "environment": "not-applicable"
+  },
+  "quality": {
+    "kind": "model",
+    "uncertainty": "A model for a generic point in each city from the weather of 2005 to 2023. Real roofs differ: shade, direction, dirt and the weather of one year.",
+    "known_issues": [
+      "One scenario only: 1 kWp, 14 % losses, tilted 30 degrees, facing south",
+      "The four results come from the same model, so they are not four independent sources"
+    ]
+  },
+  "restrictions": [
+    "Credit PVGIS (European Commission, Joint Research Centre) wherever this is shown",
+    "Never present it as what a school produces, never rank schools with it, never use it for costs"
+  ],
+  "agent_hints": {
+    "use_for": [
+      "A feel for how much a solar panel can make in Cyprus, month by month"
+    ],
+    "not_for": [
+      "What a real roof or a school produces",
+      "Ranking the cities or the schools",
+      "Money or payback"
+    ]
+  },
+  "notes": "Four PVGIS 5.3 calculations from the research handoff of 13 November 2026, kept byte for byte as context/pv-solar-scenarios.json (hash in context/manifest.json). JRC says PVGIS information is free to use with acknowledgement: that is the provider's statement, not a formal licence, so commercial use is left unknown. Read by context.js. The brain does not read this layer (x_reads).",
+  "x_reads": false,
+  "x_context": true,
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-13"
+  },
+  "upstream": [
+    {
+      "name": "PVGIS-SARAH3 satellite radiation and ERA5 reanalysis, 2005 to 2023"
+    }
+  ]
+}

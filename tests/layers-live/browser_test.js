@@ -85,9 +85,22 @@ const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + 
     await p.locator('.fl-city').nth(1).click();
     ok(await p.locator('.fl-city.cur').count() === 1 && await p.locator('.fl-city').nth(1).getAttribute('class').then((c) => /cur/.test(c)), name + ': pressing a city makes the rivers show that city');
     ok(!/\b(lat|lng|latitude|longitude|GPS)\b/i.test(await p.locator('.fl').innerText()), name + ': no positions anywhere in the view');
-    ok(await p.locator('.fl-band').count() === 6 && await p.locator('.fl-chip:not(.soon)').count() >= 5 && await p.locator('.fl-chip.star').count() === 3, name + ': six levels, live chips and the three starred sources');
-    await p.locator('.fl-chip.star').first().click();
+    ok(await p.locator('.fl-band').count() === 6 && await p.locator('.fl-chip:not(.soon)').count() >= 8 && await p.locator('.fl-context .fl-chip:not(.soon)').count() >= 3, name + ': six levels, live chips, and the three context layers are connected');
+    ok(await p.locator('.fl-src.own-page').count() >= 3, name + ': a layer the brain does not read is a hollow dot with no stream');
+    await p.locator('.fl-chip.soon').first().click();
     ok(await p.locator('.fl-detail:not([hidden])').count() === 1 && (await p.locator('.fl-detail:not([hidden])').innerText()).length > 30, name + ': pressing a dashed chip explains it');
+    // a context layer opens with what it holds
+    for (const [cid, sel, word] of [['bathing-water-history', '.cx-map circle', el ? 'ασφαλές' : 'safe today'], ['waste-generation-national', '.cx-bars > div', el ? 'όλη την Κύπρο' : 'whole of Cyprus'], ['pv-solar-scenarios', '.cx-mon', el ? 'όχι μέτρηση' : 'not a measurement']]) {
+      await p.evaluate((id) => { const b = [...document.querySelectorAll('.ly-list .ly-nm')].find((x) => x.closest('.ly-row') && x.textContent); return id; }, cid);
+      await p.locator('.fl-context .fl-chip:not(.soon)', { hasText: cid === 'bathing-water-history' ? (el ? 'κολύμβησης' : 'Bathing') : cid === 'waste-generation-national' ? (el ? 'απορρίμματ' : 'Waste') : (el ? 'φωτοβολτ' : 'Solar') }).first().click();
+      await p.locator('.fl-context .fl-detail .fl-more').click();
+      await p.waitForSelector('.mod ' + sel, { timeout: 10000 });
+      const n = await p.locator('.mod ' + sel).count(), text = await p.locator('.mod').innerText();
+      ok(cid === 'bathing-water-history' ? n === 123 : cid === 'waste-generation-national' ? n === 2 : n === 4, name + ': ' + cid + ' shows its data (' + n + ')');
+      ok(text.includes(word) && /CSV/.test(text), name + ': ' + cid + ' says what it is not, and offers the table');
+      if (cid === 'bathing-water-history') ok(/95/.test(text) && !/score|improved|βαθμολογ/i.test(text), name + ': bathing water compares the 95 shared sites and gives no score');
+      await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+    }
     // stack still works
     await tab(p, 'stack'); await p.waitForSelector('.ly-plane');
     ok(await p.locator('.ly-plane').count() === 4, name + ': the stack view is still there');

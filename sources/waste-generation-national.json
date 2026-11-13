@@ -1,0 +1,82 @@
+{
+  "schema": "smartcities.source/1",
+  "id": "waste-generation-national",
+  "name": "Waste we produce (Cyprus)",
+  "summary": "How much municipal waste Cyprus produced in 2023 and 2024, as one number for the whole country. It is not a number for a city or a school.",
+  "layer": "context",
+  "status": "active",
+  "tagline": "one national number per year",
+  "i18n": {
+    "el": {
+      "name": "Τα απορρίμματά μας (Κύπρος)",
+      "summary": "Πόσα δημοτικά απορρίμματα παρήγαγε η Κύπρος το 2023 και το 2024, ως ένας αριθμός για όλη τη χώρα. Δεν είναι αριθμός για μια πόλη ή ένα σχολείο.",
+      "tagline": "ένας εθνικός αριθμός ανά έτος"
+    }
+  },
+  "themes": [
+    "waste",
+    "statistics"
+  ],
+  "publisher": {
+    "name": "Statistical Service of Cyprus (CYSTAT)",
+    "url": "https://www.cystat.gov.cy/en/StaticPage?id=1491",
+    "kind": "government"
+  },
+  "licence": {
+    "id": "LicenseRef-CYSTAT-reuse",
+    "url": "https://www.cystat.gov.cy/en/StaticPage?id=1491",
+    "attribution": "©: REPUBLIC OF CYPRUS, STATISTICAL SERVICE",
+    "commercial_use": "unknown",
+    "share_alike": false,
+    "checked_on": "2026-11-13"
+  },
+  "access": {
+    "type": "file",
+    "url": "https://cystatdb.cystat.gov.cy/api/v1/en/8.CYSTAT-DB/Environment/1700010E.px"
+  },
+  "coverage": {
+    "area": "Cyprus",
+    "bbox": [
+      32.2,
+      34.5,
+      34.7,
+      35.8
+    ]
+  },
+  "update": {
+    "every": "P1Y",
+    "note": "CYSTAT updates the table about once a year. The server reads a reviewed copy kept in context/ and never fetches a newer one by itself."
+  },
+  "variables": [],
+  "representativeness": {
+    "environment": "not-applicable"
+  },
+  "quality": {
+    "kind": "statistics",
+    "uncertainty": "A national yearly total. The newest year is provisional and can still change.",
+    "known_issues": [
+      "Only two selected years (2023 and 2024), not the whole series",
+      "The recycling figures of the same table are left out: two official copies of the 2023 value do not match"
+    ]
+  },
+  "restrictions": [
+    "Credit CYSTAT wherever this is shown, and say that we converted thousand tonnes to tonnes (CYSTAT is not responsible for that)",
+    "Never split the national number between cities or schools, and never add it up four times"
+  ],
+  "agent_hints": {
+    "use_for": [
+      "How much municipal waste Cyprus makes in a year"
+    ],
+    "not_for": [
+      "Waste of a city, a district or a school",
+      "Recycling rates"
+    ]
+  },
+  "notes": "Reviewed, frozen file from the research handoff of 13 November 2026 (CYSTAT table 1700010E, retrieved 12 November 2026), kept byte for byte as context/waste-generation-national.json (hash in context/manifest.json). Whether commercial reuse is allowed was not checked. Read by context.js. The brain does not read this layer (x_reads).",
+  "x_reads": false,
+  "x_context": true,
+  "added": {
+    "by": "smart-cities-team",
+    "on": "2026-11-13"
+  }
+}

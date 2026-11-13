@@ -249,7 +249,7 @@
       const cand = ls.filter((l) => l.state === 'candidate').length;
       const items = shown.map((l) => {
         const on = isLive(l), col = l.state === 'down' ? COL.bad : COL[l.group];
-        const sub = on ? (OWN.includes(l.id) && l.sensors ? T(l.fresh + ' of ' + l.sensors, l.fresh + ' από ' + l.sensors) + ' · ' : l.head ? num(l.head.value) + ' ' + l.head.unit + ' · ' : '') + (l.lastAt ? SC.ago(l.lastAt) : '') : l.state === 'planned' ? T('planned', 'σχεδιάζεται') : l.state === 'checking' ? T('checking', 'έλεγχος') : l.state === 'off' ? T('switched off', 'κλειστό') : T('not answering', 'δεν απαντά');
+        const sub = on ? (OWN.includes(l.id) && l.sensors ? T(l.fresh + ' of ' + l.sensors, l.fresh + ' από ' + l.sensors) + ' · ' : l.head ? num(l.head.value) + ' ' + l.head.unit + ' · ' : '') + (l.period ? lab(l.period) : l.lastAt ? SC.ago(l.lastAt) : '') : l.state === 'planned' ? T('planned', 'σχεδιάζεται') : l.state === 'checking' ? T('checking', 'έλεγχος') : l.state === 'off' ? T('switched off', 'κλειστό') : T('not answering', 'δεν απαντά');
         const r = ring();
         const b = h('button', { class: 'lv-chip lv-' + (on ? 'on' : l.state), type: 'button', onclick: () => api.openLayer(l.id) }, r, h('span', null, h('b', null, nm(l)), h('small', null, sub)));
         setVar(b, '--c', col);
@@ -390,7 +390,7 @@
           rows.forEach(({ l, rg, nx, on }) => {
             const n = on ? nextOf(l, t) : null;
             setVar(rg, '--p', n ? Math.round(n.p * 100) : 0);
-            nx.textContent = !on ? (l.lastAt ? T('late ', 'αργεί ') + dur(t - l.lastAt) : '') : !n ? '' : n.ms > 0 ? dur(n.ms) : n.late ? T('late ', 'αργεί ') + dur(-n.ms) : T('due now', 'τώρα');
+            nx.textContent = !on ? (l.lastAt ? T('quiet ', 'σιωπή ') + dur(t - l.lastAt) : '') : l.period ? T('yearly', 'ετήσιο') : !n ? '' : n.ms > 0 ? dur(n.ms) : n.late ? T('late ', 'αργεί ') + dur(-n.ms) : T('due now', 'τώρα');
             if (n && n.ms > 0) { after.push({ l, ms: n.ms }); if (!soon || n.ms < soon.ms) soon = { l, ms: n.ms }; }
           });
           after.sort((a, b) => a.ms - b.ms);

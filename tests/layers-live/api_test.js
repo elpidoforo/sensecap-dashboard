@@ -25,7 +25,8 @@ const up = async () => { for (let i = 0; i < 100; i++) { try { await fetch(BASE 
   const liveOnes = L.layers.filter((l) => l.state === 'live');
   ok(liveOnes.length >= 5, 'live: several layers are live in the demo (' + liveOnes.length + ')');
   ok(liveOnes.filter((l) => l.head).every((l) => typeof l.head.value === 'number' && l.head.unit && Array.isArray(l.head.label) && l.head.label.length === 2), 'live: a live layer has a value with a unit and a name in both languages');
-  ok(liveOnes.every((l) => l.everyMs > 0), 'live: a live layer says how often it updates');
+  ok(liveOnes.every((l) => l.everyMs > 0 || (l.context && Array.isArray(l.period))), 'live: a live layer says how often it updates, or (a context layer) which period it is about');
+  ok(L.layers.filter((l) => l.context).length === 3 && L.layers.filter((l) => l.context).every((l) => l.state === 'live' && l.lastAt === null && l.reads === false && l.head === null), 'live: the three context layers are connected, have no "last reading" and are not read by the brain');
   ok(L.layers.filter((l) => l.state !== 'live' && l.state !== 'late').every((l) => l.head === null && l.spark.length === 0), 'live: a layer that is not connected has no value');
   const bus = L.layers.find((l) => l.id === 'sensecap-buses');
   ok(bus && bus.sensors >= 1 && bus.fresh >= 0, 'live: buses are a count of sensors (' + JSON.stringify(bus && [bus.sensors, bus.fresh]) + ')');
@@ -56,6 +57,20 @@ const up = async () => { for (let i = 0; i < 100; i++) { try { await fetch(BASE 
   ok(r.status === 400, 'compare: unknown city is 400 (' + r.status + ')');
   r = await get('/layers/api/compare?city=larnaka&variable=dragons');
   ok(r.status === 404 && r.json.code === 'no_variable', 'compare: unknown measurement is 404 (' + r.status + ')');
+
+  // context layers over HTTP
+  r = await get('/layers/api/context/bathing-water-history?base=2004');
+  ok(r.status === 200 && r.json.sites_in_season === 123 && r.json.comparison.shared === 95, 'context: bathing water over HTTP (123 sites, 95 shared with 2004)');
+  r = await get('/layers/api/context/bathing-water-history?base=abc&season=99999');
+  ok(r.status === 200 && r.json.season === 2025, 'context: a strange season or base falls back to the newest season');
+  r = await fetch(BASE + '/layers/api/context/waste-generation-national.csv');
+  const csvText = await r.text();
+  ok(r.status === 200 && /text\/csv/.test(r.headers.get('content-type')) && /2023,633.29,633290/.test(csvText) && /STATISTICAL SERVICE/.test(csvText), 'context: the waste table downloads as CSV with the credit');
+  r = await get('/layers/api/context/sensecap-buses');
+  ok(r.status === 404, 'context: a layer that is not a context layer is 404 (' + r.status + ')');
+  r = await fetch(BASE + '/layers/api/brain', { method: 'POST', headers: { 'content-type': 'application/json', origin: BASE }, body: JSON.stringify({ city: 'larnaka', layers: ['bathing-water-history', 'waste-generation-national', 'pv-solar-scenarios'] }) });
+  const bj = await r.json();
+  ok(r.status === 200 && bj.layersRead.length === 0 && bj.findings.length === 0, 'context: the brain reads none of them, even when asked');
 
   // the log grows, and survives a restart
   await wait(12500);

@@ -45,12 +45,9 @@
     ['space', 'Surface water', 'Επιφανειακά νερά', 'Where lakes and reservoirs have grown or shrunk over the years.', 'Πού μεγάλωσαν ή μίκρυναν λίμνες και φράγματα με τα χρόνια.'],
     ['space', 'Soil moisture', 'Υγρασία εδάφους', 'How wet the top of the soil is.', 'Πόσο υγρό είναι το πάνω μέρος του εδάφους.'],
     ['space', 'Height of the land', 'Υψόμετρο', 'How high every place is, which explains why Troodos is cooler.', 'Πόσο ψηλά βρίσκεται κάθε τόπος, κάτι που εξηγεί γιατί το Τρόοδος είναι πιο δροσερό.'],
-    ['model', 'Solar panel scenarios', 'Σενάρια φωτοβολταϊκών', 'How much electricity a solar panel could make in each city, as a worked example.', 'Πόσο ρεύμα θα μπορούσε να παράγει ένα φωτοβολταϊκό σε κάθε πόλη, ως παράδειγμα υπολογισμού.', true],
     ['model', 'Drought indicator', 'Δείκτης ξηρασίας', 'A European warning level for drought.', 'Ένα ευρωπαϊκό επίπεδο προειδοποίησης για ξηρασία.'],
-    ['official', 'Bathing-water quality', 'Ποιότητα νερών κολύμβησης', 'The yearly grade of each beach, from official samples.', 'Ο ετήσιος βαθμός κάθε παραλίας, από επίσημα δείγματα.', true],
     ['official', 'Earthquakes', 'Σεισμοί', 'Recent earthquakes around Cyprus.', 'Πρόσφατοι σεισμοί γύρω από την Κύπρο.'],
     ['official', 'City noise maps', 'Χάρτες θορύβου πόλεων', 'Official maps of traffic noise in the cities.', 'Επίσημοι χάρτες θορύβου κυκλοφορίας στις πόλεις.'],
-    ['context', 'Waste we produce', 'Τα απορρίμματά μας', 'How much household waste Cyprus makes each year.', 'Πόσα οικιακά απορρίμματα παράγει η Κύπρος κάθε χρόνο.', true],
     ['context', 'Live public bus times', 'Ζωντανοί χρόνοι δημόσιων λεωφορείων', 'Whether public buses run on time, from the official live feed.', 'Αν τα δημόσια λεωφορεία είναι στην ώρα τους, από την επίσημη ζωντανή ροή.'],
     ['context', 'Population (census)', 'Πληθυσμός (απογραφή)', 'How many people live in each area.', 'Πόσοι άνθρωποι ζουν σε κάθε περιοχή.'],
     ['context', 'Flood scenarios', 'Σενάρια πλημμύρας', 'Official maps of where a flood could reach.', 'Επίσημοι χάρτες για το πού θα μπορούσε να φτάσει μια πλημμύρα.'],
@@ -107,11 +104,12 @@
       stage, info,
       h('div', { class: 'fl-key' },
         h('span', null, h('i', { class: 'k1' }), T('a layer that is connected', 'ένα συνδεδεμένο στρώμα')),
+        h('span', null, h('i', { class: 'k5' }), T('shown on its own, the brain does not read it', 'εμφανίζεται ξεχωριστά, ο εγκέφαλος δεν το διαβάζει')),
         h('span', null, h('i', { class: 'k2' }), T('a river: layers that measure the same thing', 'ένα ποτάμι: στρώματα που μετρούν το ίδιο πράγμα')),
         h('span', null, h('i', { class: 'k3' }), T('sources agree', 'οι πηγές συμφωνούν')),
         h('span', null, h('i', { class: 'k4' }), T('sources differ', 'οι πηγές διαφέρουν'))),
       h('h3', { class: 'fl-h' }, T('Every level, from space down to the sea', 'Κάθε επίπεδο, από το διάστημα μέχρι τη θάλασσα')),
-      h('p', { class: 'lv-fine' }, T('Solid chips are connected today and show their live value. Dashed chips are on the list to add. A star marks the first three to add. Press a chip to read about it.', 'Τα γεμάτα κουμπιά είναι συνδεδεμένα σήμερα και δείχνουν τη ζωντανή τους τιμή. Τα διακεκομμένα είναι στη λίστα για προσθήκη. Το αστέρι δείχνει τα τρία πρώτα που θα προστεθούν. Πάτα ένα κουμπί για να διαβάσεις γι’ αυτό.')),
+      h('p', { class: 'lv-fine' }, T('Solid chips are connected today and show their live value. Dashed chips are on the list to add. Press a chip to read about it.', 'Τα γεμάτα κουμπιά είναι συνδεδεμένα σήμερα και δείχνουν τη ζωντανή τους τιμή. Τα διακεκομμένα είναι στη λίστα για προσθήκη. Πάτα ένα κουμπί για να διαβάσεις γι’ αυτό.')),
       levels));
 
     /* ----- the scene: where everything sits (in CSS pixels of the stage) ----- */
@@ -130,7 +128,7 @@
         row.list.forEach((l, k) => {
           const x = (padL + ((k + 0.5) / row.list.length) * (1 - padL - 0.04)) * w;
           const rivers = (live.rivers || []).filter((r) => r.sources.includes(l.id));
-          src.push({ l, x, y, col: COL[l.group] || '#fff', period: clamp((l.everyMs || 3600000) / 600000, 0.5, 5), rivers, next: Math.random() * 2 });
+          src.push({ l, x, y, col: COL[l.group] || '#fff', period: clamp((l.everyMs || 3600000) / 600000, 0.5, 5), rivers, next: Math.random() * 2, reads: l.reads !== false });
         });
       });
       const rv = (live.rivers || []).slice(0, narrow ? 4 : 6);
@@ -153,7 +151,7 @@
       if (sel.kind === 'src') {
         const l = live.layers.find((x) => x.id === sel.id), rivs = (live.rivers || []).filter((r) => r.sources.includes(sel.id));
         info.replaceChildren(h('b', null, nm(l)), ': ' + (l.sensors ? T(l.fresh + ' of ' + l.sensors + ' sensors reporting', l.fresh + ' από ' + l.sensors + ' αισθητήρες στέλνουν') + (l.head ? ', ' : '') : '') + (l.head ? num(l.head.value) + ' ' + l.head.unit + ' (' + lab(l.head.label).toLowerCase() + ')' : '') + (l.lastAt ? ', ' + SC.ago(l.lastAt) : '') + '. ' +
-          (rivs.length ? T('It flows into: ', 'Ρέει προς: ') + rivs.map(shortOf).join(', ') + '. ' : T('Nothing else measures the same thing, so it goes straight to the brain. ', 'Τίποτε άλλο δεν μετρά το ίδιο πράγμα, άρα πηγαίνει κατευθείαν στον εγκέφαλο. ')),
+          (l.reads === false ? (l.period ? lab(l.period) + '. ' : '') + T('The brain does not read this layer: it is shown on its own, so no dots fall from it. ', 'Ο εγκέφαλος δεν διαβάζει αυτό το στρώμα: εμφανίζεται ξεχωριστά, γι’ αυτό δεν πέφτουν τελείες από αυτό. ') : rivs.length ? T('It flows into: ', 'Ρέει προς: ') + rivs.map(shortOf).join(', ') + '. ' : T('Nothing else measures the same thing, so it goes straight to the brain. ', 'Τίποτε άλλο δεν μετρά το ίδιο πράγμα, άρα πηγαίνει κατευθείαν στον εγκέφαλο. ')),
           h('button', { type: 'button', class: 'fl-more', onclick: () => api.openLayer(l.id) }, T('About this layer', 'Για αυτό το στρώμα')));
       } else if (sel.kind === 'river') {
         const r = live.rivers.find((x) => x.variable === sel.id), c = r.cities[cityNow()], cn = lab(CITY[cityNow()] || [cityNow(), cityNow()]);
@@ -182,6 +180,7 @@
       G.labels.forEach((lb) => { const e = h('span', { class: 'fl-lv' }, lab(lb.lv.name), h('small', null, String(lb.n))); e.style.top = lb.y + 'px'; setVar(e, '--c', lb.lv.col); kids.push(e); });
       G.src.forEach((s) => {
         const b = h('button', { type: 'button', class: 'fl-src' + (litSrc(s) ? '' : ' dim') + (sel && sel.kind === 'src' && sel.id === s.l.id ? ' on' : ''), title: nm(s.l), 'aria-label': nm(s.l), 'aria-pressed': sel && sel.kind === 'src' && sel.id === s.l.id ? 'true' : 'false', onclick: () => pick('src', s.l.id) }, h('i'));
+        if (!s.reads) b.classList.add('own-page');
         b.style.left = s.x + 'px'; b.style.top = s.y + 'px'; setVar(b, '--c', s.col); setVar(b, '--beat', clamp(s.period * 1.2, 1.2, 5) + 's');
         kids.push(b);
       });
@@ -212,7 +211,7 @@
       parts.push({ s, rv: rv || null, leg: 0, t: 0, sp: 0.5 + Math.random() * 0.25 });
     }
     function step(dt) {
-      for (const s of G.src) { s.next -= dt; if (s.next <= 0) { s.next = s.period * (0.7 + Math.random() * 0.6); if (parts.length < (G.narrow ? 160 : 260)) emit(s); } }
+      for (const s of G.src) { if (!s.reads) continue; s.next -= dt; if (s.next <= 0) { s.next = s.period * (0.7 + Math.random() * 0.6); if (parts.length < (G.narrow ? 160 : 260)) emit(s); } }
       for (const p of parts) {
         p.t += dt * p.sp * (p.leg === 0 && p.rv ? 0.9 : 1.1);
         if (p.t >= 1) {
@@ -231,6 +230,7 @@
         const a = litSrc(s) ? 0.16 : 0.04;
         const targets = s.rivers.length ? s.rivers.map((r) => G.riv.find((x) => x.r.variable === r.variable)).filter(Boolean) : [];
         ctx.strokeStyle = 'rgba(200,214,232,' + a + ')';
+        if (!s.reads) continue;
         if (!targets.length) { const c = ctrl(s, G.brain); ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.quadraticCurveTo(c.x, c.y, G.brain.x, G.brain.y); ctx.stroke(); }
         for (const rv of targets) { if (sel && sel.kind === 'river' && sel.id !== rv.r.variable) continue; const c = ctrl(s, rv); ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.quadraticCurveTo(c.x, c.y, rv.x, rv.y); ctx.stroke(); }
       }
@@ -258,7 +258,7 @@
     function drawStill() {   // reduced motion: the paths, and one still dot half way along each
       const ctx = canvas.getContext('2d'), k = canvas.width / G.w;
       ctx.setTransform(k, 0, 0, k, 0, 0); ctx.clearRect(0, 0, G.w, G.h); lines(ctx);
-      for (const s of G.src) { const rv = s.rivers.length ? G.riv.find((x) => x.r.variable === s.rivers[0].variable) : null; const b = rv || G.brain, [x, y] = bez(s, ctrl(s, b), b, 0.5); dot(ctx, x, y, 2.6, s.col, litSrc(s) ? 0.9 : 0.15); }
+      for (const s of G.src) { if (!s.reads) continue; const rv = s.rivers.length ? G.riv.find((x) => x.r.variable === s.rivers[0].variable) : null; const b = rv || G.brain, [x, y] = bez(s, ctrl(s, b), b, 0.5); dot(ctx, x, y, 2.6, s.col, litSrc(s) ? 0.9 : 0.15); }
     }
     function frame(t) {
       raf = 0;
@@ -286,7 +286,7 @@
         const show = (key, kids) => { if (openChip === key) { openChip = null; detail.hidden = true; return; } openChip = key; detail.hidden = false; detail.replaceChildren(...kids); };
         const chips = [
           ...on.map((l) => h('button', { type: 'button', class: 'fl-chip', onclick: () => show(l.id, [h('b', null, nm(l)), ': ' + (l.sensors ? T(l.fresh + ' of ' + l.sensors + ' sensors reporting', l.fresh + ' από ' + l.sensors + ' αισθητήρες στέλνουν') + (l.head ? ', ' : '') : '') + (l.head ? num(l.head.value) + ' ' + l.head.unit + ' (' + lab(l.head.label).toLowerCase() + T(', average of the cities)', ', μέσος όρος των πόλεων)') : (isEl() ? l.noteEl : l.note) || '') + (l.lastAt ? ', ' + SC.ago(l.lastAt) : '') + '. ', h('button', { type: 'button', class: 'fl-more', onclick: () => api.openLayer(l.id) }, T('About this layer', 'Για αυτό το στρώμα'))]) },
-            nm(l), l.head ? h('u', null, num(l.head.value) + ' ' + l.head.unit) : l.sensors ? h('u', null, l.fresh + '/' + l.sensors) : null)),
+            nm(l), l.head ? h('u', null, num(l.head.value) + ' ' + l.head.unit) : l.sensors ? h('u', null, l.fresh + '/' + l.sensors) : l.period ? h('u', null, lab(l.period)) : null)),
           ...wait.map((l) => h('button', { type: 'button', class: 'fl-chip soon', onclick: () => show(l.id, [h('b', null, nm(l)), ': ' + (l.state === 'planned' ? T('planned, not connected yet. ', 'σχεδιάζεται, δεν έχει συνδεθεί ακόμη. ') : l.state === 'candidate' ? T('a candidate, not connected yet. ', 'υποψήφιο, δεν έχει συνδεθεί ακόμη. ') : T('connected, but not answering right now. ', 'συνδεδεμένο, αλλά δεν απαντά αυτή τη στιγμή. ')), h('button', { type: 'button', class: 'fl-more', onclick: () => api.openLayer(l.id) }, T('About this layer', 'Για αυτό το στρώμα'))]) }, nm(l), l.state === 'down' || l.state === 'off' || l.state === 'checking' ? h('u', { class: 'q' }, T('quiet', 'σιωπή')) : null)),
           ...road.map((r) => h('button', { type: 'button', class: 'fl-chip soon' + (r.star ? ' star' : ''), onclick: () => show(r.name, [h('b', null, (r.star ? '★ ' : '') + nm(r)), ': ' + lab(r.what) + ' ' + (r.star ? T('One of the first three to add.', 'Ένα από τα τρία πρώτα που θα προστεθούν.') : T('On the list to add, not connected yet.', 'Στη λίστα για προσθήκη, δεν έχει συνδεθεί ακόμη.'))]) }, (r.star ? '★ ' : '') + nm(r))),
         ];
@@ -312,4 +312,85 @@
 
   SC.layersLive = SC.layersLive || {};
   SC.layersLive.all = all;
+
+  /* ================================================================== context layers in a layer's dialog =====================
+     SC.layersLive.contextView(host, id): the reviewable output of one context layer (GET /layers/api/context/<id>, read by context.js
+     from a reviewed, frozen file). What is always said: which period it is about, who it is from, what we changed, and what it must
+     not be used for. Bathing water: full reported labels, no score, no "got better" count, no safety badge. Waste: one national
+     number, never split between schools. Solar: a model for a generic city point, never a roof and never a ranking. */
+  const BW = { '0 - Not classified': ['Not classified', 'Χωρίς κατάταξη', '#9fb2ca'], '1 - Excellent': ['Excellent', 'Εξαιρετική', '#4CCBEA'], '2 - Good': ['Good', 'Καλή', '#7FD3A0'], '3 - Good or Sufficient': ['Good or sufficient (older scheme)', 'Καλή ή επαρκής (παλαιότερο σύστημα)', '#F2CF86'], '3 - Sufficient': ['Sufficient', 'Επαρκής', '#F2A56B'], '4 - Poor': ['Poor', 'Ανεπαρκής', '#FF8B7D'] };
+  const bwName = (label) => (BW[label] ? lab(BW[label]) : label);
+  const bwCol = (label) => (BW[label] ? BW[label][2] : '#fff');
+  const short = (hash) => String(hash || '').slice(0, 12);
+  function contextView(host, id) {
+    let dead = false, season = null, base = null;
+    const box = h('section', { class: 'cx', 'aria-label': T('What this layer holds', 'Τι περιέχει αυτό το στρώμα') }, h('p', { class: 'ly-wait' }, T('Loading…', 'Φόρτωση…')));
+    host.replaceChildren(box);
+    const foot = (v) => h('div', { class: 'cx-foot' },
+      h('p', null, h('b', null, T('Source: ', 'Πηγή: ')), v.attribution + '.' + (v.transformation ? ' ' + T('What we changed: ', 'Τι αλλάξαμε: ') + v.transformation : '')),
+      h('p', null, T('This is a reviewed, saved copy (file ', 'Αυτό είναι ένα ελεγμένο, αποθηκευμένο αντίγραφο (αρχείο ') + short(v.identity.artifact_sha256) + T('). The site does not fetch a newer one by itself.', '). Ο ιστότοπος δεν κατεβάζει νεότερο από μόνος του.')),
+      h('a', { class: 'ly-btn', href: '/layers/api/context/' + id + '.csv', download: id + '.csv' }, T('Download as a table (CSV)', 'Λήψη ως πίνακας (CSV)')));
+    const sel = (label, value, options, on) => { const s = h('select', { class: 'cx-sel', 'aria-label': label, onchange: () => on(Number(s.value)) }, options.map((o) => h('option', { value: String(o), selected: o === value }, String(o)))); return h('label', { class: 'cx-lab' }, label + ' ', s); };
+    function bathing(v) {
+      const map = sv('svg', { viewBox: '0 0 ' + ISLAND.W + ' ' + ISLAND.H, class: 'cx-map', role: 'img', 'aria-label': T('Bathing sites of ' + v.season + ' on a map of Cyprus', 'Τα σημεία κολύμβησης του ' + v.season + ' σε χάρτη της Κύπρου') });
+      const land = sv('g', { fill: 'rgba(255,255,255,.07)', stroke: 'rgba(143,227,247,.35)', 'stroke-width': 0.8 });
+      Object.keys(ISLAND.districts).forEach((k) => land.append(sv('path', { d: ISLAND.districts[k] })));
+      map.append(land);
+      let noPlace = 0;
+      v.sites.forEach((s) => { if (s.lat == null) { noPlace++; return; } const q = ISLAND.project(s.lng, s.lat); const c = sv('circle', { cx: q[0], cy: q[1], r: 6.5, fill: bwCol(s.label), stroke: '#0C1626', 'stroke-width': 1.5 }); c.append(sv('title', null, s.name + ': ' + bwName(s.label) + ' (' + v.season + ')')); map.append(c); });
+      const c = v.comparison;
+      const cmp = !c || !c.available ? h('p', { class: 'ly-fine' }, T('That season is not in this release, so there is nothing to compare. A missing season is not a season with zero sites.', 'Αυτή η περίοδος δεν υπάρχει σε αυτή την έκδοση, άρα δεν υπάρχει τι να συγκριθεί. Μια περίοδος που λείπει δεν είναι περίοδος με μηδέν σημεία.'))
+        : h('div', null,
+          h('p', null, T(c.base + ': ' + c.base_sites + ' sites. ' + c.comparison + ': ' + c.comparison_sites + ' sites. In both lists: ', c.base + ': ' + c.base_sites + ' σημεία. ' + c.comparison + ': ' + c.comparison_sites + ' σημεία. Και στις δύο λίστες: '), h('b', null, String(c.shared)), T('. Only in ' + c.base + ': ' + c.base_only + '. Only in ' + c.comparison + ': ' + c.comparison_only + '.', '. Μόνο το ' + c.base + ': ' + c.base_only + '. Μόνο το ' + c.comparison + ': ' + c.comparison_only + '.')),
+          h('table', { class: 'cx-t' }, h('thead', null, h('tr', null, h('th', null, T('Label in ', 'Κατάταξη το ') + c.base), h('th', null, T('Label in ', 'Κατάταξη το ') + c.comparison), h('th', null, T('Sites', 'Σημεία')))),
+            h('tbody', null, c.transitions.map((t) => h('tr', null, h('td', null, bwName(t.from)), h('td', null, bwName(t.to)), h('td', null, String(t.sites)))))),
+          h('p', { class: 'ly-fine' }, T('Only the ' + c.shared + ' sites that are in both lists are counted. A site that is in one list only was not necessarily opened or closed. The rules behind the labels also changed over the years, so this table does not prove that the water got better or worse.', 'Μετριούνται μόνο τα ' + c.shared + ' σημεία που υπάρχουν και στις δύο λίστες. Ένα σημείο που υπάρχει μόνο στη μία δεν σημαίνει ότι άνοιξε ή έκλεισε. Οι κανόνες πίσω από τις κατατάξεις άλλαξαν επίσης με τα χρόνια, άρα ο πίνακας δεν αποδεικνύει ότι το νερό έγινε καλύτερο ή χειρότερο.')));
+      return [
+        h('div', { class: 'ly-warn' }, T('History only. This is how each site was labelled for a past season, from samples taken over several seasons. It does not say whether the water is safe today.', 'Μόνο ιστορικό. Έτσι κατατάχθηκε κάθε σημείο για μια περασμένη περίοδο, από δείγματα πολλών περιόδων. Δεν λέει αν το νερό είναι ασφαλές σήμερα.')),
+        h('div', { class: 'cx-row' }, sel(T('Season', 'Περίοδος'), v.season, v.seasons.slice().reverse(), (y) => { season = y; load(); }), h('span', null, T(v.sites_in_season + ' sites in the list of ' + v.season, v.sites_in_season + ' σημεία στη λίστα του ' + v.season))),
+        h('div', { class: 'cx-chips' }, v.counts.map((k) => { const e = h('span', null, h('i'), bwName(k.label) + ': ', h('b', null, String(k.sites))); setVar(e, '--c', bwCol(k.label)); return e; })),
+        map,
+        noPlace ? h('p', { class: 'ly-fine' }, T(noPlace + ' sites of ' + v.season + ' are not on the map: they are not in the ' + v.places_from_season + ' list, and we do not assume their old place.', noPlace + ' σημεία του ' + v.season + ' δεν είναι στον χάρτη: δεν υπάρχουν στη λίστα του ' + v.places_from_season + ' και δεν υποθέτουμε την παλιά τους θέση.')) : h('p', { class: 'ly-fine' }, T('Each dot is one bathing site. Hold the pointer over a dot for its name.', 'Κάθε τελεία είναι ένα σημείο κολύμβησης. Κράτησε τον δείκτη πάνω σε μια τελεία για το όνομά του.')),
+        h('h4', null, T('Compare two seasons', 'Σύγκρινε δύο περιόδους')),
+        h('div', { class: 'cx-row' }, sel(T('Earlier season', 'Παλαιότερη περίοδος'), c && c.base != null ? c.base : v.seasons[0], v.seasons.filter((y) => y < v.places_from_season), (y) => { base = y; load(); }), h('span', null, T('with ' + v.places_from_season, 'με το ' + v.places_from_season))),
+        cmp, foot(v)];
+    }
+    function waste(v) {
+      const max = Math.max(...v.rows.map((r) => r.thousand_tonnes));
+      return [
+        h('div', { class: 'ly-warn' }, T('One number for the whole of Cyprus. It is not split between cities, and it is not the waste of a school.', 'Ένας αριθμός για όλη την Κύπρο. Δεν μοιράζεται σε πόλεις και δεν είναι τα απορρίμματα ενός σχολείου.')),
+        h('div', { class: 'cx-bars' }, v.rows.map((r) => { const bar = h('i'); bar.style.width = Math.round((r.thousand_tonnes / max) * 100) + '%'; return h('div', null, h('b', null, String(r.year)), h('span', { class: 'cx-bar' }, bar), h('span', null, h('b', null, num(r.thousand_tonnes)), T(' thousand tonnes', ' χιλιάδες τόνοι'), r.provisional ? h('em', null, T('provisional', 'προσωρινό')) : null)); })),
+        h('p', { class: 'ly-fine' }, T('Municipal waste generated in a year (households and similar). Two selected years, not the whole series. The newest year is provisional and can still change. The four schools all point to this same national number; none of them has a local value.', 'Δημοτικά απορρίμματα που παράχθηκαν σε ένα έτος (νοικοκυριά και παρόμοια). Δύο επιλεγμένα έτη, όχι ολόκληρη η σειρά. Το νεότερο έτος είναι προσωρινό και μπορεί ακόμη να αλλάξει. Και τα τέσσερα σχολεία παραπέμπουν στον ίδιο εθνικό αριθμό· κανένα δεν έχει τοπική τιμή.')),
+        foot(v)];
+    }
+    function solar(v) {
+      const months = Array.from({ length: 12 }, (_, i) => new Intl.DateTimeFormat(isEl() ? 'el-GR' : 'en-GB', { month: 'short' }).format(new Date(Date.UTC(2024, i, 15))));
+      const top = Math.max(...v.cities.flatMap((c) => c.monthly_kwh || [0]));
+      const sc = v.scenario;
+      return [
+        h('div', { class: 'ly-warn' }, T('A model, not a measurement. It is for a general point in each city, not for a school roof, and the cities must not be ranked with it.', 'Μοντέλο, όχι μέτρηση. Αφορά ένα γενικό σημείο σε κάθε πόλη, όχι τη στέγη ενός σχολείου, και οι πόλεις δεν πρέπει να κατατάσσονται με αυτό.')),
+        h('p', null, T('The scenario: a ' + sc.peak_power_kwp + ' kWp set of panels, tilted ' + sc.tilt_degrees + ' degrees, facing south, with ' + sc.system_loss_percent + ' % losses. The model (' + v.model + ') uses the weather of ' + (v.reference_years || []).join(' to ') + ' and gives an average year.', 'Το σενάριο: σύστημα ' + sc.peak_power_kwp + ' kWp, με κλίση ' + sc.tilt_degrees + ' μοίρες, προς τον νότο, με απώλειες ' + sc.system_loss_percent + ' %. Το μοντέλο (' + v.model + ') χρησιμοποιεί τον καιρό των ετών ' + (v.reference_years || []).join(' έως ') + ' και δίνει ένα μέσο έτος.')),
+        h('div', { class: 'cx-sol' }, v.cities.map((c) => {
+          const cn = lab(CITY[c.city] || [c.city, c.city]);
+          if (c.status !== 'available') return h('div', null, h('b', null, cn), h('span', null, T('The calculation for this city is not available. That is not the same as zero.', 'Ο υπολογισμός για αυτή την πόλη δεν είναι διαθέσιμος. Αυτό δεν είναι το ίδιο με μηδέν.')));
+          const svg = sv('svg', { viewBox: '0 0 264 64', class: 'cx-mon', role: 'img', 'aria-label': T('Month by month in ' + cn + ': ', 'Μήνα προς μήνα, ' + cn + ': ') + c.monthly_kwh.map((x, i) => months[i] + ' ' + Math.round(x)).join(', ') + ' kWh' });
+          c.monthly_kwh.forEach((x, i) => { const hh = (x / top) * 50; const r = sv('rect', { x: 2 + i * 22, y: 52 - hh, width: 18, height: hh, rx: 3, fill: '#F7C46B' }); r.append(sv('title', null, months[i] + ': ' + num(x) + ' kWh')); svg.append(r, sv('text', { x: 11 + i * 22, y: 63, 'text-anchor': 'middle', class: 'cx-m' }, months[i].slice(0, 1))); });
+          return h('div', null, h('b', null, cn), h('span', null, h('b', null, String(Math.round(c.annual_kwh))), T(' kWh in an average year', ' kWh σε ένα μέσο έτος')), svg);
+        })),
+        h('p', { class: 'ly-fine' }, T('The four results come from the same model, so they are one source, not four. A real roof gives less or more: shade, direction, dirt and the weather of that year all matter. No costs are worked out.', 'Τα τέσσερα αποτελέσματα προέρχονται από το ίδιο μοντέλο, άρα είναι μία πηγή, όχι τέσσερις. Μια πραγματική στέγη δίνει λιγότερο ή περισσότερο: η σκιά, ο προσανατολισμός, η σκόνη και ο καιρός εκείνης της χρονιάς μετρούν. Δεν υπολογίζεται κόστος.')),
+        foot(v)];
+    }
+    async function load() {
+      try {
+        const v = await SC.api('/layers/api/context/' + encodeURIComponent(id) + '?x=1' + (season ? '&season=' + season : '') + (base ? '&base=' + base : ''));
+        if (dead) return;
+        if (!v.available) { box.replaceChildren(h('div', { class: 'err', role: 'alert' }, T('This layer’s saved file could not be read, so nothing is shown.', 'Το αποθηκευμένο αρχείο αυτού του στρώματος δεν διαβάστηκε, γι’ αυτό δεν εμφανίζεται τίποτα.'))); return; }
+        box.replaceChildren(...(v.kind === 'bathing' ? bathing(v) : v.kind === 'waste' ? waste(v) : solar(v)));
+      } catch (e) { if (!dead) box.replaceChildren(h('div', { class: 'err', role: 'alert' }, (e && e.message) || T('Something went wrong.', 'Κάτι πήγε στραβά.'))); }
+    }
+    load();
+    return { destroy() { dead = true; } };
+  }
+  SC.layersLive.contextView = contextView;
+
 })();
