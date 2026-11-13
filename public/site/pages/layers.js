@@ -29,6 +29,7 @@
   const VIEWS = [
     ['live', 'Live map', 'Ζωντανός χάρτης', 'Cyprus · every layer, live', 'Κύπρος · κάθε στρώμα, ζωντανά', 'One map where the layers move: wind, sea, our schools, official stations and the newest satellite data. Press a school or a station to read it.', 'Ένας χάρτης όπου τα στρώματα κινούνται: άνεμος, θάλασσα, τα σχολεία μας, οι επίσημοι σταθμοί και τα νεότερα δορυφορικά δεδομένα. Πάτα ένα σχολείο ή έναν σταθμό για να το διαβάσεις.'],
     ['core', 'Mission control', 'Κέντρο ελέγχου', 'Mission control', 'Κέντρο ελέγχου', 'Everything at once, like a control room: a tile for every layer, the measurements flowing into the core, and the findings flowing out to the four cities.', 'Όλα μαζί, σαν αίθουσα ελέγχου: ένα πλακίδιο για κάθε στρώμα, οι μετρήσεις που ρέουν στον πυρήνα και τα ευρήματα που ρέουν προς τις τέσσερις πόλεις.'],
+    ['day', 'Replay the day', 'Η μέρα ξανά', 'The saved day, played back', 'Η αποθηκευμένη μέρα, από την αρχή', 'Press play and the last day runs again, hour by hour. The four cities change places as their numbers change. Open a city to see which layer each number came from.', 'Πάτα αναπαραγωγή και η τελευταία μέρα τρέχει ξανά, ώρα με την ώρα. Οι τέσσερις πόλεις αλλάζουν θέση καθώς αλλάζουν οι αριθμοί τους. Άνοιξε μια πόλη για να δεις από ποιο στρώμα ήρθε κάθε αριθμός.'],
     ['pulse', 'Pulse', 'Παλμός', 'The pulse board', 'Ο πίνακας παλμού', 'Every layer is a row with a heartbeat: what is alive, what just spoke, what went quiet and when it speaks next.', 'Κάθε στρώμα είναι μια γραμμή με παλμό: τι είναι ζωντανό, τι μόλις μίλησε, τι σώπασε και πότε θα ξαναμιλήσει.'],
     ['compare', 'Compare', 'Σύγκριση', 'Same question, every source', 'Ίδια ερώτηση, κάθε πηγή', 'Pick one thing to measure and see every layer that knows about it. Lines that agree build trust. Lines that differ start a good question.', 'Διάλεξε κάτι να μετρήσεις και δες κάθε στρώμα που το γνωρίζει. Γραμμές που συμφωνούν χτίζουν εμπιστοσύνη. Γραμμές που διαφέρουν ξεκινούν μια καλή ερώτηση.'],
     ['sky', 'Sky to ground', 'Από ουρανό σε γη', 'From space down to the sea', 'Από το διάστημα μέχρι τη θάλασσα', 'Each layer sits at the height where its data is born, from a satellite, through the air, to a sensor in a classroom.', 'Κάθε στρώμα βρίσκεται στο ύψος όπου γεννιούνται τα δεδομένα του: από έναν δορυφόρο, μέσα από τον αέρα, μέχρι έναν αισθητήρα σε μια τάξη.'],
@@ -334,7 +335,7 @@
 
       /* ----- the live views (pages/layers-live.js): they share one answer of GET /layers/api/live, asked again every 30 s ----- */
       let liveView = null, liveKind = '', liveLib = null, liveTimer = 0, liveBusy = false;
-      const isLiveView = (v) => v === 'live' || v === 'pulse' || v === 'compare' || v === 'sky' || v === 'all' || v === 'core';
+      const isLiveView = (v) => v === 'live' || v === 'pulse' || v === 'compare' || v === 'sky' || v === 'all' || v === 'core' || v === 'day';
       const liveApi = {
         openLayer: (id) => openLayer(id),
         city: () => (S.city === 'all' ? (S.cityList[0] || {}).id || 'larnaka' : S.city),
@@ -344,9 +345,9 @@
       };
       function setView(id) { S.view = id; seg.querySelectorAll('button').forEach((b) => { const on = b.dataset.v === id; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); }); drawStage(); }
       function loadLiveLib() {
-        if (SC.layersLive && SC.layersLive.all && SC.layersLive.core) return Promise.resolve(true);
+        if (SC.layersLive && SC.layersLive.all && SC.layersLive.core && SC.layersLive.day) return Promise.resolve(true);
         const one = (src) => new Promise((done) => { const sc = document.createElement('script'); sc.src = src; sc.onload = () => done(true); sc.onerror = () => { sc.remove(); done(false); }; document.head.append(sc); });
-        return liveLib || (liveLib = one('/site/pages/layers-live.js?v=3').then((a) => (a ? one('/site/pages/layers-flow.js?v=2') : false)).then((a) => (a ? one('/site/pages/layers-core.js?v=1') : false)).then((ok2) => { const good = Boolean(ok2 && SC.layersLive && SC.layersLive.all && SC.layersLive.core); if (!good) liveLib = null; return good; }));
+        return liveLib || (liveLib = one('/site/pages/layers-live.js?v=3').then((a) => (a ? one('/site/pages/layers-flow.js?v=2') : false)).then((a) => (a ? one('/site/pages/layers-core.js?v=1') : false)).then((a) => (a ? one('/site/pages/layers-day.js?v=1') : false)).then((ok2) => { const good = Boolean(ok2 && SC.layersLive && SC.layersLive.all && SC.layersLive.core && SC.layersLive.day); if (!good) liveLib = null; return good; }));
       }
       async function fetchLive() {
         if (liveBusy || dead) return;
