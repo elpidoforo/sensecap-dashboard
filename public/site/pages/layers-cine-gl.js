@@ -66,8 +66,8 @@ async function mountEngine(host) {
   const small = () => host.clientWidth < 620;
   const lowEnd = small() || matchMedia('(pointer: coarse)').matches || (navigator.deviceMemory && navigator.deviceMemory <= 4) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
   let N = lowEnd ? 26000 : 64000;
-  renderer.setClearColor(0x03060a, 1);
-  const scene = new THREE.Scene(); scene.fog = new THREE.FogExp2(0x03060a, 0.028);
+  renderer.setClearColor(0x0a1628, 1);   // the navy of the page tiles, so the scene sits in its tile and not in a black box
+  const scene = new THREE.Scene(); scene.fog = new THREE.FogExp2(0x0a1628, 0.028);
   const cam = new THREE.PerspectiveCamera(34, 2, 0.1, 200);
   let seed = 20261113; const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
   const add = (o) => { scene.add(o); return o; };
@@ -177,7 +177,7 @@ async function mountEngine(host) {
     vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime, uAb; varying vec2 vUv; float rnd(vec2 c){ return fract(sin(dot(c, vec2(12.9898, 78.233))) * 43758.5453); }
       void main(){ vec2 d = vUv - .5; float r2 = dot(d, d); vec2 o = d * r2 * 0.012 * uAb; vec3 c = vec3(texture2D(tDiffuse, vUv + o).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - o).b);
-        c *= 1.0 - r2 * 1.25; c = mix(c, c * vec3(0.9, 1.02, 1.12), 0.6); c += (rnd(vUv * 911.0 + fract(uTime) * 7.0) - .5) * 0.04; c += vec3(0.0, 0.012, 0.022) * (1.0 - r2 * 2.0);
+        c *= 1.0 - r2 * 0.55; c = mix(c, c * vec3(0.9, 1.02, 1.12), 0.6); c += (rnd(vUv * 911.0 + fract(uTime) * 7.0) - .5) * 0.04; c += vec3(0.0, 0.012, 0.022) * (1.0 - r2 * 2.0);
         gl_FragColor = vec4(max(c, 0.0), 1.0); }` });
   composer.addPass(grade);
 
@@ -267,7 +267,7 @@ async function mountEngine(host) {
       if (still) { meter.inV = meter.inT = totalIn; meter.outU = 1; }
       fx.font = `600 ${nar ? 9 : 10.5}px ${MONO}`; fx.textAlign = 'center'; fx.textBaseline = 'middle';
       for (const tg of tags) { tg.delay -= dt; if (tg.delay > 0 || !gi || !IN[tg.i]) continue; tg.p += dt / 2.1; const [x, y] = bz([IN[tg.i].x, IN[tg.i].y], gi.ends[tg.i], Math.min(1, tg.p), gi.vert), w = fx.measureText(tg.txt).width + 10, al = Math.min(1, Math.sin(Math.min(1, tg.p) * Math.PI) * 2.5);
-        fx.globalAlpha = al; fx.fillStyle = 'rgba(4,14,22,.9)'; fx.fillRect(x - w / 2, y - 8, w, 16); fx.strokeStyle = 'rgba(95,220,255,.9)'; fx.strokeRect(x - w / 2, y - 8, w, 16); fx.fillStyle = '#d9f6ff'; fx.fillText(tg.txt, x, y + .5); fx.globalAlpha = 1;
+        fx.globalAlpha = al; fx.fillStyle = 'rgba(4,14,22,.9)'; fx.strokeStyle = 'rgba(95,220,255,.9)'; fx.beginPath(); if (fx.roundRect) fx.roundRect(x - w / 2, y - 9, w, 18, 9); else fx.rect(x - w / 2, y - 9, w, 18); fx.fill(); fx.stroke(); fx.fillStyle = '#d9f6ff'; fx.fillText(tg.txt, x, y + .5); fx.globalAlpha = 1;
         if (tg.p >= 1) { meter.inT += tg.val; tg.done = true; U.uPulse.value = Math.max(U.uPulse.value, .25); } }
       tags = tags.filter((tg) => !tg.done);
       if (!tags.length && beat !== 0 && !still) meter.inT = totalIn;

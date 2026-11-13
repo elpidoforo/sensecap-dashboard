@@ -425,7 +425,7 @@
   function buildTopbar() {
     const top = document.getElementById('top');
     top.replaceChildren(
-      SC.el('button', { class: 'burger', id: 'burger', type: 'button', 'aria-label': SC.t('Open menu', 'Άνοιγμα μενού'), 'aria-controls': 'side', 'aria-expanded': 'false', onclick: () => setDrawer(!document.body.classList.contains('drawer')) }, SC.icon('menu')),
+      SC.el('button', { class: 'burger', id: 'burger', type: 'button', 'aria-label': SC.t('Open menu', 'Άνοιγμα μενού'), 'aria-controls': 'side', 'aria-expanded': 'false', onclick: () => setDrawer(!document.body.classList.contains('drawer')) }, SC.icon('menu'), SC.el('span', { class: 'burger-t' }, SC.t('Menu', 'Μενού'))),
       SC.el('a', { class: 'bell', id: 'bell', href: '#/alerts', 'aria-label': SC.t('Alerts', 'Ειδοποιήσεις'), title: SC.t('Alerts', 'Ειδοποιήσεις') }, SC.icon('bell')),
       SC.el('span', { class: 'nm-lang', role: 'group', 'aria-label': 'Language' },
         ['en', 'el'].map((l) => SC.el('button', { type: 'button', class: SC.lang === l ? 'on' : '', 'aria-pressed': SC.lang === l ? 'true' : 'false', onclick: () => { if (SC.lang !== l) { store.set('sc.lang', l); location.reload(); } } }, l.toUpperCase()))));
@@ -433,7 +433,7 @@
 
   /* ---------- mobile drawer ---------- */
   function setDrawer(on) {
-    document.body.classList.toggle('drawer', on);
+    document.body.classList.toggle('drawer', on); document.body.classList.remove('peek');
     const b = document.getElementById('burger'); if (b) b.setAttribute('aria-expanded', on ? 'true' : 'false');
     const side = document.getElementById('side');
     if (on && side) { const f = side.querySelector('.nm-side-a.on') || side.querySelector('a, button'); if (f) f.focus({ preventScroll: true }); }
@@ -447,7 +447,15 @@
     side.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
     side.addEventListener('touchmove', (e) => { if (x0 == null) return; const dx = e.touches[0].clientX - x0, dy = Math.abs(e.touches[0].clientY - y0); if (dx < -60 && dy < 50) { x0 = null; setDrawer(false); } }, { passive: true });
     side.addEventListener('touchend', () => { x0 = null; }, { passive: true });
-    if (window.matchMedia) { const mq = matchMedia('(min-width: 900px)'); const f = () => { if (mq.matches && document.body.classList.contains('drawer')) setDrawer(false); }; if (mq.addEventListener) mq.addEventListener('change', f); }
+    // On a computer the menu is tucked away to leave the screen to the page (as in Nemesis): touching the left edge with the pointer brings it in,
+    // and it goes back shortly after the pointer leaves it. The Menu button and the keyboard open it as a drawer, as on a phone.
+    document.body.classList.add('tuck');
+    let out = 0;
+    const B = document.body, wide = () => window.innerWidth >= 900;
+    document.addEventListener('mousemove', (e) => { if (e.clientX > 10 || !wide() || B.classList.contains('drawer') || B.classList.contains('peek')) return; clearTimeout(out); B.classList.add('peek'); });
+    document.addEventListener('mouseover', (e) => { if (!B.classList.contains('peek')) return; clearTimeout(out); if (!side.contains(e.target)) out = setTimeout(() => { if (B.classList.contains('peek') && !side.matches(':hover') && !side.contains(document.activeElement)) B.classList.remove('peek'); }, 320); });
+    side.addEventListener('click', (e) => { if (e.target.closest('a')) { B.classList.remove('peek'); if (wide() && B.classList.contains('drawer')) setDrawer(false); } });
+    if (window.matchMedia) { const mq = matchMedia('(min-width: 900px)'); const f = () => { if (document.body.classList.contains('drawer')) setDrawer(false); }; if (mq.addEventListener) mq.addEventListener('change', f); }
   }
 
   /* ---------- palette (Ctrl K): every page that exists ---------- */

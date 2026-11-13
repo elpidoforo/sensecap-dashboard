@@ -450,3 +450,18 @@ select.nm-input { appearance: none; }
 .btn-row .sp, .row-actions .sp { flex: 1; }
 .row-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 @media (max-width: 560px) { .sc-soon { flex-direction: column; } }
+
+/* 13 Nov 2026, as in Nemesis: on a computer the side menu is tucked away so the page has the full width. The Menu button opens it as a
+   drawer (as on a phone); touching the left edge with the pointer lets it slide in for a moment (body.peek). */
+.topbar .burger .burger-t { display: none; }
+@media (min-width: 900px) {
+  body.tuck #side { z-index: 6; transform: translateX(-104%); visibility: hidden; box-shadow: none; transition: transform .22s var(--nm-ease), box-shadow .22s var(--nm-ease), visibility 0s linear .22s; }
+  body.tuck .main-col { margin-left: 0; }
+  body.tuck.drawer #side, body.tuck.peek #side { transform: none; visibility: visible; box-shadow: 14px 0 40px rgba(0, 0, 0, .5), 1px 0 0 rgba(76, 203, 234, .35); transition: transform .22s var(--nm-ease), box-shadow .22s var(--nm-ease), visibility 0s; }
+  body.tuck.drawer .side-scrim { opacity: 1; visibility: visible; transition: opacity .3s var(--nm-ease), visibility 0s; }
+  body.tuck.drawer { overflow: hidden; }
+  body.tuck .topbar .burger { display: inline-flex; align-items: center; gap: 8px; width: auto; padding: 0 14px 0 10px; font: 600 14px/1 var(--nm-font); }
+  body.tuck .topbar .burger .burger-t { display: inline; }
+  /* a quiet handle on the left edge shows where the menu lives */
+  body.tuck::before { content: ""; position: fixed; left: 0; top: 0; bottom: 0; width: 5px; z-index: 5; pointer-events: none; background: linear-gradient(180deg, transparent, rgba(76, 203, 234, .45) 30%, rgba(76, 203, 234, .45) 70%, transparent); opacity: .55; }
+}

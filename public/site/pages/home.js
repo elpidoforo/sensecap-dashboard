@@ -65,7 +65,7 @@
   const archOf = (S) => { const cy = S.archive && S.archive.cydom; return cy ? { days: (cy.days || []).filter((d) => d.readings > 0), readings: cy.readings, stations: cy.stations } : null; };
   const noteT = (en, el) => T(en, el);
   const WINS = [
-    { c: '#59d98e', n: T('Sensors in', 'Αισθητήρες'), s: T('What comes in, and from where', 'Τι μπαίνει και από πού'), tags: ['live', 'daily'],
+    { c: '#59d98e', n: T('Sensors in', 'Αισθητήρες'), d: T('The layers of data we read, the list of feeds, the buses and cars that carry sensors, and the helpers that fetch the data.', 'Τα στρώματα δεδομένων που διαβάζουμε, η λίστα των ροών, τα λεωφορεία και τα αυτοκίνητα με αισθητήρες, και οι βοηθοί που φέρνουν τα δεδομένα.'), s: T('What comes in, and from where', 'Τι μπαίνει και από πού'), tags: ['live', 'daily'],
       bigs: [
         (S) => { const d = devOn(S); return d ? [d.on + '/' + d.total, T('sensors online', 'αισθητήρες ενεργοί')] : null; },
         (S) => { const r = regOf(S); return r ? [r.live + '/' + r.total, T('data layers live', 'στρώματα ζωντανά')] : null; },
@@ -75,7 +75,7 @@
         { id: 'feeds', ic: 'sensor', n: T('Feed list', 'Λίστα πηγών'), v: (S) => { const f = feedsOf(S); return f ? P.dots(f.n, f.ok) : P.dots(5, 0); }, f: (S) => { const f = feedsOf(S); return f ? (f.ok === 0 && f.demo > 0 ? T('Demo mode: nothing is fetched', 'Λειτουργία επίδειξης: δεν γίνεται λήψη') : T(f.ok + ' of ' + f.n + ' feeds working', f.ok + ' από ' + f.n + ' πηγές λειτουργούν')) : T('Last success of every feed', 'Τελευταία επιτυχία κάθε πηγής'); } },
         { id: 'vehicles', ic: 'bus', n: T('Vehicles', 'Οχήματα'), v: (S) => P.road(vehiclesOf(S) || 0), f: (S) => { const n = vehiclesOf(S); return n == null ? T('Each bus and car: status and mini readings', 'Κάθε λεωφορείο και αυτοκίνητο: κατάσταση και μετρήσεις') : T(n + ' on the road · positions late and rounded', n + ' στον δρόμο · θέσεις με καθυστέρηση'); } },
         { id: 'helpers', ic: 'bolt', n: T('Helpers', 'Βοηθοί'), v: () => P.dots(4, 4), f: () => T('The background savers and the assistant', 'Οι βοηθοί αποθήκευσης και ο βοηθός ΤΝ'), sch: 1 }] },
-    { c: '#F7C46B', gate: 1, n: T('Check', 'Έλεγχος'), s: T('Is it fresh and believable?', 'Είναι πρόσφατο και αξιόπιστο;'), tags: ['live', 'daily', 'gate'],
+    { c: '#F7C46B', gate: 1, n: T('Check', 'Έλεγχος'), d: T('Alerts when a reading looks wrong, official warnings, the Met Office record to compare with, and the guides for each sensor.', 'Ειδοποιήσεις όταν μια μέτρηση φαίνεται λάθος, επίσημες προειδοποιήσεις, το αρχείο της Μετεωρολογικής για σύγκριση, και οι οδηγοί για κάθε αισθητήρα.'), s: T('Is it fresh and believable?', 'Είναι πρόσφατο και αξιόπιστο;'), tags: ['live', 'daily', 'gate'],
       bigs: [
         (S) => (typeof S.alerts === 'number' ? [String(S.alerts), T('open alerts', 'ανοιχτές ειδοποιήσεις')] : null),
         (S) => { const r = regOf(S); return r ? [String(r.bad), T('layers late or down', 'στρώματα με καθυστέρηση ή εκτός')] : null; },
@@ -85,7 +85,7 @@
         { id: 'warnings', ic: 'mic', n: T('Warnings watch', 'Παρακολούθηση προειδοποιήσεων'), v: () => P.ticks(), f: () => T('Changes to Met Office warnings and radar', 'Αλλαγές στις προειδοποιήσεις και το ραντάρ'), sch: 1 },
         { id: 'weather', ic: 'check', n: T('Met Office record', 'Μετεωρολογικό αρχείο'), v: () => P.spark(), f: () => T('Warnings, forecast, radar, sea and aviation', 'Προειδοποιήσεις, πρόγνωση, ραντάρ, θάλασσα, αεροπορικός καιρός'), sch: 1 },
         { id: 'guides', ic: 'bolt', n: T('Sensor guides', 'Οδηγοί αισθητήρων'), v: () => P.range(), f: () => T('Normal range, one sheet per sensor', 'Φυσιολογικό εύρος, ένα φύλλο ανά αισθητήρα'), sch: 1 }] },
-    { c: '#5BA8FF', n: T('Archive', 'Αρχείο'), s: T('What we keep, with a date', 'Τι κρατάμε, με ημερομηνία'), tags: ['arch'],
+    { c: '#5BA8FF', n: T('Archive', 'Αρχείο'), d: T('Everything we keep, each reading with its date: the data archive, the tool to explore it, the library and the research.', 'Όλα όσα κρατάμε, κάθε μέτρηση με την ημερομηνία της: το αρχείο δεδομένων, το εργαλείο εξερεύνησης, η βιβλιοθήκη και η έρευνα.'), s: T('What we keep, with a date', 'Τι κρατάμε, με ημερομηνία'), tags: ['arch'],
       bigs: [
         (S) => { const a = archOf(S); return a ? [fmtN(a.days.length), T('days kept', 'ημέρες αρχείου')] : null; },
         (S) => { const a = archOf(S); return a && fmtN(a.readings) != null ? [fmtN(a.readings), T('readings saved', 'μετρήσεις')] : null; },
@@ -95,7 +95,7 @@
         { id: 'explore', ic: 'search', n: T('Explore data', 'Εξερεύνηση'), v: () => P.two(), f: () => T('Our sensor against the official station', 'Ο αισθητήρας μας απέναντι στον επίσημο σταθμό'), sch: 1 },
         { id: 'library', ic: 'db', n: T('Library', 'Βιβλιοθήκη'), v: () => P.tabs(), f: () => T('Handbook, guides, sources, glossary', 'Εγχειρίδιο, οδηγοί, πηγές, γλωσσάρι'), sch: 1 },
         { id: 'research', ic: 'search', n: T('Research', 'Έρευνα'), v: () => P.search(), f: () => T('One box for archive, handbook and Met pages', 'Ένα πλαίσιο για αρχείο, εγχειρίδιο και σελίδες Μετεωρολογικής'), sch: 1 }] },
-    { c: '#4CCBEA', n: T('The picture', 'Η εικόνα'), s: T('What is happening now', 'Τι συμβαίνει τώρα'), tags: ['live', 'arch'],
+    { c: '#4CCBEA', n: T('The picture', 'Η εικόνα'), d: T('What is happening now: the city board, Cyprus in 3D, the live map and one trip followed from start to end.', 'Τι συμβαίνει τώρα: ο πίνακας της πόλης, η Κύπρος σε 3D, ο ζωντανός χάρτης και μία διαδρομή από την αρχή ως το τέλος.'), s: T('What is happening now', 'Τι συμβαίνει τώρα'), tags: ['live', 'arch'],
       bigs: [
         () => [String((window.ISLAND && ISLAND.schools || []).length), T('school sites', 'σχολεία')],
         (S) => { const n = vehiclesOf(S); return n == null ? null : [String(n), T('vehicles on the road', 'οχήματα στον δρόμο')]; },
@@ -105,7 +105,7 @@
         { id: 'city3d', ic: 'globe', n: T('Cyprus 3D', 'Κύπρος 3D'), v: () => P.island(), f: () => T('Turn the island, switch layers', 'Γυρίστε το νησί, αλλάξτε επίπεδα') },
         { id: 'map', ic: 'map', n: T('Live map', 'Ζωντανός χάρτης'), v: () => P.map(), f: () => T('Satellite, radar, wind and stations', 'Δορυφόρος, ραντάρ, άνεμος και σταθμοί'), sch: 1 },
         { id: 'trip', ic: 'route', n: T('Follow one trip', 'Ακολουθήστε μια διαδρομή'), v: () => P.route(), f: () => T('Replay with readings · delayed, rounded', 'Επανάληψη με μετρήσεις · με καθυστέρηση'), sch: 1 }] },
-    { c: '#A5B4FC', n: T('Schools and teams', 'Σχολεία και ομάδες'), s: T('Who is doing the work', 'Ποιος κάνει τη δουλειά'), tags: ['team'],
+    { c: '#A5B4FC', n: T('Schools and teams', 'Σχολεία και ομάδες'), d: T('The four schools and their teams, the districts and neighbourhoods, today’s desk and the projects that are running.', 'Τα τέσσερα σχολεία και οι ομάδες τους, οι επαρχίες και οι γειτονιές, το γραφείο της ημέρας και τα έργα που τρέχουν.'), s: T('Who is doing the work', 'Ποιος κάνει τη δουλειά'), tags: ['team'],
       bigs: [
         (S) => (S.schools ? [String(S.schools.length), T('schools', 'σχολεία')] : null),
         (S) => (S.schools ? [String(S.schools.reduce((n, x) => n + ((x.teams || []).length), 0)), T('teams signed up', 'ομάδες εγγεγραμμένες')] : null),
@@ -116,7 +116,7 @@
         { id: 'desk', ic: 'home', n: T('Today’s desk', 'Το γραφείο της ημέρας'), v: () => P.check(), f: () => T('A daily checklist for a class', 'Καθημερινή λίστα για μια τάξη'), sch: 1 },
         { id: 'projects', ic: 'flag', n: T('Running projects', 'Έργα σε εξέλιξη'), v: () => P.progress(), f: () => T('Team projects and their status', 'Ομαδικά έργα και η κατάστασή τους'), sch: 1 },
         { id: 'start', ic: 'layers', n: T('Start a project', 'Ξεκινήστε ένα έργο'), v: () => P.steps(), f: () => T('Question, sensors, data, team', 'Ερώτηση, αισθητήρες, δεδομένα, ομάδα'), wide: 1, sch: 1 }] },
-    { c: '#F0ABFC', n: T('Think', 'Σκέψη'), s: T('Use the data to reason', 'Χρησιμοποιήστε τα δεδομένα για να σκεφτείτε'), tags: ['ai'],
+    { c: '#F0ABFC', n: T('Think', 'Σκέψη'), d: T('Tools for reasoning with the data: the council room, the mirror, what-if questions and asking in your own words.', 'Εργαλεία για να σκεφτείς με τα δεδομένα: η αίθουσα συμβουλίου, ο καθρέφτης, ερωτήσεις τύπου «τι θα γινόταν αν» και ερωτήσεις με δικά σου λόγια.'), s: T('Use the data to reason', 'Χρησιμοποιήστε τα δεδομένα για να σκεφτείτε'), tags: ['ai'],
       bigs: [
         () => ['6', T('council seats', 'θέσεις συμβουλίου')],
         (S) => { const r = regOf(S); return r ? [String(r.live), T('layers the brain reads', 'στρώματα που διαβάζει ο εγκέφαλος')] : null; },
@@ -126,7 +126,7 @@
         { id: 'mirror', ic: 'users', n: T('Mirror', 'Καθρέφτης'), v: () => P.lanes(), f: () => T('Walk, bus or car: the PM2.5 each would breathe', 'Περπάτημα, λεωφορείο ή αυτοκίνητο: το PM2.5 που θα αναπνέατε'), sch: 1 },
         { id: 'whatif', ic: 'refresh', n: T('What-if', 'Σενάρια'), v: () => P.slider(), f: () => T('An estimate with a range, not a measurement', 'Εκτίμηση με εύρος, όχι μέτρηση'), sch: 1 },
         { id: 'ask', ic: 'chat', n: T('Ask', 'Ρωτήστε'), v: () => P.bubble(), f: () => T('Answers show their sources', 'Οι απαντήσεις δείχνουν τις πηγές'), sch: 1 }] },
-    { c: '#C4B8FF', n: T('Output', 'Παραγωγή'), s: T('What we hand to others', 'Τι παραδίδουμε σε άλλους'), tags: ['team', 'ai'],
+    { c: '#C4B8FF', n: T('Output', 'Παραγωγή'), d: T('What we hand to others: reports, the build studio and the work that teams have submitted.', 'Τι παραδίδουμε σε άλλους: αναφορές, το στούντιο κατασκευής και οι εργασίες που έχουν υποβάλει οι ομάδες.'), s: T('What we hand to others', 'Τι παραδίδουμε σε άλλους'), tags: ['team', 'ai'],
       bigs: [
         (S) => (S.reports ? [String(S.reports.length), T('reports released', 'αναφορές δημοσιευμένες')] : null),
         (S) => (S.gallery ? [String(S.gallery.length), T('tools approved', 'εργαλεία εγκεκριμένα')] : null)],
@@ -134,7 +134,7 @@
         { id: 'reports', ic: 'file', n: T('Reports', 'Αναφορές'), v: () => P.pages(), f: () => T('Weekly school report and print summary', 'Εβδομαδιαία αναφορά και περίληψη εκτύπωσης'), sch: 1 },
         { id: 'studio', ic: 'pencil', n: T('Build studio', 'Στούντιο'), v: () => P.bubble(), f: () => T('Describe a tool, the AI drafts it', 'Περιγράψτε ένα εργαλείο, η ΤΝ το σχεδιάζει'), sch: 1 },
         { id: 'submitted', ic: 'inbox', n: T('Submitted work', 'Υποβολές'), v: () => P.chips([T('Tools', 'Εργαλεία'), T('Reports', 'Αναφορές')]), f: () => T('The queue of tools and reports', 'Η ουρά εργαλείων και αναφορών'), wide: 1, sch: 1 }] },
-    { c: '#F7C46B', gate: 1, teacher: 1, n: T('Oversight', 'Εποπτεία'), s: T('Teachers approve what goes public', 'Οι εκπαιδευτικοί εγκρίνουν ό,τι δημοσιεύεται'), tags: ['gate'], bigs: [],
+    { c: '#F7C46B', gate: 1, teacher: 1, n: T('Oversight', 'Εποπτεία'), d: T('Where teachers approve what goes public, see how the platform runs and change its settings.', 'Εδώ οι εκπαιδευτικοί εγκρίνουν ό,τι δημοσιεύεται, βλέπουν πώς λειτουργεί η πλατφόρμα και αλλάζουν τις ρυθμίσεις της.'), s: T('Teachers approve what goes public', 'Οι εκπαιδευτικοί εγκρίνουν ό,τι δημοσιεύεται'), tags: ['gate'], bigs: [],
       tiles: [
         { id: 'approvals', ic: 'check', n: T('Approvals', 'Εγκρίσεις'), v: () => P.chips([T('Tool', 'Εργαλείο'), T('Report', 'Αναφορά'), T('Account', 'Λογαριασμός')]), f: () => T('Tools, reports and accounts waiting', 'Εργαλεία, αναφορές και λογαριασμοί σε αναμονή'), sch: 1 },
         { id: 'opsmap', ic: 'layers', n: T('Operations map', 'Χάρτης λειτουργιών'), v: () => P.dots(6, 6), f: () => T('Sensors, server, feeds, assistant', 'Αισθητήρες, διακομιστής, πηγές, βοηθός'), sch: 1 },
@@ -173,6 +173,7 @@
       let loaded = false, first = true, compact = false;
       const pos = {};           // school id -> { x, y } on the stage, in px
       const timers = [];
+      let winsGrid = null, packT = 0;
 
       /* ---------- head ---------- */
       const head = SC.head({
@@ -269,12 +270,22 @@
         });
         const box = el('article', { class: 'hm-win' + (w.gate ? ' gate' : '') + (w.teacher ? ' locked' : ''), id: 'hm-win' + (i + 1), style: '--c:' + w.c + ';animation-delay:' + (0.1 + i * 0.06) + 's', 'aria-label': w.n },
           el('header', { class: 'hm-wh' }, el('span', { class: 'hm-wn' }, i + 1), el('div', { class: 'hm-wt' }, el('b', null, w.n), el('small', null, w.s)), el('div', { class: 'hm-wb' }, w.tags.map(tagChip))),
-          big, lock, el('div', { class: 'hm-tl' }, tiles.map((x) => x.node)));
+          w.d ? el('p', { class: 'hm-wd' }, w.d) : null, big, lock, el('div', { class: 'hm-tl' }, tiles.map((x) => x.node)));
         winEls.push(box);
         return { w, big, bigEls, lock, tiles, box };
       });
+      // Packed boxes, as in Nemesis: as many equal columns as fit, each box placed in the column that is shortest so far, so reading order is kept and no holes are left.
+      function pack() {
+        const g = winsGrid; if (!g || !g.isConnected) return;
+        const kids = [...g.children]; kids.forEach((k) => { k.style.removeProperty('grid-row-end'); k.style.removeProperty('grid-column'); }); g.classList.add('on');
+        const cols = getComputedStyle(g).gridTemplateColumns.split(' ').filter(Boolean).length || 1, hs = new Array(cols).fill(0);
+        const heights = kids.map((k) => k.getBoundingClientRect().height);
+        kids.forEach((k, i) => { let c = 0; for (let j = 1; j < cols; j++) if (hs[j] < hs[c] - 24) c = j; const span = Math.max(1, Math.ceil((heights[i] + 18) / 4)); k.style.gridColumn = String(c + 1); k.style.gridRowEnd = 'span ' + span; hs[c] += span * 4; });
+      }
+      const packSoon = () => { clearTimeout(packT); packT = setTimeout(pack, 80); };
       function updateWindows() {
         if (!alive) return;
+        packSoon();
         const teacher = isTeacher();
         built.forEach((b) => {
           const locked = Boolean(b.w.teacher) && !teacher;
@@ -333,7 +344,7 @@
         el('div', { class: 'hm-wins-head' },
           el('div', null, el('div', { class: 'eyebrow' }, T('Every tool of the project', 'Κάθε εργαλείο του έργου')), el('h2', null, T('Open any box', 'Ανοίξτε όποιο πλαίσιο θέλετε'))),
           el('p', null, T('Click a tool to open its page. The numbers in the boxes are live; the dim pictures only show what a page holds.', 'Πατήστε ένα εργαλείο για να ανοίξει η σελίδα του. Οι αριθμοί στα πλαίσια είναι ζωντανοί· οι αχνές εικόνες δείχνουν μόνο τι περιέχει μια σελίδα.'))),
-        el('div', { class: 'hm-wins' }, built.map((b) => b.box)),
+        (winsGrid = el('div', { class: 'hm-wins' }, built.map((b) => b.box))),
         el('div', { class: 'nm-callout nm-callout--info' }, T('There is no account for visitors. Teachers sign in only to approve work and change settings.', 'Οι επισκέπτες δεν χρειάζονται λογαριασμό. Οι εκπαιδευτικοί συνδέονται μόνο για να εγκρίνουν εργασίες και να αλλάξουν ρυθμίσεις.')));
 
       const hm = el('div', { class: 'hm' }, el('div', { class: 'hm-sky', 'aria-hidden': 'true' }), head, route, coreSlot, stage, list, status, legend, sec);
@@ -481,7 +492,7 @@
 
       /* ---------- go ---------- */
       let raf = 0;
-      const relayout = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(layout); };
+      const relayout = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(layout); packSoon(); };
       window.addEventListener('resize', relayout);
       let ro = null;
       if (window.ResizeObserver) { ro = new ResizeObserver(relayout); ro.observe(hm); }
@@ -503,6 +514,7 @@
         window.removeEventListener('resize', relayout);
         if (ro) ro.disconnect();
         if (core) { core.destroy(); core = null; }
+        clearTimeout(packT);
       };
     },
   });
