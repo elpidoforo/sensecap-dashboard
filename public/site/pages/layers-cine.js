@@ -65,7 +65,7 @@
       const step = Math.max(1, Math.ceil(tt.length / 48));
       for (let i = 0; i < tt.length; i += step) { const v = cityIds.map((c) => { const s = replay.cities[c] && replay.cities[c].air; return s ? s.values[i] : null; }).filter((x) => x != null); if (v.length) spark.push(v.reduce((p, q) => p + q, 0) / v.length); }
     }
-    return { plate: 'CYPRUS', at: live.at, fresh: Date.now() - live.at < 180000, sources, outputs, events, topics: topics.slice(0, 6), spark,
+    return { plate: T('PROMETHEAS', 'ΠΡΟΜΗΘΕΑΣ'), at: live.at, fresh: Date.now() - live.at < 180000, sources, outputs, events, topics: topics.slice(0, 6), spark,
       gold: topics.length ? 0.6 + Math.min(0.6, topics[0].mag * 0.2) : 0.35,
       totals: { readings, layers: withRows.length, agree, differ, checks: agree + differ } };
   }
@@ -94,7 +94,7 @@
         'Κινούμενη σκηνή. ' + nf(t.readings) + ' μετρήσεις από ' + t.layers + ' στρώματα μπαίνουν τώρα. Από ' + t.checks + ' συγκρίσεις ανάμεσα σε πηγές, ' + t.agree + ' συμφωνούν και ' + t.differ + ' διαφέρουν. Ο χάρτης της Κύπρου είναι διακοσμητικός· δεν φέρει κανέναν αριθμό.');
       el.replaceChildren(...[
         h('p', { class: 'cn-sr' }, sum),
-        h('div', { class: 'cn-top' }, h('b', null, 'SMART CITIES · ' + T('CYPRUS', 'ΚΥΠΡΟΣ')), h('span', { class: 'cn-tot' }, nf(t.readings) + ' ' + T('readings now', 'μετρήσεις τώρα') + ' · ' + t.layers + ' ' + T('layers', 'στρώματα')),
+        h('div', { class: 'cn-top' }, h('b', null, T('PROMETHEAS', 'ΠΡΟΜΗΘΕΑΣ') + ' · SMART CITIES ' + T('CYPRUS', 'ΚΥΠΡΟΣ')), h('span', { class: 'cn-tot' }, nf(t.readings) + ' ' + T('readings now', 'μετρήσεις τώρα') + ' · ' + t.layers + ' ' + T('layers', 'στρώματα')),
           h('span', { class: 'cn-badge ' + (M.fresh ? 'live' : 'late') }, M.fresh ? T('LIVE', 'ΖΩΝΤΑΝΑ') : T('LAST ANSWER ', 'ΤΕΛΕΥΤΑΙΑ ΑΠΑΝΤΗΣΗ ') + SC.time(M.at))),
         h('div', { class: 'cn-col cn-in', role: 'list', 'aria-label': T('Input: the layers that are answering now', 'Είσοδος: τα στρώματα που απαντούν τώρα') },
           M.sources.map((s, i) => { const bar = h('u'); bar.style.width = Math.max(4, Math.round((100 * s.total) / mx)) + '%'; bar.style.animationDuration = (2.4 + Math.min(12, s.age == null ? 12 : s.age * 24) * 0.35).toFixed(1) + 's'; bar.style.animationDelay = (i * 0.37).toFixed(2) + 's';
