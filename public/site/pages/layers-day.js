@@ -1,5 +1,5 @@
 /*
-  Data layers, the "Replay the day" view (used by pages/layers.js, after layers-core.js): SC.layersLive.day(host, api).
+  Data layers, the "Replay the day" view (used by pages/layers.js, after layers-flow.js): SC.layersLive.day(host, api).
   The saved day, played back: a strip of bars, one per hour, with first / play / latest buttons, and under it the four
   cities ranked as they stood at that moment. While it plays the cards change places.
     - bars: the average outdoor temperature of the cities in that hour (a low grey bar when nothing was saved)

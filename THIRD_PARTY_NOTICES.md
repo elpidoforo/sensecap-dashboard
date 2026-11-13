@@ -9,6 +9,7 @@ A student's browser never loads anything from a third-party server.
 | What | Where | Source and pin | Licence |
 |---|---|---|---|
 | three.js r160 (`build/three.module.js`, `examples/jsm/controls/OrbitControls.js`), unmodified | `public/vendor/three-r160/` | https://github.com/mrdoob/three.js, tag `r160`, commit `d04539a76736ff500cae883d6a38b3dd8643c548` | MIT, copyright 2010-2023 three.js authors (`LICENSE` next to the files) |
+| three.js r128 (`three.min.js` and, from `examples/js`: `CopyShader.js`, `EffectComposer.js`, `RenderPass.js`, `ShaderPass.js`, `LuminosityHighPassShader.js`, `UnrealBloomPass.js`), unmodified | `public/vendor/three-r128/` | https://github.com/mrdoob/three.js, tag `r128` | MIT (`LICENSE` in that folder) |
 | QR Code generator library (Project Nayuki), `qrcodegen.ts` with the TypeScript types stripped by `node:module` `stripTypeScriptTypes`; no other change | `public/vendor/qrcodegen/` | https://github.com/nayuki/QR-Code-generator, commit `bcfe1b018cec5f1f91b5705eca5bb4cdd34e9f8d` | MIT (`LICENSE` next to the file) |
 | hyparquet 1.33.0 (Parquet reader), `src/*.js` unchanged, `package.json` marks `"type":"module"` | `vendor/hyparquet/` | https://github.com/hyparam/hyparquet, v1.33.0, commit `8f4096afaa8da5d0bbd76a0225b44c71ac4fcd83` | MIT (`LICENSE` next to the files) |
 | stopwords-el (Greek stop words), byte for byte | `vendor/stopwords-el/` | https://github.com/stopwords-iso/stopwords-el, commit `d9e49e4c835570d4425db832832b7e834013ecf5` | MIT, copyright 2016 Gene Diaz (`LICENSE`, `SOURCE.md`) |
@@ -55,4 +56,4 @@ All the code is our own ("ported, not copied"): written from each provider's doc
 | NASA POWER (`nasa-power-solar`) | CC BY 4.0; NASA asks to cite the API version and the date of access. The upstream retrievals (DWD, CERES, GEOS): terms of DWD not read. |
 | Solar position and top-of-atmosphere radiation formulas | NOAA GML calculator equations and FAO Irrigation and Drainage Paper 56 (published methods); written as our own code. |
 
-Last reviewed: 2026-11-12.
+Last reviewed: 2026-11-13.
