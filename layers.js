@@ -300,13 +300,87 @@ function createLayers(opts) {
 
   const devices_ = () => (data.deviceList ? data.deviceList() : data.devices());   // never needs a position
 
+  /* ----- reviewed sensor assignments (research handoff, ticket T03) -----
+     Which sensor belongs to which city and what it is on (a classroom, a bus, a car) used to be read from the sensor's name. A teacher
+     can now write it down: one line per sensor with the day it was installed there. A reviewed line wins over the name. A sensor that was
+     moved gets a second line; each reading then belongs to the place the sensor was in WHEN it was taken (from that day, up to but not
+     including the day of the next line). Every save is a new revision, and the earlier revisions are kept in a history file.
+     Only teachers and admins can read or change this list. Nothing of it is public: the public pages still show numbers per city. */
+  const assignFile = dataDir ? path.join(dataDir, 'layers-assignments.json') : null;
+  const KINDS = ['classroom', 'bus', 'car', 'other'];
+  let assign = { rev: 0, at: null, by: null, items: [] };
+  try { const j = assignFile ? JSON.parse(fs.readFileSync(assignFile, 'utf8')) : null; if (j && Array.isArray(j.items) && Number.isInteger(j.rev)) assign = j; } catch (e) { /* no reviewed list yet */ }
+  const dayMs = (d) => Date.parse(d + 'T00:00:00Z');
+  // the reviewed place of a sensor at a moment, or null when no line covers that moment
+  function reviewedAt(eui, t) {
+    let hit = null;
+    for (const a of assign.items) if (a.eui === eui && dayMs(a.from) <= t && (a.to == null || t < dayMs(a.to))) hit = a;
+    return hit;
+  }
+  const hasReview = (eui) => assign.items.some((a) => a.eui === eui);
+  // what a sensor is on and which city it is in, now or at the time of a reading: the reviewed line if there is one for that moment;
+  // a sensor with reviewed lines but none for that moment belongs nowhere then; only a sensor nobody reviewed is read from its name
+  function placeOf(d, t = Date.now()) {
+    const r = reviewedAt(d.eui, t);
+    if (r) return { kind: r.kind, city: r.city, reviewed: true };
+    if (hasReview(d.eui)) return { kind: null, city: null, reviewed: true };
+    return { kind: deviceKind(d), city: cityOfDevice(reg.places, d), reviewed: false };
+  }
+  function saveAssignments(items, user) {
+    if (!assignFile) fail(503, 'There is nowhere to save the list.');
+    const next = { rev: assign.rev + 1, at: Date.now(), by: user ? { id: user.id || null, role: user.role || null } : null, items };
+    fs.mkdirSync(path.dirname(assignFile), { recursive: true });
+    fs.appendFileSync(assignFile.replace(/\.json$/, '-history.jsonl'), JSON.stringify(next) + '\n');
+    fs.writeFileSync(assignFile + '.tmp', JSON.stringify(next));
+    fs.renameSync(assignFile + '.tmp', assignFile);
+    assign = next;
+    live.clear(); cache.clear(); snap = null;   // the status of the layers, the brain's answers and the pulse all depend on it
+  }
+  async function assignmentsView() {
+    const devices = await devices_();
+    const today = new Date().toISOString().slice(0, 10);
+    return {
+      rev: assign.rev, at: assign.at, kinds: KINDS, cities: cityIds().map((id) => ({ id, name: reg.places[id].name })), today,
+      sensors: devices.map((d) => {
+        const cur = reviewedAt(d.eui, Date.now());
+        return { eui: d.eui, name: plain(d.name, 80), group: plain(d.group, 80), guess: { kind: deviceKind(d), city: cityOfDevice(reg.places, d) }, reviewed: cur ? { kind: cur.kind, city: cur.city, from: cur.from, note: cur.note || '' } : null, earlier: assign.items.filter((a) => a.eui === d.eui && a !== cur).map((a) => ({ kind: a.kind, city: a.city, from: a.from, to: a.to || null })) };
+      }).sort((a, b) => a.name.localeCompare(b.name)),
+    };
+  }
+  // body: { rev, sensors: [{ eui, kind, city, from, note? } | { eui, clear: true }] }: one line per sensor that is being set or changed
+  async function putAssignments(body, user) {
+    if (!body || !Array.isArray(body.sensors) || body.sensors.length > 500) fail(400, 'Send { rev, sensors: [{ eui, kind, city, from }] }.');
+    if (body.rev !== assign.rev) fail(409, 'Someone else saved the list in the meantime. Open it again and repeat your change.', 'stale');
+    const known = new Set((await devices_()).map((d) => d.eui));
+    const today = new Date().toISOString().slice(0, 10);
+    const items = assign.items.map((a) => ({ ...a }));
+    for (const sIn of body.sensors) {
+      const eui = String((sIn && sIn.eui) || '');
+      if (!known.has(eui)) fail(400, 'Unknown sensor in the list.');
+      if (sIn.clear === true) { for (let i = items.length - 1; i >= 0; i--) if (items[i].eui === eui) items.splice(i, 1); continue; }
+      const kind = String(sIn.kind || ''), city = String(sIn.city || ''), from = String(sIn.from || ''), note = plain(sIn.note, 120);
+      if (!KINDS.includes(kind)) fail(400, 'Say what the sensor is on: classroom, bus, car or other.');
+      if (!cityIds().includes(city)) fail(400, 'Pick one of the four cities.');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !isFinite(dayMs(from)) || from > today || from < '2024-01-01') fail(400, 'The day it was installed must be a date like 2026-10-15, not in the future.');
+      const mine = items.filter((a) => a.eui === eui).sort((a, b) => a.from.localeCompare(b.from));
+      const last = mine[mine.length - 1];
+      if (last && last.kind === kind && last.city === city && last.to == null) { if (from < last.from && mine.length === 1) last.from = from; last.note = note; continue; }   // the same place: only the note, or an earlier start of the only line
+      if (last && from <= last.from) fail(400, 'A move must be dated after the earlier line of that sensor (' + last.from + ').');
+      if (last && last.to == null) last.to = from;   // the earlier place ends the day the new one starts
+      items.push({ eui, kind, city, from, to: null, note });
+    }
+    saveAssignments(items, user);
+    return assignmentsView();
+  }
+
   /* ----- live status of every layer ----- */
   const live = new Map();   // layer id -> { at, value }
   const PROBE_TTL = 45000;
 
   async function ownProbe(kind) {
     const [devices, latest] = await Promise.all([devices_(), data.latest()]);
-    const mine = devices.filter((d) => deviceKind(d) === kind);
+    const mine = devices.filter((d) => placeOf(d).kind === kind);
+    const reviewedN = mine.filter((d) => placeOf(d).reviewed).length;
     let fresh = 0, newest = 0, lastSeen = 0;
     const now = Date.now(), ahead = new Set();   // ahead: sensors whose clock is set in the future
     for (const d of mine) {
@@ -318,9 +392,10 @@ function createLayers(opts) {
     }
     let chk = 0;   // sensors whose readings look odd (qc.js); only a quiet word in the note, never changes ok/fresh
     try { const q = data.qcStatus ? await data.qcStatus() : null; if (q) chk = mine.filter((d) => q[d.eui] === 'check').length; } catch { /* the quality notes are optional */ }
-    const fut = ahead.size ? `, ${ahead.size} with a clock set in the future` : '', futEl = ahead.size ? `, ${ahead.size} με ρολόι στο μέλλον` : '';
+    const rv = mine.length && mine.length - reviewedN ? `, ${mine.length - reviewedN} placed by name only` : '', rvEl = mine.length && mine.length - reviewedN ? `, ${mine.length - reviewedN} τοποθετημένοι μόνο από το όνομα` : '';
+    const fut = (ahead.size ? `, ${ahead.size} with a clock set in the future` : '') + rv, futEl = (ahead.size ? `, ${ahead.size} με ρολόι στο μέλλον` : '') + rvEl;
     // at: the newest fresh reading, or (when the whole group went quiet) when it was last seen, so "quiet since" can be shown
-    return { ok: fresh > 0, n: mine.length, fresh, at: newest || lastSeen || null, lastSeen: lastSeen || null, ahead: ahead.size, note: mine.length ? `${fresh} of ${mine.length} sensors reported lately${chk ? `, ${chk} to check` : ''}${fut}` : `no sensor is named like a ${kind} yet`, noteEl: mine.length ? `${fresh} από ${mine.length} αισθητήρες έστειλαν πρόσφατα${chk ? `, ${chk} για έλεγχο` : ''}${futEl}` : 'κανένας αισθητήρας δεν έχει όνομα που να δείχνει ' + (kind === 'classroom' ? 'τάξη' : kind === 'bus' ? 'λεωφορείο' : 'αυτοκίνητο') };
+    return { ok: fresh > 0, n: mine.length, fresh, at: newest || lastSeen || null, lastSeen: lastSeen || null, ahead: ahead.size, reviewed: reviewedN, guessed: mine.length - reviewedN, note: mine.length ? `${fresh} of ${mine.length} sensors reported lately${chk ? `, ${chk} to check` : ''}${fut}` : `no sensor is named like a ${kind} yet`, noteEl: mine.length ? `${fresh} από ${mine.length} αισθητήρες έστειλαν πρόσφατα${chk ? `, ${chk} για έλεγχο` : ''}${futEl}` : 'κανένας αισθητήρας δεν έχει όνομα που να δείχνει ' + (kind === 'classroom' ? 'τάξη' : kind === 'bus' ? 'λεωφορείο' : 'αυτοκίνητο') };
   }
   const PROBES = {
     'sensecap-classrooms': () => ownProbe('classroom'),
@@ -421,7 +496,7 @@ function createLayers(opts) {
       const [devices, latest] = await Promise.all([devices_(), data.latest()]);
       const names = data.names ? data.names() : {};
       for (const src of own) {
-        const mine = devices.filter((d) => deviceKind(d) === src['x_devices'] && cityOfDevice(reg.places, d) === cityId);
+        const mine = devices.filter((d) => { const p = placeOf(d); return p.kind === src['x_devices'] && p.city === cityId; });
         const by = {}, future = new Set();
         for (const d of mine) {
           const l = (latest && latest[d.eui]) || {};
@@ -431,6 +506,7 @@ function createLayers(opts) {
             const v = num(l[mid] && l[mid].v), t = toMs(l[mid] && l[mid].t);
             if (v == null || !t) continue;
             if (t > Date.now() + CLOCK_SKEW) { future.add(src.id); continue; }   // a wrong clock: not fresh, and it must not win as the newest
+            { const then = placeOf(d, t); if (then.kind !== src['x_devices'] || then.city !== cityId) continue; }   // taken before the sensor was moved here: it belongs to the earlier place
             const unit = String((names[mid] || [])[1] || '');
             const val = variable === 'pressure' && /^pa$/i.test(unit.trim()) ? v / 100 : v;
             (by[variable] = by[variable] || []).push({ v: val, t, fresh: Date.now() - t <= FRESH_OWN });
@@ -996,6 +1072,13 @@ const lc = (s) => String(s).replace(/^\S+/, (w) => (/[A-Z0-9]/.test(w.slice(1)) 
       if (!sameOrigin(req)) fail(403, 'That request came from another site.');
       return sendJson(res, 200, await brain(req, await readJson(req, 4096)));
     }
+    if (p === '/layers/api/assignments' && (req.method === 'GET' || req.method === 'PUT')) {
+      if (req.method === 'PUT' && !sameOrigin(req)) fail(403, 'That request came from another site.');
+      const user = appCore && appCore.enabled ? appCore.authorise(req) : null;
+      if (!user) fail(401, 'Teachers: sign in to the student app first.', 'signin');
+      if (!isStaff(user)) fail(403, 'Teachers only.');
+      return sendJson(res, 200, req.method === 'GET' ? await assignmentsView() : await putAssignments(await readJson(req, 65536), user), { 'Cache-Control': 'no-store' });
+    }
     if (req.method === 'PUT' && p === '/layers/api/mission') {
       if (!sameOrigin(req)) fail(403, 'That request came from another site.');
       const user = appCore && appCore.enabled ? appCore.authorise(req) : null;
@@ -1035,7 +1118,7 @@ const lc = (s) => String(s).replace(/^\S+/, (w) => (/[A-Z0-9]/.test(w.slice(1)) 
     }
   }
 
-  return { enabled: true, configured: !!apiKey, handle, reload, register: registerView, _t: { takePulse, liveView, compareView, hist, schemaCheck, checkSource, loadRegister, evidenceFor, candidates, numbersOk, allowedNumbers, template, registerView, brain, fmt, independent } };
+  return { enabled: true, configured: !!apiKey, handle, reload, register: registerView, _t: { takePulse, liveView, compareView, hist, placeOf, putAssignments, assignmentsView, schemaCheck, checkSource, loadRegister, evidenceFor, candidates, numbersOk, allowedNumbers, template, registerView, brain, fmt, independent } };
 }
 
 module.exports = { createLayers, loadRegister, checkSource, schemaCheck, DEFAULT_MISSION };

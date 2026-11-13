@@ -27,5 +27,5 @@ water type and the full reported label of each season, nothing recalculated.
 - Waste: one national number. The four school rows point to it and hold no local value.
 - Solar: a model for a generic city point. Never a school roof, never a ranking, no costs. A failed city is empty, not zero.
 
-Not done yet (from the same handoff): the bathing sites on the big map (`public/map.html`), freezing these files into weekly
-reports (ticket T08), and a refresh job for new releases.
+The bathing sites are also a switchable layer of the big map (`public/map.html`). Not done yet (from the same handoff): freezing
+these files into weekly reports (ticket T08), and a refresh job for new releases.

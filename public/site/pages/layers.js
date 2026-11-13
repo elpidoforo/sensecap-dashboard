@@ -268,7 +268,55 @@
             })));
         });
         kids.push(h('a', { class: 'ly-add', href: SOURCES_URL, target: '_blank', rel: 'noopener' }, '+ ', T('Suggest a source', 'Προτείνετε μια πηγή')));
+        if (isTeacher()) kids.push(h('button', { class: 'ly-add ly-assign', type: 'button', onclick: editAssignments }, T('Where each sensor is (teachers)', 'Πού βρίσκεται κάθε αισθητήρας (εκπαιδευτικοί)')));
         R.list.replaceChildren(...kids);
+      }
+
+      /* ----- teachers: where each sensor is (GET and PUT /layers/api/assignments) -----
+         One line per sensor: what it is on, which city, and the day it was put there. A reviewed line replaces the guess from the sensor's
+         name. Changing the place of a sensor that already has a line records a move from the new date. Only teachers see this. */
+      const KIND_WORD = { classroom: ['Classroom', 'Τάξη'], bus: ['Bus', 'Λεωφορείο'], car: ['Car', 'Αυτοκίνητο'], other: ['Something else', 'Κάτι άλλο'] };
+      async function editAssignments() {
+        const body = h('div', { class: 'ly-as' }, h('p', { class: 'ly-wait' }, T('Loading…', 'Φόρτωση…')));
+        const msg = h('div', { class: 'err', role: 'alert', hidden: true });
+        let view = null, rows = [], close = null;
+        const draw = () => {
+          const cityName = (id) => { const c = view.cities.find((x) => x.id === id); return c ? placeName(c.name) : T('no city', 'καμία πόλη'); };
+          rows = view.sensors.map((sn) => {
+            const cur = sn.reviewed;
+            const kind = h('select', { 'aria-label': T('What ' + sn.name + ' is on', 'Πού είναι τοποθετημένος: ' + sn.name) }, h('option', { value: '' }, T('not reviewed (use the name)', 'χωρίς έλεγχο (από το όνομα)')), view.kinds.map((k) => h('option', { value: k, selected: Boolean(cur && cur.kind === k) }, T(KIND_WORD[k][0], KIND_WORD[k][1]))));
+            const city = h('select', { 'aria-label': T('City of ' + sn.name, 'Πόλη: ' + sn.name) }, h('option', { value: '' }, '–'), view.cities.map((c) => h('option', { value: c.id, selected: Boolean(cur && cur.city === c.id) }, placeName(c.name))));
+            const from = h('input', { type: 'date', max: view.today, value: cur ? cur.from : '', 'aria-label': T('Day ' + sn.name + ' was put there', 'Ημέρα τοποθέτησης: ' + sn.name) });
+            const tr = h('tr', null,
+              h('td', null, h('b', null, sn.name), h('small', null, T('The name suggests: ', 'Το όνομα δείχνει: ') + T((KIND_WORD[sn.guess.kind] || KIND_WORD.other)[0].toLowerCase(), (KIND_WORD[sn.guess.kind] || KIND_WORD.other)[1].toLowerCase()) + ', ' + cityName(sn.guess.city)),
+                sn.earlier.length ? h('small', null, T('Earlier: ', 'Παλαιότερα: ') + sn.earlier.map((e) => T(KIND_WORD[e.kind][0].toLowerCase(), KIND_WORD[e.kind][1].toLowerCase()) + ', ' + cityName(e.city) + ' (' + e.from + (e.to ? T(' to ', ' έως ') + e.to : '') + ')').join('; ')) : null),
+              h('td', null, kind), h('td', null, city), h('td', null, from));
+            return { sn, kind, city, from, tr };
+          });
+          body.replaceChildren(
+            h('p', null, T('Say for each sensor what it is on, which city it is in and the day it was put there. Your line then replaces the guess from the sensor’s name. If a sensor was moved, change its line and give the day of the move: readings from before that day stay with the earlier place.', 'Πείτε για κάθε αισθητήρα πού είναι τοποθετημένος, σε ποια πόλη και ποια ημέρα τοποθετήθηκε εκεί. Η γραμμή σας αντικαθιστά τότε την εκτίμηση από το όνομα του αισθητήρα. Αν ένας αισθητήρας μετακινήθηκε, αλλάξτε τη γραμμή του και δώστε την ημέρα της μετακίνησης: οι μετρήσεις πριν από εκείνη την ημέρα μένουν στην προηγούμενη θέση.')),
+            h('div', { class: 'ly-as-w' }, h('table', { class: 'ly-as-t' }, h('thead', null, h('tr', null, h('th', null, T('Sensor', 'Αισθητήρας')), h('th', null, T('It is on', 'Είναι σε')), h('th', null, T('City', 'Πόλη')), h('th', null, T('Since', 'Από')))), h('tbody', null, rows.map((r) => r.tr)))),
+            msg,
+            h('p', { class: 'ly-fine' }, T('Only teachers see this list. The public pages keep showing numbers per city, never a sensor’s place. Every save is kept as a new version (this is version ' + view.rev + ').', 'Μόνο οι εκπαιδευτικοί βλέπουν αυτή τη λίστα. Οι δημόσιες σελίδες συνεχίζουν να δείχνουν αριθμούς ανά πόλη, ποτέ τη θέση ενός αισθητήρα. Κάθε αποθήκευση κρατιέται ως νέα έκδοση (αυτή είναι η έκδοση ' + view.rev + ').')));
+        };
+        const save = async () => {
+          msg.hidden = true;
+          const out = [];
+          for (const r of rows) {
+            const cur = r.sn.reviewed, k = r.kind.value, c = r.city.value, d = r.from.value;
+            if (!k) { if (cur || r.sn.earlier.length) out.push({ eui: r.sn.eui, clear: true }); continue; }
+            if (cur && cur.kind === k && cur.city === c && cur.from === d) continue;
+            if (!c || !d) { msg.hidden = false; msg.textContent = T('Give a city and a day for ' + r.sn.name + '.', 'Δώστε πόλη και ημέρα για: ' + r.sn.name + '.'); (c ? r.from : r.city).focus(); return; }
+            out.push({ eui: r.sn.eui, kind: k, city: c, from: d });
+          }
+          if (!out.length) { if (close) close(); return; }
+          try { view = await SC.api(API + '/assignments', { method: 'PUT', body: { rev: view.rev, sensors: out } }); SC.toast(T('Saved', 'Αποθηκεύτηκε')); if (close) close(); for (const k of [...S.results.keys()]) S.results.delete(k); load(false); fetchBrain(true); }
+          catch (e) { msg.hidden = false; msg.textContent = errMsg(e); }
+        };
+        close = SC.modal({ title: T('Where each sensor is', 'Πού βρίσκεται κάθε αισθητήρας'), body, actions: [{ label: T('Save', 'Αποθήκευση'), primary: true, run: null }, { label: T('Cancel', 'Άκυρο') }] });
+        const saveBtn = document.querySelector('.mod .nm-btn--primary');
+        if (saveBtn) { const b2 = saveBtn.cloneNode(true); saveBtn.replaceWith(b2); b2.addEventListener('click', save); }
+        try { view = await SC.api(API + '/assignments'); draw(); } catch (e) { body.replaceChildren(h('div', { class: 'err', role: 'alert' }, errMsg(e))); }
       }
 
       /* ----- the centre: stack, flat map, timeline ----- */
