@@ -219,32 +219,93 @@ function makeKit(appCore, data) {
 
 /* ---------- the Anthropic Messages API ---------- */
 
+/* Forced tool calls (tool_choice "tool" or "any") are how this server asks for a structured answer. Claude Sonnet 5.5 and later models reject them
+   with HTTP 400 ("tool_choice: type tool and any are not supported for this model") and think by default (the thinking counts toward max_tokens).
+   So for those models a forced call is sent as tool_choice "auto" with a plain instruction to call the tool, and with thinking set to the lowest
+   setting ("between_tools", the documented way to turn it off on this model). For any other model the call is sent as written; if the API
+   answers 400 about tool_choice or about thinking, the call is repeated in the other shape and the model is remembered, so the code keeps
+   working when the model changes. Callers still read the answer with structured(), which also accepts JSON written as text. */
+const MODERN_MODEL = /^claude-[a-z]+-[5-9](-|$)/;
+const NO_FORCED_TOOL = new Set();    // models that answered 400 to a forced tool_choice
+const NO_THINKING_FIELD = new Set(); // models that answered 400 to thinking: between_tools
+const THINKING_ROOM = 4000;          // extra max_tokens when thinking cannot be turned off
+const forcedToolOf = (b) => {
+  const c = b && b.tool_choice;
+  if (!c || (c.type !== 'tool' && c.type !== 'any')) return null;
+  const only = Array.isArray(b.tools) && b.tools.length === 1 ? b.tools[0].name : null;
+  return { name: c.type === 'tool' ? c.name : only };
+};
+const callNudge = (name, again) => (again ? 'You did not call the tool. ' : '') + (name ? `Answer by calling the tool ${name} once, with your complete answer. Do not write any other text.` : 'Answer by calling one of the tools, with your complete answer. Do not write any other text.');
+function withNudge(messages, text) {
+  const list = (Array.isArray(messages) ? messages : []).map((m) => ({ ...m }));
+  let i = list.length - 1;
+  while (i >= 0 && list[i].role !== 'user') i--;
+  if (i < 0) { list.push({ role: 'user', content: text }); return list; }
+  const c = list[i].content;
+  if (typeof c === 'string') { if (!c.includes(text)) list[i].content = c + '\n\n' + text; }
+  else if (Array.isArray(c)) { if (!c.some((x) => x && x.type === 'text' && x.text === text)) list[i].content = [...c, { type: 'text', text }]; }
+  return list;
+}
 function makeClaude({ apiKey, baseUrl }) {
   const base = (baseUrl || 'https://api.anthropic.com').replace(/\/$/, '');
   const RETRY = [429, 500, 502, 503, 529];
+  // the request as it is sent now, from what is known about the model
+  function shape(body, extra) {
+    const forced = forcedToolOf(body);
+    if (!forced) return body;
+    const model = String(body.model || '');
+    let b = body;
+    if (MODERN_MODEL.test(model) || NO_FORCED_TOOL.has(model)) {
+      b = { ...b, tool_choice: { type: 'auto' }, messages: withNudge(b.messages, callNudge(forced.name, extra.again)) };
+      if (MODERN_MODEL.test(model) && !b.thinking && !NO_THINKING_FIELD.has(model)) b.thinking = { type: 'between_tools' };
+      else if (MODERN_MODEL.test(model) && !b.thinking) extra.room = Math.max(extra.room, THINKING_ROOM);
+    }
+    return extra.room ? { ...b, max_tokens: (b.max_tokens || 1024) + extra.room } : b;
+  }
   return async function call(body, signal, timeoutMs = 60000) {
-    let lastErr;
-    for (let attempt = 0; attempt < 2; attempt++) {
+    const forced = forcedToolOf(body), model = String(body.model || '');
+    const extra = { again: false, room: 0 };
+    let lastErr, transient = 0;
+    for (let pass = 0; pass < 6; pass++) {
+      const sent = shape(body, extra);
       try {
         const r = await fetch(base + '/v1/messages', {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-          body: JSON.stringify(body),
+          body: JSON.stringify(sent),
           signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
         });
-        if (r.ok) return await r.json();
+        if (r.ok) {
+          const resp = await r.json();
+          // sent "auto": the model may answer in words instead of calling the tool. Ask once more, with more room if it ran out of tokens.
+          if (forced && forced.name && sent.tool_choice && sent.tool_choice.type === 'auto' && !extra.again && !structured(resp, forced.name)) {
+            extra.again = true;
+            if (resp && resp.stop_reason === 'max_tokens') extra.room = Math.max(extra.room, THINKING_ROOM);
+            continue;
+          }
+          return resp;
+        }
         const text = (await r.text()).slice(0, 300);
         lastErr = new Error(`Anthropic API HTTP ${r.status}: ${text}`);
         lastErr.status = r.status;
+        if (r.status === 400 && forced) {
+          if (/tool_choice/i.test(text) && sent.tool_choice && (sent.tool_choice.type === 'tool' || sent.tool_choice.type === 'any')) {
+            NO_FORCED_TOOL.add(model); console.log(`Anthropic API: ${model} does not accept a forced tool_choice; it is sent as "auto" from now on.`); continue;
+          }
+          if (/thinking/i.test(text) && sent.thinking) {
+            NO_THINKING_FIELD.add(model); console.log(`Anthropic API: ${model} did not accept thinking "between_tools"; the calls keep its default thinking and ask for more tokens.`); continue;
+          }
+        }
         if (!RETRY.includes(r.status)) throw lastErr;
       } catch (e) {
         if (e.status && !RETRY.includes(e.status)) throw e;
         if ((signal && signal.aborted) || e.name === 'TimeoutError' || e.name === 'AbortError') throw e;
         lastErr = e;
       }
+      if (++transient >= 2) break;
       await sleep(1200);
     }
-    throw lastErr;
+    throw lastErr || new Error('Anthropic API: no usable answer');
   };
 }
 // The structured answer of a forced tool call, or (as a fallback) the first JSON object in the text.
