@@ -137,7 +137,7 @@ const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + 
     ok(/\d/.test(await p.locator('.cn-tot').innerText()) && /\d/.test(await p.locator('.cn-words').innerText()), name + ': the core gives its totals in the bar and in words');
     ok(new RegExp(el ? 'ΑΘΗΝΑ' : 'ATHENA').test(await p.locator('.cn-top b').innerText()), name + ': the scene carries the name');
     ok(/decoration|διακοσμητικ/.test(await p.locator('.cn-words').innerText()), name + ': the core says the shape and the map carry no numbers');
-    await p.waitForTimeout(3200);
+    await p.waitForFunction(() => { const t = document.querySelector('.cn-tick'); return t && t.querySelector('.cn-tk.in'); }, null, { timeout: 20000 }).catch(() => {});   // the scene's clock runs slower when frames are slow
     ok((await p.locator('.cn-tick').innerText()).length > 12 && !/Replaying|Επανάληψη/.test(await p.locator('.cn-tick').innerText()), name + ': a real reading is named in the bottom line');
     ok(await p.locator('.cn-riser:not([hidden])').count() === 1, name + ': the amber box shows the reading');
     await p.locator('.cn-pause').click();
