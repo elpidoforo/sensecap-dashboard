@@ -75,6 +75,7 @@
       id: r.id == null ? '' : String(r.id), school: String(r.school || 'all'), schoolName: String(r.schoolName || ''), weekEnding: String(r.weekEnding || ''), status: String(r.status || 'released').toLowerCase(), demo: Boolean(r.demo),
       days: Array.isArray(r.days) ? r.days.map(String) : [], overall: r.overall && typeof r.overall === 'object' ? r.overall : null, schools: (Array.isArray(r.schools) ? r.schools : []).map(normSchool).filter(Boolean),
       warnings: w, notes: (Array.isArray(r.notes) ? r.notes : []).map(String), summary: normSummary(r.summary), generatedAt: dateOf(r.generatedAt), releasedAt: dateOf(r.releasedAt), full: Array.isArray(r.schools),
+      identity: r.identity && typeof r.identity.evidence === 'string' ? { evidence: r.identity.evidence, ok: r.identity.ok !== false, rev: r.identity.assignments_rev == null ? null : Number(r.identity.assignments_rev) } : null,
     };
   }
   const nameOfReport = (r) => { if (r.school === 'all') return T('All four schools', 'Και τα τέσσερα σχολεία'); const d = distOf(r.school, r.schoolName); return d ? T(d.n[0], d.n[1]) : r.schoolName || r.school; };
@@ -177,7 +178,8 @@
       r.demo ? el('li', { class: 'rp-demo' }, T('These are DEMO numbers: simulated sensors, not real vehicles.', 'Αυτοί είναι αριθμοί ΕΠΙΔΕΙΞΗΣ: προσομοιωμένοι αισθητήρες, όχι πραγματικά οχήματα.')) : null,
       el('li', null, T('The sensors are on moving vehicles, not fixed weather stations: averages are for the places the vehicles went. Differences between schools are the start of a question, not an answer.', 'Οι αισθητήρες είναι σε οχήματα που κινούνται, όχι σε σταθερούς μετεωρολογικούς σταθμούς: οι μέσοι όροι αφορούν τα μέρη που πήγαν τα οχήματα. Οι διαφορές μεταξύ σχολείων είναι η αρχή μιας ερώτησης, όχι απάντηση.')),
       el('li', null, T('“Time with readings” is the part of the week that has a reading in the saved history.', 'Ο «Χρόνος με μετρήσεις» είναι το μέρος της εβδομάδας που έχει μέτρηση στο αποθηκευμένο ιστορικό.')),
-      extra.map((n) => el('li', { lang: 'en' }, n)));
+      extra.map((n) => el('li', { lang: 'en' }, n)),
+      r.identity ? el('li', { class: 'rp-id' }, T('These are saved numbers, not live ones: they do not change when the sensors or the sources change later. Evidence version ', 'Αυτοί είναι αποθηκευμένοι αριθμοί, όχι ζωντανοί: δεν αλλάζουν όταν αλλάξουν αργότερα οι αισθητήρες ή οι πηγές. Έκδοση τεκμηρίων ') + r.identity.evidence.slice(0, 12) + (r.identity.rev != null ? T(', sensor list version ' + r.identity.rev, ', έκδοση λίστας αισθητήρων ' + r.identity.rev) : '') + '.' + (r.identity.ok ? '' : ' ' + T('Warning: the saved numbers do not match this version.', 'Προσοχή: οι αποθηκευμένοι αριθμοί δεν ταιριάζουν με αυτή την έκδοση.'))) : null);
   }
   function reportSheet(r) {
     const when = r.weekEnding ? T('Week ending ' + fmtLong(r.weekEnding), 'Εβδομάδα που λήγει ' + fmtLong(r.weekEnding)) : '';
@@ -292,7 +294,7 @@
       async function act(kind, r, dropSummary) {
         S.busy = r.id; refreshView();
         try {
-          const res = await SC.api('/council/api/reports/' + encodeURIComponent(r.id) + '/' + kind, { method: 'POST', body: kind === 'release' && dropSummary ? { dropSummary: true } : {} });
+          const res = await SC.api('/council/api/reports/' + encodeURIComponent(r.id) + '/' + kind, { method: 'POST', body: kind === 'release' ? { ...(dropSummary ? { dropSummary: true } : {}), ...(r.identity ? { evidence: r.identity.evidence } : {}) } : {} });
           const upd = normReport(res && (res.report || res));
           const apply = (x) => { if (x && x.id === r.id) { x.status = upd && upd.status ? upd.status : kind === 'release' ? 'released' : 'withdrawn'; x.releasedAt = upd ? upd.releasedAt : x.releasedAt; if (upd && kind === 'release') x.summary = upd.summary; } };
           (S.list || []).forEach(apply); apply(S.rep);

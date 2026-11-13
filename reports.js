@@ -223,8 +223,16 @@ function createReports(opts) {
   /* ---------- storing and showing ---------- */
 
   const parse = (j) => { try { return JSON.parse(j); } catch (e) { return null; } };
+  // The identity of a report's evidence: a hash of the saved numbers (everything except the identity itself), with what they were made from.
+  // It is worked out again every time the report is read: "ok" is false if the saved numbers no longer match their hash.
+  const evidenceHash = (numbers) => { const { identity, ...rest } = numbers || {}; return require('crypto').createHash('sha256').update(JSON.stringify(rest)).digest('hex'); };
+  function withIdentity(numbers) {
+    let rev = null; try { rev = typeof opts.assignmentsRev === 'function' ? opts.assignmentsRev() : null; } catch (e) { rev = null; }
+    return { ...numbers, identity: { evidence: evidenceHash(numbers), made: 'weekly-report/1', assignments_rev: rev } };
+  }
   function present(r, staff) {
     const d = parse(r.data_json) || {};
+    if (d.identity && d.identity.evidence) d.identity = { ...d.identity, ok: evidenceHash(d) === d.identity.evidence, saved: true };
     const s = r.school === 'all' ? null : db.get('SELECT name, short FROM schools WHERE slug = ?', r.school);
     return {
       id: r.id, school: r.school, schoolName: r.school === 'all' ? 'All schools' : s ? s.short : r.school, weekEnding: r.week_ending,
@@ -260,7 +268,7 @@ function createReports(opts) {
     genBusy.add(key);
     try {
       genLog.push(now);
-      const numbers = await buildNumbers(scope, weekEnding);
+      const numbers = withIdentity(await buildNumbers(scope, weekEnding));
       const summary = await aiSummary(numbers);
       const [title, titleEl] = titles(scope, weekEnding);
       const old = db.get("SELECT id FROM council_reports WHERE school = ? AND week_ending = ? AND status = 'draft' ORDER BY id DESC", scope, weekEnding);
@@ -280,6 +288,11 @@ function createReports(opts) {
       body = body || {};
       if (how === 'release') {
         if (r.status === 'released') return sendJson(res, 200, { report: present(r, true) });
+        // the teacher releases the exact numbers they looked at: a draft that was made again in the meantime, or whose saved numbers no
+        // longer match their hash, is not released
+        const shown = present(r, true).identity;
+        if (shown && shown.ok === false) fail(409, 'The saved numbers of this report do not match their identity. Make the report again.', 'evidence');
+        if (body.evidence != null && (!shown || String(body.evidence) !== shown.evidence)) fail(409, 'This report was made again since you opened it. Look at the new numbers, then release.', 'evidence');
         db.run("UPDATE council_reports SET status = 'withdrawn', withdrawn_at = ? WHERE school = ? AND week_ending = ? AND status = 'released' AND id != ?", Date.now(), r.school, r.week_ending, r.id);   // one released report per school and week
         db.run("UPDATE council_reports SET status = 'released', released_by = ?, released_at = ?, withdrawn_at = NULL" + (body.dropSummary === true ? ', summary_json = NULL' : '') + ' WHERE id = ?', user.id, Date.now(), r.id);
         audit(user, 'report.release', r.id, body.dropSummary === true ? 'without summary' : '');
