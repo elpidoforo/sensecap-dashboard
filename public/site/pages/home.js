@@ -202,6 +202,27 @@
         el('button', { type: 'button', class: 'nm-btn nm-btn--primary hm-go', onclick: () => SC.startTour() },
           sv('svg', { viewBox: '0 0 12 12', fill: 'currentColor', 'aria-hidden': 'true' }, sv('path', { d: 'M2 1l9 5-9 5z' })), T('Start', 'Ξεκινήστε')));
 
+      /* ---------- the data core: the live scene of the Data layers page (pages/layers-cine.js), shown once the layers answer ---------- */
+      const coreSlot = el('section', { class: 'hm-core', hidden: true, 'aria-label': T('The data core: live readings going in and out', 'Ο πυρήνας δεδομένων: ζωντανές μετρήσεις που μπαίνουν και βγαίνουν') });
+      let core = null, coreBusy = false;
+      const openLayers = (hint) => { SC.layersOpen = hint; location.hash = link('layers'); };
+      const coreApi = { setCity: (id) => openLayers({ city: id }), setView: (v) => openLayers({ view: v }) };
+      const oneScript = (src) => new Promise((done) => { const sc = document.createElement('script'); sc.src = src; sc.onload = () => done(true); sc.onerror = () => { sc.remove(); done(false); }; document.head.append(sc); });
+      async function pullCore() {
+        if (coreBusy || !alive || document.hidden) return;
+        coreBusy = true;
+        try {
+          const l = await SC.api('/layers/api/live');
+          if (alive && !core) {
+            SC.css('/site/pages/layers-live.css');
+            const ok = (SC.layersLive && SC.layersLive.cine) || (await oneScript('/site/pages/layers-cine-gl.js?v=1') && await oneScript('/site/pages/layers-cine.js?v=1') && SC.layersLive && SC.layersLive.cine);
+            if (ok && alive && !core) { coreSlot.hidden = false; core = SC.layersLive.cine(coreSlot, coreApi); }
+          }
+          if (alive && core) core.update(l);
+        } catch (e) { /* the layers did not answer: the scene stays as it is, or stays hidden, and is tried again */ }
+        coreBusy = false;
+      }
+
       /* ---------- stage: island + pillars + ring ---------- */
       const FILL = { nicosia: 'rgba(110,214,255,.66)', larnaca: 'rgba(84,150,240,.62)', limassol: 'rgba(120,190,255,.54)', paphos: 'rgba(120,150,250,.50)', famagusta: 'rgba(62,120,205,.46)', kyrenia: 'rgba(52,96,176,.42)' };
       const island = sv('svg', { viewBox: '0 0 ' + ISLAND.W + ' ' + ISLAND.H, role: 'img', 'aria-label': T('Cyprus by district, with the four school sites', 'Η Κύπρος ανά επαρχία, με τους τέσσερις χώρους των σχολείων') });
@@ -315,7 +336,7 @@
         el('div', { class: 'hm-wins' }, built.map((b) => b.box)),
         el('div', { class: 'nm-callout nm-callout--info' }, T('There is no account for visitors. Teachers sign in only to approve work and change settings.', 'Οι επισκέπτες δεν χρειάζονται λογαριασμό. Οι εκπαιδευτικοί συνδέονται μόνο για να εγκρίνουν εργασίες και να αλλάξουν ρυθμίσεις.')));
 
-      const hm = el('div', { class: 'hm' }, el('div', { class: 'hm-sky', 'aria-hidden': 'true' }), head, route, stage, list, status, legend, sec);
+      const hm = el('div', { class: 'hm' }, el('div', { class: 'hm-sky', 'aria-hidden': 'true' }), head, route, coreSlot, stage, list, status, legend, sec);
       root.append(hm);
 
       /* ---------- layout: ring, chevrons, travelling dots and the light pillars ---------- */
@@ -468,6 +489,8 @@
       if (document.fonts && document.fonts.ready) document.fonts.ready.then(relayout);
       load(false);
       timers.push(setInterval(() => load(false), 60000));
+      pullCore();
+      timers.push(setInterval(pullCore, 30000));
       loadWindows();
       timers.push(setTimeout(loadWindows, 3000));   // the alert count joins a moment after the first page
       timers.push(setInterval(loadWindows, 60000));
@@ -479,6 +502,7 @@
         cancelAnimationFrame(raf);
         window.removeEventListener('resize', relayout);
         if (ro) ro.disconnect();
+        if (core) { core.destroy(); core = null; }
       };
     },
   });

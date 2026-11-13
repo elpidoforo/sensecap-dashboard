@@ -156,3 +156,6 @@ a.hm-tile:focus-visible { outline: 2px solid var(--nm-copper-2); outline-offset:
 @media (max-width: 640px) { .hm-wins-head { flex-direction: column; align-items: flex-start; } .hm-wins-head p { text-align: left; } .hm-wb { max-width: 120px; } }
 @media (max-width: 520px) { .hm-tl { grid-template-columns: minmax(0, 1fr); } .hm-tile, .hm-tile.wide { min-height: 0; } }
 @media (prefers-reduced-motion: reduce) { .hm-win, .hm-win.flash { animation: none; transition: none; } .hm-win:hover, a.hm-tile:hover { transform: none; } }
+
+/* the data core scene (pages/layers-cine.js), between the tour route and the island */
+.hm-core { margin: 16px 0 6px; } .hm-core[hidden] { display: none; }

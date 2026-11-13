@@ -391,3 +391,6 @@ button.cn-p{width:100%;font:inherit;letter-spacing:inherit;text-align:left;curso
 @container lystage (max-width:1000px){.cn-riser{left:51%;top:49%;max-width:26%}}
 .cn-nar .cn-riser{top:33%;left:3%;max-width:92%}
 @container lystage (max-width:1000px){.cn-riser b{white-space:normal}}
+.cn-wrap{container-type:inline-size;container-name:lystage}
+@container lystage (max-width:1200px){.cn-pi span .cn-x{display:none}}
+@container lystage (min-width:1001px){.cn-riser{left:56%}}

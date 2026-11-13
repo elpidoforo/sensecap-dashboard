@@ -176,6 +176,8 @@
         results: new Map(), loading: false, err: null, answer: null, asking: false, question: '', brainTok: 0,
       };
       const R = {};   // the parts of the page we redraw
+      // another page (the home page's data core) may ask for a city or a view to open with
+      { const hint = SC.layersOpen; SC.layersOpen = null; if (hint) { if (VIEWS.some((v) => v[0] === hint.view)) S.view = hint.view; if (/^(larnaka|lefkosia|limassol|paphos)$/.test(hint.city || '')) S.city = hint.city; } }
 
       /* ----- helpers on the register ----- */
       const layers = () => (S.reg ? S.reg.layers : []);
