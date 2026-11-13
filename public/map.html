@@ -368,6 +368,7 @@
       <label class="lay" style="--c:#F2B24C"><input type="checkbox" id="lCols"><span class="tile"><svg class="i"><use href="#i-cube"/></svg></span><span class="lt"><b data-el="Στήλες 3D">3D columns</b><small data-el="Το ύψος δείχνει την τιμή">Height shows the value</small></span><i class="sw"></i></label>
       <label class="lay" style="--c:#59d98e"><input type="checkbox" id="lOpen"><span class="tile"><svg class="i"><use href="#i-haze"/></svg></span><span class="lt"><b data-el="Ανοιχτοί αισθητήρες αέρα">Open air sensors</b><small data-el="Εθελοντές Sensor.Community">Sensor.Community volunteers</small></span><i class="sw"></i></label>
       <label class="lay" style="--c:#4C8BEA"><input type="checkbox" id="lSea"><span class="tile"><svg class="i"><use href="#i-wave"/></svg></span><span class="lt"><b data-el="Συνθήκες θάλασσας">Sea conditions</b><small data-el="Open-Meteo θάλασσα">Open-Meteo marine</small></span><i class="sw"></i></label>
+      <label class="lay" style="--c:#4CCBEA"><input type="checkbox" id="lBathing"><span class="tile"><svg class="i"><use href="#i-wave"/></svg></span><span class="lt"><b data-el="Νερά κολύμβησης (ιστορικό)">Bathing water (history)</b><small data-el="Ετήσια κατάταξη 2025, ΕΟΠ">Yearly label for 2025, EEA</small></span><i class="sw"></i></label>
 
       <div class="rail-g" data-el="Ακόμα καιρός">More weather</div>
       <label class="lay" style="--c:#8fb8ff"><input type="checkbox" id="lWind"><span class="tile"><svg class="i"><use href="#i-arrow"/></svg></span><span class="lt"><b data-el="Βέλη ανέμου">Wind arrows</b><small data-el="Μοντέλο, κατεύθυνση και ταχύτητα">Model, direction and speed</small></span><i class="sw"></i></label>
@@ -1534,6 +1535,7 @@ function applyToggles() {
   vis('open-dots', $('lOpen').checked); vis('open-labels', $('lOpen').checked);
   vis('cydom-dots', $('lCydom').checked); vis('cydom-labels', $('lCydom').checked);
   vis('sea-dots', $('lSea').checked); vis('sea-labels', $('lSea').checked);
+  vis('bathing-dots', $('lBathing').checked); if ($('lBathing').checked) loadBathing();
   if ($('lTerrain').checked) map.setTerrain({ source: 'dem', exaggeration: Number($('exag').value) }); else map.setTerrain(null);
   syncCount();
 }
@@ -1566,6 +1568,9 @@ map.on('load', () => {
   map.addLayer({ id: 'wind-arrows', type: 'symbol', source: 'wind', layout: { 'icon-image': 'arrow', 'icon-rotate': ['get', 'to'], 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-size': ['interpolate', ['linear'], ['get', 'ws'], 0, 0.45, 14, 1.1] }, paint: { 'icon-opacity': 0.85 } });
   map.addLayer({ id: 'sea-dots', type: 'circle', source: 'sea', paint: { 'circle-radius': 7, 'circle-color': ['interpolate', ['linear'], ['get', 'sst'], 16, '#2a78d6', 22, '#1baf7a', 28, '#e34948'], 'circle-stroke-color': 'rgba(255,255,255,.85)', 'circle-stroke-width': 1.5, 'circle-pitch-alignment': 'map' } });
   map.addLayer({ id: 'sea-labels', type: 'symbol', source: 'sea', layout: { 'text-field': ['get', 'label'], ...text }, paint: halo });
+  // Bathing-water history (context.js, a reviewed yearly release of the EEA): one dot per bathing site, coloured by the label it was given for that season. History, not today's water.
+  map.addSource('bathing', { type: 'geojson', data: EMPTY, attribution: 'Bathing water: EEA and DG Environment, CC BY 4.0, filtered to Cyprus' });
+  map.addLayer({ id: 'bathing-dots', type: 'circle', source: 'bathing', layout: { visibility: 'none' }, paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 4, 12, 8], 'circle-color': ['match', ['get', 'label'], '1 - Excellent', '#4CCBEA', '2 - Good', '#7FD3A0', '3 - Good or Sufficient', '#F2CF86', '3 - Sufficient', '#F2A56B', '4 - Poor', '#FF8B7D', '#9fb2ca'], 'circle-stroke-color': '#0C1626', 'circle-stroke-width': 1.5 } });
   map.addLayer({ id: 'open-dots', type: 'circle', source: 'open', paint: { 'circle-radius': 6, 'circle-color': ['case', ['!=', ['get', 'pm25'], null], ['interpolate', ['linear'], ['get', 'pm25'], 0, '#1baf7a', 15, '#eda100', 35, '#e34948'], '#9aa4b2'], 'circle-stroke-color': '#0C1626', 'circle-stroke-width': 1.5 } });
   map.addLayer({ id: 'open-labels', type: 'symbol', source: 'open', layout: { 'text-field': ['get', 'label'], ...text }, paint: halo });
   map.addLayer({ id: 'cydom-dots', type: 'symbol', source: 'cydom', layout: { 'icon-image': ['get', 'icon'], 'icon-allow-overlap': true } });
@@ -1721,6 +1726,20 @@ popupOn('schools-dots', (p) => `<div class="pp"><div class="pp-h"><i class="dia 
   `<div class="pp-f"><a class="btn" href="/#/schools?school=${encodeURIComponent(p.slug)}" target="_top">${T('Teams and sensors', 'Ομάδες και αισθητήρες')}</a></div></div>`);
 popupOn('open-dots', (p) => `<div class="pp"><div class="pp-h"><i class="dia" style="background:#59d98e;box-shadow:0 0 10px #59d98e"></i><div><b>${T('Open sensor', 'Ανοιχτός αισθητήρας')} ${esc(p.id)}</b><small>Sensor.Community</small></div></div>` +
   `<div class="pp-obs"><table>${popRow('PM2.5 (µg/m³)', p.pm25)}${popRow('PM10 (µg/m³)', p.pm10)}${popRow(T('Temperature (°C)', 'Θερμοκρασία (°C)'), p.temp)}${popRow(T('Humidity (%)', 'Υγρασία (%)'), p.hum)}</table></div></div>`);
+// Bathing-water sites: asked for once, the first time the switch is turned on. The label is shown in full, with its season, and never as advice for today.
+const BW_NAMES = { '0 - Not classified': ['Not classified', 'Χωρίς κατάταξη'], '1 - Excellent': ['Excellent', 'Εξαιρετική'], '2 - Good': ['Good', 'Καλή'], '3 - Good or Sufficient': ['Good or sufficient (older scheme)', 'Καλή ή επαρκής (παλαιότερο σύστημα)'], '3 - Sufficient': ['Sufficient', 'Επαρκής'], '4 - Poor': ['Poor', 'Ανεπαρκής'] };
+let bathingAsked = false;
+function loadBathing() {
+  if (bathingAsked) return;
+  bathingAsked = true;
+  fetch('/layers/api/context/bathing-water-history').then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))).then((v) => {
+    if (!v.available) throw new Error('not available');
+    map.getSource('bathing').setData({ type: 'FeatureCollection', features: v.sites.filter((x) => x.lat != null).map((x) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [x.lng, x.lat] }, properties: { name: x.name, label: x.label, season: v.season } })) });
+  }).catch(() => { bathingAsked = false; $('lBathing').checked = false; applyToggles(); });
+}
+popupOn('bathing-dots', (p) => `<div class="pp"><div class="pp-h"><i class="dia" style="background:#4CCBEA;box-shadow:0 0 10px #4CCBEA"></i><div><b>${esc(p.name)}</b><small>${T('Bathing site', 'Σημείο κολύμβησης')}</small></div></div>` +
+  `<div class="pp-obs"><table><tr><td>${T('Label for the ' + esc(p.season) + ' season', 'Κατάταξη για την περίοδο ' + esc(p.season))}</td><td><b>${esc((BW_NAMES[p.label] || [p.label, p.label])[LANG === 'el' ? 1 : 0])}</b></td></tr></table>` +
+  `<p style="margin:8px 0 0;font-size:12px;line-height:1.4;opacity:.85">${T('History only: a yearly label from samples of several seasons. It does not say whether the water is safe today. Source: EEA and DG Environment, CC BY 4.0.', 'Μόνο ιστορικό: ετήσια κατάταξη από δείγματα πολλών περιόδων. Δεν λέει αν το νερό είναι ασφαλές σήμερα. Πηγή: ΕΟΠ και ΓΔ Περιβάλλοντος, CC BY 4.0.')}</p></div></div>`);
 popupOn('sea-dots', (p) => `<div class="pp"><div class="pp-h"><i class="dia" style="background:#4C8BEA;box-shadow:0 0 10px #4C8BEA"></i><div><b>${T('Sea point', 'Σημείο θάλασσας')}</b><small>Open-Meteo</small></div></div>` +
   `<div class="pp-obs"><table>${popRow(T('Sea temperature (°C)', 'Θερμοκρασία θάλασσας (°C)'), p.sst)}${popRow(T('Waves (m)', 'Κύματα (m)'), p.wave)}</table></div></div>`);
 popupOn('wind-arrows', (p) => `<div class="pp"><div class="pp-h"><i class="dia" style="background:#8fb8ff;box-shadow:0 0 10px #8fb8ff"></i><div><b>${T('Weather model', 'Μοντέλο καιρού')}</b><small>Open-Meteo</small></div></div>` +
@@ -1730,7 +1749,7 @@ document.querySelectorAll('#baseMenu button').forEach((b) => b.addEventListener(
 $('baseBtn').addEventListener('click', () => { const open = $('base').classList.toggle('open'); $('baseBtn').setAttribute('aria-expanded', open ? 'true' : 'false'); });
 document.addEventListener('pointerdown', (e) => { if (!$('base').contains(e.target)) { $('base').classList.remove('open'); $('baseBtn').setAttribute('aria-expanded', 'false'); } });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('base').classList.contains('open')) { $('base').classList.remove('open'); $('baseBtn').setAttribute('aria-expanded', 'false'); $('baseBtn').focus(); } });
-['lDots', 'lCols', 'lSchools', 'lHill', 'lRoads', 'lLabels', 'lWind', 'lOpen', 'lCydom', 'lSea', 'lTerrain'].forEach((id) => $(id).addEventListener('change', applyToggles));
+['lDots', 'lCols', 'lSchools', 'lHill', 'lRoads', 'lLabels', 'lWind', 'lOpen', 'lCydom', 'lSea', 'lBathing', 'lTerrain'].forEach((id) => $(id).addEventListener('change', applyToggles));
 $('exag').addEventListener('input', applyToggles);
 document.querySelectorAll('input[name=surf]').forEach((r) => r.addEventListener('change', renderSurface));
 $('surfOp').addEventListener('input', () => map.getLayer('surface-layer') && map.setPaintProperty('surface-layer', 'raster-opacity', Number($('surfOp').value)));
