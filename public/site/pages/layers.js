@@ -42,6 +42,7 @@
   const CONF = { high: [3, 'High', 'Υψηλή'], medium: [2, 'Medium', 'Μέτρια'], low: [1, 'Low', 'Χαμηλή'] };
   const GAP_WHY = {
     'too-far': ['no point close enough to this city', 'κανένα σημείο αρκετά κοντά σε αυτή την πόλη'],
+    'future-time': ['its clock is set in the future, so its readings are not used', 'το ρολόι του είναι στο μέλλον, γι’ αυτό οι μετρήσεις του δεν χρησιμοποιούνται'],
     'on-but-empty': ['it is on, but gave no reading for this city', 'είναι ενεργό, αλλά δεν έδωσε μέτρηση για αυτή την πόλη'],
     planned: ['planned, not connected yet', 'προγραμματισμένο, δεν έχει συνδεθεί ακόμη'],
     candidate: ['a candidate source, not connected', 'υποψήφια πηγή, δεν έχει συνδεθεί'],

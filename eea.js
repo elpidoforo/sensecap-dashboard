@@ -177,6 +177,15 @@ function unitFactor(u) {
 
 const lower = (o) => { const m = {}; for (const k of Object.keys(o)) m[k.toLowerCase()] = k; return m; };
 
+// One station for the Layers page. Each pollutant keeps the end of ITS OWN newest hour (pm25Time, pm10Time): a fresh PM2.5 value must not
+// lend its time to an old PM10 value. "time" is the newer of the two and is only a label for the station. An unknown time stays null.
+function snapshotPoint(s) {
+  const end = (x) => (x && isFinite(x.t) ? new Date(x.t + HOUR).toISOString() : null);
+  const t25 = end(s.pm25), t10 = end(s.pm10);
+  return { id: s.id, name: s.name, lat: s.lat, lng: s.lng, type: s.type, area: s.area, pm25: s.pm25 ? s.pm25.v : null, pm10: s.pm10 ? s.pm10.v : null, pm25Time: t25, pm10Time: t10,
+    time: t25 || t10 ? new Date(Math.max(t25 ? Date.parse(t25) : 0, t10 ? Date.parse(t10) : 0)).toISOString() : null };
+}
+
 /* The rows of one Parquet file -> hourly values per sampling point: Map("STATION|pm25|SPO-ID") -> { hours: Map(hourStartMs -> [sum, n]),
  * first: earliest Start seen (any row), station, pk, spo }. Keeps hourly rows that are valid (Validity > 0) with a plausible value
  * and reports what it skipped. */
@@ -689,8 +698,7 @@ function createEea(opts = {}) {
   function snapshot() {
     const list = stations();
     return {
-      points: list.map((s) => ({ id: s.id, name: s.name, lat: s.lat, lng: s.lng, type: s.type, area: s.area, pm25: s.pm25 ? s.pm25.v : null, pm10: s.pm10 ? s.pm10.v : null,
-        time: s.pm25 || s.pm10 ? new Date(Math.max((s.pm25 && s.pm25.t) || 0, (s.pm10 && s.pm10.t) || 0) + HOUR).toISOString() : null })),
+      points: list.map(snapshotPoint),
       updated: S.savedAt ? new Date(S.savedAt).toISOString() : null,
       status: status(),
     };
@@ -792,4 +800,4 @@ function createEea(opts = {}) {
   return { start, stop, refresh, handle, snapshot, stations, series, status, nearestFor, compare, _x: { S: () => S, allowedHost, readParquet, downloadMeta, downloadStationsMap, listUrls, merge, hoursOf, compressors, supportedCodecs } };
 }
 
-module.exports = { createEea, parseCsvRow, csvDate, stationOfSpo, pollutantOfSpo, pollutantKey, metaCollector, instantOf, unitFactor, foldRows, tzHours, UA, FIXED_HOSTS, BLOB_HOST, DEFAULTS };
+module.exports = { createEea, parseCsvRow, csvDate, stationOfSpo, pollutantOfSpo, pollutantKey, metaCollector, instantOf, unitFactor, foldRows, tzHours, UA, FIXED_HOSTS, BLOB_HOST, DEFAULTS, snapshotPoint };

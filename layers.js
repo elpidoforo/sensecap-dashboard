@@ -27,6 +27,7 @@ const { HttpError, fail, sendJson, sameOrigin, readJson, clientIp, plain, scrubO
 
 const HOUR = 3600000, DAY = 86400000;
 const FRESH_OWN = 3 * HOUR;
+const CLOCK_SKEW = 5 * 60000;   // a time up to 5 minutes ahead of the server is a clock that runs a little fast; further ahead it is a wrong clock and the reading is not used
 const GROUPS = ['own', 'official', 'model', 'context'];
 const MAX_QUESTION = 300, MIN_QUESTION = 6;
 
@@ -305,16 +306,20 @@ function createLayers(opts) {
   async function ownProbe(kind) {
     const [devices, latest] = await Promise.all([devices_(), data.latest()]);
     const mine = devices.filter((d) => deviceKind(d) === kind);
-    let fresh = 0, newest = 0;
+    let fresh = 0, newest = 0, lastSeen = 0;
+    const now = Date.now(), ahead = new Set();   // ahead: sensors whose clock is set in the future
     for (const d of mine) {
       const l = (latest && latest[d.eui]) || {};
       let t = 0;
-      for (const mid of Object.keys(l)) { const x = toMs(l[mid] && l[mid].t); if (x && x > t) t = x; }
-      if (t && Date.now() - t <= FRESH_OWN) { fresh++; if (t > newest) newest = t; }
+      for (const mid of Object.keys(l)) { const x = toMs(l[mid] && l[mid].t); if (!x) continue; if (x > now + CLOCK_SKEW) { ahead.add(d.eui); continue; } if (x > t) t = x; }
+      if (t && t > lastSeen) lastSeen = t;
+      if (t && now - t <= FRESH_OWN) { fresh++; if (t > newest) newest = t; }
     }
     let chk = 0;   // sensors whose readings look odd (qc.js); only a quiet word in the note, never changes ok/fresh
     try { const q = data.qcStatus ? await data.qcStatus() : null; if (q) chk = mine.filter((d) => q[d.eui] === 'check').length; } catch { /* the quality notes are optional */ }
-    return { ok: fresh > 0, n: mine.length, fresh, at: newest || null, note: mine.length ? `${fresh} of ${mine.length} sensors reported lately${chk ? `, ${chk} to check` : ''}` : `no sensor is named like a ${kind} yet`, noteEl: mine.length ? `${fresh} από ${mine.length} αισθητήρες έστειλαν πρόσφατα${chk ? `, ${chk} για έλεγχο` : ''}` : 'κανένας αισθητήρας δεν έχει όνομα που να δείχνει ' + (kind === 'classroom' ? 'τάξη' : kind === 'bus' ? 'λεωφορείο' : 'αυτοκίνητο') };
+    const fut = ahead.size ? `, ${ahead.size} with a clock set in the future` : '', futEl = ahead.size ? `, ${ahead.size} με ρολόι στο μέλλον` : '';
+    // at: the newest fresh reading, or (when the whole group went quiet) when it was last seen, so "quiet since" can be shown
+    return { ok: fresh > 0, n: mine.length, fresh, at: newest || lastSeen || null, lastSeen: lastSeen || null, ahead: ahead.size, note: mine.length ? `${fresh} of ${mine.length} sensors reported lately${chk ? `, ${chk} to check` : ''}${fut}` : `no sensor is named like a ${kind} yet`, noteEl: mine.length ? `${fresh} από ${mine.length} αισθητήρες έστειλαν πρόσφατα${chk ? `, ${chk} για έλεγχο` : ''}${futEl}` : 'κανένας αισθητήρας δεν έχει όνομα που να δείχνει ' + (kind === 'classroom' ? 'τάξη' : kind === 'bus' ? 'λεωφορείο' : 'αυτοκίνητο') };
   }
   const PROBES = {
     'sensecap-classrooms': () => ownProbe('classroom'),
@@ -414,7 +419,7 @@ function createLayers(opts) {
       const names = data.names ? data.names() : {};
       for (const src of own) {
         const mine = devices.filter((d) => deviceKind(d) === src['x_devices'] && cityOfDevice(reg.places, d) === cityId);
-        const by = {};
+        const by = {}, future = new Set();
         for (const d of mine) {
           const l = (latest && latest[d.eui]) || {};
           for (const mid of Object.keys(l)) {
@@ -422,12 +427,14 @@ function createLayers(opts) {
             if (!variable || !vocab(variable).unit) continue;
             const v = num(l[mid] && l[mid].v), t = toMs(l[mid] && l[mid].t);
             if (v == null || !t) continue;
+            if (t > Date.now() + CLOCK_SKEW) { future.add(src.id); continue; }   // a wrong clock: not fresh, and it must not win as the newest
             const unit = String((names[mid] || [])[1] || '');
             const val = variable === 'pressure' && /^pa$/i.test(unit.trim()) ? v / 100 : v;
             (by[variable] = by[variable] || []).push({ v: val, t, fresh: Date.now() - t <= FRESH_OWN });
           }
         }
         if (!mine.length) { missing.push({ source: src.id, why: 'no-sensors' }); continue; }
+        if (future.size && !Object.keys(by).length) missing.push({ source: src.id, why: 'future-time' });
         for (const [variable, list] of Object.entries(by)) {
           const f = list.filter((x) => x.fresh);
           if (!f.length) continue;
@@ -470,8 +477,11 @@ function createLayers(opts) {
       const list = (e && e.points) || [];
       const best = nearest(list, at, 40, (p) => p.pm25 != null || p.pm10 != null);
       if (!best) return list.length ? missing.push({ source: src.id, why: 'too-far' }) : undefined;
-      const p = best.p, t = toMs(p.time), where = `${p.name} station${p.type ? ` (${p.type})` : ''}, ${Math.round(best.d)} km from the city centre`;
-      add(src, 'pm25', p.pm25, { t, where }); add(src, 'pm10', p.pm10, { t, where });
+      const p = best.p, where = `${p.name} station${p.type ? ` (${p.type})` : ''}, ${Math.round(best.d)} km from the city centre`;
+      // each pollutant is dated by its own hour (eea.js snapshotPoint); a value whose own time is unknown is left out, never dated by the other one
+      const own = (k) => toMs(p[k + 'Time']);
+      if (own('pm25')) add(src, 'pm25', p.pm25, { t: own('pm25'), where });
+      if (own('pm10')) add(src, 'pm10', p.pm10, { t: own('pm10'), where });
     })());
     if (has('openmeteo-marine')) tasks.push((async () => {
       const s = await data.sea(); const src = srcById('openmeteo-marine');
@@ -492,6 +502,8 @@ function createLayers(opts) {
     // A source with no row and no other reason did not answer.
     for (const s of needs) if (PROBES[s.id] && readsNumbers(s) && !rows.some((r) => r.source === s.id) && !missing.some((m) => m.source === s.id)) missing.push({ source: s.id, why: 'no-reading' });
     const now = Date.now();
+    // any other source: a reading dated beyond the clock tolerance is taken out and named as a gap
+    for (let i = rows.length - 1; i >= 0; i--) if (rows[i].t && rows[i].t > now + CLOCK_SKEW) { const id = rows[i].source; rows.splice(i, 1); if (!missing.some((m) => m.source === id)) missing.push({ source: id, why: 'future-time' }); }
     for (const r of rows) {
       const src = srcById(r.source);
       r.ageMin = r.t ? Math.max(0, Math.round((now - r.t) / 60000)) : null;
@@ -502,14 +514,20 @@ function createLayers(opts) {
 
   /* ----- comparing sources, and how sure the brain is ----- */
   const upstreamOf = (id) => ((srcById(id) || {}).upstream || []).map((u) => u.name);
-  function independent(ids) {
-    const groups = [];
-    for (const id of ids) {
-      const up = upstreamOf(id);
-      const g = groups.find((x) => x.some((o) => o === id || (up.length && upstreamOf(o).some((n) => up.includes(n)))));
-      if (g) g.push(id); else groups.push([id]);
+  // How many independent pieces of evidence a set of sources is. Two sources that share any upstream count as one, and so do sources joined
+  // through a third (A uses X, B uses Y, C uses X and Y: one group, in any order). A model or satellite product that names no upstream has an
+  // unknown lineage: unknown is not proof of independence, so all of those count together as one.
+  const DERIVED = new Set(['model', 'reanalysis', 'satellite']);
+  function independent(ids, upOf = upstreamOf, kindOf = (id) => ((srcById(id) || {}).quality || {}).kind) {
+    const list = [...new Set(ids)], parent = new Map(list.map((id) => [id, id]));
+    const find = (x) => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
+    const firstWith = new Map();   // upstream name -> the first source seen with it
+    for (const id of list) {
+      const ups = upOf(id) || [];
+      const keys = ups.length ? ups : DERIVED.has(kindOf(id)) ? ['?unknown-lineage'] : [];
+      for (const k of keys) { if (firstWith.has(k)) parent.set(find(id), find(firstWith.get(k))); else firstWith.set(k, id); }
     }
-    return groups.length;
+    return new Set(list.map(find)).size;
   }
   const tolerance = (variable, values) => {
     const t = vocab(variable).tolerance;
@@ -576,7 +594,7 @@ function createLayers(opts) {
     for (const m of ev.missing) {
       const s = srcById(m.source);
       if (!s) continue;
-      out.push({ layer: s.id, kind: m.why === 'too-far' ? 'too-far' : 'on-but-empty', why: m.why });
+      out.push({ layer: s.id, kind: m.why === 'too-far' ? 'too-far' : m.why === 'future-time' ? 'future-time' : 'on-but-empty', why: m.why });
     }
     for (const c of cards) {
       if (onIds.includes(c.id)) continue;
