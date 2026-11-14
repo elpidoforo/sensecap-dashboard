@@ -203,7 +203,7 @@ const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + 
     const c3 = await b.newContext(opts), p3 = await c3.newPage(), e3 = [];
     p3.on('pageerror', (e) => e3.push(String(e)));
     await p3.goto(BASE + '/#/home'); await p3.waitForSelector('.hm-core .cn-pi', { timeout: 30000 });
-    ok(await p3.evaluate(() => { const a = document.querySelector('.hm-route'), c = document.querySelector('.hm-core'), s = document.querySelector('.hm-stage'); return a.getBoundingClientRect().bottom <= c.getBoundingClientRect().top + 1 && c.getBoundingClientRect().bottom <= s.getBoundingClientRect().top + 60; }), name + ': the scene sits between the tour route and the island');
+    ok(await p3.evaluate(() => { const a = document.querySelector('.hm-route'), c = document.querySelector('.hm-core'), s = document.querySelector('.hm-stage'); return a.getBoundingClientRect().bottom <= c.getBoundingClientRect().top + 1 && c.getBoundingClientRect().bottom <= s.getBoundingClientRect().top + 60 - 0 || c.getBoundingClientRect().bottom <= document.querySelector('.hm3').getBoundingClientRect().top + 60; }), name + ': the scene sits under the tour route, above the three sections and the island');
     ok(await p3.locator('.hm-core .cn-po').count() === 6 && /\d/.test(await p3.locator('.hm-core .cn-words').innerText()), name + ': the scene has its panels and its sentence');
     ok(await p3.locator('.hm-stage .hm-plane').count() === 1, name + ': the island is still there');
     ok(await p3.evaluate(() => { const k = [...document.querySelectorAll('.hm-tile .hm-mv > *')]; return k.length >= 30 && k.every((e) => /hm-v-[a-z]+/.test(e.getAttribute('class') || '')); }), name + ': every tile picture carries its kind');

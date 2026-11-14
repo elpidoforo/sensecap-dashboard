@@ -215,3 +215,22 @@ a.hm-tile:focus-visible { outline: 2px solid var(--nm-copper-2); outline-offset:
 .hm-v-gear path { stroke-dasharray: 8 5; animation: hm-dash 2.4s linear infinite; }
 .hm-v-chips i { animation: hm-glow 2.7s ease-in-out infinite; } .hm-v-chips i:nth-child(2) { animation-delay: -.9s; } .hm-v-chips i:nth-child(3) { animation-delay: -1.8s; }
 @media (prefers-reduced-motion: reduce) { .hm-tile::after { animation: none; display: none; } .hm-mv *, .hm-mv svg * { animation: none !important; } }
+
+/* 14 Nov 2026: the three kinds of tool (view, analyze, predict) and the workshop band. Colours from site.css (--sec-*). */
+.hm3 { margin: 22px 0 10px; } .hm3 .sec-view { --c: var(--sec-view); } .hm3 .sec-analyze { --c: var(--sec-analyze); } .hm3 .sec-predict { --c: var(--sec-predict); } .hm3 .sec-data { --c: #9fb3cc; }
+.hm3-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.hm3-sec, .hm3-build { padding: 16px; border: 1px solid rgba(125,211,252,.22); border-top: 4px solid var(--c); border-radius: 20px; background: linear-gradient(160deg, rgba(20,44,74,.75), rgba(7,16,30,.9) 65%); min-width: 0; }
+.hm3-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; } .hm3 h2 { margin: 0; font: 800 21px/1.2 var(--nm-font); color: var(--c); }
+.hm3-n { font: 700 12.5px/1 var(--nm-font); color: var(--c); border: 1px solid var(--c); border-radius: 99px; padding: 4px 10px; white-space: nowrap; }
+.hm3-q { margin: 4px 0 10px; font: 400 14px/1.45 var(--nm-font); color: #cfe0f3; max-width: 62ch; }
+.hm3-t { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: center; margin-top: 8px; padding: 8px 10px; border-radius: 12px; background: rgba(4,12,24,.55); border: 1px solid rgba(255,255,255,.07); color: var(--nm-text); text-decoration: none; transition: border-color .15s, transform .15s; }
+.hm3-t:hover, .hm3-t:focus-visible { border-color: var(--c); transform: translateY(-2px); } .hm3-t:focus-visible, .hm3-btn:focus-visible, .hm3-more:focus-visible { outline: 2px solid var(--nm-copper-2); outline-offset: 2px; }
+.hm3-t i { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); border: 1px solid color-mix(in srgb, var(--c) 50%, transparent); } .hm3-t i svg { width: 17px; height: 17px; }
+.hm3-t b { display: block; font: 700 14.5px/1.3 var(--nm-font); } .hm3-t small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font: 400 12.5px/1.4 var(--nm-font); color: #9db0c8; }
+.hm3-more { display: inline-block; margin-top: 10px; font: 700 13.5px var(--nm-font); color: var(--c); text-decoration: none; }
+.hm3-build { --c: var(--sec-build); margin-top: 16px; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.5fr); gap: 20px; align-items: center; }
+.hm3-btn { display: inline-block; padding: 10px 18px; border-radius: 99px; background: var(--sec-build); color: #062015; font: 800 14.5px var(--nm-font); text-decoration: none; }
+.hm3-chain { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; } .hm3-ar { color: #6f86a3; font-size: 20px; }
+.hm3-bx { display: block; min-width: 118px; padding: 9px 12px; border-radius: 12px; border: 1.5px solid var(--c); background: color-mix(in srgb, var(--c) 14%, #0a1628); font: 500 13px/1.35 var(--nm-font); } .hm3-bx small { display: block; color: var(--c); font: 800 11.5px/1.3 var(--nm-font); letter-spacing: .06em; }
+@media (max-width: 980px) { .hm3-cols, .hm3-build { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .hm3-t { transition: none; } .hm3-t:hover { transform: none; } }

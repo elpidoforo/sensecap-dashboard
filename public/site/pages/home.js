@@ -226,6 +226,24 @@
         coreBusy = false;
       }
 
+      /* ---------- the three kinds of tool, and the place to build your own (the menu has the same four groups) ---------- */
+      const SEC_Q = { view: T('See what is happening, where and when.', 'Δες τι συμβαίνει, πού και πότε.'), analyze: T('Answer one question, and show the method.', 'Απάντησε σε μία ερώτηση και δείξε τη μέθοδο.'), predict: T('Look ahead, then test it against what happened.', 'Κοίτα μπροστά και μετά έλεγξέ το με αυτό που έγινε.') };
+      const secs = SC.sections ? SC.sections() : [];
+      const toolRow = (id) => { const i = SC.pageInfo(id); return i ? el('a', { class: 'hm3-t', href: link(id) }, el('i', { 'aria-hidden': 'true' }, SC.icon(i.icon)), el('span', null, el('b', null, i.name), i.desc ? el('small', null, i.desc) : null)) : null; };
+      const three = el('section', { class: 'hm3', 'aria-label': T('The three kinds of tool and the workshop', 'Τα τρία είδη εργαλείων και το εργαστήρι') },
+        el('div', { class: 'hm3-cols' }, secs.filter((x) => x.id !== 'build').map((sc) => el('div', { class: 'hm3-sec sec-' + sc.id },
+          el('div', { class: 'hm3-h' }, el('h2', null, sc.name), el('span', { class: 'hm3-n' }, T(sc.items.length + ' tools', sc.items.length + ' εργαλεία'))),
+          el('p', { class: 'hm3-q' }, SEC_Q[sc.id] || ''),
+          sc.items.slice(0, 6).map(toolRow),
+          sc.items.length > 6 ? el('a', { class: 'hm3-more', href: link('toolkit') }, T('All ' + sc.name + ' tools', 'Όλα τα εργαλεία: ' + sc.name), ' →') : null))),
+        el('div', { class: 'hm3-build' },
+          el('div', null, el('h2', null, T('Build your own tool', 'Φτιάξε το δικό σου εργαλείο')),
+            el('p', { class: 'hm3-q' }, T('Drag boxes from all three sections, join them and test the tool on real data. A tool is a list of choices, never code.', 'Σύρε κουτιά και από τα τρία μέρη, ένωσέ τα και δοκίμασε το εργαλείο σε πραγματικά δεδομένα. Ένα εργαλείο είναι μια λίστα επιλογών, ποτέ κώδικας.')),
+            el('a', { class: 'hm3-btn', href: link('workshop') }, T('Open the workshop', 'Άνοιξε το εργαστήρι'))),
+          el('div', { class: 'hm3-chain', 'aria-hidden': 'true' },
+            [['data', T('DATA', 'ΔΕΔΟΜΕΝΑ'), T('Air temperature', 'Θερμοκρασία αέρα')], ['analyze', T('ANALYZE', 'ΑΝΑΛΥΣΗ'), T('Compare two cities', 'Σύγκρινε δύο πόλεις')], ['view', T('VIEW', 'ΠΡΟΒΟΛΗ'), T('Line chart', 'Γραμμικό γράφημα')], ['predict', T('PREDICT', 'ΠΡΟΒΛΕΨΗ'), T('My prediction', 'Η πρόβλεψή μου')]]
+              .map((b, i) => [i ? el('span', { class: 'hm3-ar' }, '→') : null, el('span', { class: 'hm3-bx sec-' + b[0] }, el('small', null, b[1]), b[2])]))));
+
       /* ---------- stage: island + pillars + ring ---------- */
       const FILL = { nicosia: 'rgba(110,214,255,.66)', larnaca: 'rgba(84,150,240,.62)', limassol: 'rgba(120,190,255,.54)', paphos: 'rgba(120,150,250,.50)', famagusta: 'rgba(62,120,205,.46)', kyrenia: 'rgba(52,96,176,.42)' };
       const island = sv('svg', { viewBox: '0 0 ' + ISLAND.W + ' ' + ISLAND.H, role: 'img', 'aria-label': T('Cyprus by district, with the four school sites', 'Η Κύπρος ανά επαρχία, με τους τέσσερις χώρους των σχολείων') });
@@ -349,7 +367,7 @@
         (winsGrid = el('div', { class: 'hm-wins' }, built.map((b) => b.box))),
         el('div', { class: 'nm-callout nm-callout--info' }, T('There is no account for visitors. Teachers sign in only to approve work and change settings.', 'Οι επισκέπτες δεν χρειάζονται λογαριασμό. Οι εκπαιδευτικοί συνδέονται μόνο για να εγκρίνουν εργασίες και να αλλάξουν ρυθμίσεις.')));
 
-      const hm = el('div', { class: 'hm' }, el('div', { class: 'hm-sky', 'aria-hidden': 'true' }), head, route, coreSlot, stage, list, status, legend, sec);
+      const hm = el('div', { class: 'hm' }, el('div', { class: 'hm-sky', 'aria-hidden': 'true' }), head, route, coreSlot, three, stage, list, status, legend, sec);
       root.append(hm);
 
       /* ---------- layout: ring, chevrons, travelling dots and the light pillars ---------- */

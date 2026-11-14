@@ -80,6 +80,7 @@
     ['helpers', 'sources', 'now', 'Helpers', 'Βοηθοί', 'The background savers and the assistant, with last run and health.', 'Οι βοηθοί που αποθηκεύουν στο παρασκήνιο και ο βοηθός ΤΝ, με την τελευταία εκτέλεση και την κατάστασή τους.'],
     ['warnings', 'sources', 'saved', 'Warnings watch', 'Παρακολούθηση προειδοποιήσεων', 'Changes to the Met Office warnings and radar over time.', 'Αλλαγές στις προειδοποιήσεις και στο ραντάρ της Μετεωρολογικής με τον χρόνο.'],
 
+    ['workshop', 'output', 'now', 'Workshop', 'Εργαστήρι', 'Drag boxes of data, views, analysis and prediction together to make your own tool, and test it on the saved day.', 'Σύρε κουτιά με δεδομένα, προβολές, ανάλυση και πρόβλεψη για να φτιάξεις το δικό σου εργαλείο, και δοκίμασέ το στην αποθηκευμένη μέρα.'],
     ['studio', 'output', 'teacher', 'Build studio', 'Στούντιο', 'Students describe a tool, the AI drafts it, a teacher approves it.', 'Οι μαθητές περιγράφουν ένα εργαλείο, η ΤΝ το σχεδιάζει, ένας εκπαιδευτικός το εγκρίνει.'],
     ['submitted', 'output', 'teacher', 'Submitted work', 'Υποβολές', 'The queue of submitted tools and reports. Teachers decide.', 'Η ουρά των εργαλείων και των αναφορών που υποβλήθηκαν. Αποφασίζουν οι εκπαιδευτικοί.'],
 

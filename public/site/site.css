@@ -465,3 +465,7 @@ select.nm-input { appearance: none; }
   /* a quiet handle on the left edge shows where the menu lives */
   body.tuck::before { content: ""; position: fixed; left: 0; top: 0; bottom: 0; width: 5px; z-index: 5; pointer-events: none; background: linear-gradient(180deg, transparent, rgba(76, 203, 234, .45) 30%, rgba(76, 203, 234, .45) 70%, transparent); opacity: .55; }
 }
+
+/* 14 Nov 2026: the menu follows the three kinds of tool. Each section has its colour, also used on the home page and in the workshop. */
+:root { --sec-view: #4CCBEA; --sec-analyze: #F7C46B; --sec-predict: #B79CFF; --sec-build: #5EE0A8; }
+.nm-side-h.sec-view { color: var(--sec-view); } .nm-side-h.sec-analyze { color: var(--sec-analyze); } .nm-side-h.sec-predict { color: var(--sec-predict); } .nm-side-h.sec-build { color: var(--sec-build); }
