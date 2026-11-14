@@ -472,7 +472,10 @@
     document.body.classList.add('tuck');
     let out = 0;
     const B = document.body, wide = () => window.innerWidth >= 900;
-    document.addEventListener('mousemove', (e) => { if (e.clientX > 10 || !wide() || B.classList.contains('drawer') || B.classList.contains('peek')) return; clearTimeout(out); B.classList.add('peek'); });
+    // Only a pointer that really travelled to the edge counts. A browser also sends made-up "mouse moved" events at the last known position when the page
+    // changes under it (in a fresh window that position is the top-left corner), and those must not open the menu on their own.
+    let seen = false;
+    document.addEventListener('mousemove', (e) => { if (e.clientX > 10) { seen = true; return; } if (!seen && !e.movementX && !e.movementY) return; if (!wide() || B.classList.contains('drawer') || B.classList.contains('peek')) return; clearTimeout(out); B.classList.add('peek'); });
     document.addEventListener('mouseover', (e) => { if (!B.classList.contains('peek')) return; clearTimeout(out); if (!side.contains(e.target)) out = setTimeout(() => { if (B.classList.contains('peek') && !side.matches(':hover') && !side.contains(document.activeElement)) B.classList.remove('peek'); }, 320); });
     side.addEventListener('click', (e) => { if (e.target.closest('a')) { B.classList.remove('peek'); if (wide() && B.classList.contains('drawer')) setDrawer(false); } });
     if (window.matchMedia) { const mq = matchMedia('(min-width: 900px)'); const f = () => { if (document.body.classList.contains('drawer')) setDrawer(false); }; if (mq.addEventListener) mq.addEventListener('change', f); }
