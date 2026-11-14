@@ -31,7 +31,7 @@ const OSM = { elements: [
 
 (async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'city-'));
-  const make = (over) => createCityBuildings({ dataDir: dir, wait: async () => {}, log: () => {}, ...over });
+  const make = (over) => createCityBuildings({ dataDir: dir, wait: async () => {}, log: () => {}, noRetryTimer: true, ...over });
   const T = make({ fetch: async () => { throw new Error('no'); } })._t;
 
   // heights

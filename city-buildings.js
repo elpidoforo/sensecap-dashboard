@@ -194,6 +194,7 @@ function createCityBuildings(o) {
         log('city-buildings: ' + id + ' ' + d.stats.buildings + ' buildings, ' + d.stats.roads + ' streets');
       } catch (e) {
         st.error = String(e && e.message || e).slice(0, 200); st.retryAt = now() + RETRY_MIN * 60000;
+        if (!mock && !o.noRetryTimer) { const t = setTimeout(() => { if (stale(read(id))) load(id); }, RETRY_MIN * 60000 + 1000); if (t.unref) t.unref(); }   // try again by itself, not only when someone opens the city
         log('city-buildings: ' + id + ' failed: ' + st.error);
       } finally { st.running = false; await wait(GAP_MS); }
     });
