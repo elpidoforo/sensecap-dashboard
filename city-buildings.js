@@ -154,7 +154,7 @@ function createCityBuildings(o) {
   const doFetch = o.fetch || ((...a) => fetch(...a));
   const url = o.overpassUrl || process.env.OVERPASS_URL || 'https://overpass-api.de/api/interpreter';
   const wait = o.wait || ((ms) => new Promise((r) => setTimeout(r, ms)));
-  const mem = {}, state = {};   // state[id] = { running, error, retryAt }
+  const mem = {}, state = {}, json = new WeakMap();   // state[id] = { running, error, retryAt }
   const file = (id) => path.join(dataDir, 'city-osm-' + id + '.json');
   let queue = Promise.resolve();
 
@@ -169,12 +169,16 @@ function createCityBuildings(o) {
   }
   async function fetchCity(id) {
     const b = boxOf(CITIES[id]);
-    const r = await doFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': UA, Accept: 'application/json' }, body: 'data=' + encodeURIComponent(queryFor(b)), signal: AbortSignal.timeout(120000) });
+    const r = await doFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': UA, Accept: 'application/json' }, body: 'data=' + encodeURIComponent(queryFor(b)), signal: AbortSignal.timeout(120000), redirect: 'error' });
     if (!r.ok) throw new Error('Overpass answered ' + r.status);
     const len = Number(r.headers && r.headers.get ? r.headers.get('content-length') : 0);
     if (len > MAX_BYTES) throw new Error('answer too large');
-    const text = await r.text();
-    if (text.length > MAX_BYTES) throw new Error('answer too large');
+    let text;
+    if (r.body && typeof r.body.getReader === 'function') {   // count bytes while reading, and stop at the limit
+      const reader = r.body.getReader(), parts = []; let n = 0;
+      for (;;) { const { done, value } = await reader.read(); if (done) break; n += value.length; if (n > MAX_BYTES) { try { await reader.cancel(); } catch (e) { /* ignore */ } throw new Error('answer too large'); } parts.push(value); }
+      text = Buffer.concat(parts.map((v) => Buffer.from(v))).toString('utf8');
+    } else { text = await r.text(); if (Buffer.byteLength(text) > MAX_BYTES) throw new Error('answer too large'); }
     const osm = JSON.parse(text);
     if (osm && osm.remark && /runtime error|timed out|out of memory/i.test(osm.remark)) throw new Error('Overpass: ' + String(osm.remark).slice(0, 120));
     return convert(id, osm, now());
@@ -196,12 +200,12 @@ function createCityBuildings(o) {
   }
   const stale = (d) => !d || now() - d.at > REFRESH_DAYS * DAY;
   function view(id) {
-    if (mock) return { code: 200, body: mem[id] || (mem[id] = demo(id, now())) };
+    if (mock) { if (!mem[id]) mem[id] = demo(id, now()); return { code: 200, body: mem[id] }; }
     const d = read(id), st = state[id] || {};
     if (stale(d) && !st.running && (!st.retryAt || now() >= st.retryAt)) load(id);
     if (d) return { code: 200, body: d };
     if ((state[id] || {}).running) return { code: 202, body: { loading: true } };
-    return { code: 503, body: { error: 'The buildings of this city could not be fetched from OpenStreetMap right now. It is tried again in a few minutes.', detail: st.error || null } };
+    return { code: 503, body: { error: 'The buildings of this city could not be fetched from OpenStreetMap right now. It is tried again in a few minutes.' } };
   }
   async function handle(req, res, u) {
     const m = /^\/api\/city\/([a-z]+)$/.exec(u.pathname);
@@ -209,7 +213,9 @@ function createCityBuildings(o) {
     if (!Object.prototype.hasOwnProperty.call(CITIES, m[1])) { res.writeHead(404, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify({ error: 'Unknown city. Use one of: ' + Object.keys(CITIES).join(', ') + '.' })); return true; }
     const v = view(m[1]);
     res.writeHead(v.code, { 'Content-Type': 'application/json', 'Cache-Control': v.code === 200 ? 'public, max-age=3600' : 'no-store' });
-    res.end(JSON.stringify(v.body));
+    let out = v.body;
+    if (v.code === 200) { if (!json.has(v.body)) json.set(v.body, JSON.stringify(v.body)); out = json.get(v.body); } else out = JSON.stringify(v.body);   // a city is serialised once
+    res.end(out);
     return true;
   }
   function start() {   // after the server is up: fetch any city that has nothing saved, or is older than REFRESH_DAYS
