@@ -1076,6 +1076,7 @@ const { createEea } = require('./eea');
 const { createSatellite } = require('./satellite');
 const citiesApi = require('./cities');
 const { createClassLogin } = require('./classlogin');
+const cityBuildings = require('./city-buildings').createCityBuildings({ dataDir: DATA_DIR, mock: MOCK, log: (m) => console.error(m) });   // #/city: buildings and streets of the four city centres from OpenStreetMap (city-buildings.js)
 const toolkitForecast = require('./toolkit-forecast').createToolkitForecast({ root: __dirname, dataDir: DATA_DIR, mock: MOCK, omJson, omBase: OM_BASE, enabled: () => feeds.enabled('openmeteo'), cydom, history: () => history, log: (m) => console.error(m) });   // #/forecast: saves tomorrow's forecast once a day and compares it later (toolkit-forecast.js)
 const classLogin = createClassLogin();
 let appCore = null;
@@ -1564,7 +1565,7 @@ const SITE_CSP = "default-src 'self'; img-src 'self' data: blob:; style-src 'sel
 
 // The old pages now live inside the site shell. Opened on their own they send people there. With ?embed=1 the shell (or the
 // student app) gets the page itself, to show in a same-origin frame.
-const SHELL_ROUTES = { '/metoffice.html': '/#/weather', '/dashboard.html': '/#/vehicles', '/map.html': '/#/map', '/3d.html': '/#/city3d' };
+const SHELL_ROUTES = { '/metoffice.html': '/#/weather', '/dashboard.html': '/#/vehicles', '/map.html': '/#/map', '/3d.html': '/#/city3d', '/city.html': '/#/city' };
 function redirectFor(url) {
   const p = url.pathname;
   if (p === '/index.html') return '/';
@@ -1600,6 +1601,7 @@ const server = http.createServer(async (req, res) => {
     if (to) { res.writeHead(302, { Location: to, 'Cache-Control': 'no-store' }); return res.end(); }
     if (await sourceRoutes(req, res, url)) return;   // /api/feeds, helpers, archive, ops, search, dom/watch
     if (await toolkitWatch.handle(req, res, url)) return;   // /watch/api/title: checks a title, stores nothing
+    if (await cityBuildings.handle(req, res, url)) return;   // /api/city/<id>: buildings and streets of one city centre, read only
     if (await toolkitForecast.handle(req, res, url)) return;   // /api/toolkit/forecast: saved forecasts against what was measured, read only
     if (gtfs && (await gtfs.handle(req, res, url))) return;   // /api/transit/*: official bus timetables, read only, rate limited
     if (eea && (await eea.handle(req, res, url))) return;     // /api/eea/*: official air-quality stations and the school-sensor comparison, read only
@@ -1700,7 +1702,7 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(404);
         return res.end('Not found');
       }
-      const csp = inApp ? APP_CSP : url.pathname.startsWith('/cities') ? CITIES_CSP : url.pathname === '/3d.html' ? policy3d(buf) : url.pathname === '/' || url.pathname.startsWith('/site/') ? SITE_CSP : null;
+      const csp = inApp ? APP_CSP : url.pathname.startsWith('/cities') ? CITIES_CSP : url.pathname === '/3d.html' || url.pathname === '/city.html' ? policy3d(buf) : url.pathname === '/' || url.pathname.startsWith('/site/') ? SITE_CSP : null;
       const headers = { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream', 'Cache-Control': /^\/vendor\/three-r\d+\//.test(url.pathname) ? 'public, max-age=31536000, immutable' : 'no-cache', 'Accept-Ranges': 'bytes', ...(csp ? { 'Content-Security-Policy': csp, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' } : {}) };
       const range = req.headers.range ? parseRange(req.headers.range, buf.length) : null;
       if (range === 'bad') {
@@ -1729,6 +1731,7 @@ loadMeasurementNames().finally(() => {
     console.log(`Dashboard on port ${PORT}${DEMO ? ' (demo data)' : ''}`);
     startApp();
     startMetOffice();
+    setTimeout(() => { try { cityBuildings.start(); } catch (e) { console.error('City buildings could not start: ' + e.message); } }, 20000).unref();   // fetches each city centre once, then monthly
     try { sensecapStream.start(); } catch (e) { console.error('SenseCAP live stream could not start: ' + e.message); }   // does nothing unless SENSECAP_MQTT=1
   });
 });

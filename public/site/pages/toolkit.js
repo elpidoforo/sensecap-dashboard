@@ -48,6 +48,7 @@
 
     ['home', 'today', 'now', 'The whole project', 'Όλο το έργο', 'The map of the whole platform: eight windows in the order the data travels.', 'Ο χάρτης όλης της πλατφόρμας: οκτώ παράθυρα με τη σειρά που ταξιδεύουν τα δεδομένα.'],
     ['board', 'today', 'now', 'City board', 'Πίνακας πόλης', 'The island with a column at each school: sensors online, warnings and vehicles on the road.', 'Το νησί με μια στήλη σε κάθε σχολείο: αισθητήρες σε λειτουργία, προειδοποιήσεις και οχήματα στον δρόμο.'],
+    ['city', 'today', 'now', 'City centres in 3D', 'Κέντρα πόλεων σε 3D', 'Fly from the island down to a city centre: its buildings and streets in 3D.', 'Πέτα από το νησί σε ένα κέντρο πόλης: τα κτίρια και οι δρόμοι του σε 3D.'],
     ['city3d', 'today', 'now', 'Cyprus 3D', 'Κύπρος 3D', 'Our 3D island with a rail of layers to switch on and off.', 'Το τρισδιάστατο νησί μας με μια μπάρα στρωμάτων που ανοίγουν και κλείνουν.'],
     ['alerts', 'today', 'teacher', 'Alerts', 'Ειδοποιήσεις', 'Alerts from rules that teachers write, such as high CO2. Each names its source and rule, never a person.', 'Ειδοποιήσεις από κανόνες που γράφουν οι εκπαιδευτικοί, όπως υψηλό CO2. Καθεμία δείχνει την πηγή και τον κανόνα της, ποτέ πρόσωπο.'],
     ['ask', 'today', 'now', 'Ask', 'Ρωτήστε', 'A full-screen assistant that answers from live tools and the handbook, with source chips.', 'Βοηθός πλήρους οθόνης που απαντά από ζωντανά εργαλεία και το εγχειρίδιο, με ετικέτες πηγών.'],

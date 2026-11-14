@@ -37,6 +37,7 @@ A student's browser never loads anything from a third-party server.
 |---|---|
 | European Environment Agency, Air Quality Download Service (Cyprus stations reported by the Department of Labour Inspection) | Credit line on the card and in `sources/air-quality-stations-cy.json`. EEA general reuse policy: reuse with credit; some data may carry specific conditions. The licence id is left `unknown` until a teacher reads the dataset factsheet. |
 | Cyprus National Access Point for transport (traffic4cyprus.org.cy), GTFS | CC BY 4.0. The credit is in every API answer and on the trip page. |
+| OpenStreetMap buildings, streets and coastline of the four city centres, fetched from the Overpass service (`city-buildings.js`, page `#/city`) | © OpenStreetMap contributors, Open Database Licence 1.0 (https://www.openstreetmap.org/copyright). Kept in the data folder (`city-osm-<city>.json`), not in the repo. The credit and a link are on the page, inside the 3D view and in every API answer. |
 
 ## Satellite data sources (fetched live by the server; nothing is copied into the repo)
 

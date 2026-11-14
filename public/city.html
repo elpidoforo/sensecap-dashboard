@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>City centres in 3D · Athena</title>
+<style>
+/* The city centres in 3D (city-app.js). Shown inside the site shell through a same-origin frame (pages/city.js). */
+:root { --bg: #08131f; --glass: rgba(9, 22, 40, .86); --line: rgba(125, 211, 252, .22); --ink: #e6eef8; --mute: #9db0c8; --view: #4CCBEA; --build: #5EE0A8; --warm: #F7C46B; --font: Inter, "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 14px/1.45 var(--font); overflow: hidden; }
+#c { position: fixed; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+.glass { position: absolute; background: var(--glass); border: 1px solid var(--line); border-radius: 16px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid rgba(255, 200, 87, .9); outline-offset: 2px; }
+/* top bar: where you are, and the four cities */
+#bar { left: 12px; top: 12px; right: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; }
+#crumb { display: flex; align-items: center; gap: 6px; margin-right: 6px; font-weight: 700; }
+#crumb button { padding: 5px 10px; border-radius: 99px; border: 1px solid rgba(255, 255, 255, .22); background: none; font-weight: 700; }
+#crumb span { color: var(--mute); }
+#cities { display: flex; flex-wrap: wrap; gap: 6px; }
+#cities button { padding: 6px 13px; border-radius: 99px; border: 1px solid rgba(76, 203, 234, .5); background: rgba(76, 203, 234, .08); font-weight: 700; }
+#cities button[aria-pressed="true"] { background: var(--view); border-color: var(--view); color: #04202a; }
+#badge { margin-left: auto; padding: 4px 11px; border-radius: 99px; border: 1px dashed #F2A56B; color: #F2A56B; font-size: 12.5px; }
+#badge[hidden] { display: none; }
+/* left: layers */
+#layers { left: 12px; top: 78px; width: 232px; padding: 12px 14px; max-height: calc(100% - 170px); overflow: auto; }
+#layers h2, #info h2 { margin: 0 0 8px; font-size: 15px; }
+.ly { display: flex; align-items: center; gap: 9px; padding: 6px 0; font-size: 13.5px; }
+.ly input { width: 17px; height: 17px; accent-color: var(--build); margin: 0; }
+.ly i { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.ly.soon { color: var(--mute); }
+.ly.soon i { opacity: .5; }
+#layers h3 { margin: 12px 0 2px; font-size: 12.5px; color: var(--mute); font-weight: 600; }
+.note { margin: 6px 0 0; font-size: 12.5px; color: var(--mute); }
+/* bottom left: camera */
+#cam { left: 12px; bottom: 12px; display: flex; gap: 6px; padding: 6px; }
+#cam button { padding: 7px 12px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .18); background: rgba(255, 255, 255, .04); font-weight: 700; font-size: 13px; }
+#cam button[aria-pressed="true"] { background: var(--view); color: #04202a; border-color: var(--view); }
+#cam[hidden] { display: none; }
+/* bottom right: about this city */
+#info { right: 12px; bottom: 12px; width: 300px; padding: 12px 14px; }
+#info[hidden] { display: none; }
+#info .big { display: flex; gap: 16px; margin: 2px 0 8px; }
+#info .big b { display: block; font-size: 22px; line-height: 1.1; }
+#info .big span { font-size: 12.5px; color: var(--mute); }
+.hbar { display: flex; height: 8px; border-radius: 9px; overflow: hidden; background: #24405f; margin: 4px 0; }
+.hbar i { display: block; height: 100%; }
+#info a { color: var(--view); }
+/* labels on the map and the hover card */
+#labels { position: fixed; inset: 0; pointer-events: none; }
+.lab { position: absolute; transform: translate(-50%, -100%); pointer-events: auto; padding: 5px 11px; border-radius: 99px; border: 1.5px solid var(--view); background: rgba(7, 16, 30, .9); font-weight: 700; font-size: 13.5px; white-space: nowrap; cursor: pointer; }
+.lab small { display: block; font-weight: 400; font-size: 12.5px; color: var(--mute); }
+.lab.school { border-color: var(--build); cursor: default; border-radius: 10px; }
+.lab[hidden] { display: none; }
+#tip { position: fixed; pointer-events: none; padding: 7px 10px; border-radius: 10px; background: rgba(7, 16, 30, .94); border: 1px solid var(--line); font-size: 13px; max-width: 260px; display: none; }
+#tip b { display: block; }
+/* loading and error */
+#msg { left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 16px 18px; max-width: 360px; text-align: center; }
+#msg[hidden] { display: none; }
+#msg .spin { width: 26px; height: 26px; margin: 0 auto 10px; border-radius: 50%; border: 3px solid rgba(76, 203, 234, .25); border-top-color: var(--view); animation: sp 1s linear infinite; }
+#msg button { margin-top: 10px; padding: 7px 14px; border-radius: 99px; border: 0; background: var(--view); color: #04202a; font-weight: 800; }
+@keyframes sp { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #msg .spin { animation: none; } }
+@media (max-width: 760px) {
+  #bar { left: 8px; right: 8px; top: 8px; padding: 6px 8px; }
+  #badge { margin-left: 0; }
+  #layers { left: 8px; top: auto; bottom: 64px; width: calc(100% - 16px); max-height: 34%; }
+  #layers.shut .ly, #layers.shut h3, #layers.shut .note { display: none; }
+  #info { left: 8px; right: 8px; width: auto; top: auto; bottom: 128px; padding: 8px 12px; }
+  #info .more, #info .note:last-child { display: none; }
+  #info .big { margin: 0 0 4px; }
+  #info .big b { font-size: 18px; }
+  #cam { left: 8px; bottom: 8px; }
+}
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+</style>
+</head>
+<body>
+<canvas id="c" tabindex="0" aria-label="Cyprus and its city centres in 3D" data-ael="Η Κύπρος και τα κέντρα των πόλεων σε 3D"></canvas>
+<div id="labels"></div>
+<div id="tip" role="status"></div>
+<div class="glass" id="bar">
+  <div id="crumb"><button type="button" id="home" data-el="Κύπρος">Cyprus</button></div>
+  <div id="cities" role="group" aria-label="Cities" data-ael="Πόλεις"></div>
+  <span id="badge" hidden></span>
+</div>
+<div class="glass" id="layers" aria-label="Layers" data-ael="Στρώματα">
+  <h2 data-el="Στρώματα">Layers</h2>
+  <label class="ly"><input type="checkbox" id="lyB" checked><i style="background:#5f8fc4"></i><span data-el="Κτίρια">Buildings</span></label>
+  <label class="ly"><input type="checkbox" id="lyR" checked><i style="background:#3c5f88"></i><span data-el="Δρόμοι">Streets</span></label>
+  <label class="ly"><input type="checkbox" id="lyG"><i style="background:#b58cf0"></i><span data-el="Δείξε τα ύψη που δεν είναι καταγεγραμμένα">Show heights that are not recorded</span></label>
+  <label class="ly"><input type="checkbox" id="lyS" checked><i style="background:#5EE0A8"></i><span data-el="Το σχολείο μας">Our school</span></label>
+  <h3 data-el="Έρχονται">Coming next</h3>
+  <div class="ly soon"><i style="background:#F7C46B"></i><span data-el="Δρόμοι που μέτρησαν τα αυτοκίνητα αισθητήρων">Streets measured by the sensor cars</span></div>
+  <div class="ly soon"><i style="background:#4CCBEA"></i><span data-el="Λεωφορεία με βάση το δρομολόγιο">Buses by timetable</span></div>
+  <div class="ly soon"><i style="background:#B79CFF"></i><span data-el="Ροή ανέμου">Wind flow</span></div>
+  <p class="note" data-el="Τα αυτοκίνητα αισθητήρων δεν εμφανίζονται ποτέ ως θέσεις. Θα φαίνεται μόνο τι μέτρησαν σε κάθε δρόμο, με καθυστέρηση.">The sensor cars are never shown as positions. Only what they measured on each street will be shown, delayed.</p>
+</div>
+<div class="glass" id="cam" hidden role="group" aria-label="Camera" data-ael="Κάμερα">
+  <button type="button" id="camTop" data-el="Από πάνω">From above</button>
+  <button type="button" id="camTilt" data-el="Λοξά">Tilted</button>
+  <button type="button" id="camTurn" aria-pressed="false" data-el="Γύρνα">Turn</button>
+</div>
+<div class="glass" id="info" hidden aria-live="polite"></div>
+<div class="glass" id="msg" hidden role="status"></div>
+<p class="sr" id="said" aria-live="polite"></p>
+<script src="/site/island.js"></script>
+<script src="/city-guard.js"></script>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three-r160/build/three.module.js", "three/addons/": "/vendor/three-r160/examples/jsm/" } }
+</script>
+<script type="module" src="/city-app.js"></script>
+</body>
+</html>
