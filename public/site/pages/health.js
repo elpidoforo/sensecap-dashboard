@@ -89,11 +89,24 @@
           h('div', { class: 'hl-card' }, h('h2', null, T('Every source, and what was checked', 'Κάθε πηγή, και τι ελέγχθηκε')),
             h('p', { class: 'hl-note' }, T(D.sources.length + ' sources that are switched on · press one to open it', D.sources.length + ' πηγές σε λειτουργία · πάτησε μία για να ανοίξει')),
             h('div', { class: 'hl-list' }, D.sources.map((s) => { const card = sourceCard(s); card.id = 'hl-' + s.id; return card; }))),
+          (D.extracts && D.extracts.length ? h('div', { class: 'hl-card' },
+            h('h2', null, T('The frozen extracts behind the investigations', 'Τα παγωμένα αποσπάσματα πίσω από τις διερευνήσεις')),
+            h('p', { class: 'hl-note' }, T(D.extracts.length + ' dated copies of published files. They do not arrive by themselves, so they are checked for who published them, under what licence, when they were taken, and whether the copy kept beside them still matches.',
+              D.extracts.length + ' χρονολογημένα αντίγραφα δημοσιευμένων αρχείων. Δεν φτάνουν μόνα τους, άρα ελέγχεται ποιος τα δημοσίευσε, με ποια άδεια, πότε πάρθηκαν και αν ταιριάζει ακόμη το αντίγραφο που φυλάσσεται δίπλα τους.')),
+            h('div', { class: 'hl-list' }, D.extracts.map((x) => h('article', { class: 'hl-ext ' + x.sum.status },
+              h('header', { class: 'hl-hd' }, chip(x.sum.status, ''),
+                h('span', { class: 'hl-nm' }, h('b', null, isEl() ? x.nameEl : x.name), h('code', null, x.id)),
+                h('span', { class: 'hl-meta' }, [x.publisher, x.licence].filter(Boolean).join(' · '))),
+              h('ul', { class: 'hl-xg' }, x.gates.map((g) => h('li', { class: g.status },
+                h('span', { class: 'hl-tick ' + g.status, title: L(WORD[g.status]) }, ICON[g.status]),
+                h('b', null, L(g.n)), g.note ? h('p', null, L(g.note)) : null)))))))
+            : null),
           h('div', { class: 'hl-card' }, h('h2', null, T('For the class', 'Για την τάξη')),
             h('ul', { class: 'hl-cls' },
               h('li', null, T('Which of our sources is least reliable this week, and why?', 'Ποια πηγή μας είναι η λιγότερο αξιόπιστη αυτή την εβδομάδα, και γιατί;')),
               h('li', null, T('Pick a failed check and explain what could have caused it.', 'Διάλεξε έναν έλεγχο που απέτυχε και εξήγησε τι μπορεί να τον προκάλεσε.')),
-              h('li', null, T('If a source is quiet today, which tools should we not trust?', 'Αν μια πηγή είναι σιωπηλή σήμερα, ποια εργαλεία δεν πρέπει να εμπιστευτούμε;')))));
+              h('li', null, T('If a source is quiet today, which tools should we not trust?', 'Αν μια πηγή είναι σιωπηλή σήμερα, ποια εργαλεία δεν πρέπει να εμπιστευτούμε;')),
+              h('li', null, T('Take one investigation: who published its file, and could you download it yourself and get the same numbers?', 'Πάρε μία διερεύνηση: ποιος δημοσίευσε το αρχείο της, και θα μπορούσες να το κατεβάσεις μόνος σου και να βγάλεις τους ίδιους αριθμούς;')))));
       }
 
       /* ---------- the flow drawing ---------- */

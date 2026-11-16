@@ -1,0 +1,100 @@
+{
+  "title": "Residents by municipality and age, 2021",
+  "unit": "residents",
+  "sourceUrl": "https://cystatdb.cystat.gov.cy/pxweb/en/8.CYSTAT-DB/8.CYSTAT-DB__Population__Census%20of%20Population%20and%20Housing%202021__Population__Population%20-%20Place%20of%20Residence/1891108E.px/",
+  "crossCheckUrl": "https://cystatdb.cystat.gov.cy/pxweb/en/8.CYSTAT-DB/8.CYSTAT-DB__Population__Census%20of%20Population%20and%20Housing%202021__Population__Population%20-%20Place%20of%20Residence/1891114E.px/",
+  "apiUrl": "https://cystatdb.cystat.gov.cy/api/v1/en/8.CYSTAT-DB/Population/Census%20of%20Population%20and%20Housing%202021/Population/Population%20-%20Place%20of%20Residence/1891108E.px",
+  "attribution": "© Republic of Cyprus, Statistical Service (CYSTAT), Census of Population and Housing 2021.",
+  "licence": "CYSTAT data reuse terms. Attribute the source and identify modifications.",
+  "licenceUrl": "https://www.cystat.gov.cy/en/StaticPage?id=1491",
+  "referenceDate": "2021-10-01",
+  "verifiedDate": "2026-11-16",
+  "geography": "Four municipalities as defined for the 2021 census in the government-controlled areas of the Republic of Cyprus. Figures use the municipal boundaries in effect on the census date.",
+  "method": "Both sexes combined. Athena groups the published five-year age bands into three age groups. All ages is the published total. CYSTAT is not responsible for Athena's presentation or use of the figures.",
+  "series": [
+    {
+      "name": "All ages",
+      "points": [
+        [
+          "Lefkosia",
+          56479
+        ],
+        [
+          "Larnaka",
+          52046
+        ],
+        [
+          "Lemesos",
+          107970
+        ],
+        [
+          "Pafos",
+          37991
+        ]
+      ]
+    },
+    {
+      "name": "Ages 0–14",
+      "points": [
+        [
+          "Lefkosia",
+          7233
+        ],
+        [
+          "Larnaka",
+          6655
+        ],
+        [
+          "Lemesos",
+          15034
+        ],
+        [
+          "Pafos",
+          6634
+        ]
+      ]
+    },
+    {
+      "name": "Ages 15–64",
+      "points": [
+        [
+          "Lefkosia",
+          38858
+        ],
+        [
+          "Larnaka",
+          34859
+        ],
+        [
+          "Lemesos",
+          73828
+        ],
+        [
+          "Pafos",
+          25945
+        ]
+      ]
+    },
+    {
+      "name": "Ages 65+",
+      "points": [
+        [
+          "Lefkosia",
+          10388
+        ],
+        [
+          "Larnaka",
+          10532
+        ],
+        [
+          "Lemesos",
+          19108
+        ],
+        [
+          "Pafos",
+          5412
+        ]
+      ]
+    }
+  ]
+}

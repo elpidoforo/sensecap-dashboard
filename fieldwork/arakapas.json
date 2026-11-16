@@ -1,0 +1,57 @@
+{
+  "title": "Arakapas fire: mapped burnt area",
+  "titleEl": "Πυρκαγιά στον Αρακαπά: χαρτογραφημένη καμένη έκταση",
+  "unit": "ha",
+  "referenceDate": "2021-07-04 / 2021-07-05",
+  "retrievedAt": "2026-11-16",
+  "sourceUrl": "https://mapping.emergency.copernicus.eu/activations/EMSR515/",
+  "catalogueUrl": "https://mapping.emergency.copernicus.eu/activations/EMSR515/",
+  "licenceUrl": "https://mapping.emergency.copernicus.eu/terms-and-conditions/",
+  "licence": "Copernicus EMS On-Demand Mapping terms. Credit the source when redistributing or adapting the data.",
+  "attribution": "Copernicus Emergency Management Service (© 2021 European Union), [EMSR515] Melini (AOI01): Delineation Map and Grading Map. Athena extracted burnt-area attributes.",
+  "attributionEl": "Copernicus Emergency Management Service (© 2021 European Union), [EMSR515] Melini (AOI01): Delineation Map and Grading Map. Η Αθηνά εξήγαγε τα στοιχεία καμένης έκτασης.",
+  "method": "Each observation sums the burnt-area polygons in one cumulative mapping product, rounded to 0.1 hectare. Each date is the acquisition date of the latest post-event image used in that product. Both editions cover the same fire and overlap. Subtract their areas to compare estimates. Polygon counts describe mapped patches.",
+  "methodEl": "Κάθε παρατήρηση αθροίζει τις εκτάσεις των πολυγώνων καμένης γης σε μία σωρευτική έκδοση του χάρτη, με στρογγυλοποίηση στο 0,1 εκτάριο. Κάθε ημερομηνία δηλώνει πότε λήφθηκε η πιο πρόσφατη μετασυμβαντική εικόνα που χρησιμοποιήθηκε στην έκδοση. Οι δύο εκδόσεις καλύπτουν την ίδια πυρκαγιά και επικαλύπτονται. Αφαιρέστε τις εκτάσεις για να συγκρίνετε τις εκτιμήσεις. Το πλήθος πολυγώνων περιγράφει τα χαρτογραφημένα τμήματα.",
+  "sourceSha256": "13954bd4873e9b9224148f5c4f11d4d83d18021393ddf22b35c854ca84fdf7af",
+  "series": [
+    {
+      "code": "burnt-area",
+      "name": "Mapped burnt area",
+      "nameEl": "Χαρτογραφημένη καμένη έκταση",
+      "points": [
+        [
+          "2021-07-04",
+          3143.4
+        ],
+        [
+          "2021-07-05",
+          3956.1
+        ]
+      ],
+      "observations": {
+        "2021-07-04": {
+          "product": "DEL",
+          "acquisitionTime": "2021-07-04T08:08:00Z",
+          "deliveryDate": "2021-07-04",
+          "deliveryTime": "2021-07-04T20:39:31",
+          "satellite": "SPOT6",
+          "polygonCount": 10,
+          "mapUrl": "https://cems-mapping-website.s3.eu-west-1.amazonaws.com/static/activations/EMSR515/EMSR515_AOI01_DEL_PRODUCT_r1_RTP01_v1.pdf",
+          "vectorUrl": "https://cems-mapping-website.s3.eu-west-1.amazonaws.com/static/activations/EMSR515/EMSR515_AOI01_DEL_PRODUCT_r1_RTP01_v1_vector.zip",
+          "vectorSha256": "2d6cbbd36d3fff1c64855d169006e13671ee5537d02519aa38cfc4e6e684a11e"
+        },
+        "2021-07-05": {
+          "product": "GRA",
+          "acquisitionTime": "2021-07-05T08:00:00Z",
+          "deliveryDate": "2021-07-06",
+          "deliveryTime": "2021-07-06T13:23:35",
+          "satellite": "SPOT7",
+          "polygonCount": 7,
+          "mapUrl": "https://cems-mapping-website.s3.eu-west-1.amazonaws.com/static/activations/EMSR515/EMSR515_AOI01_GRA_PRODUCT_r1_RTP01_v2.pdf",
+          "vectorUrl": "https://cems-mapping-website.s3.eu-west-1.amazonaws.com/static/activations/EMSR515/EMSR515_AOI01_GRA_PRODUCT_r1_VECTORS_v1_vector.zip",
+          "vectorSha256": "76ff127f827cb2bdc216339ad44dab6328f3250b1371a24f8f42058749c37be3"
+        }
+      }
+    }
+  ]
+}

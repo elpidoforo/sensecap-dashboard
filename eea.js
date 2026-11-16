@@ -18,9 +18,8 @@
  *   3. Anything that goes wrong becomes one log line and a "not available right now" state; the last saved data keep being served.
  *
  * Only fixed EEA hosts are ever called (see allowedHost). Requests have a User-Agent, a size cap and a time limit.
- * NOT VERIFIED from the build sandbox (no route to the EEA): the live endpoints, whether they ask for a key, the real column types
- * of the files and the time zone of their timestamps. The shapes used here come from the EEA "How to download" guide, the
- * airbase client (MIT, JohnPaton/airbase, commit efa69ce) and its test resources. See the report next to this change.
+ * On 16 November 2026 the Cyprus E2a file-list request returned PM file URLs. A real Ayia Marina PM10
+ * Parquet file reproduced the provider's concentration and fixed UTC+1 interval through the refresh path.
  *
  * createEea({ dataDir, root, log, getData, off, apiBase, metaUrl, stationsUrl, extraHosts, ... }) ->
  *   { start, stop, refresh, handle, snapshot, stations, series, status, nearestFor, compare, _x }
@@ -139,15 +138,14 @@ function metaCollector(country = 'CY', countryName = 'Cyprus') {
   return { line, result: () => ({ stations: [...stations.values()], rows, kept, hasHeader: !!head }) };
 }
 
-// Cyprus is on UTC+2 all year in the EEA files ("UTC+02"); the offset is read from the metadata when present.
+// Parse a station metadata offset. Hourly Parquet intervals use a separate fixed offset.
 function tzHours(tz, dflt = 2) {
   const m = /^UTC\s*([+-]\d{1,2})(?::?(\d{2}))?$/i.exec(String(tz || '').trim());
   return m ? Number(m[1]) + (m[2] ? Math.sign(Number(m[1]) || 1) * Number(m[2]) / 60 : 0) : dflt;
 }
 
 /* A Parquet "Start" value (Date, ms number, bigint or text) -> the real instant in ms.
- * Dates and "2026-11-12 14:00:00" text carry no zone, so they are read as local time of the station (UTC+offset hours): an
- * ASSUMPTION about the EEA files (the guide only says "yyyy-mm-dd H:M:S"); text with an explicit zone is taken as written. */
+ * Decoded INT96 and unzoned text use the supplied file clock. An explicit offset in text takes precedence. */
 function instantOf(v, offsetH) {
   if (v == null) return null;
   if (v instanceof Date) return isFinite(v.getTime()) ? v.getTime() - offsetH * HOUR : null;
@@ -266,7 +264,11 @@ function createEea(opts = {}) {
   };
 
   /* ----- state: what is saved on the volume ----- */
-  let S = { v: 2, savedAt: null, meta: null, series: {}, etags: {} };
+  // The EEA Download Service normalizes hourly Start/End to fixed UTC+1, including E2a.
+  // https://eeadmz1-downloads-webapp.azurewebsites.net/
+  const offsetValue = opts.tzForce != null && opts.tzForce !== '' ? opts.tzForce : opts.tzHours;
+  const hourOffset = offsetValue != null && Number.isFinite(Number(offsetValue)) ? Number(offsetValue) : 1;
+  let S = { v: 3, hourOffset, savedAt: null, meta: null, series: {}, etags: {} };
   const st = { running: false, lastRun: null, lastOk: null, lastError: null, nextRun: null, fails: 0, lastInfo: null, loaded: false, startedAt: null };
   const warned = new Set();
   const warnOnce = (key, msg) => { if (!warned.has(key)) { warned.add(key); log(msg); } };
@@ -275,7 +277,14 @@ function createEea(opts = {}) {
     if (!file) return;
     try {
       const j = JSON.parse(fs.readFileSync(file, 'utf8'));
-      if (j && j.v === 2 && j.series && typeof j.series === 'object') { S = { v: 2, savedAt: j.savedAt || null, meta: j.meta || null, series: j.series, etags: Object.keys(j.series).length ? (j.etags || {}) : {} }; st.loaded = true; }   // no values saved: forget the ETags too, or an unchanged file would never be read again
+      if (!j || ![2, 3].includes(j.v)) return;
+      S.meta = j.meta || null;
+      // v2 stored epochs calculated with per-station offsets. Rebuild values from the source.
+      if (j.v !== 3 || j.hourOffset !== hourOffset || !j.series || typeof j.series !== 'object') return;
+      S.series = j.series;
+      S.etags = Object.keys(j.series).length ? (j.etags || {}) : {};
+      S.savedAt = j.savedAt || null;
+      st.loaded = true;
     } catch (e) { /* nothing saved yet, or damaged: start empty */ }
   }
   function save() {
@@ -494,12 +503,6 @@ function createEea(opts = {}) {
     return ok.slice(0, maxFiles);
   }
 
-  const offsetOfStation = (id) => {
-    if (opts.tzForce != null && opts.tzForce !== '' && isFinite(Number(opts.tzForce))) return Number(opts.tzForce);   // EEA_TZ_HOURS: a quick fix if the real files turn out to use another clock
-    const s = S.meta && S.meta.stations && S.meta.stations.find((x) => x.id === id);
-    return tzHours(s && s.tz, opts.tzHours != null ? Number(opts.tzHours) : 2);
-  };
-
   // S.series[station][pollutant][samplingPoint] = { t0, v: [hourly values or null] }. A file is the whole truth for its sampling
   // point from its first row on, so the stored hours from there on are replaced (a value that became invalid disappears).
   function merge(folded, nowMs) {
@@ -556,7 +559,7 @@ function createEea(opts = {}) {
               info.bytes += got.buf.length;
               const rows = await readParquet(got.buf);
               const spoHint = (/\/(SPO-[^/]+?)\.parquet/i.exec(url) || [])[1] || null;
-              const f = foldRows(rows, { offsetOf: offsetOfStation, fromMs, nowMs, spoHint });
+              const f = foldRows(rows, { offsetOf: () => hourOffset, fromMs, nowMs, spoHint });
               if (f.info.noStation && !diagDone) {   // once per update: what a file really looks like, so a wrong guess about its columns can be read from the log
                 diagDone = true;
                 try { log(`EEA air quality: ${f.info.noStation} of ${rows.length} rows matched no station; file ...${ekey(url).slice(-60)}; spoHint ${spoHint}; columns ${Object.keys(rows[0] || {}).slice(0, 24).join(',')}; first row ${JSON.stringify(rows[0] || {}, (k, v) => (typeof v === 'bigint' ? String(v) : v)).slice(0, 400)}`); } catch (e) { /* diagnostic only */ }

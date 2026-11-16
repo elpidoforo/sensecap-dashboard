@@ -1,0 +1,2 @@
+# Keep the publisher's bytes intact for reproducibility and checksum verification.
+reservoir-source.csv binary

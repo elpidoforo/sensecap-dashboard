@@ -1,0 +1,482 @@
+{
+  "title": "Cyprus seabed profiles",
+  "sourceUrl": "https://rest.emodnet-bathymetry.eu/",
+  "attribution": "EMODnet Bathymetry Consortium, EMODnet Digital Terrain Model.",
+  "licence": "CC BY 4.0",
+  "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "productUrl": "https://doi.org/10.12770/cf51df64-56f9-4a99-b1aa-36b8d7b743a1",
+  "retrievedAt": "2026-11-16T09:05:03+00:00",
+  "unit": "m",
+  "distanceUnit": "km",
+  "valueLabel": "Seabed elevation",
+  "referenceType": "Static gridded terrain model",
+  "datum": "The DTM documents Lowest Astronomical Tide (LAT). The REST response does not identify the datum or edition for the individual cell.",
+  "method": "Each line starts offshore. Positions use great-circle distance from that origin at 1 km intervals. Values are the signed avg from depth_sample at those positions. Negative elevations are below the reference datum. Null means no reported value.",
+  "limitations": "Grid estimates can be interpolated from neighbouring cells or compiled from older surveys. The retrieval date is separate from the survey date. These are educational profiles, unsuitable for navigation.",
+  "series": [
+    {
+      "name": "Larnaka",
+      "startLabel": "Off Finikoudes",
+      "startLonLat": [
+        33.65,
+        34.912
+      ],
+      "endLonLat": [
+        33.781603,
+        34.911929
+      ],
+      "initialBearingDegrees": 90,
+      "points": [
+        [
+          0,
+          -13.198
+        ],
+        [
+          1,
+          -31.5
+        ],
+        [
+          2,
+          -43.3
+        ],
+        [
+          3,
+          -53.4
+        ],
+        [
+          4,
+          -76.6
+        ],
+        [
+          5,
+          -144.2
+        ],
+        [
+          6,
+          -348.5
+        ],
+        [
+          7,
+          -430.9
+        ],
+        [
+          8,
+          -474.5
+        ],
+        [
+          9,
+          -527.2
+        ],
+        [
+          10,
+          -497.0
+        ],
+        [
+          11,
+          -493.3
+        ],
+        [
+          12,
+          -505.3
+        ]
+      ],
+      "coordinatesLonLat": [
+        [
+          33.65,
+          34.912
+        ],
+        [
+          33.660967,
+          34.912
+        ],
+        [
+          33.671934,
+          34.911998
+        ],
+        [
+          33.682901,
+          34.911996
+        ],
+        [
+          33.693868,
+          34.911992
+        ],
+        [
+          33.704834,
+          34.911988
+        ],
+        [
+          33.715801,
+          34.911982
+        ],
+        [
+          33.726768,
+          34.911976
+        ],
+        [
+          33.737735,
+          34.911968
+        ],
+        [
+          33.748702,
+          34.91196
+        ],
+        [
+          33.759669,
+          34.911951
+        ],
+        [
+          33.770636,
+          34.91194
+        ],
+        [
+          33.781603,
+          34.911929
+        ]
+      ],
+      "interpolated": [
+        false,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "sourceIds": [
+        "cyprus2002",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO"
+      ],
+      "references": {
+        "cyprus2002": "https://sextant.ifremer.fr/record/SDN_CPRD_4667_cyprus2002",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO": "https://sextant.ifremer.fr/record/SDN_CPRD_3005_CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO"
+      }
+    },
+    {
+      "name": "Limassol",
+      "startLabel": "Off Molos",
+      "startLonLat": [
+        33.058,
+        34.665
+      ],
+      "endLonLat": [
+        33.102821,
+        34.563582
+      ],
+      "initialBearingDegrees": 160,
+      "points": [
+        [
+          0,
+          -17.97
+        ],
+        [
+          1,
+          -53.0
+        ],
+        [
+          2,
+          -81.8
+        ],
+        [
+          3,
+          -106.6
+        ],
+        [
+          4,
+          -119.2
+        ],
+        [
+          5,
+          -170.4
+        ],
+        [
+          6,
+          -323.2
+        ],
+        [
+          7,
+          -408.8
+        ],
+        [
+          8,
+          -429.8
+        ],
+        [
+          9,
+          -438.8
+        ],
+        [
+          10,
+          -446.0
+        ],
+        [
+          11,
+          -429.8
+        ],
+        [
+          12,
+          -405.0
+        ]
+      ],
+      "coordinatesLonLat": [
+        [
+          33.058,
+          34.665
+        ],
+        [
+          33.061739,
+          34.656549
+        ],
+        [
+          33.065478,
+          34.648098
+        ],
+        [
+          33.069216,
+          34.639647
+        ],
+        [
+          33.072953,
+          34.631196
+        ],
+        [
+          33.076689,
+          34.622744
+        ],
+        [
+          33.080424,
+          34.614293
+        ],
+        [
+          33.084159,
+          34.605841
+        ],
+        [
+          33.087893,
+          34.59739
+        ],
+        [
+          33.091626,
+          34.588938
+        ],
+        [
+          33.095359,
+          34.580486
+        ],
+        [
+          33.09909,
+          34.572034
+        ],
+        [
+          33.102821,
+          34.563582
+        ]
+      ],
+      "interpolated": [
+        false,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "sourceIds": [
+        "cyprus2002",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO"
+      ],
+      "references": {
+        "cyprus2002": "https://sextant.ifremer.fr/record/SDN_CPRD_4667_cyprus2002",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO": "https://sextant.ifremer.fr/record/SDN_CPRD_3005_CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO"
+      }
+    },
+    {
+      "name": "Paphos",
+      "startLabel": "Off Paphos Harbour",
+      "startLonLat": [
+        32.401,
+        34.745
+      ],
+      "endLonLat": [
+        32.308217,
+        34.668655
+      ],
+      "initialBearingDegrees": 225,
+      "points": [
+        [
+          0,
+          -26.0
+        ],
+        [
+          1,
+          -64.4
+        ],
+        [
+          2,
+          -74.8
+        ],
+        [
+          3,
+          -95.0
+        ],
+        [
+          4,
+          -143.0
+        ],
+        [
+          5,
+          -191.8
+        ],
+        [
+          6,
+          -248.6
+        ],
+        [
+          7,
+          -315.2
+        ],
+        [
+          8,
+          -360.2
+        ],
+        [
+          9,
+          -407.4
+        ],
+        [
+          10,
+          -486.4
+        ],
+        [
+          11,
+          -616.6
+        ],
+        [
+          12,
+          -886.8
+        ]
+      ],
+      "coordinatesLonLat": [
+        [
+          32.401,
+          34.745
+        ],
+        [
+          32.393262,
+          34.738641
+        ],
+        [
+          32.385524,
+          34.732281
+        ],
+        [
+          32.377788,
+          34.72592
+        ],
+        [
+          32.370053,
+          34.719559
+        ],
+        [
+          32.36232,
+          34.713198
+        ],
+        [
+          32.354587,
+          34.706836
+        ],
+        [
+          32.346856,
+          34.700474
+        ],
+        [
+          32.339126,
+          34.694111
+        ],
+        [
+          32.331397,
+          34.687748
+        ],
+        [
+          32.323669,
+          34.681384
+        ],
+        [
+          32.315942,
+          34.67502
+        ],
+        [
+          32.308217,
+          34.668655
+        ]
+      ],
+      "interpolated": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "sourceIds": [
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO",
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO"
+      ],
+      "references": {
+        "CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO": "https://sextant.ifremer.fr/record/SDN_CPRD_3005_CYPRUS_COMPILATION_FROM_25M_GRIDS_QUARTMIN_GEO"
+      }
+    }
+  ]
+}

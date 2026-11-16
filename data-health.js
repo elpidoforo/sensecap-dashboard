@@ -20,6 +20,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { unitText: layerUnit } = require('./layers');
 
 const MIN = 60000, HOUR = 3600000, DAY = 86400000;
@@ -28,6 +29,17 @@ const DROP_GATES = new Set(['range', 'units', 'future']);   // the checks whose 
 const LICENCE_DAYS = 365;           // a licence checked longer ago than this earns a warning
 const FUTURE_SLACK = 3 * MIN;       // a clock a few minutes fast is not a reading from the future
 const MAX_ITEMS = 8;                // examples kept per failed check
+
+// The frozen extracts behind the investigations (#/fieldwork). They are not feeds: each one is a dated copy of a published file,
+// kept in fieldwork/ and served as it is. So they are checked for what a copy can be checked for — who published it, under what
+// licence, when it was taken, and whether the copy kept beside it still matches the fingerprint recorded when it was made.
+const EXTRACT_GATE = {
+  licence: ['Licence and publisher recorded', 'Η άδεια και ο εκδότης είναι καταγεγραμμένοι'],
+  credit: ['Credit line recorded in both languages', 'Η αναφορά πηγής υπάρχει και στις δύο γλώσσες'],
+  method: ['Method written down in both languages', 'Η μέθοδος είναι γραμμένη και στις δύο γλώσσες'],
+  dated: ['Says when it was taken', 'Δηλώνει πότε πάρθηκε'],
+  fingerprint: ['Still matches the file it was made from', 'Ταιριάζει ακόμη με το αρχείο από το οποίο φτιάχτηκε'],
+};
 
 // what Athena builds from what arrives; shown as the second stage
 const BUILDERS = [
@@ -100,6 +112,63 @@ function createDataHealth(o) {
   const unitText = (u) => (Array.isArray(u) ? u : [u]).map((x) => layerUnit(x)).filter(Boolean);
   const unitOk = (rowUnit, u) => { const want = unitText(u); return !want.length || !rowUnit || want.some((w) => String(w).toLowerCase() === String(rowUnit).toLowerCase()); };
   let cache = null;
+
+  // The investigations' frozen extracts: one report line each, with the checks a dated copy can honestly be given.
+  function extractsReport() {
+    const dir = path.join(root, 'fieldwork');
+    let names = [];
+    try { names = fs.readdirSync(dir).filter((f) => f.endsWith('.json') && !/-source\./.test(f)).sort(); }
+    catch (e) { return { items: [], totals: { pass: 0, warn: 0, fail: 0 } }; }
+    const items = names.map((file) => {
+      const id = file.slice(0, -5);
+      let d = null;
+      try { d = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8')); } catch (e) { d = null; }
+      const gates = [];
+      const add = (gid, status, note) => gates.push({ id: gid, n: EXTRACT_GATE[gid], kind: 'meta', status, checked: 1, failed: status === 'pass' ? 0 : 1, note, items: [] });
+      if (!d) {
+        add('licence', 'fail', ['This extract could not be read, so nothing about it can be checked.', 'Αυτό το απόσπασμα δεν διαβάστηκε, άρα δεν μπορεί να ελεγχθεί τίποτα για αυτό.']);
+        return { id, name: id, nameEl: id, rows: 0, gates, sum: { status: 'fail' } };
+      }
+      const pub = d.attribution || '', lic = d.licence || '';
+      add('licence', lic ? 'pass' : 'fail',
+        lic ? [lic, lic] : ['No licence is recorded for this extract, so it must not be used in published work.', 'Δεν έχει καταγραφεί άδεια για αυτό το απόσπασμα, άρα δεν πρέπει να χρησιμοποιηθεί σε δημοσιευμένη εργασία.']);
+      add('credit', pub && d.attributionEl ? 'pass' : pub ? 'warn' : 'fail',
+        pub && d.attributionEl ? [pub, d.attributionEl]
+          : pub ? ['The credit line is recorded in English only, so the Greek page cannot show it.', 'Η αναφορά πηγής υπάρχει μόνο στα αγγλικά, άρα η ελληνική σελίδα δεν μπορεί να τη δείξει.']
+            : ['No credit line is recorded, so the publisher cannot be named on the page.', 'Δεν έχει καταγραφεί αναφορά πηγής, άρα ο εκδότης δεν μπορεί να αναφερθεί στη σελίδα.']);
+      add('method', d.method && d.methodEl ? 'pass' : 'warn',
+        d.method && d.methodEl ? ['Recorded in English and Greek.', 'Καταγεγραμμένη στα αγγλικά και στα ελληνικά.']
+          : d.method ? ['The method is written in English only.', 'Η μέθοδος είναι γραμμένη μόνο στα αγγλικά.']
+            : ['No method is written down, so a pupil cannot tell how these numbers were made.', 'Δεν έχει γραφτεί μέθοδος, άρα ένας μαθητής δεν μπορεί να ξέρει πώς φτιάχτηκαν αυτοί οι αριθμοί.']);
+      const when = d.referenceDate || d.retrievedAt;
+      add('dated', when ? 'pass' : 'warn',
+        when ? [`Taken ${String(d.retrievedAt || '').slice(0, 10) || String(d.referenceDate).slice(0, 10)}${d.referenceDate ? `, covering ${d.referenceDate}` : ''}.`,
+          `Πάρθηκε ${String(d.retrievedAt || '').slice(0, 10) || String(d.referenceDate).slice(0, 10)}${d.referenceDate ? `, για ${d.referenceDate}` : ''}.`]
+          : ['Neither the date it was taken nor the period it covers is recorded.', 'Δεν έχει καταγραφεί ούτε πότε πάρθηκε ούτε ποια περίοδο καλύπτει.']);
+      // the fingerprint: only a copy kept here can be checked from this computer
+      const sha = d.sourceSha256 || null;
+      let kept = null;
+      try { kept = fs.readdirSync(dir).find((f) => f.startsWith(id + '-source.')) || null; } catch (e) { kept = null; }
+      if (sha && kept) {
+        let have = null;
+        try { have = crypto.createHash('sha256').update(fs.readFileSync(path.join(dir, kept))).digest('hex'); } catch (e) { have = null; }
+        add('fingerprint', have === sha ? 'pass' : 'warn',
+          have === sha ? [`The copy kept here (${kept}) still matches the fingerprint recorded when this extract was made.`, `Το αντίγραφο που φυλάσσεται εδώ (${kept}) ταιριάζει ακόμη με το αποτύπωμα που καταγράφηκε όταν φτιάχτηκε το απόσπασμα.`]
+            : [`The copy kept here (${kept}) does not match the recorded fingerprint. Either the fingerprint belongs to the original download rather than this copy, or the copy has changed since.`,
+              `Το αντίγραφο εδώ (${kept}) δεν ταιριάζει με το καταγεγραμμένο αποτύπωμα. Είτε το αποτύπωμα αφορά το αρχικό αρχείο που κατέβηκε, είτε το αντίγραφο έχει αλλάξει.`]);
+      } else if (sha) {
+        add('fingerprint', 'warn', ['A fingerprint of the original file is recorded, but the file itself is not kept here, so it cannot be checked from this computer.', 'Έχει καταγραφεί αποτύπωμα του αρχικού αρχείου, αλλά το αρχείο δεν φυλάσσεται εδώ, άρα δεν μπορεί να ελεγχθεί από αυτόν τον υπολογιστή.']);
+      } else {
+        add('fingerprint', 'warn', ['No fingerprint of the original file is recorded, so nobody can tell whether these numbers still match it.', 'Δεν έχει καταγραφεί αποτύπωμα του αρχικού αρχείου, άρα κανείς δεν μπορεί να πει αν οι αριθμοί ταιριάζουν ακόμη με αυτό.']);
+      }
+      const rows = Array.isArray(d.series) ? d.series.reduce((a, x) => a + ((x && x.values && x.values.length) || (x && x.points && x.points.length) || 0), 0) : 0;
+      const sum = { status: gates.some((g) => g.status === 'fail') ? 'fail' : gates.some((g) => g.status === 'warn') ? 'warn' : 'pass' };
+      return { id, name: d.title || id, nameEl: d.titleEl || d.title || id, publisher: pub || null, licence: lic || null,
+        sourceUrl: d.sourceUrl || null, licenceUrl: d.licenceUrl || null, rows, gates, sum };
+    });
+    const totals = items.reduce((a, it) => { it.gates.forEach((g) => { a[g.status]++; }); return a; }, { pass: 0, warn: 0, fail: 0 });
+    return { items, totals };
+  }
 
   // One source: the checks that can be made from what it declares, plus the live readings it sent.
   function gatesFor(src, card, rows, rivers, t, dropped, unitsSeen) {
@@ -236,11 +305,13 @@ function createDataHealth(o) {
     }).sort((a, b) => (a.sum.status === b.sum.status ? a.name.localeCompare(b.name) : a.sum.status === 'fail' ? -1 : b.sum.status === 'fail' ? 1 : a.sum.status === 'warn' ? -1 : 1));
 
     // "values looked at" is the readings themselves (kept plus thrown away), counted once, not once per check
+    const extracts = extractsReport();
     const totals = sources.reduce((a, s) => {
       s.gates.forEach((g) => { a[g.status]++; });
       a.checked += s.holds.readings + s.holds.dropped; a.failedValues += s.holds.dropped;
       return a;
     }, { pass: 0, warn: 0, fail: 0, checked: 0, failedValues: 0 });
+    totals.pass += extracts.totals.pass; totals.warn += extracts.totals.warn; totals.fail += extracts.totals.fail;
 
     const issues = sources.flatMap((s) => s.gates.filter((g) => g.status !== 'pass').map((g) => ({ source: s.id, name: s.name, nameEl: s.nameEl, gate: g })))
       .sort((a, b) => (a.gate.status === b.gate.status ? 0 : a.gate.status === 'fail' ? -1 : 1)).slice(0, 12);
@@ -266,7 +337,8 @@ function createDataHealth(o) {
     };
     return {
       at: t, every: CACHE_MS,
-      stages: { sources: sources.length, builders: BUILDERS.length, checks: totals.pass + totals.warn + totals.fail, feeds: FEEDS.length },
+      stages: { sources: sources.length, extracts: extracts.items.length, builders: BUILDERS.length, checks: totals.pass + totals.warn + totals.fail, feeds: FEEDS.length },
+      extracts: extracts.items,
       totals, sources, issues, flow, builders: BUILDERS, feeds: FEEDS,
       note: ['The checks only report. A reading that fails is left out of the tools and the reason is shown; no number is corrected by itself.', 'Οι έλεγχοι μόνο αναφέρουν. Μια μέτρηση που αποτυγχάνει μένει εκτός των εργαλείων και ο λόγος φαίνεται· κανένας αριθμός δεν διορθώνεται από μόνος του.'],
     };
@@ -295,7 +367,7 @@ function createDataHealth(o) {
     }
     return true;
   }
-  return { handle, report, _t: { gatesFor, isoMs, build, BUILDERS, FEEDS, GATE, KIND } };
+  return { handle, report, _t: { gatesFor, isoMs, build, extractsReport, BUILDERS, FEEDS, GATE, KIND } };
 }
 
 module.exports = { createDataHealth, BUILDERS, FEEDS, GATE, KIND };

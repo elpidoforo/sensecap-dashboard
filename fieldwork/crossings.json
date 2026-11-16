@@ -1,0 +1,2762 @@
+{
+  "title": "Signal-controlled pedestrian crossings near four city centres",
+  "sourceUrl": "https://fixcyprus.cy/gnosis/open/api/nap/datasets/pedestrian_crossings/",
+  "catalogueUrl": "https://www.traffic4cyprus.org.cy/en/dataset/pedestrian_crossings",
+  "attribution": "Cyprus Public Works Department, Ministry of Transport, Communications and Works, via CyNAP. Proximity counts calculated by Athena.",
+  "licence": "CC BY 4.0",
+  "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "publishedAt": "2026-11-15T23:30:13.869747+02:00",
+  "retrievedAt": "2026-11-16T09:05:14+00:00",
+  "observedAt": null,
+  "timestampNote": "Publication time dates the inventory release. The source supplies no installation or inspection date for each crossing.",
+  "sourceSha256": "6e25c5c0214a413894d17937157bb1e5290335f322cfa1ca4d784b5bbaa3c815",
+  "unit": "mapped crossings",
+  "method": "Count each publisher record within 5 km straight-line distance of the nearest Athena city-centre point. Only signal-controlled crossings in the published inventory are covered. Counts apply to these circles and do not measure pedestrian safety.",
+  "radiusKm": 5,
+  "centres": {
+    "Larnaka": [
+      34.9168,
+      33.634
+    ],
+    "Lefkosia": [
+      35.171,
+      33.362
+    ],
+    "Limassol": [
+      34.676,
+      33.0425
+    ],
+    "Paphos": [
+      34.7762,
+      32.424
+    ]
+  },
+  "centreSource": "city-buildings.js: CITIES. Each pair is [latitude, longitude].",
+  "coverage": {
+    "sourceRecords": 384,
+    "withinRadius": 284,
+    "outsideRadius": 100,
+    "missingCoordinates": 0,
+    "missingCoordinateIds": []
+  },
+  "series": [
+    {
+      "name": "Within 5 km of city centre",
+      "points": [
+        [
+          "Larnaka",
+          48
+        ],
+        [
+          "Lefkosia",
+          105
+        ],
+        [
+          "Limassol",
+          94
+        ],
+        [
+          "Paphos",
+          37
+        ]
+      ]
+    }
+  ],
+  "locationFields": [
+    "sourceId",
+    "streetLabel",
+    "latitude",
+    "longitude",
+    "cityWithinRadius"
+  ],
+  "locations": [
+    [
+      "0",
+      "MAKARIOU III - TECH. SCHOOL",
+      35.1582165,
+      33.3730856,
+      "Lefkosia"
+    ],
+    [
+      "1",
+      "LEMESOU / K. PALAMA",
+      35.1418118,
+      33.3744243,
+      "Lefkosia"
+    ],
+    [
+      "2",
+      "LEMESOU (ARMENIAS)",
+      35.1510655,
+      33.3744554,
+      "Lefkosia"
+    ],
+    [
+      "3",
+      "AGLANTZIAS AVE. (UNIVERSITY ENGR)",
+      35.155192199999995,
+      33.376564200000004,
+      "Lefkosia"
+    ],
+    [
+      "4",
+      "DIAGOROU",
+      35.1693639,
+      33.3574071,
+      "Lefkosia"
+    ],
+    [
+      "5",
+      "GR.AFXENTIOU (OLD GSP)",
+      35.16862410000001,
+      33.3550046,
+      "Lefkosia"
+    ],
+    [
+      "6",
+      "28 OCTOBER ENGOMI",
+      35.1634845,
+      33.317723,
+      "Lefkosia"
+    ],
+    [
+      "7",
+      "GR.DHIGENI / PAROU",
+      35.1629652,
+      33.3580892,
+      "Lefkosia"
+    ],
+    [
+      "8",
+      "GR.DHIGENI / KASTELLORIZOU",
+      35.1636606,
+      33.3532073,
+      "Lefkosia"
+    ],
+    [
+      "9",
+      "PROEDRIKOU AVE.",
+      35.154455699999986,
+      33.348992,
+      "Lefkosia"
+    ],
+    [
+      "10",
+      "STROVOLOU / SOULIOU",
+      35.1486322,
+      33.346179,
+      "Lefkosia"
+    ],
+    [
+      "11",
+      "ATHALASSAS (ENGLISH SCHOOL)",
+      35.14938479999999,
+      33.349409,
+      "Lefkosia"
+    ],
+    [
+      "12",
+      "PRODROMOU (ARMY CAMP)",
+      35.15793680000001,
+      33.3451643,
+      "Lefkosia"
+    ],
+    [
+      "13",
+      "K. MATSI (AG. DOMETIOS)",
+      35.168589700000005,
+      33.3346377,
+      "Lefkosia"
+    ],
+    [
+      "14",
+      "DEMOKRATIAS AG.DOMETIOS",
+      35.17063439999999,
+      33.3246924,
+      "Lefkosia"
+    ],
+    [
+      "15",
+      "LARNAKOS / UNIVERSITY FOREST",
+      35.16340329999999,
+      33.3842118,
+      "Lefkosia"
+    ],
+    [
+      "16",
+      "LARNAKOS / KALLIOPIS",
+      35.159538899999994,
+      33.3890935,
+      "Lefkosia"
+    ],
+    [
+      "17",
+      "KORYTSAS (BLIND SCHOOL)",
+      35.1506485,
+      33.3551049,
+      "Lefkosia"
+    ],
+    [
+      "18",
+      "KYRENIAS / LEFKONOS",
+      35.148691799999995,
+      33.3847921,
+      "Lefkosia"
+    ],
+    [
+      "19",
+      "ATHALASSAS (NEAR CYTA)",
+      35.1468932,
+      33.3560745,
+      "Lefkosia"
+    ],
+    [
+      "20",
+      "IROON ENGOMI",
+      35.159966,
+      33.3108444,
+      "Lefkosia"
+    ],
+    [
+      "21",
+      "Leof. Levkosias - Peristerona new ",
+      35.13303302,
+      33.07933868,
+      null
+    ],
+    [
+      "22",
+      "AG. ANDREOU (McDONALDS)",
+      35.17716519,
+      33.37996787,
+      "Lefkosia"
+    ],
+    [
+      "23",
+      "CHILONOS (OLD HOSPITAL)",
+      35.17058959999999,
+      33.3521946,
+      "Lefkosia"
+    ],
+    [
+      "24",
+      "STASINOU (ELENION)",
+      35.16844960000001,
+      33.3619149,
+      "Lefkosia"
+    ],
+    [
+      "25",
+      "K.PALEOLOGOU (POST OFFICE)",
+      35.1695898,
+      33.3626016,
+      "Lefkosia"
+    ],
+    [
+      "26",
+      "Gr. Avxentiou - Kokkinotrimithia (pizza hut)",
+      35.14861112,
+      33.20247946,
+      null
+    ],
+    [
+      "27",
+      "NISOU No 1",
+      35.0157408,
+      33.4011427,
+      null
+    ],
+    [
+      "28",
+      "NISOU No 2",
+      35.0161801,
+      33.4035674,
+      null
+    ],
+    [
+      "29",
+      "LATSIA (OLD NSIA- LSOL RD)",
+      35.09470309999999,
+      33.3793715,
+      null
+    ],
+    [
+      "30",
+      "KALAMON (KAMPOU)",
+      35.12705569999999,
+      33.3681899,
+      "Lefkosia"
+    ],
+    [
+      "31",
+      "NEW HOSPITAL RD (IKEA)",
+      35.1294284,
+      33.3744096,
+      "Lefkosia"
+    ],
+    [
+      "32",
+      "NEW HOSPITAL ROAD (ENTRANCE)",
+      35.1273121,
+      33.3747851,
+      "Lefkosia"
+    ],
+    [
+      "33",
+      "KORITSAS (MAKARION HOSPITAL)",
+      35.1512167,
+      33.3581529,
+      "Lefkosia"
+    ],
+    [
+      "34",
+      "AKROPOLEOS (BOC)",
+      35.1501109,
+      33.35993459,
+      "Lefkosia"
+    ],
+    [
+      "35",
+      "28 OCTOBER (BLIND SCHOOL)",
+      35.1489973,
+      33.3571444,
+      "Lefkosia"
+    ],
+    [
+      "36",
+      "Griva Digeni Ave (Egkomi Gymnasium)",
+      35.16268280999999,
+      33.3456175,
+      "Lefkosia"
+    ],
+    [
+      "37",
+      "Gr. Avxentiou - Kokkinotrimithia (Arch. Kyprianou)",
+      35.148331809999995,
+      33.20708971,
+      null
+    ],
+    [
+      "38",
+      "B9 - Kokkinotrimithia (CYTA) ",
+      35.14842977000001,
+      33.19536124,
+      null
+    ],
+    [
+      "39",
+      "Pentelis, Ag. Panteleimon church",
+      35.14413263000001,
+      33.30462615,
+      null
+    ],
+    [
+      "40",
+      "28 October, Zorbas Bakery",
+      35.160291669999985,
+      33.31703953,
+      "Lefkosia"
+    ],
+    [
+      "41",
+      "28 October. BOC",
+      35.16455539999998,
+      33.31821168,
+      "Lefkosia"
+    ],
+    [
+      "42",
+      "Strovolou Ave, PWD",
+      35.13890674999999,
+      33.33463012,
+      "Lefkosia"
+    ],
+    [
+      "43",
+      "Strovolou Ave, Demos supermarket",
+      35.14146793999999,
+      33.33996006,
+      "Lefkosia"
+    ],
+    [
+      "44",
+      "Strovolou Ave, Pepsi",
+      35.13505498999999,
+      33.33112723,
+      "Lefkosia"
+    ],
+    [
+      "45",
+      "Strovolos Ave, Kronou Str",
+      35.13237903,
+      33.32815955,
+      null
+    ],
+    [
+      "46",
+      "Th. Dervi, temporary",
+      35.16444273,
+      33.35855178,
+      "Lefkosia"
+    ],
+    [
+      "47",
+      "Makariou, M&S",
+      35.16788557999999,
+      33.36017389,
+      "Lefkosia"
+    ],
+    [
+      "48",
+      "Nikis Ave, KFC",
+      35.15816908000001,
+      33.35791521,
+      "Lefkosia"
+    ],
+    [
+      "49",
+      "Akropoleos Ave, Akropolis Lyceum",
+      35.154193550000016,
+      33.35874825,
+      "Lefkosia"
+    ],
+    [
+      "50",
+      "Lemesou Ave, Alpha Bank",
+      35.15409173,
+      33.37522026,
+      "Lefkosia"
+    ],
+    [
+      "51",
+      "Kennedy, GAP Akis Express",
+      35.15735556,
+      33.36820306,
+      "Lefkosia"
+    ],
+    [
+      "52",
+      "Kennedy, Pop Life",
+      35.160849879999994,
+      33.35934807,
+      "Lefkosia"
+    ],
+    [
+      "53",
+      "Makariou Ave Lakatamia, Olympou",
+      35.121652950000005,
+      33.31931683,
+      null
+    ],
+    [
+      "54",
+      "Makariou Ave Lakatamia, gas station",
+      35.11907801,
+      33.31551723,
+      null
+    ],
+    [
+      "55",
+      "Agiou Prokopiou, Russian Embassy",
+      35.169779240000004,
+      33.34319848,
+      "Lefkosia"
+    ],
+    [
+      "56",
+      "Agiou Prokopiou, Metochi Kykkou",
+      35.16310202999998,
+      33.33971661,
+      "Lefkosia"
+    ],
+    [
+      "57",
+      "Archaggelou Ave, Od. Elyti",
+      35.15457964,
+      33.33118979,
+      "Lefkosia"
+    ],
+    [
+      "58",
+      "Agiou Prokopiou, Roundabout Archaggelou",
+      35.16701592,
+      33.34181562,
+      "Lefkosia"
+    ],
+    [
+      "59",
+      "Athalassas Ave, Kentro Heirotehnias",
+      35.140665080000005,
+      33.37313979,
+      "Lefkosia"
+    ],
+    [
+      "60",
+      "Athalassas Ave, Zorbas Bakery",
+      35.14113181999999,
+      33.37181997,
+      "Lefkosia"
+    ],
+    [
+      "61",
+      "Lykeio Paliometochou (B9) - Monitron",
+      35.147055449999996,
+      33.18454717,
+      null
+    ],
+    [
+      "62",
+      "B9 (Kalymnou) - Akaki ",
+      35.13714844,
+      33.13260136,
+      null
+    ],
+    [
+      "63",
+      "B9 (Dimokratias) Akaki ",
+      35.13696461999999,
+      33.12922749,
+      null
+    ],
+    [
+      "64",
+      "Leof. Levkosias (la Fresh) Peristerona ",
+      35.13255392,
+      33.07162367,
+      null
+    ],
+    [
+      "65",
+      "B9 Astromeritis (Potamiou) ",
+      35.137324979999995,
+      33.03664436,
+      null
+    ],
+    [
+      "66",
+      "Makariou III Lakatamia (Coffee Island) ",
+      35.09702024,
+      33.29518252,
+      null
+    ],
+    [
+      "67",
+      "Leof. Tseriou - Strovolos (Parnasou)",
+      35.13227769,
+      33.33910746,
+      "Lefkosia"
+    ],
+    [
+      "68",
+      "Makariou Lakatamia (Rancho)",
+      35.116441159999994,
+      33.31133085,
+      null
+    ],
+    [
+      "69",
+      "Makariou Lakatamia (KFC)",
+      35.11356722,
+      33.30758862,
+      null
+    ],
+    [
+      "70",
+      "Makariou Lakatamia (Agias Paraskevis)",
+      35.11526077,
+      33.30973279,
+      null
+    ],
+    [
+      "71",
+      "Agiou Georgiou Lakatamia",
+      35.10957659000001,
+      33.30310969,
+      null
+    ],
+    [
+      "72",
+      "I. Hadjiosif (city fields)",
+      35.13127281999999,
+      33.35736274,
+      "Lefkosia"
+    ],
+    [
+      "73",
+      "roundabout Sopaz north (A. Zakou)",
+      35.17388811,
+      33.39663998,
+      "Lefkosia"
+    ],
+    [
+      "74",
+      "A. Zakou - Sopaz",
+      35.175806380000004,
+      33.39614591,
+      "Lefkosia"
+    ],
+    [
+      "75",
+      "Agiou Ilarionos (EMS)",
+      35.17932081,
+      33.39524074,
+      "Lefkosia"
+    ],
+    [
+      "76",
+      "Ariou Ilarionos (Geo Pavlides)",
+      35.1810229,
+      33.39480952,
+      "Lefkosia"
+    ],
+    [
+      "77",
+      "Agiou Ilarionos (north of M. Mpotsari)",
+      35.1841175,
+      33.3925157,
+      "Lefkosia"
+    ],
+    [
+      "78",
+      "Bata rdt SW (Ag. Ilarionos",
+      35.18483476,
+      33.39097787,
+      "Lefkosia"
+    ],
+    [
+      "79",
+      "Kantaras ave (Ch. Michael)",
+      35.18354462,
+      33.38762511,
+      "Lefkosia"
+    ],
+    [
+      "80",
+      "Agiou Andreou (Evripidou - Iceline)",
+      35.18070117999999,
+      33.38476958,
+      "Lefkosia"
+    ],
+    [
+      "81",
+      "KEPA Kallipoleos",
+      35.15793690999998,
+      33.37580451,
+      "Lefkosia"
+    ],
+    [
+      "82",
+      "Kallipoleos - Thessalias",
+      35.16135383,
+      33.37454587,
+      "Lefkosia"
+    ],
+    [
+      "83",
+      "Kallipoleos - Ypatias",
+      35.162740559999996,
+      33.37391382,
+      "Lefkosia"
+    ],
+    [
+      "84",
+      "Kallipoleos - Deligianni",
+      35.16493103999999,
+      33.37190438,
+      "Lefkosia"
+    ],
+    [
+      "85",
+      "Kallipoleos - Dinokratous",
+      35.16579657999999,
+      33.37109351,
+      "Lefkosia"
+    ],
+    [
+      "86",
+      "Kallipoleos - Dervenion",
+      35.16674419999999,
+      33.37113392,
+      "Lefkosia"
+    ],
+    [
+      "87",
+      "Dimotiko Ag. Antoniou",
+      35.16846755000001,
+      33.3703723,
+      "Lefkosia"
+    ],
+    [
+      "88",
+      "Griva Digeni (Zorpas & Pandora) Pallouriotissa",
+      35.168418119999984,
+      33.37212964,
+      "Lefkosia"
+    ],
+    [
+      "89",
+      "Latsia entry - small roundabout",
+      35.11884015,
+      33.37717766,
+      null
+    ],
+    [
+      "90",
+      "Makariou Latsia (Kantraras)",
+      35.117524949999996,
+      33.37794882,
+      null
+    ],
+    [
+      "91",
+      "Larnakos (frontistiria Fakas)",
+      35.16888271999999,
+      33.37838,
+      "Lefkosia"
+    ],
+    [
+      "92",
+      "Digeni Akrita (Kleomenous)",
+      35.16655656999999,
+      33.36954998,
+      "Lefkosia"
+    ],
+    [
+      "93",
+      "Digeni Akrita (Androkleous)",
+      35.16480239,
+      33.36613043,
+      "Lefkosia"
+    ],
+    [
+      "94",
+      "Makariou (Ministry of Energy) ",
+      35.16238575,
+      33.36612647,
+      "Lefkosia"
+    ],
+    [
+      "95",
+      "Makariou (Romanou) ",
+      35.161577769999994,
+      33.36742647,
+      "Lefkosia"
+    ],
+    [
+      "96",
+      "Makariou (Doiranis) ",
+      35.16124803,
+      33.36816756,
+      "Lefkosia"
+    ],
+    [
+      "97",
+      "Makariou (Philimonos) ",
+      35.16075881,
+      33.37010152,
+      "Lefkosia"
+    ],
+    [
+      "98",
+      "GSP 1 (Ph. Papakyprianou)",
+      35.11223631,
+      33.35888071,
+      null
+    ],
+    [
+      "99",
+      "GSP 2 (Ph. Papakyprianou)",
+      35.11265519,
+      33.36232519,
+      null
+    ],
+    [
+      "100",
+      "GSP 3 (D. Vikela)",
+      35.11239763999999,
+      33.35471315,
+      null
+    ],
+    [
+      "101",
+      "Lykavitou, Stadio Elevtheria",
+      35.1467052,
+      33.3105573,
+      null
+    ],
+    [
+      "102",
+      "Lykavitou, Zorbas Bakery",
+      35.14178083,
+      33.31101767,
+      null
+    ],
+    [
+      "103",
+      "Agiou Georgiou (near Sporadon str.) ",
+      35.11382071999999,
+      33.28985428,
+      null
+    ],
+    [
+      "104",
+      "Kolokasides Roundabout - West",
+      35.16731236999999,
+      33.31537356,
+      "Lefkosia"
+    ],
+    [
+      "105",
+      "Griva Digeni (Cafe Nero) ",
+      35.163776479999996,
+      33.33301137,
+      "Lefkosia"
+    ],
+    [
+      "106",
+      "Griva Digeni Kolokasides Rountabout east ",
+      35.166706559999994,
+      33.31727064,
+      "Lefkosia"
+    ],
+    [
+      "107",
+      "Griva Digeni (KIA car dealer)",
+      35.16464218000001,
+      33.32140409,
+      "Lefkosia"
+    ],
+    [
+      "108",
+      "Griva Digeni (Engomi Cemetary) ",
+      35.16409293000001,
+      33.3283943,
+      "Lefkosia"
+    ],
+    [
+      "109",
+      "Kinyra 1 - Cycleways part 2 project - 2021 ",
+      35.17360605999999,
+      33.35519905,
+      "Lefkosia"
+    ],
+    [
+      "110",
+      "Kinyra 2 - Cycleways part 2 project - 2021 ",
+      35.17365663,
+      33.35380397,
+      "Lefkosia"
+    ],
+    [
+      "111",
+      "Chilonos - Cycleways part 2 project - 2021 ",
+      35.171186739999996,
+      33.35439283,
+      "Lefkosia"
+    ],
+    [
+      "112",
+      "Mouseiou - Cycleways part 2 project - 2021 ",
+      35.17219678,
+      33.35534761,
+      "Lefkosia"
+    ],
+    [
+      "113",
+      "Egyptou - Cycleways part 2 project - 2021 ",
+      35.17258503,
+      33.35657473,
+      "Lefkosia"
+    ],
+    [
+      "114",
+      "Lordou Vyronos - Cycleways part 2 project - 2021 ",
+      35.16502038,
+      33.35200443,
+      "Lefkosia"
+    ],
+    [
+      "115",
+      "Prodromou (near M. Giorgalla st) - Cycleways 2 project - 2021 ",
+      35.16555884000001,
+      33.34953994,
+      "Lefkosia"
+    ],
+    [
+      "116",
+      "Aglantzias ave -Aggelou Vlachou",
+      35.15716932000001,
+      33.38741659,
+      "Lefkosia"
+    ],
+    [
+      "117",
+      "Ammochostou ave - Kantraras St (AEK Kythreas)",
+      35.15876026,
+      33.39766185,
+      "Lefkosia"
+    ],
+    [
+      "118",
+      "Larnakos/Ammochostou Rdt (West arm)",
+      35.15645594,
+      33.39592205,
+      "Lefkosia"
+    ],
+    [
+      "119",
+      "Larnakos/Ammochostou Rdt (East arm)",
+      35.15581263,
+      33.39728815,
+      "Lefkosia"
+    ],
+    [
+      "120",
+      "University Roundabout (W)",
+      35.149784459999985,
+      33.41027984,
+      "Lefkosia"
+    ],
+    [
+      "121",
+      "University Roundabout (N)",
+      35.1499689,
+      33.41134209,
+      null
+    ],
+    [
+      "122",
+      "University Roundabout (E)",
+      35.149162340000004,
+      33.41159427,
+      null
+    ],
+    [
+      "123",
+      "University Roundabout (S)",
+      35.14884166,
+      33.41067992,
+      null
+    ],
+    [
+      "124",
+      "University of Cyprus 1 (Costa Coffee)",
+      35.14726936999999,
+      33.40942576,
+      null
+    ],
+    [
+      "125",
+      "Aglantzias ave - student residence",
+      35.14412749,
+      33.40441833,
+      "Lefkosia"
+    ],
+    [
+      "126",
+      "Kyrenias ave- student residence",
+      35.14505457999999,
+      33.40349507,
+      "Lefkosia"
+    ],
+    [
+      "127",
+      "Kyrenias (Valtetsiou/Tamasou)",
+      35.146053040000005,
+      33.40057237,
+      "Lefkosia"
+    ],
+    [
+      "128",
+      "Kyrenias (Lysis/Egnatias)",
+      35.14765212,
+      33.39978272,
+      "Lefkosia"
+    ],
+    [
+      "129",
+      "Kyrenias (Lampousas)",
+      35.150454720000006,
+      33.39654039,
+      "Lefkosia"
+    ],
+    [
+      "130",
+      "Kyrenias (Bus Station/A. Miaouli)",
+      35.14895225,
+      33.39060488,
+      "Lefkosia"
+    ],
+    [
+      "131",
+      "Aglantzias - Akademias Rdt (South Arm)",
+      35.15539783,
+      33.38242498,
+      "Lefkosia"
+    ],
+    [
+      "132",
+      "Aglantzias - Akademias Rdt (West Arm)",
+      35.15573637999999,
+      33.38168964,
+      "Lefkosia"
+    ],
+    [
+      "133",
+      "Aglantzias - Akademias Rdt (East Arm)",
+      35.156007089999996,
+      33.38272199,
+      "Lefkosia"
+    ],
+    [
+      "134",
+      "Larnakos - Aglantzias Roundabout",
+      35.15715412000001,
+      33.39318594,
+      "Lefkosia"
+    ],
+    [
+      "135",
+      "Ph. Papakyprianou west of GSP roundabout, Latsia",
+      35.11238035,
+      33.36990022,
+      null
+    ],
+    [
+      "136",
+      "Ph. Papakyprianou (S. Mavromati), Latsia",
+      35.11153749,
+      33.37384158,
+      null
+    ],
+    [
+      "137",
+      "Tseriou ave, Tax Department (Strovolos) ",
+      35.14286200000001,
+      33.34291616,
+      "Lefkosia"
+    ],
+    [
+      "138",
+      "Strovolou ave, Tax Department (Strovolos)",
+      35.143393110000005,
+      33.34286381,
+      "Lefkosia"
+    ],
+    [
+      "139",
+      "Leukosias ave . B9 Peristerona",
+      35.132858809999995,
+      33.09253794,
+      null
+    ],
+    [
+      "140",
+      "Aglantzias ave - student residence No.2",
+      35.14587279,
+      33.40435743,
+      "Lefkosia"
+    ],
+    [
+      "141",
+      "Zakaki (Fr. Roosevelt)",
+      34.660143379999994,
+      33.00862032,
+      "Limassol"
+    ],
+    [
+      "142",
+      "Franklin Roosevelt ETKO",
+      34.66438419999999,
+      33.0198553,
+      "Limassol"
+    ],
+    [
+      "143",
+      "Franklin Roosevelt LOEL (Lidl)",
+      34.66904157,
+      33.02846122,
+      "Limassol"
+    ],
+    [
+      "144",
+      "Franklin Roosevelt KEO",
+      34.671319999999994,
+      33.03263330000001,
+      "Limassol"
+    ],
+    [
+      "145",
+      "Old Port (Loumandarias St)",
+      34.67197956999999,
+      33.04309245,
+      "Limassol"
+    ],
+    [
+      "146",
+      "Chr. Hadjipavlou (Molos)",
+      34.6759476,
+      33.0482058,
+      "Limassol"
+    ],
+    [
+      "147",
+      "Chr. Hadjipavlou (Zina Kanther St)",
+      34.67827689999999,
+      33.0509309,
+      "Limassol"
+    ],
+    [
+      "148",
+      "28 October (GSO Stadium)",
+      34.6807842,
+      33.0541172,
+      "Limassol"
+    ],
+    [
+      "149",
+      "28 October (Zoo)",
+      34.6815827,
+      33.0552974,
+      "Limassol"
+    ],
+    [
+      "150",
+      "28 October (Municipal Art Gallery)",
+      34.683403299999995,
+      33.0583159,
+      "Limassol"
+    ],
+    [
+      "151",
+      "28 October (Debenhams)",
+      34.68823280000001,
+      33.0683279,
+      "Limassol"
+    ],
+    [
+      "152",
+      "Griva Digeni (Post Office)",
+      34.68930552,
+      33.0578511,
+      "Limassol"
+    ],
+    [
+      "153",
+      "Arch. Makarios (Enaerios)",
+      34.685289399999995,
+      33.0592647,
+      "Limassol"
+    ],
+    [
+      "154",
+      "Makariou (Karkavitsas St)",
+      34.6907538,
+      33.044691,
+      "Limassol"
+    ],
+    [
+      "155",
+      "Makariou (Alithersi St)",
+      34.68959819999999,
+      33.044579,
+      "Limassol"
+    ],
+    [
+      "156",
+      "Makariou (E. Pallikaridi St)",
+      34.693242,
+      33.045024100000006,
+      "Limassol"
+    ],
+    [
+      "157",
+      "Makariou Ave (Lanitio west)",
+      34.68702764,
+      33.03934822,
+      "Limassol"
+    ],
+    [
+      "158",
+      "Makariou Ave (Lanitio east)",
+      34.68747874000001,
+      33.04205181,
+      "Limassol"
+    ],
+    [
+      "159",
+      "Makariou Ave (A. Zakou St - Diomidis)",
+      34.6867736,
+      33.0524685,
+      "Limassol"
+    ],
+    [
+      "160",
+      "Makariou Ave (Arg. Eftalioti St, Pizza Hut)",
+      34.6863508,
+      33.0353511,
+      "Limassol"
+    ],
+    [
+      "161",
+      "Makariou Ave (Monis Machera St- Fire Station)",
+      34.68132027,
+      33.02785116,
+      "Limassol"
+    ],
+    [
+      "162",
+      "Makariou III (Psaron St - Hellenic Bank)",
+      34.6741586,
+      33.015461,
+      "Limassol"
+    ],
+    [
+      "163",
+      "Pafou (Voulgareos St - Mikel Cafe)",
+      34.676006399999984,
+      33.0084764,
+      "Limassol"
+    ],
+    [
+      "164",
+      "Omonias (Evas St)",
+      34.667932699999994,
+      33.0135465,
+      "Limassol"
+    ],
+    [
+      "165",
+      "Franklin Roosevelt, Zakaki junction (My Mall)",
+      34.65618546000001,
+      32.99619289000001,
+      "Limassol"
+    ],
+    [
+      "166",
+      "Omonias (New Port)",
+      34.660572,
+      33.0189004,
+      "Limassol"
+    ],
+    [
+      "167",
+      "Gladstronos",
+      34.68261071999999,
+      33.04701971,
+      "Limassol"
+    ],
+    [
+      "168",
+      "Agias Zonis",
+      34.68507890000001,
+      33.0441331,
+      "Limassol"
+    ],
+    [
+      "169",
+      "Arch. Leontiou (Voriou Ipirou) ",
+      34.681428,
+      33.0334413,
+      "Limassol"
+    ],
+    [
+      "170",
+      "N. Pattichi (Gialousas St)",
+      34.686940199999995,
+      33.0218088,
+      "Limassol"
+    ],
+    [
+      "171",
+      "N. Pattichi (Hellenic Bank)",
+      34.691245200000004,
+      33.0167521,
+      "Limassol"
+    ],
+    [
+      "172",
+      "N. Pattichi (Agiou Georgiou church)",
+      34.6929301,
+      33.015089100000004,
+      "Limassol"
+    ],
+    [
+      "173",
+      "Agias Fylakseos (Kyriakides St, Tsirio Stadium)",
+      34.7036798,
+      33.0273399,
+      "Limassol"
+    ],
+    [
+      "174",
+      "1st April St (Agias Fyla Rdt north)",
+      34.705567299999984,
+      33.0263422,
+      "Limassol"
+    ],
+    [
+      "175",
+      "Sp. Kyprianou (Pascal)",
+      34.696071999999994,
+      33.031433,
+      "Limassol"
+    ],
+    [
+      "176",
+      "Sp. Kyprianou (N. Anastasiadi)",
+      34.693759299999996,
+      33.0266763,
+      "Limassol"
+    ],
+    [
+      "177",
+      "Sp. Araouzou ave (coastal road) - Ayia Napa Cathedral",
+      34.67379094999999,
+      33.04572398,
+      "Limassol"
+    ],
+    [
+      "178",
+      "Griva Digeni, Limassol District Courts",
+      34.68527518,
+      33.05296193,
+      "Limassol"
+    ],
+    [
+      "179",
+      "Omonias (Ivis St)",
+      34.67102109999998,
+      33.0120015,
+      "Limassol"
+    ],
+    [
+      "180",
+      "Ch. Sozou / Coastal Road (Promenade)",
+      34.67706149999999,
+      33.0495036,
+      "Limassol"
+    ],
+    [
+      "181",
+      "Agias Fylaxeos (Esso)",
+      34.702217649999994,
+      33.0283527,
+      "Limassol"
+    ],
+    [
+      "182",
+      "Agias Fylaxeos (Alpha Mega)",
+      34.70042612999999,
+      33.03040452,
+      "Limassol"
+    ],
+    [
+      "183",
+      "Agias Fylaxeos (Peratikos)",
+      34.69786694999999,
+      33.03263021,
+      "Limassol"
+    ],
+    [
+      "184",
+      "Th. Potamianou, Ag. Neofytos Gymnasium",
+      34.686541899999995,
+      33.0135434,
+      "Limassol"
+    ],
+    [
+      "185",
+      "Pafou - Melinas Merkouri",
+      34.679753590000004,
+      32.99292824,
+      "Limassol"
+    ],
+    [
+      "186",
+      "Sp. Kyprianou, Ag. Neofytos Gymnasium",
+      34.68728299999999,
+      33.0156463,
+      "Limassol"
+    ],
+    [
+      "187",
+      "Elia Kannaourou (Paphos Rdt)",
+      34.68100426,
+      32.99005453,
+      "Limassol"
+    ],
+    [
+      "188",
+      "Promachon Elevtherias Ave (Oval)",
+      34.68933034,
+      33.07136116,
+      "Limassol"
+    ],
+    [
+      "189",
+      "Kolonakiou (Linopetra Gymnasium)",
+      34.696018599999995,
+      33.0679931,
+      "Limassol"
+    ],
+    [
+      "190",
+      "Georgiou A' (Dasoudi)",
+      34.694244309999995,
+      33.0848988,
+      "Limassol"
+    ],
+    [
+      "191",
+      "Georgiou A' (Park Beach)",
+      34.69365959999999,
+      33.0833783,
+      "Limassol"
+    ],
+    [
+      "192",
+      "Georgiou A' (Limassol Municipal Swimming Pool)",
+      34.69476568,
+      33.08633206,
+      "Limassol"
+    ],
+    [
+      "193",
+      "Georgiou A' (Moniatis)",
+      34.6955944,
+      33.0877662,
+      "Limassol"
+    ],
+    [
+      "194",
+      "Georgiou A' (Galatex)",
+      34.69683004,
+      33.09160059,
+      null
+    ],
+    [
+      "195",
+      "Chr. Kranou (Estella)",
+      34.69672568000001,
+      33.08855424,
+      "Limassol"
+    ],
+    [
+      "196",
+      "Chr. Kranou (Pergamos)",
+      34.70116632999999,
+      33.08798454,
+      null
+    ],
+    [
+      "197",
+      "Chr. Kranou (Jimmy's)",
+      34.704969899999995,
+      33.0865364,
+      null
+    ],
+    [
+      "198",
+      "Georgiou A' (McDonalds)",
+      34.7001424,
+      33.1013969,
+      null
+    ],
+    [
+      "199",
+      "Georgiou A' (Pervolas St - Delmar)",
+      34.70083039999999,
+      33.1029097,
+      null
+    ],
+    [
+      "200",
+      "Georgiou A' (High Chaparal)",
+      34.70193299999999,
+      33.1054739,
+      null
+    ],
+    [
+      "201",
+      "Amathountos Ave (Marathon Hotel)",
+      34.703758799999996,
+      33.11024820000001,
+      null
+    ],
+    [
+      "202",
+      "Amathountos Ave (Cyprus Sailing Federation)",
+      34.70507871000001,
+      33.11389508,
+      null
+    ],
+    [
+      "203",
+      "Amathountos Ave, B1 - Plus Sea",
+      34.7143954,
+      33.1555836,
+      null
+    ],
+    [
+      "204",
+      "Amathountos Ave, Sandy Beach Hotel",
+      34.708741499999995,
+      33.1260586,
+      null
+    ],
+    [
+      "205",
+      "Amathountos Ave (Mediterranean Hotel)",
+      34.710163999999985,
+      33.1295451,
+      null
+    ],
+    [
+      "206",
+      "Amathountos Ave (Amathus)",
+      34.70966108,
+      33.13318,
+      null
+    ],
+    [
+      "207",
+      "Amathountos Ave (Four Seasons - west)",
+      34.70968484,
+      33.12757718,
+      null
+    ],
+    [
+      "208",
+      "Amathountos Ave (Four Seasons - east)",
+      34.70990569999999,
+      33.1280595,
+      null
+    ],
+    [
+      "209",
+      "Amathountos Ave (Aquarius Hotel)",
+      34.70292969999999,
+      33.10792,
+      null
+    ],
+    [
+      "210",
+      "Ap. Louka Ave (Kolossi A' Junior School)",
+      34.67088849999999,
+      32.9335507,
+      null
+    ],
+    [
+      "211",
+      "Kolonakiou (Sigma bakeries)",
+      34.6988325,
+      33.0734541,
+      "Limassol"
+    ],
+    [
+      "212",
+      "Kolonakiou (Columbia Shipmanagement)",
+      34.7022917,
+      33.0786329,
+      "Limassol"
+    ],
+    [
+      "213",
+      "Amathountos Ave (Castella Beach)",
+      34.707206800000016,
+      33.1204421,
+      null
+    ],
+    [
+      "214",
+      "Promachon Elevtherias Ave (cafe Nero)",
+      34.69141369999999,
+      33.0771279,
+      "Limassol"
+    ],
+    [
+      "215",
+      "Georgiou A' (KFC)",
+      34.69798250000001,
+      33.0940748,
+      null
+    ],
+    [
+      "216",
+      "Pafou (Honda)",
+      34.675794599999996,
+      33.0094481,
+      "Limassol"
+    ],
+    [
+      "217",
+      "Makariou - (1st April St)",
+      34.69529740000001,
+      33.0451314,
+      "Limassol"
+    ],
+    [
+      "218",
+      "Troodos Rdt north, Polemidia",
+      34.695126599999995,
+      33.01318,
+      "Limassol"
+    ],
+    [
+      "219",
+      "Ag. Athanasios North",
+      34.709063400000005,
+      33.0603985,
+      "Limassol"
+    ],
+    [
+      "220",
+      "Nikaias Dual",
+      34.6818139,
+      32.9917695,
+      "Limassol"
+    ],
+    [
+      "221",
+      "Makariou III - Costa Coffee",
+      34.6870109,
+      33.0508172,
+      "Limassol"
+    ],
+    [
+      "222",
+      "Sp. Kyprianou - Geroulanou",
+      34.682523,
+      33.012503,
+      "Limassol"
+    ],
+    [
+      "223",
+      "28 October Ave (Twin Towers)",
+      34.6862926,
+      33.0637542,
+      "Limassol"
+    ],
+    [
+      "224",
+      "Promachon Elevtherias Ave (Property Gallery)",
+      34.692029,
+      33.0788096,
+      "Limassol"
+    ],
+    [
+      "225",
+      "Amathountos Ave - St. Raphael Hotel",
+      34.714183999999996,
+      33.1670205,
+      null
+    ],
+    [
+      "226",
+      "Amathountos Ave, B1 - Atlantica Bay Hotel",
+      34.71412229999999,
+      33.1537704,
+      null
+    ],
+    [
+      "227",
+      "Georgiou A' Ave (B1) - Londa Hotel",
+      34.6988193,
+      33.0968693,
+      null
+    ],
+    [
+      "228",
+      "Arch. Leontiou - Old Hospital",
+      34.6788955,
+      33.0370632,
+      "Limassol"
+    ],
+    [
+      "229",
+      "Porto Bello Shiaffis",
+      34.67121589999999,
+      33.0419187,
+      "Limassol"
+    ],
+    [
+      "230",
+      "Limassol Marina 1",
+      34.6706205,
+      33.0411847,
+      "Limassol"
+    ],
+    [
+      "231",
+      "Limassol Marina 2",
+      34.670514600000004,
+      33.0387814,
+      "Limassol"
+    ],
+    [
+      "232",
+      "Limassol Marina 3",
+      34.6696851,
+      33.0372365,
+      "Limassol"
+    ],
+    [
+      "233",
+      "Nikaias - Pafos Exit",
+      34.68587219999999,
+      32.9903855,
+      "Limassol"
+    ],
+    [
+      "234",
+      "Nikaias - Pafos Entry",
+      34.689074500000004,
+      32.98880840000001,
+      null
+    ],
+    [
+      "235",
+      "Alexandrias (Marlow)",
+      34.665458230000006,
+      33.02614143,
+      "Limassol"
+    ],
+    [
+      "236",
+      "Demokratias (Vistoula st)",
+      34.66821427999999,
+      33.02427919,
+      "Limassol"
+    ],
+    [
+      "237",
+      "Demokratias (Kopernikou)",
+      34.67038192999999,
+      33.02306435,
+      "Limassol"
+    ],
+    [
+      "238",
+      "Demokratias (Pragas)",
+      34.67123136000001,
+      33.02272692,
+      "Limassol"
+    ],
+    [
+      "239",
+      "Demokratias (A. Einstein st)",
+      34.67188899,
+      33.02242561,
+      "Limassol"
+    ],
+    [
+      "240",
+      "Demokratias (Apollonos st)",
+      34.67291485999999,
+      33.02198421,
+      "Limassol"
+    ],
+    [
+      "241",
+      "Pallados",
+      34.67577764999999,
+      33.02188145,
+      "Limassol"
+    ],
+    [
+      "242",
+      "Gladstonos (Apollonas Boutique)",
+      34.68110201999999,
+      33.04497963,
+      "Limassol"
+    ],
+    [
+      "243",
+      "Ladies Mile roundabout - east, Harbor Rd (no. 1)",
+      34.64652043000002,
+      33.00311407,
+      "Limassol"
+    ],
+    [
+      "244",
+      "Harbor Rd no. 2",
+      34.64771500999999,
+      33.00535088,
+      "Limassol"
+    ],
+    [
+      "245",
+      "Harbor Rd no. 3",
+      34.64981467,
+      33.00729509,
+      "Limassol"
+    ],
+    [
+      "246",
+      "Harbor Rd no. 4",
+      34.651342719999995,
+      33.00819946,
+      "Limassol"
+    ],
+    [
+      "247",
+      "Harbor Rd no. 5",
+      34.653724399999994,
+      33.0103089,
+      "Limassol"
+    ],
+    [
+      "248",
+      "Harbor Rd no. 6",
+      34.65747304999999,
+      33.01622578,
+      "Limassol"
+    ],
+    [
+      "249",
+      "Harbor Rd no. 7",
+      34.65891115000001,
+      33.01863833,
+      "Limassol"
+    ],
+    [
+      "250",
+      "Harbor Rd no. 8",
+      34.65971033999999,
+      33.02087447,
+      "Limassol"
+    ],
+    [
+      "251",
+      "Trilogy",
+      34.68536936999999,
+      33.06191922,
+      "Limassol"
+    ],
+    [
+      "252",
+      "Nicou Pattixi 2022 no.1",
+      34.68833554,
+      33.0193155,
+      "Limassol"
+    ],
+    [
+      "253",
+      "Nicou Pattixi 2022 no.2",
+      34.68596373999999,
+      33.02429038,
+      "Limassol"
+    ],
+    [
+      "254",
+      "Nicou Pattixi 2022 no.3",
+      34.684598269999995,
+      33.02779293,
+      "Limassol"
+    ],
+    [
+      "255",
+      "Nikou Kavvadia(Casino) No.1",
+      34.65053469,
+      32.99765241,
+      "Limassol"
+    ],
+    [
+      "256",
+      "Nikou Kavvadia(Casino) No.2",
+      34.64983675,
+      32.99659811,
+      null
+    ],
+    [
+      "257",
+      "Apollonias (Germasogia)",
+      34.71517368,
+      33.08784506,
+      null
+    ],
+    [
+      "258",
+      "Agias Paraskeuis (Germasogia)",
+      34.71030101,
+      33.08760048,
+      null
+    ],
+    [
+      "259",
+      "Patmou (Germasogia)",
+      34.70906404,
+      33.08667523,
+      null
+    ],
+    [
+      "260",
+      "Spirou Kiprianou / Timokrentos",
+      34.69451967999999,
+      33.02836507,
+      "Limassol"
+    ],
+    [
+      "261",
+      "Limassol Arena Sp. Kyprianou No. 1",
+      34.69086684,
+      32.93720931,
+      null
+    ],
+    [
+      "262",
+      "Limassol Arena Sp. Kyprianou No. 2",
+      34.6917466,
+      32.93721027,
+      null
+    ],
+    [
+      "263",
+      "Limassol Arena Sp. Kyprianou No. 3",
+      34.692671729999994,
+      32.937217,
+      null
+    ],
+    [
+      "264",
+      "Limassol Arena Sp. Kyprianou No. 4",
+      34.695237080000005,
+      32.93727033,
+      null
+    ],
+    [
+      "265",
+      "Limassol Arena Sp. Kyprianou No. 5",
+      34.695863939999995,
+      32.93748777,
+      null
+    ],
+    [
+      "266",
+      "Limassol Arena Sp. Kyprianou No. 6",
+      34.69671887999999,
+      32.93847597,
+      null
+    ],
+    [
+      "267",
+      "Limassol Arena T. Isaak No. 7",
+      34.69705055999999,
+      32.93914233,
+      null
+    ],
+    [
+      "268",
+      "Limassol Arena T. Isaak No. 8",
+      34.696548839999984,
+      32.93962487,
+      null
+    ],
+    [
+      "269",
+      "Limassol Arena T. Isaak No. 9",
+      34.695664279999995,
+      32.94147233,
+      null
+    ],
+    [
+      "270",
+      "Limassol Arena T. Isaak No. 10",
+      34.69480112,
+      32.94256319,
+      null
+    ],
+    [
+      "271",
+      "Limassol Arena T. Isaak No. 11",
+      34.69354676999999,
+      32.94439596,
+      null
+    ],
+    [
+      "272",
+      "Griva Digeni, Drosia Gymnasium",
+      34.917581600000005,
+      33.6219233,
+      "Larnaka"
+    ],
+    [
+      "273",
+      "Grigori Avxentiou, Agias Elenis St",
+      34.917533299999995,
+      33.6299763,
+      "Larnaka"
+    ],
+    [
+      "274",
+      "Sp. Kyprianou, Ammochostos Stadium Rdt",
+      34.9301958,
+      33.6164414,
+      "Larnaka"
+    ],
+    [
+      "275",
+      "Makariou Ave, Kl. Papakyriakou St",
+      34.92769599999999,
+      33.6367936,
+      "Larnaka"
+    ],
+    [
+      "276",
+      "Artemidos Ave, old GSZ",
+      34.914036800000005,
+      33.6278135,
+      "Larnaka"
+    ],
+    [
+      "277",
+      "G. Christodoulidi, K-cineplex, Faneromenis/Lemesou Rdt North",
+      34.915751799999995,
+      33.6010191,
+      "Larnaka"
+    ],
+    [
+      "278",
+      "G. Christodoulidi, Okeanidon St",
+      34.918054,
+      33.6004183,
+      "Larnaka"
+    ],
+    [
+      "279",
+      "G. Christodoulidi Ave, Kition Athletic Center (GSZ) Rdt South",
+      34.9212889,
+      33.5995647,
+      "Larnaka"
+    ],
+    [
+      "280",
+      "Inomenon Polition Ave, Kition Athletic Center (GSZ) Rdt SE",
+      34.921970599999995,
+      33.600195,
+      "Larnaka"
+    ],
+    [
+      "281",
+      "Faneromenis Ave, Ancoria Bank",
+      34.9111856,
+      33.6146191,
+      "Larnaka"
+    ],
+    [
+      "282",
+      "Ammochostou Ave, Medousis St (Eko)",
+      34.9373263,
+      33.6408404,
+      "Larnaka"
+    ],
+    [
+      "283",
+      "Ammochostou Ave, Andrea Stylianidi St (Intercollege)",
+      34.9422208,
+      33.6427187,
+      "Larnaka"
+    ],
+    [
+      "284",
+      "Ammochostou Ave, Q Blu Plaza",
+      34.93142340000001,
+      33.6377173,
+      "Larnaka"
+    ],
+    [
+      "285",
+      "Dhekelia Rd, Palm Beach Hotel",
+      34.9712766,
+      33.6715715,
+      null
+    ],
+    [
+      "286",
+      "Dhekelia Rd, Boronia Hotel",
+      34.9688623,
+      33.6680288,
+      null
+    ],
+    [
+      "287",
+      "Dhekelia Rd, Coffee Island",
+      34.9753582,
+      33.6799763,
+      null
+    ],
+    [
+      "288",
+      "Dhekelia Rd, Lordos Beach Hotel",
+      34.9780373,
+      33.690311,
+      null
+    ],
+    [
+      "289",
+      "Dhekelia Rd, Sandy Beach Hotel",
+      34.97900430000001,
+      33.695426,
+      null
+    ],
+    [
+      "290",
+      "Piale Pasa, Makenzi Rdt West",
+      34.89156109999999,
+      33.636511,
+      "Larnaka"
+    ],
+    [
+      "291",
+      "Piale Pasa, Makenzi Rdt East",
+      34.8920935,
+      33.638012,
+      "Larnaka"
+    ],
+    [
+      "292",
+      "Piale Pasa, Flamingo Hotel",
+      34.8936423,
+      33.6386477,
+      "Larnaka"
+    ],
+    [
+      "293",
+      "Piale Pasa, Franz Schubert St",
+      34.89528790000001,
+      33.6384734,
+      "Larnaka"
+    ],
+    [
+      "294",
+      "Piale Pasa, Paradise Kiosk",
+      34.8976635,
+      33.6382159,
+      "Larnaka"
+    ],
+    [
+      "295",
+      "Piale Pasa, Psarolimano Tavern",
+      34.8991044,
+      33.6380898,
+      "Larnaka"
+    ],
+    [
+      "296",
+      "Artemidos Ave, Larnaca District Court House",
+      34.90100459999999,
+      33.6301901,
+      "Larnaka"
+    ],
+    [
+      "297",
+      "Artemidos, Geor. Christofidi St",
+      34.90990500000001,
+      33.6292054,
+      "Larnaka"
+    ],
+    [
+      "298",
+      "Dhekelia Rd, Pyla Costal Park (Blue Mediterranean)",
+      34.9772439,
+      33.6857056,
+      null
+    ],
+    [
+      "299",
+      "Lemesou Ave - Faneromenis Ave/Lemesou Ave Rdt West",
+      34.9144552,
+      33.6007911,
+      "Larnaka"
+    ],
+    [
+      "300",
+      "Jules Verne St, Kition Athletic Center (GSZ) Rdt West",
+      34.92183210000001,
+      33.5982209,
+      "Larnaka"
+    ],
+    [
+      "301",
+      "G. Christodoulidi, GSZ Rdt NW - Larnaka Swimming Pool",
+      34.92459869999999,
+      33.6011177,
+      "Larnaka"
+    ],
+    [
+      "302",
+      "G. Christodoulidi, Elevtherias/Christodoulidi Rdt SW",
+      34.92762249999999,
+      33.6032795,
+      "Larnaka"
+    ],
+    [
+      "303",
+      "Inomenon Ethnon Ave, Sofias Vempo St",
+      34.917897,
+      33.6120459,
+      "Larnaka"
+    ],
+    [
+      "304",
+      "G. Kranidioti, Kokkinias St",
+      34.9215301,
+      33.6165577,
+      "Larnaka"
+    ],
+    [
+      "305",
+      "G. Kranidioti, Ammochostos Stadium",
+      34.9291148,
+      33.6141693,
+      "Larnaka"
+    ],
+    [
+      "306",
+      "Kyriakou Matsi, Ammochostos Stadium Rdt",
+      34.931014700000006,
+      33.6116775,
+      "Larnaka"
+    ],
+    [
+      "307",
+      "Sp. Kyprianou Ave, KEPA",
+      34.92999129999998,
+      33.6203493,
+      "Larnaka"
+    ],
+    [
+      "308",
+      "Sp. Kyprianou, Themidos",
+      34.9304388,
+      33.6297479,
+      "Larnaka"
+    ],
+    [
+      "309",
+      "Sp. Kyprianou, Sp. Kyprianou/Ammochostou Ave Rdt West",
+      34.9303145,
+      33.6360189,
+      "Larnaka"
+    ],
+    [
+      "310",
+      "A. Panagouli, Pefk. Georgiadi",
+      34.932516,
+      33.62803710000001,
+      "Larnaka"
+    ],
+    [
+      "311",
+      "A. Panagouli, M. Iordanidou",
+      34.93622919999999,
+      33.6292831,
+      "Larnaka"
+    ],
+    [
+      "312",
+      "Inomenon Ethnon, Inomenon Ethnon/Agiou Savva Rdt SW",
+      34.94451780000001,
+      33.6331562,
+      "Larnaka"
+    ],
+    [
+      "313",
+      "Dhekelia Rd, Jumbo",
+      34.94801269999999,
+      33.6459443,
+      "Larnaka"
+    ],
+    [
+      "314",
+      "Dhekelia Rd, Nautical Club",
+      34.95272669999999,
+      33.6502971,
+      "Larnaka"
+    ],
+    [
+      "315",
+      "Dhekelia Rd, Petrolina",
+      34.95112579999999,
+      33.6488948,
+      "Larnaka"
+    ],
+    [
+      "316",
+      "Dhekelia Rd, Athinon St (Greeky Spoon)",
+      34.95848850000001,
+      33.6553584,
+      null
+    ],
+    [
+      "317",
+      "Dhekelia Rd, Ocean Basket, Oroklini",
+      34.9737075,
+      33.6754931,
+      null
+    ],
+    [
+      "318",
+      "Makariou Ave, Miltiadous St (Polys Bikes)",
+      34.9259165,
+      33.6368081,
+      "Larnaka"
+    ],
+    [
+      "319",
+      "Makariou Ave, Central Bus Station",
+      34.91935860000001,
+      33.6365989,
+      "Larnaka"
+    ],
+    [
+      "320",
+      "Piale Pasa, Komas tou Gialou",
+      34.9026151,
+      33.6377099,
+      "Larnaka"
+    ],
+    [
+      "321",
+      "Koinotiko symvoulio Xylofagou",
+      34.97706310999999,
+      33.84685291,
+      null
+    ],
+    [
+      "322",
+      "Metropolis mall roundabout (N)",
+      34.92649559000001,
+      33.60257793,
+      "Larnaka"
+    ],
+    [
+      "323",
+      "Metropolis mall roundabout (E)",
+      34.92591674,
+      33.60278337,
+      "Larnaka"
+    ],
+    [
+      "324",
+      "Metropolis mall roundabout (S)",
+      34.92574105999999,
+      33.60204824,
+      "Larnaka"
+    ],
+    [
+      "325",
+      "Metropolis mall roundabout (W)",
+      34.92629358000001,
+      33.60179422,
+      "Larnaka"
+    ],
+    [
+      "326",
+      "G. Avxentiou ave - Municipal Library entry",
+      34.91667942999999,
+      33.62644923,
+      "Larnaka"
+    ],
+    [
+      "327",
+      "Faneromenis ave (Karditsis str), Larnaca - 2022",
+      34.91200463,
+      33.60792293,
+      "Larnaka"
+    ],
+    [
+      "328",
+      "Agios Georgios Kontos roundabout (SE)",
+      34.92402608999999,
+      33.60999933,
+      "Larnaka"
+    ],
+    [
+      "329",
+      "Neof. Nikolaide - Court House",
+      34.7753544,
+      32.42696162,
+      "Paphos"
+    ],
+    [
+      "330",
+      "Ag. Anargiron - Ifestou",
+      34.76305877,
+      32.41501287,
+      "Paphos"
+    ],
+    [
+      "331",
+      "Sp. Kyprianou (King Jason)",
+      34.76124749,
+      32.42023096,
+      "Paphos"
+    ],
+    [
+      "332",
+      "Tafoi ton Vasilieon (Pahit Ice)",
+      34.76596959,
+      32.41064435,
+      "Paphos"
+    ],
+    [
+      "333",
+      "Tafoi ton Vasilieon (BOC)",
+      34.76718014,
+      32.41050745,
+      "Paphos"
+    ],
+    [
+      "334",
+      "Tafoi ton Vasilieon (Amfitrionos)",
+      34.77055450999999,
+      32.41048961,
+      "Paphos"
+    ],
+    [
+      "335",
+      "Tafoi ton Vasilieon (Pyramou)",
+      34.77128183999999,
+      32.41030789,
+      "Paphos"
+    ],
+    [
+      "336",
+      "Tafoi ton Vasilieon (AKAVA)",
+      34.77379554,
+      32.40904283,
+      "Paphos"
+    ],
+    [
+      "337",
+      "Tafoi ton Vasilieon (AKAVA)",
+      34.77459701,
+      32.40873737,
+      "Paphos"
+    ],
+    [
+      "338",
+      "Tafoi ton Vasilieon (archaeological site)",
+      34.775770140000006,
+      32.40817828,
+      "Paphos"
+    ],
+    [
+      "339",
+      "Tafoi ton Vasilieon (Alvida)",
+      34.77701374,
+      32.40717572,
+      "Paphos"
+    ],
+    [
+      "340",
+      "Tafoi ton Vasilieon (Lidl)",
+      34.78069228,
+      32.40596269,
+      "Paphos"
+    ],
+    [
+      "341",
+      "Chlolaka Rd (Aspire School)",
+      34.78507200999999,
+      32.40576601,
+      "Paphos"
+    ],
+    [
+      "342",
+      "Tafoi ton Vasileon / Ap. Pavlou (Kings Avenue Mall)",
+      34.764476169999995,
+      32.41237619,
+      "Paphos"
+    ],
+    [
+      "343",
+      "Sp. Kyprianou - Kato Pafos roundabout",
+      34.75121917999999,
+      32.42988901,
+      "Paphos"
+    ],
+    [
+      "344",
+      "Sp. Kyprianou - Neapolis roundabout (W)",
+      34.7491504,
+      32.43350854,
+      "Paphos"
+    ],
+    [
+      "345",
+      "Sp. Kyprianou - Neapolis roundabout (E)",
+      34.74825159,
+      32.43505704,
+      "Paphos"
+    ],
+    [
+      "346",
+      "Sp. Kyprianou - Posidonos str roundabout (W)",
+      34.7437475,
+      32.44475782,
+      "Paphos"
+    ],
+    [
+      "347",
+      "Sp. Kyprianou - Posidonos str roundabout (E)",
+      34.74288531999999,
+      32.44617799,
+      "Paphos"
+    ],
+    [
+      "348",
+      "Posidonos str - Sp. Kyprianou Ave roundabout (S)",
+      34.742811,
+      32.44503565,
+      "Paphos"
+    ],
+    [
+      "349",
+      "Sp. Kyprianou Ave - Agapinoros str roundabout (W)",
+      34.74033514999999,
+      32.45065252,
+      "Paphos"
+    ],
+    [
+      "350",
+      "Sp. Kyprianou - Ezousas roundabout (E)",
+      34.735301969999995,
+      32.46054051,
+      null
+    ],
+    [
+      "351",
+      "Sfagiou roundabout (S) - Neof. Chadjilampri",
+      34.74756171,
+      32.47047652,
+      null
+    ],
+    [
+      "352",
+      "Sfagiou roundabout (W) - Makariou III Ave",
+      34.74881682000001,
+      32.4699955,
+      null
+    ],
+    [
+      "353",
+      "Sfagiou roundabout (E) - Makariou III Ave",
+      34.7478523,
+      32.47157684,
+      null
+    ],
+    [
+      "354",
+      "Spyrou Kyprianou (Paradise Gardens)",
+      34.758145629999994,
+      32.42388001,
+      "Paphos"
+    ],
+    [
+      "355",
+      "Apostolou Pavlou ave - King Avenue Mall roundabout (S)",
+      34.7636137,
+      32.41282645,
+      "Paphos"
+    ],
+    [
+      "356",
+      "Apostolou Pavlou ave - King Avenue Mall roundabout (N)",
+      34.76478376,
+      32.41381104,
+      "Paphos"
+    ],
+    [
+      "357",
+      "Ierokipion str 1 - new",
+      34.745999669999996,
+      32.44593768,
+      "Paphos"
+    ],
+    [
+      "358",
+      "Ierokipion str 2 - new",
+      34.75274831,
+      32.44919762,
+      "Paphos"
+    ],
+    [
+      "359",
+      "G. Kontou st (Geroskipou Lyceum) - new",
+      34.75477456000001,
+      32.45238232,
+      "Paphos"
+    ],
+    [
+      "360",
+      "G. Kontou str. (2) - new",
+      34.7550196,
+      32.44903825,
+      "Paphos"
+    ],
+    [
+      "361",
+      "Gianni Kontou str. (3) - new",
+      34.75317651,
+      32.45416562,
+      "Paphos"
+    ],
+    [
+      "362",
+      "Athinon Ave (Mykonou St) Pafiako Stadium",
+      34.768791939999986,
+      32.43736057,
+      "Paphos"
+    ],
+    [
+      "363",
+      "Demokratias ave (A. Evagorou str)",
+      34.77814391999999,
+      32.44398951,
+      "Paphos"
+    ],
+    [
+      "364",
+      "Makariou G' - Konia",
+      34.78640306,
+      32.45161825,
+      "Paphos"
+    ],
+    [
+      "365",
+      "Ellados No. 1 (Lidl)",
+      34.791277279999996,
+      32.43502553,
+      "Paphos"
+    ],
+    [
+      "366",
+      "Ellados No. 2(Kiriakou Patsi)",
+      34.79027060000001,
+      32.43454872,
+      "Paphos"
+    ],
+    [
+      "367",
+      "Ellados No. 3(Nikou Mounti)",
+      34.78844159,
+      32.43365101,
+      "Paphos"
+    ],
+    [
+      "368",
+      "Ellados No. 4(Bizantiou)",
+      34.78645017000001,
+      32.43254598,
+      "Paphos"
+    ],
+    [
+      "369",
+      "Ellados No. 5(Knossou)",
+      34.78287969,
+      32.42836106,
+      "Paphos"
+    ],
+    [
+      "370",
+      "Kissonerga Rd (Atlantica Golden Beach)",
+      34.82184722,
+      32.39320132,
+      null
+    ],
+    [
+      "371",
+      "Prodromi-Latsi",
+      35.03495,
+      32.409409,
+      null
+    ],
+    [
+      "372",
+      "Latsi No.1",
+      35.03910400000001,
+      32.400676,
+      null
+    ],
+    [
+      "373",
+      "Latsi No.2",
+      35.04060499999999,
+      32.394336,
+      null
+    ],
+    [
+      "374",
+      "McDonalds 1st April - Paralimni",
+      35.02541267,
+      33.98295171,
+      null
+    ],
+    [
+      "375",
+      "Peprol Station - 1st April Paralimni",
+      35.0268079,
+      33.98259775,
+      null
+    ],
+    [
+      "376",
+      "1st April Paralimni - Blue Avocando",
+      35.02832713000001,
+      33.98220202,
+      null
+    ],
+    [
+      "377",
+      "Asklipiou - Paralimni",
+      35.02995103999999,
+      33.98121858,
+      null
+    ],
+    [
+      "378",
+      "1st April Paralimni - Stadiou Rdt north",
+      35.03084824999999,
+      33.98128696,
+      null
+    ],
+    [
+      "379",
+      "Stadiou Paralimni",
+      35.03068414,
+      33.98189044,
+      null
+    ],
+    [
+      "380",
+      "Ad. Korai Paralimni",
+      35.05290127000001,
+      33.97576762,
+      null
+    ],
+    [
+      "381",
+      "Elevtherias Paralimni (rdt)",
+      35.05349577999999,
+      33.9735598,
+      null
+    ],
+    [
+      "382",
+      "Elevtherias Paralimni (Psyllos)",
+      35.05628907999999,
+      33.97095776,
+      null
+    ],
+    [
+      "383",
+      "1st April Paralimni - Bakeries",
+      35.02978414999999,
+      33.98174788,
+      null
+    ]
+  ]
+}

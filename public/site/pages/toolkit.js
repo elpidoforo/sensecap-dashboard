@@ -46,6 +46,7 @@
     ['lessons', 'new', 'now', 'Lesson packs', 'Πακέτα μαθημάτων', 'Seven 45-minute investigations for ages 12 to 15, each tied to a tool of the platform. Can be printed.', 'Επτά έρευνες των 45 λεπτών για ηλικίες 12 έως 15, η καθεμία δεμένη με ένα εργαλείο της πλατφόρμας. Εκτυπώνονται.'],
     ['methods', 'new', 'now', 'Methods library', 'Βιβλιοθήκη μεθόδων', 'Ten short cards on measuring well: averages, spread, why two sensors differ, and why a link is not a cause.', 'Δέκα σύντομες κάρτες για το πώς μετράμε σωστά: μέσοι όροι, εύρος, γιατί δύο αισθητήρες διαφέρουν και γιατί μια σχέση δεν είναι αιτία.'],
 
+    ['fieldwork', 'sources', 'now', 'Explore source data', 'Διερεύνηση πηγών', 'Compare Cyprus reference datasets and download the values used.', 'Σύγκρινε σύνολα δεδομένων για την Κύπρο και κατέβασε τις τιμές.'],
     ['home', 'today', 'now', 'The whole project', 'Όλο το έργο', 'The map of the whole platform: eight windows in the order the data travels.', 'Ο χάρτης όλης της πλατφόρμας: οκτώ παράθυρα με τη σειρά που ταξιδεύουν τα δεδομένα.'],
     ['board', 'today', 'now', 'City board', 'Πίνακας πόλης', 'The island with a column at each school: sensors online, warnings and vehicles on the road.', 'Το νησί με μια στήλη σε κάθε σχολείο: αισθητήρες σε λειτουργία, προειδοποιήσεις και οχήματα στον δρόμο.'],
     ['health', 'today', 'now', 'Data health', 'Υγεία δεδομένων', 'Where every number comes from, and what the checks found.', 'Από πού έρχεται κάθε αριθμός και τι βρήκαν οι έλεγχοι.'],
