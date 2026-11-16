@@ -61,6 +61,30 @@ const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swifts
       const probe = await frame.evaluate(() => document.querySelector('.probe').innerText);
       ok(/[0-9]/.test(probe) && /(ago|now|πριν|μόλις)/.test(probe), name + ': the probe shows the newest readings with their age');
 
+      // two sources that disagree are drawn as a pair, and every pin carries the age of its reading
+      let twins = 0;
+      for (let i = 0; i < 40; i++) { twins = await frame.evaluate(() => window.__twins || 0); if (twins) break; await wait(300); }
+      ok(twins > 0, name + ': a disagreement between two sources is drawn where it happens (' + twins + ')');
+      const halos = await frame.evaluate(() => window.__halos || 0);
+      ok(halos > 0, name + ': the school pins carry the age of their newest reading (' + halos + ')');
+      // the ages keep running while the page is open, even when no new reading arrives
+      const fresh = await frame.evaluate(() => document.querySelector('.probe').innerText);
+      const w0 = await frame.evaluate(() => window.__haloWidth());
+      await frame.evaluate(() => window.__ageForward(200));
+      await wait(400);
+      const later = await frame.evaluate(() => document.querySelector('.probe').innerText);
+      const w1 = await frame.evaluate(() => window.__haloWidth());
+      ok(fresh !== later && /(h ago|ώ)/.test(later), name + ': a reading grows older while nobody fetches a new one');
+      ok(w1 > w0, name + ': and the ring around the school widens with it (' + w0.toFixed(2) + ' to ' + w1.toFixed(2) + ')');
+
+      // a hidden sheet takes its disagreements with it
+      await frame.evaluate(() => document.querySelectorAll('.lay').forEach((x) => { if (x.getAttribute('aria-pressed') === 'true') x.click(); }));
+      await wait(600);
+      const after = await frame.evaluate(() => window.__twins || 0);
+      ok(after === 0, name + ': hiding every sheet takes its disagreements with it (' + twins + ' to ' + after + ')');
+      await frame.evaluate(() => document.getElementById('all').click());
+      await wait(600);
+
       if (!phone) {
         // a layer can be hidden and shown again
         const press = () => frame.evaluate(() => document.querySelector('.lay').click());

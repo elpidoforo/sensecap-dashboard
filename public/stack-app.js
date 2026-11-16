@@ -344,11 +344,11 @@ const rail = document.getElementById('rail');
     btn.querySelector('b').textContent = T(x.name, x.nameEl);
     btn.querySelector('small').textContent = T(x.src, x.srcEl);
     btn.querySelector('.val').innerHTML = `${x.val}<em>${x.unit}</em>`;
-    btn.addEventListener('click', () => { s.on = !s.on; s.group.visible = s.on; btn.setAttribute('aria-pressed', String(s.on)); });
+    btn.addEventListener('click', () => { s.on = !s.on; s.group.visible = s.on; btn.setAttribute('aria-pressed', String(s.on)); drawTwins(); });
     s.btn = btn; rail.appendChild(btn);
   });
 });
-const setAll = (fn) => sheets.forEach((s) => { s.on = fn(s); s.group.visible = s.on; if (s.btn) s.btn.setAttribute('aria-pressed', String(s.on)); });
+const setAll = (fn) => { sheets.forEach((s) => { s.on = fn(s); s.group.visible = s.on; if (s.btn) s.btn.setAttribute('aria-pressed', String(s.on)); }); drawTwins(); };
 const tools = document.querySelector('.tools');
 const allBtn = document.getElementById('all'), tourBtn = document.getElementById('tour'), hint = document.getElementById('hint');
 tools.querySelectorAll('[data-band]').forEach((b) => b.addEventListener('click', () => {
@@ -410,6 +410,13 @@ function tick() {
   geoCone.position.copy(geo.position.clone().lerp(new THREE.Vector3(0, TOP, 0), .5));
   geoCone.lookAt(geo.position); geoCone.rotateX(Math.PI / 2);
   beams.forEach((b) => b.dots.forEach((d) => { d.t = (d.t + .004) % 1; d.mesh.position.lerpVectors(b.from, b.to, d.t); }));
+  pinLabels.forEach((rec, i) => {
+    const h = haloAt(rec.ageMin);
+    const pulse = rec.ageMin != null && rec.ageMin < 15 ? 1 + Math.sin(t * 2 + i) * .06 : 1;
+    rec.halo.scale.setScalar((h.r / 18) * pulse);
+    rec.halo.material.color.set(h.c);
+    rec.halo.material.opacity = h.o;
+  });
   if (tour) {
     tourT += dt; const span = TOUR[TOUR.length - 1].t, tt = tourT % span;
     let i = 0; while (i < TOUR.length - 2 && TOUR[i + 1].t <= tt) i++;
@@ -421,6 +428,68 @@ function tick() {
   renderer.render(scene, camera); frame++;
   requestAnimationFrame(tick);
 }
+/* ---- twin pins: where two sources measure the same thing in the same city and do not agree ---- */
+// Which sheet a measurement belongs to. Only the variables a sheet actually shows (FEED, above) are listed, so a
+// disagreement is never drawn on a sheet that does not carry that measurement.
+const VAR_SHEET = { temperature: 'island', co2: 'island', pm25: 'air', pm10: 'air', ozone: 'air',
+  wind_speed: 'wind', sea_surface_temperature: 'seabed', wave_height: 'seabed' };
+const CITY_POS = {};   // filled once the island is placed
+const twins = new THREE.Group(); scene.add(twins);
+function clearGroup(g) { while (g.children.length) { const c = g.children.pop();
+  if (c.geometry) c.geometry.dispose(); if (c.material) { if (c.material.map) c.material.map.dispose(); c.material.dispose(); } } }
+
+function drawTwins() {
+  clearGroup(twins);
+  window.__twins = 0;
+  if (!live || !live.riversAll) return;
+  const seen = new Map();   // one pair per city and sheet: the widest disagreement wins the space
+  live.riversAll.forEach((rv) => {
+    const sheetId = VAR_SHEET[rv.variable]; if (!sheetId) return;
+    const sheet = sheets.find((x) => x.layer.id === sheetId); if (!sheet || !sheet.on) return;
+    Object.keys(rv.cities || {}).forEach((cityId) => {
+      const st = rv.cities[cityId];
+      if (!st || st.state !== 'differ' || st.low == null || st.high == null) return;
+      const over = st.tolerance ? st.spread / st.tolerance : 1;
+      const key = cityId + '|' + sheetId;
+      const cur = seen.get(key);
+      const more = cur ? cur.more + 1 : 0;                           // how many other disagreements this one stands for
+      if (!cur || over > cur.over) seen.set(key, { rv, st, over, cityId, sheet, more });
+      else cur.more = more;
+    });
+  });
+  seen.forEach(({ rv, st, over, cityId, sheet, more }) => {
+    const base = CITY_POS[cityId]; if (!base) return;
+    // Both readings stand on the same spot, one above the other: the gap is the size of the disagreement, never a
+    // position. Nothing here places a sensor anywhere but the school site the pin already marks.
+    const y = sheet.y, span = Math.min(52, 16 + over * 12);
+    const a = new THREE.Vector3(base.x, y + 10, base.z);
+    const b = new THREE.Vector3(base.x, y + 10 + span, base.z);
+    const colour = '#F2CF86';
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, span, 10),
+      new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: .5 }));
+    bar.position.set(base.x, y + 10 + span / 2, base.z); twins.add(bar);
+    [a, b].forEach((p) => {
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(4.5, 12, 10), new THREE.MeshBasicMaterial({ color: colour }));
+      dot.position.copy(p); twins.add(dot);
+      const ring = new THREE.Mesh(new THREE.RingGeometry(6.5, 8.5, 24), new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: .45, side: THREE.DoubleSide }));
+      ring.rotation.x = -Math.PI / 2; ring.position.copy(p); twins.add(ring);
+    });
+    const unit = Array.isArray(rv.unit) ? rv.unit[0] : rv.unit;
+    const name = EL && rv.label && rv.label[1] ? rv.label[1] : (rv.label && rv.label[0]) || rv.variable;
+    const short = name.length > 14 ? name.slice(0, 13) + '…' : name;
+    const src = (st.sources || []).slice(0, 2).join(' / ');
+    const tail = more ? ' +' + more : '';
+    const lab = label(`${fmt(st.low)}–${fmt(st.high)} ${unit || ''}`,
+      `${short} · ${T('two sources for this city', 'δύο πηγές για αυτή την πόλη')} · ${src}${tail}`,
+      colour, mobile ? 40 : 26);
+    lab.position.set(base.x + 18, y + 24 + span, base.z);   // clear of the school's own label
+    twins.add(lab);
+  });
+  // what the tests read: how many disagreements are drawn, and how many pins carry an age
+  window.__twins = twins.children.length ? seen.size : 0;
+  window.__halos = pinLabels.filter((r) => r.ageMin != null && r.ageMin < 1e8).length;
+}
+
 /* ---- the real readings ---- */
 const CITY = ['larnaka', 'lefkosia', 'limassol', 'paphos'];
 const SCHOOL_CITY = { larnaka: 'larnaka', lefkosia: 'lefkosia', limassol: 'limassol', paphos: 'paphos' };
@@ -428,7 +497,10 @@ const fmt = (v) => (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 10) / 10
 const ageText = (m) => (m == null ? T('not stated', 'δεν δηλώνεται')
   : m < 1 ? T('just now', 'μόλις τώρα') : m < 90 ? T(Math.round(m) + ' min ago', 'πριν ' + Math.round(m) + ' λ')
     : T(Math.round(m / 60) + ' h ago', 'πριν ' + Math.round(m / 60) + ' ώ'));
-let live = null;
+let live = null, liveAt = 0;
+// The feed states how old each reading was when it was fetched. The page is open for much longer than that, and a
+// fetch can fail, so the clock has to keep running here: every age is the one in the snapshot plus the time since.
+const ageNow = (m) => (m == null ? null : m + (Date.now() - liveAt) / 60000);
 
 function pick(cityId, variable, ownOnly) {
   const c = live && live.cities && live.cities[cityId];
@@ -436,7 +508,7 @@ function pick(cityId, variable, ownOnly) {
   const rows = c.rows.filter((r) => r.variable === variable && (!ownOnly || /^sensecap-/.test(r.source)));
   if (!rows.length) return null;
   rows.sort((a, b) => (a.ageMin == null ? 1e9 : a.ageMin) - (b.ageMin == null ? 1e9 : b.ageMin));
-  return rows[0];
+  return { ...rows[0], ageMin: ageNow(rows[0].ageMin) };
 }
 function best(variable, ownOnly) {          // the newest reading of one measurement anywhere on the island
   let out = null;
@@ -505,28 +577,45 @@ function paintProbe() {
   box.replaceChildren(...out);
 }
 
-// the four school pins carry the newest reading of their own city
+// the four school pins carry the newest reading of their own city, and a halo that shows its age
 const pinLabels = [];
 I.schools.forEach((sc) => {
   const p = p3(sc.lng, sc.lat, ISLAND_Y);
+  CITY_POS[sc.id] = p;
   const lab = label(sc.name, '—', '#F7C46B', mobile ? 40 : 28);
   lab.position.set(p.x + 14, ISLAND_Y + 34, p.z); scene.add(lab);
-  pinLabels.push({ sc, lab, p });
+  const halo = new THREE.Mesh(new THREE.RingGeometry(16, 20, 40),
+    new THREE.MeshBasicMaterial({ color: '#F7C46B', transparent: true, opacity: .5, side: THREE.DoubleSide }));
+  halo.rotation.x = -Math.PI / 2; halo.position.set(p.x, ISLAND_Y + 2.5, p.z); scene.add(halo);
+  pinLabels.push({ sc, lab, p, halo, ageMin: null });
 });
 function paintPins() {
   pinLabels.forEach(({ sc, lab, p }) => {
     const city = SCHOOL_CITY[sc.id] || sc.id;
-    const t1 = pick(city, 'temperature', true) || pick(city, 'temperature', false);
+    // Only this school's own sensors: a model value for the city says nothing about whether the school is reporting.
+    const t1 = pick(city, 'temperature', true);
     const c1 = pick(city, 'co2', true);
     const bits = [];
     if (t1) bits.push(fmt(t1.value) + ' ' + (t1.unit || ''));
     if (c1) bits.push(fmt(c1.value) + ' ' + (c1.unit || ''));
-    const sub = bits.length ? bits.join(' · ') + ' · ' + ageText(Math.min(...[t1, c1].filter(Boolean).map((r) => r.ageMin == null ? 1e9 : r.ageMin))) : T('nothing arrived', 'δεν ήρθε τίποτα');
+    const age = [t1, c1].filter(Boolean).map((r) => (r.ageMin == null ? 1e9 : r.ageMin));
+    const youngest = age.length ? Math.max(...age) : null;   // the halo keeps the older of the two, never the flattering one
+    const sub = bits.length ? bits.join(' · ') + ' · ' + T('our sensors', 'οι αισθητήρες μας') + ' · ' + ageText(youngest)
+      : T('no reading from our sensors here', 'καμία μέτρηση από τους αισθητήρες μας εδώ');
     const old = lab.material.map;
     const next = label(sc.name, sub, '#F7C46B', mobile ? 40 : 28);
     lab.material.map = next.material.map; lab.material.needsUpdate = true;
     if (old) old.dispose();
+    const rec = pinLabels.find((x) => x.sc === sc); if (rec) rec.ageMin = youngest;
   });
+}
+// The halo: one hue for every school, because the ring says how old a reading is and nothing about the school.
+// A reading that just arrived sits tight and clear; an older one spreads and fades; nothing arrived is grey.
+const HALO_FULL = 180;                                               // three hours out, the ring is as faint as it gets
+function haloAt(ageMin) {
+  if (ageMin == null || ageMin > 1e8) return { r: 34, o: .09, c: '#7f93ac' };
+  const f = Math.min(1, ageMin / HALO_FULL);
+  return { r: 16 + f * 22, o: .55 - f * .42, c: '#8ecfe6' };
 }
 
 // the wind sheet moves at the speed that was actually measured
@@ -571,13 +660,19 @@ async function loadLive() {
   try {
     const r = await fetch('/layers/api/live', { headers: { accept: 'application/json' } });
     if (!r.ok) return;
-    live = await r.json();
-    paintRail(); paintProbe(); paintPins(); paintWind();
+    live = await r.json(); liveAt = Date.now();
+    paintRail(); paintProbe(); paintPins(); paintWind(); drawTwins();
   } catch (e) { /* keep what is on the screen; the next refresh tries again */ }
 }
 paintRail(); paintProbe();
 loadLive(); loadSatellite();
 setInterval(() => { if (!document.hidden) loadLive(); }, 120000);
+// The readings on the screen age even when no new ones arrive, so the clock on them keeps running between fetches.
+setInterval(() => { if (!document.hidden && live) { paintRail(); paintProbe(); paintPins(); } }, 30000);
+// A seam for the tests only: move this page's clock forward and repaint, to check that the ages and the rings
+// really do keep running when no new reading arrives. It changes nothing that a reader can reach.
+window.__ageForward = (minutes) => { liveAt -= minutes * 60000; paintRail(); paintProbe(); paintPins(); return pinLabels.map((r) => r.ageMin); };
+window.__haloWidth = () => (pinLabels[0] ? pinLabels[0].halo.scale.x : 0);
 
 tick();
 window.__embedReady = true;
