@@ -20,8 +20,8 @@
           'Κάθε στρώμα που κρατάμε, από τον βυθό ως τους δορυφόρους, στοιβαγμένο πάνω από την Κύπρο. Κάθε φύλλο δείχνει από πού έρχεται: οι σταθμοί στέλνουν από το νησί, οι αισθητήρες μας ανεβαίνουν όλη τη στοίβα, μοντέλα και δημοσιευμένα αρχεία μπαίνουν από το πλάι.'),
       }));
       root.append(el('p', { class: 'nm-note' },
-        T('A working sketch: the numbers on it are illustrative, and the relief and the pictures are drawn here rather than fetched. The shape is right; the feeds are being wired one at a time.',
-          'Πρόχειρο σχέδιο: οι αριθμοί είναι ενδεικτικοί και το ανάγλυφο με τις εικόνες σχεδιάζονται εδώ αντί να έρχονται από τις πηγές. Το σχήμα είναι σωστό· οι πηγές συνδέονται μία μία.')));
+        T('The sheets that are wired show the newest reading Athena holds, with its source and its age: sensors, wind, air quality and the sea. The rest say "drawn" — their picture is made in your browser, not measured — and the relief under everything is drawn too.',
+          'Τα φύλλα που είναι συνδεδεμένα δείχνουν την πιο πρόσφατη μέτρηση που κρατά η Athena, με την πηγή και την ηλικία της: αισθητήρες, άνεμος, ποιότητα αέρα και θάλασσα. Τα υπόλοιπα λένε «σχεδιασμένο» — η εικόνα τους φτιάχνεται στο πρόγραμμα περιήγησης, δεν μετριέται — και το ανάγλυφο από κάτω είναι επίσης σχεδιασμένο.')));
 
       const params = new URLSearchParams();
       params.set('embed', '1');
