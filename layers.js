@@ -480,14 +480,23 @@ function createLayers(opts) {
   async function evidenceFor(cityId, ids) {
     const place = reg.places[cityId];
     const at = [place.lat, place.lng];
-    const rows = [], missing = [];
+    const rows = [], missing = [], dropped = [], dropFull = new Set();   // dropped: readings thrown away here, kept so #/health can say what was left out and why
+    // Counted and capped per source, so one sensor fleet with a wrong clock cannot hide what another source threw away.
+    const DROP_MAX = 120, dropN = new Map();
+    const drop = (sourceId, why, variable, value, t) => {
+      const n = (dropN.get(sourceId) || 0) + 1;
+      dropN.set(sourceId, n);
+      if (n > DROP_MAX) { dropFull.add(sourceId); return; }
+      dropped.push({ source: sourceId, why, variable, value: value == null ? null : Number(value), t: t || null, city: cityId });
+    };
     const add = (src, variable, value, extra) => {
       const v = num(value);
       if (v == null || !vocab(variable).unit) return;
       const r = vocab(variable).range;
-      if (r && (v < r[0] || v > r[1])) return;   // implausible: not evidence
+      if (r && (v < r[0] || v > r[1])) { drop(src.id, 'range', variable, v, extra && extra.t); return; }   // implausible: not evidence
       rows.push({ source: src.id, variable, value: v, unit: vocab(variable).unit, env: (src.representativeness && src.representativeness.environment) || 'outdoor', kind: src.quality && src.quality.kind, ...extra });
     };
+    const unitsSeen = new Map();   // readings whose own unit was compared with the vocabulary, per source
     const needs = ids.map(srcById).filter(Boolean);
     const has = (id) => needs.some((s) => s.id === id);
     const tasks = [];
@@ -505,10 +514,13 @@ function createLayers(opts) {
             if (!variable || !vocab(variable).unit) continue;
             const v = num(l[mid] && l[mid].v), t = toMs(l[mid] && l[mid].t);
             if (v == null || !t) continue;
-            if (t > Date.now() + CLOCK_SKEW) { future.add(src.id); continue; }   // a wrong clock: not fresh, and it must not win as the newest
+            if (t > Date.now() + CLOCK_SKEW) { future.add(src.id); drop(src.id, 'future', variable, v, t); continue; }   // a wrong clock: not fresh, and it must not win as the newest
             { const then = placeOf(d, t); if (then.kind !== src['x_devices'] || then.city !== cityId) continue; }   // taken before the sensor was moved here: it belongs to the earlier place
             const unit = String((names[mid] || [])[1] || '');
             const val = variable === 'pressure' && /^pa$/i.test(unit.trim()) ? v / 100 : v;
+            // each sensor on its own: one sensor reading 900 degrees must not be averaged away into a believable number
+            const rg = vocab(variable).range;
+            if (rg && (val < rg[0] || val > rg[1])) { drop(src.id, 'range', variable, val, t); continue; }
             (by[variable] = by[variable] || []).push({ v: val, t, fresh: Date.now() - t <= FRESH_OWN });
           }
         }
@@ -572,7 +584,9 @@ function createLayers(opts) {
     for (const src of needs.filter((s) => satellite && satellite.has(s.id) && readsNumbers(s))) tasks.push((async () => {   // satellite feeds: the readings for the city centre, as the registry cleaned them (an area, not a spot)
       const declared = new Set((src.variables || []).map((v) => v.id));
       for (const r of await satellite.read(src.id, cityId)) {
-        if (!declared.has(r.variable) || (r.unit && r.unit !== vocab(r.variable).unit)) continue;   // not in the source file, or in another unit: never evidence
+        if (!declared.has(r.variable)) continue;   // not in the source file: never evidence
+        unitsSeen.set(src.id, (unitsSeen.get(src.id) || 0) + (r.unit ? 1 : 0));   // only a reading that carries its own unit can be compared with the vocabulary
+        if (r.unit && r.unit !== vocab(r.variable).unit) { drop(src.id, 'unit', r.variable, r.value, toMs(r.time)); continue; }   // another unit: never evidence
         add(src, r.variable, r.value, { t: toMs(r.time), where: r.where, whereEl: r.whereEl, note: r.note, noteEl: r.noteEl });
       }
     })());
@@ -582,13 +596,13 @@ function createLayers(opts) {
     for (const s of needs) if (PROBES[s.id] && readsNumbers(s) && !rows.some((r) => r.source === s.id) && !missing.some((m) => m.source === s.id)) missing.push({ source: s.id, why: 'no-reading' });
     const now = Date.now();
     // any other source: a reading dated beyond the clock tolerance is taken out and named as a gap
-    for (let i = rows.length - 1; i >= 0; i--) if (rows[i].t && rows[i].t > now + CLOCK_SKEW) { const id = rows[i].source; rows.splice(i, 1); if (!missing.some((m) => m.source === id)) missing.push({ source: id, why: 'future-time' }); }
+    for (let i = rows.length - 1; i >= 0; i--) if (rows[i].t && rows[i].t > now + CLOCK_SKEW) { const id = rows[i].source; drop(id, 'future', rows[i].variable, rows[i].value, rows[i].t); rows.splice(i, 1); if (!missing.some((m) => m.source === id)) missing.push({ source: id, why: 'future-time' }); }
     for (const r of rows) {
       const src = srcById(r.source);
       r.ageMin = r.t ? Math.max(0, Math.round((now - r.t) / 60000)) : null;
       r.stale = !!(r.t && now - r.t > staleMs(src));
     }
-    return { rows, missing, failed };
+    return { rows, missing, failed, dropped, dropFull: [...dropFull], unitsSeen: Object.fromEntries(unitsSeen) };
   }
 
   /* ----- comparing sources, and how sure the brain is ----- */
@@ -982,12 +996,16 @@ const lc = (s) => String(s).replace(/^\S+/, (w) => (/[A-Z0-9]/.test(w.slice(1)) 
         rv.cities[cityId] = { state: tol == null ? 'unknown' : spread > tol ? 'differ' : 'agree', spread: Number(fmt(spread)), tolerance: tol == null ? null : Number(fmt(tol)), sources: ids, low: Number(fmt(Math.min(...vals))), high: Number(fmt(Math.max(...vals))) };
       }
     }
-    const rivers = [...riverMap.values()].map((r) => ({ ...r, sources: [...r.sources] })).sort((a, b) => b.sources.length - a.sources.length || a.variable.localeCompare(b.variable)).slice(0, 6);
+    const riversAll = [...riverMap.values()].map((r) => ({ ...r, sources: [...r.sources] })).sort((a, b) => b.sources.length - a.sources.length || a.variable.localeCompare(b.variable));
+    const rivers = riversAll.slice(0, 6);   // the page shows six; #/health reads them all
     const sat = layersOut.filter((l) => l.kind === 'satellite' && l.state === 'live' && l.lastAt).sort((a, b) => b.lastAt - a.lastAt)[0];
     return {
       at: s.at, since: isFinite(first) ? first : null, every: PULSE_EVERY, counts: s.view.counts, layers: layersOut,
       cities: Object.fromEntries(cityIds().map((id) => [id, { name: reg.places[id].name, rows: s.cities[id].ev.rows.map(pubRow) }])),
-      rivers, map: s.map, newestSatellite: sat ? { id: sat.id, name: sat.name, nameEl: sat.nameEl, at: sat.lastAt } : null,
+      rivers, riversAll, dropped: cityIds().flatMap((id) => s.cities[id].ev.dropped || []),
+      dropFull: [...new Set(cityIds().flatMap((id) => s.cities[id].ev.dropFull || []))],   // sources whose list of thrown-away readings was cut short
+      unitsSeen: cityIds().reduce((a2, id) => { const u = s.cities[id].ev.unitsSeen || {}; Object.keys(u).forEach((k) => { a2[k] = (a2[k] || 0) + u[k]; }); return a2; }, {}),
+      map: s.map, newestSatellite: sat ? { id: sat.id, name: sat.name, nameEl: sat.nameEl, at: sat.lastAt } : null,
     };
   }
   // The last day as the live map replays it: for each city, what our own sensors read, the outdoor air temperature, the wind and the sea, at the moments of the log.
@@ -1121,4 +1139,4 @@ const lc = (s) => String(s).replace(/^\S+/, (w) => (/[A-Z0-9]/.test(w.slice(1)) 
   return { enabled: true, configured: !!apiKey, handle, reload, register: registerView, assignmentsRev: () => assign.rev, _t: { takePulse, liveView, compareView, hist, placeOf, putAssignments, assignmentsView, schemaCheck, checkSource, loadRegister, evidenceFor, candidates, numbersOk, allowedNumbers, template, registerView, brain, fmt, independent } };
 }
 
-module.exports = { createLayers, loadRegister, checkSource, schemaCheck, DEFAULT_MISSION };
+module.exports = { createLayers, loadRegister, checkSource, schemaCheck, unitText, DEFAULT_MISSION };   // unitText is shared with data-health.js so a check sees the same unit the page shows

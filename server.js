@@ -1070,12 +1070,14 @@ const { createNotifier } = require('./notify');
 const { createCouncil } = require('./council');
 const { createReports } = require('./reports');
 const { createLayers } = require('./layers');
+let dataHealth = null;
 const { createGtfs } = require('./gtfs');
 const toolkitWatch = require('./toolkit-watch');   // /watch/api/title: the privacy check for a rule title on the My watch page (stores nothing)
 const { createEea } = require('./eea');
 const { createSatellite } = require('./satellite');
 const citiesApi = require('./cities');
 const { createClassLogin } = require('./classlogin');
+const { createDataHealth } = require('./data-health');   // /api/health: where every number comes from and what the checks found
 const cityBuildings = require('./city-buildings').createCityBuildings({ dataDir: DATA_DIR, mock: MOCK, log: (m) => console.error(m) });   // #/city: buildings and streets of the four city centres from OpenStreetMap (city-buildings.js)
 const toolkitForecast = require('./toolkit-forecast').createToolkitForecast({ root: __dirname, dataDir: DATA_DIR, mock: MOCK, omJson, omBase: OM_BASE, enabled: () => feeds.enabled('openmeteo'), cydom, history: () => history, log: (m) => console.error(m) });   // #/forecast: saves tomorrow's forecast once a day and compares it later (toolkit-forecast.js)
 const classLogin = createClassLogin();
@@ -1237,6 +1239,7 @@ function startApp() {
   feeds.attach(appCore);   // from now on the on/off switches of the feeds are kept in the student database
   studio = createStudio({ appCore, notify: notifier, layers, classValid: (req) => classLogin.enabled && classLogin.valid(req), bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });
   council = createCouncil({ appCore, bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, viewer: (req) => (studio && studio.viewer ? studio.viewer(req) : null), log: (m) => console.error(m) });
+  dataHealth = createDataHealth({ layers, root: __dirname, log: (m) => console.error(m) });
   reports = createReports({ appCore, data: botData, assignmentsRev: () => (layers && layers.assignmentsRev ? layers.assignmentsRev() : null), apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });
   const st = bot.status();
   console.log(`Student app ready (${appCore.info().users} accounts). Assistant ${st.configured ? 'on, model ' + st.model : 'off: set ANTHROPIC_API_KEY'}. Admin sign-up ${process.env.ADMIN_SETUP_CODE ? 'enabled' : 'disabled: set ADMIN_SETUP_CODE'}.`);
@@ -1601,6 +1604,7 @@ const server = http.createServer(async (req, res) => {
     if (to) { res.writeHead(302, { Location: to, 'Cache-Control': 'no-store' }); return res.end(); }
     if (await sourceRoutes(req, res, url)) return;   // /api/feeds, helpers, archive, ops, search, dom/watch
     if (await toolkitWatch.handle(req, res, url)) return;   // /watch/api/title: checks a title, stores nothing
+    if (dataHealth && (await dataHealth.handle(req, res, url))) return;   // /api/health: read only, no sign-in
     if (await cityBuildings.handle(req, res, url)) return;   // /api/city/<id>: buildings and streets of one city centre, read only
     if (await toolkitForecast.handle(req, res, url)) return;   // /api/toolkit/forecast: saved forecasts against what was measured, read only
     if (gtfs && (await gtfs.handle(req, res, url))) return;   // /api/transit/*: official bus timetables, read only, rate limited
