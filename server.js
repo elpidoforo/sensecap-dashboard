@@ -1723,7 +1723,7 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(404);
         return res.end('Not found');
       }
-      const csp = inApp ? APP_CSP : url.pathname.startsWith('/cities') ? CITIES_CSP : url.pathname === '/3d.html' || url.pathname === '/city.html' ? policy3d(buf) : url.pathname === '/' || url.pathname.startsWith('/site/') ? SITE_CSP : null;
+      const csp = inApp ? APP_CSP : url.pathname.startsWith('/cities') ? CITIES_CSP : url.pathname === '/3d.html' || url.pathname === '/city.html' || url.pathname === '/stack.html' ? policy3d(buf) : url.pathname === '/' || url.pathname.startsWith('/site/') ? SITE_CSP : null;
       const headers = { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream', 'Cache-Control': /^\/vendor\/three-r\d+\//.test(url.pathname) ? 'public, max-age=31536000, immutable' : 'no-cache', 'Accept-Ranges': 'bytes', ...(csp ? { 'Content-Security-Policy': csp, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' } : {}) };
       const range = req.headers.range ? parseRange(req.headers.range, buf.length) : null;
       if (range === 'bad') {

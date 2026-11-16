@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The data stack in 3D · Athena</title>
+<style>
+/* Instrument panel: a dark observation deck. One accent (sensor amber) against instrument cyan;
+   every layer carries its own hue, which is the only other colour on the page. */
+:root{
+  --void:#02050a; --deep:#060d18; --panel:rgba(12,24,40,.82); --edge:rgba(140,190,235,.16);
+  --ink:#eaf2fb; --dim:#95b0cc; --faint:#5d7a99; --amber:#F7C46B; --cyan:#4bbfe0;
+  --live:#86e0a8; --old:#8FE3F7; --year:#9db6d1;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--void);color:var(--ink);font:400 14px/1.5 var(--sans);-webkit-font-smoothing:antialiased;overflow:hidden}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#gl:active{cursor:grabbing}
+.ui{position:fixed;inset:0;pointer-events:none;display:flex;flex-direction:column;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:14px}
+.glass{background:linear-gradient(180deg,var(--panel),rgba(6,13,24,.9));border:1px solid var(--edge);border-radius:13px;
+  backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2);
+  box-shadow:0 26px 54px -30px #000,inset 0 1px 0 rgba(255,255,255,.06)}
+.top{display:flex;align-items:center;gap:9px;flex-wrap:wrap;flex:0 0 auto}
+.brand{display:flex;align-items:baseline;gap:9px;padding:8px 13px}
+.brand b{font:800 12px/1 var(--sans);letter-spacing:2.2px}
+.brand i{font-style:normal;font:700 9px/1 var(--mono);letter-spacing:1.4px;color:var(--cyan)}
+.badge{padding:7px 11px;border-radius:999px;font:700 9.5px/1 var(--mono);letter-spacing:.9px;
+  background:rgba(224,127,63,.14);border:1px solid rgba(242,165,107,.4);color:#F2A56B}
+.clock{margin-left:auto;padding:8px 12px;font:700 10.5px/1 var(--mono);letter-spacing:1px;color:var(--old)}
+.mid{flex:1 1 auto;display:flex;gap:12px;align-items:flex-start;min-height:0;padding-top:12px}
+.rail{pointer-events:auto;width:244px;padding:9px 9px 7px;max-height:100%;overflow:auto;flex:0 0 auto}
+.rail h2{margin:3px 5px 8px;font:800 8.5px/1 var(--mono);letter-spacing:1.9px;color:var(--faint)}
+.band{margin:9px 5px 5px;display:flex;align-items:center;gap:7px;font:800 8px/1 var(--mono);letter-spacing:1.8px;color:#4f6c8a}
+.band::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(140,190,235,.22),transparent)}
+.lay{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:6px 8px;margin-bottom:4px;cursor:pointer;
+  border-radius:9px;background:rgba(255,255,255,.028);border:1px solid rgba(255,255,255,.05);color:inherit;font:inherit}
+.lay:hover{background:rgba(120,190,240,.1)}
+.lay:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.lay[aria-pressed="false"]{opacity:.42}
+.lay .key{width:6px;height:16px;border-radius:2px;background:var(--c);box-shadow:0 0 9px var(--c);flex:0 0 auto}
+.lay .nm{flex:1;min-width:0}
+.lay .nm b{display:block;font:700 10.5px/1.3 var(--sans)}
+.lay .nm small{display:block;font:600 8.5px/1.35 var(--mono);color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lay .val{font:700 10px/1 var(--mono);white-space:nowrap;text-align:right}
+.lay .val em{font-style:normal;display:block;margin-top:3px;font-size:8px;color:var(--faint)}
+.lay .st{width:6px;height:6px;border-radius:50%;flex:0 0 auto}
+.st.live{background:var(--live);box-shadow:0 0 7px var(--live)}
+.st.old{background:var(--old);opacity:.8}
+.st.year{background:var(--year);opacity:.5}
+.probe{pointer-events:auto;margin-left:auto;width:218px;padding:10px 12px 11px;flex:0 0 auto}
+.probe h2{margin:1px 3px 8px;font:800 8.5px/1 var(--mono);letter-spacing:1.9px;color:var(--faint)}
+.kv{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.055);
+  font-variant-numeric:tabular-nums}
+.kv span{font:600 9.5px/1 var(--mono);color:var(--dim)}
+.kv b{font:700 11.5px/1 var(--mono)}
+.kv b em{font-style:normal;font-size:8.5px;color:var(--faint);margin-left:3px}
+.probe p{margin:9px 0 0;font:500 9px/1.55 var(--mono);color:var(--faint)}
+.foot{flex:0 0 auto;display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;padding-top:10px}
+.tools{pointer-events:auto;display:flex;gap:3px;padding:5px 6px;margin-inline:auto;max-width:100%;overflow-x:auto;flex-wrap:nowrap}
+.tools button{flex:0 0 auto}
+.tools button{border:0;background:transparent;color:var(--dim);cursor:pointer;
+  padding:8px 13px;border-radius:8px;font:700 9.5px/1 var(--mono);letter-spacing:1.1px}
+.tools button:hover{background:rgba(120,190,240,.12);color:var(--ink)}
+.tools button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.tools button[aria-pressed="true"]{background:linear-gradient(180deg,#F7C46B,#E8963F);color:#0a1420}
+.note{font:600 8.5px/1.5 var(--mono);color:#44607d;max-width:240px}
+.hint{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom,0px));
+  font:600 9px/1 var(--mono);letter-spacing:1px;color:var(--faint);pointer-events:none;opacity:.9}
+@media (max-width:860px){
+  .hint{display:none}
+  .mid{flex-direction:column;gap:8px;overflow:auto;pointer-events:none}
+  .rail,.probe{width:100%;max-height:none;margin-left:0}
+  .rail{max-height:40vh}
+  .probe .kv:nth-child(n+6){display:none}
+  .note{display:none}
+}
+@media (prefers-reduced-motion:reduce){ .lay{transition:none} }
+</style>
+</head>
+<body>
+<canvas id="gl" tabindex="0" aria-label="The data stack over Cyprus in 3D" data-ael="Η στοίβα δεδομένων πάνω από την Κύπρο σε 3D"></canvas>
+<div class="ui">
+  <div class="top">
+    <div class="glass brand"><i>ATHENA</i><b>CYPRUS DATA STACK</b></div>
+    <div class="badge" data-el="ΠΡΟΣΧΕΔΙΟ · ΕΝΔΕΙΚΤΙΚΕΣ ΤΙΜΕΣ">MOCK-UP · DEMO VALUES</div>
+    <div class="glass clock" id="clock"></div>
+  </div>
+
+  <div class="mid">
+    <aside class="glass rail" id="rail" aria-label="Layers" data-ael="Στρώματα"><h2 data-el="ΣΤΡΩΜΑΤΑ ΚΑΙ ΟΙ ΠΗΓΕΣ ΤΟΥΣ">LAYERS AND THEIR SOURCES</h2></aside>
+    <aside class="glass probe">
+      <h2 data-el="ΜΕΤΡΗΣΗ · PASCAL ΛΑΡΝΑΚΑ">PROBE · PASCAL LARNAKA</h2>
+      <div class="kv"><span data-el="ΘΕΡΜΟΚΡΑΣΙΑ">AIR TEMP</span><b>21.4<em>°C</em></b></div>
+      <div class="kv"><span data-el="CO₂">CO₂</span><b>612<em>PPM</em></b></div>
+      <div class="kv"><span data-el="PM2.5">PM2.5</span><b>9.3<em>µG/M³</em></b></div>
+      <div class="kv"><span data-el="ΑΝΕΜΟΣ 10 M">WIND 10 M</span><b>5.1<em>M/S</em></b></div>
+      <div class="kv"><span data-el="ΒΡΟΧΗ 1Ω">RAIN 1H</span><b>0.4<em>MM</em></b></div>
+      <div class="kv"><span data-el="ΘΑΛΑΣΣΑ 3 KM">SEA 3 KM</span><b>22.8<em>°C</em></b></div>
+      <div class="kv"><span data-el="ΤΕΛΕΥΤΑΙΑ ΜΕΤΡΗΣΗ">LAST READING</span><b>4<em>MIN</em></b></div>
+      <p data-el="ΚΑΘΕ ΣΤΡΩΜΑ ΚΡΑΤΑ ΤΟ ΔΙΚΟ ΤΟΥ ΡΟΛΟΪ ΚΑΙ ΤΗ ΔΙΚΗ ΤΟΥ ΠΗΓΗ. ΟΙ ΔΕΣΜΕΣ ΔΕΙΧΝΟΥΝ ΑΠΟ ΠΟΥ ΕΡΧΕΤΑΙ Η ΚΑΘΕ ΜΙΑ.">EVERY LAYER KEEPS ITS OWN CLOCK AND ITS OWN SOURCE. THE BEAMS SHOW WHERE EACH ONE COMES FROM.</p>
+    </aside>
+  </div>
+
+  <div class="foot">
+    <p class="note" data-el="ΣΥΡΕ ΓΙΑ ΠΕΡΙΣΤΡΟΦΗ · ΚΥΛΗΣΗ Ή ΤΣΙΜΠΗΜΑ ΓΙΑ ΖΟΥΜ · ΠΑΤΑ ΕΝΑ ΣΤΡΩΜΑ ΓΙΑ ΝΑ ΤΟ ΚΡΥΨΕΙΣ">DRAG TO TURN · SCROLL OR PINCH TO ZOOM · TAP A LAYER TO HIDE IT</p>
+    <div class="glass tools">
+      <button type="button" id="tour" aria-pressed="true" data-el="ΞΕΝΑΓΗΣΗ">TOUR</button>
+      <button type="button" id="all" aria-pressed="true" data-el="ΟΛΑ">ALL</button>
+      <button type="button" data-band="SPACE" data-el="ΔΙΑΣΤΗΜΑ">SPACE</button>
+      <button type="button" data-band="AIR" data-el="ΑΕΡΑΣ">AIR</button>
+      <button type="button" data-band="GROUND" data-el="ΕΔΑΦΟΣ">GROUND</button>
+      <button type="button" data-band="CITY" data-el="ΠΟΛΗ">CITY</button>
+      <button type="button" data-band="WATER" data-el="ΝΕΡΟ">WATER</button>
+    </div>
+    <p class="note" style="text-align:right" data-el="ΤΟ ΑΝΑΓΛΥΦΟ ΚΑΙ ΟΙ ΕΙΚΟΝΕΣ ΕΙΝΑΙ ΥΠΟΚΑΤΑΣΤΑΤΑ ΤΩΝ ΠΡΑΓΜΑΤΙΚΩΝ ΔΕΔΟΜΕΝΩΝ">RELIEF AND RASTERS STAND IN FOR THE REAL FEEDS</p>
+  </div>
+</div>
+<div class="hint" id="hint" data-el="Η ΞΕΝΑΓΗΣΗ ΤΡΕΧΕΙ · ΣΥΡΕ ΓΙΑ ΝΑ ΑΝΑΛΑΒΕΙΣ">TOUR RUNNING · DRAG TO TAKE OVER</div>
+<script src="/site/island.js"></script>
+<script src="/stack-guard.js"></script>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three-r160/build/three.module.js", "three/addons/": "/vendor/three-r160/examples/jsm/" } }
+</script>
+<script type="module" src="/stack-app.js"></script>
+</body>
+</html>
