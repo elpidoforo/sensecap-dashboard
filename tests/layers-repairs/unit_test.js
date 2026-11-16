@@ -57,6 +57,18 @@ const hourStart = (ms) => Math.floor(ms / HOUR) * HOUR;
   latest = { A1: { 4097: { v: 22, t: iso(now + 2 * 60000) } } };
   ev = await T.evidenceFor('larnaka', ['sensecap-buses']);
   ok(ev.rows.some((r) => r.variable === 'temperature' && r.value === 22), 'future: two minutes ahead is inside the clock tolerance and is used');
+  /* ---- a reading thrown away is written down, so #/health can say what was left out and why ---- */
+  latest = { A1: { 4097: { v: 22, t: iso(now + 6 * HOUR) } }, A2: { 4097: { v: 24, t: iso(now - 10 * 60000) } } };
+  ev = await T.evidenceFor('larnaka', ['sensecap-buses']);
+  ok(ev.dropped.some((d) => d.why === 'future' && d.source === 'sensecap-buses' && d.city === 'larnaka'), 'dropped: a clock in the future is written down with the source and the city (' + JSON.stringify(ev.dropped) + ')');
+  latest = { A1: { 4097: { v: 900, t: iso(now - 5 * 60000) } } };
+  ev = await T.evidenceFor('larnaka', ['sensecap-buses']);
+  ok(!ev.rows.some((r) => r.variable === 'temperature'), 'dropped: a sensor reporting 900 degrees is not used');
+  ok(ev.dropped.some((d) => d.why === 'range' && d.variable === 'temperature' && d.value === 900), 'dropped: and the impossible value itself is kept, so the page can show it (' + JSON.stringify(ev.dropped) + ')');
+  latest = { A1: { 4097: { v: 22, t: iso(now - 5 * 60000) } } };
+  ev = await T.evidenceFor('larnaka', ['sensecap-buses']);
+  ok(ev.dropped.length === 0, 'dropped: an ordinary reading throws nothing away');
+
   const seen = now - 30 * HOUR;
   latest = { A1: { 4097: { v: 22, t: iso(seen) } }, A2: { 4097: { v: 24, t: iso(seen - HOUR) } } };
   let view = await T.registerView(4000);
