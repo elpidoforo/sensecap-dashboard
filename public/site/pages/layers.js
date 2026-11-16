@@ -27,7 +27,7 @@
   const LIST_ORDER = ['own', 'official', 'model', 'context'];
   // the views of the centre card: id, tab name (en, el), small heading (en, el), one line on what you see (en, el)
   const VIEWS = [
-    ['live', 'Live map', 'Ζωντανός χάρτης', 'Cyprus · every layer, live', 'Κύπρος · κάθε στρώμα, ζωντανά', 'One map where the layers move: wind, sea, our schools, official stations and the newest satellite data. Press a school or a station to read it.', 'Ένας χάρτης όπου τα στρώματα κινούνται: άνεμος, θάλασσα, τα σχολεία μας, οι επίσημοι σταθμοί και τα νεότερα δορυφορικά δεδομένα. Πάτα ένα σχολείο ή έναν σταθμό για να το διαβάσεις.'],
+    ['live', 'Live map', 'Ζωντανός χάρτης', 'Cyprus · latest available data', 'Κύπρος · τελευταία διαθέσιμα δεδομένα', 'One map where the layers move: wind, sea, our schools, official stations and the newest satellite data. Press a school or a station to read it.', 'Ένας χάρτης όπου τα στρώματα κινούνται: άνεμος, θάλασσα, τα σχολεία μας, οι επίσημοι σταθμοί και τα νεότερα δορυφορικά δεδομένα. Πάτα ένα σχολείο ή έναν σταθμό για να το διαβάσεις.'],
     ['cine', 'Data core', 'Πυρήνας δεδομένων', 'The data core', 'Ο πυρήνας των δεδομένων', 'Every layer sends its readings into the core. There the sources are compared, and the numbers go out to the four cities. Each travelling dot is one real reading; it is named in the amber box.', 'Κάθε στρώμα στέλνει τις μετρήσεις του στον πυρήνα. Εκεί οι πηγές συγκρίνονται και οι αριθμοί φεύγουν προς τις τέσσερις πόλεις. Κάθε κουκκίδα που ταξιδεύει είναι μία πραγματική μέτρηση· το όνομά της φαίνεται στο κεχριμπαρένιο πλαίσιο.'],
     ['day', 'Replay the day', 'Η μέρα ξανά', 'The saved day, played back', 'Η αποθηκευμένη μέρα, από την αρχή', 'Press play and the last day runs again, hour by hour. The four cities change places as their numbers change. Open a city to see which layer each number came from.', 'Πάτα αναπαραγωγή και η τελευταία μέρα τρέχει ξανά, ώρα με την ώρα. Οι τέσσερις πόλεις αλλάζουν θέση καθώς αλλάζουν οι αριθμοί τους. Άνοιξε μια πόλη για να δεις από ποιο στρώμα ήρθε κάθε αριθμός.'],
     ['pulse', 'Pulse', 'Παλμός', 'The pulse board', 'Ο πίνακας παλμού', 'Every layer is a row with a heartbeat: what is alive, what just spoke, what went quiet and when it speaks next.', 'Κάθε στρώμα είναι μια γραμμή με παλμό: τι είναι ζωντανό, τι μόλις μίλησε, τι σώπασε και πότε θα ξαναμιλήσει.'],
@@ -38,9 +38,43 @@
   ];
   const PLANE_ORDER = ['context', 'model', 'official', 'own'];   // bottom of the stack first
   const STATE = {
-    live: ['Live', 'Ζωντανό', 'live'], checking: ['Checking', 'Έλεγχος', 'off'], late: ['Late', 'Αργεί', 'late'], down: ['Down', 'Εκτός', 'down'], off: ['Off', 'Κλειστό', 'off'],
+    live: ['Available', 'Διαθέσιμο', 'live'], checking: ['Checking', 'Έλεγχος', 'off'], late: ['Late', 'Αργεί', 'late'], down: ['Down', 'Εκτός', 'down'], off: ['Off', 'Κλειστό', 'off'],
     planned: ['Planned', 'Σχεδιάζεται', 'plan'], candidate: ['Candidate', 'Υποψήφιο', 'cand'], retired: ['Retired', 'Αποσυρμένο', 'off'],
   };
+  const connected = (l) => l.state === 'live' || l.state === 'late';
+  const FILTERS = {
+    all: ['All layers', 'Όλα τα στρώματα', () => true],
+    connected: ['Connected', 'Συνδεδεμένα', connected],
+    pending: ['Needs connection', 'Σε αναμονή σύνδεσης', (l) => l.state === 'planned' || l.state === 'candidate'],
+    unavailable: ['Unavailable or switched off', 'Μη διαθέσιμα ή απενεργοποιημένα', (l) => ['down', 'off', 'retired'].includes(l.state)],
+    checking: ['Checking', 'Υπό έλεγχο', (l) => l.state === 'checking'],
+    reference: ['Archives and scenarios', 'Αρχεία και σενάρια', (l) => l.context],
+  };
+  function layerState(state, context, kind) {
+    if (context && state === 'live') {
+      return kind === 'model' ? ['Scenario', 'Σενάριο', 'ref'] : ['Archive', 'Αρχείο', 'ref'];
+    }
+    return STATE[state] || STATE.off;
+  }
+  const foldSearch = (s) => s.normalize('NFKD').toLowerCase().replace(/\p{M}/gu, '')
+    .replace(/ς/g, 'σ').replace(/pm\s*2[.,]5/g, 'pm25').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+  const INVESTIGATIONS = [
+    ['reservoir', 'Reservoir storage', 'Αποθήκευση νερού', 'reservoirs dams water volume Water Development Department φράγμα φράγματα ταμιευτήρας ταμιευτήρες νερό Τμήμα Αναπτύξεως Υδάτων'],
+    ['weather', 'Weather history', 'Ιστορικό καιρού', 'temperature temperatures air weather stations Department of Meteorology θερμοκρασία θερμοκρασίες καιρός σταθμοί Τμήμα Μετεωρολογίας'],
+    ['coast', 'Seabed profiles', 'Τομές βυθού', 'seabed sea floor depth bathymetry EMODnet coastal transects βυθός βάθος βαθυμετρία ακτή'],
+    ['crossings', 'Pedestrian crossings', 'Διαβάσεις πεζών', 'pedestrians road signal controlled traffic lights CyNAP Public Works Department διάβαση πεζοί σηματοδότηση φανάρια Τμήμα Δημοσίων Έργων'],
+    ['arakapas', 'Arakapas fire maps', 'Χάρτες πυρκαγιάς Αρακαπά', 'Copernicus EMSR515 CEMS Melini wildfire burnt burned area polygons satellite fire hectares July 2021 SPOT6 SPOT7 Αρακαπάς Μελίνη πυρκαγιά φωτιά καμένη έκταση εκτάρια δορυφόρος'],
+    ['verifiedno2', 'Verified hourly nitrogen dioxide', 'Επικυρωμένες ωριαίες μετρήσεις NO₂', 'EEA E1a verified archive nitrogen dioxide NO2 NO₂ UTC+1 validation verification σταθμοί επαληθευμένες επικύρωση διοξείδιο αζώτου ΕΟΠ'],
+    ['gases', 'Hourly air pollution', 'Ωριαία ατμοσφαιρική ρύπανση', 'NO2 NO₂ O3 O₃ ozone nitrogen dioxide DLI air quality stations όζον διοξείδιο αζώτου ρύποι ποιότητα αέρα'],
+    ['aeronet', 'Aerosol optical depth', 'Οπτικό βάθος αερολυμάτων', 'NASA AERONET CUT TEPAK Nicosia Limassol sun photometer aerosols atmosphere AOD 500 αερολύματα ατμόσφαιρα ηλιακό φωτόμετρο Λευκωσία Λεμεσός'],
+    ['drought', 'Agricultural drought', 'Γεωργική ξηρασία', 'European Drought Observatory Copernicus JRC EDO Combined Drought Indicator CDI rainfall soil moisture vegetation drought class Xylophagou Athienou Akaki Polis ξηρασία ανομβρία γεωργία βλάστηση υγρασία εδάφους Ξυλοφάγου Αθηένου Ακάκι Πόλη Χρυσοχούς'],
+    ['flood', 'Flood scenarios by river reach', 'Σενάρια πλημμύρας ανά τμήμα ποταμού', 'WDD floodplain floods polygons hazard risk zones designated river reaches APSFR Q20 Q100 Q500 climate 2080 Water Development Department πλημμύρα πλημμύρες κίνδυνος ποταμός ποτάμι ζώνες σενάρια πλημμυρικός Τμήμα Αναπτύξεως Υδάτων'],
+    ['power', 'Electricity generation by fuel', 'Ηλεκτροπαραγωγή ανά πηγή ενέργειας', 'Eurostat monthly electricity energy mix net generation power oil petroleum solar PV photovoltaic wind renewable combustible fuels GWh ηλεκτρική ενέργεια παραγωγή πετρέλαιο ηλιακή φωτοβολταϊκά αιολική άνεμος καύσιμα ηλεκτρισμός'],
+    ['ev', 'EV charging points', 'Σημεία φόρτισης ηλεκτρικών οχημάτων', 'chargers charging stations electric vehicles electricity AC DC CyNAP φορτιστής φορτιστές φόρτιση φόρτισης σταθμοί ηλεκτροκίνηση ηλεκτρικά οχήματα'],
+    ['census', 'Municipal population', 'Πληθυσμός δήμων', 'census 2021 residents municipalities CYSTAT απογραφή πληθυσμού κάτοικοι δήμοι Στατιστική Υπηρεσία'],
+  ];
+
   const CONF = { high: [3, 'High', 'Υψηλή'], medium: [2, 'Medium', 'Μέτρια'], low: [1, 'Low', 'Χαμηλή'] };
   const GAP_WHY = {
     'too-far': ['no point close enough to this city', 'κανένα σημείο αρκετά κοντά σε αυτή την πόλη'],
@@ -181,8 +215,7 @@
 
       /* ----- helpers on the register ----- */
       const layers = () => (S.reg ? S.reg.layers : []);
-      const live = (l) => l.state === 'live' || l.state === 'late';
-      const isOn = (l) => live(l) && !S.off.has(l.id);
+      const isOn = (l) => connected(l) && !S.off.has(l.id);
       const onIds = () => layers().filter(isOn).map((l) => l.id).sort();
       const inGroup = (g) => layers().filter((l) => l.group === g);
       const onCount = (g) => inGroup(g).filter(isOn).length;
@@ -193,8 +226,8 @@
       const head = SC.head({
         title: T('Data layers', 'Στρώματα δεδομένων'),
         fresh: T('Checking the layers…', 'Έλεγχος στρωμάτων…'),
-        lede: T('Every open source we know about for Cyprus’s cities, stacked as layers. Switch layers on and the master brain reads exactly those, together with our own sensors.',
-          'Κάθε ανοιχτή πηγή που γνωρίζουμε για τις πόλεις της Κύπρου, στοιβαγμένη ως στρώματα. Ενεργοποιήστε στρώματα και ο κύριος εγκέφαλος διαβάζει ακριβώς αυτά, μαζί με τους δικούς μας αισθητήρες.'),
+        lede: T('Find data about Cyprus by source or measurement. Choose layers to explore on the map, or open a source to check its dates and limits.',
+          'Βρες δεδομένα για την Κύπρο με βάση την πηγή ή τη μέτρηση. Διάλεξε στρώματα για τον χάρτη ή άνοιξε μια πηγή για να δεις την περίοδο και τους περιορισμούς της.'),
         help: [
           'Each layer is one source of data: our own sensors, official stations, models and satellites, or context about the city such as transport and green space. A switch turns a layer on or off for the master brain. A layer that is not connected yet is locked: it is planned or only a candidate. Pick a city and the brain writes findings from the layers that are on. Every finding names its sources, says how sure we are and shows when sources disagree. Where there is not enough data, it says so instead of guessing.',
           'Κάθε στρώμα είναι μια πηγή δεδομένων: οι δικοί μας αισθητήρες, επίσημοι σταθμοί, μοντέλα και δορυφόροι, ή πλαίσιο της πόλης όπως συγκοινωνίες και πράσινο. Ο διακόπτης ενεργοποιεί ή απενεργοποιεί ένα στρώμα για τον κύριο εγκέφαλο. Ένα στρώμα που δεν έχει συνδεθεί ακόμη είναι κλειδωμένο: είναι προγραμματισμένο ή μόνο υποψήφιο. Διαλέξτε μια πόλη και ο εγκέφαλος γράφει ευρήματα από τα στρώματα που είναι ενεργά. Κάθε εύρημα δείχνει τις πηγές του, πόσο σίγουροι είμαστε και πού διαφωνούν οι πηγές. Όπου δεν υπάρχουν αρκετά δεδομένα, το λέει αντί να μαντεύει.',
@@ -243,8 +276,36 @@
 
       /* ----- layer list ----- */
       R.list = h('section', { class: 'nm-card ly-br ly-list', 'aria-label': T('Layer list', 'Λίστα στρωμάτων') });
+      const search = h('input', {
+        id: 'ly-search', type: 'search', autocomplete: 'off', placeholder: T('e.g. dust, PM2.5, NASA', 'π.χ. σκόνη, PM2.5, NASA'),
+        'aria-controls': 'ly-results ly-investigations', oninput: drawList,
+      });
+      const filter = h('select', { id: 'ly-filter', 'aria-controls': 'ly-results ly-investigations', onchange: drawList },
+        Object.entries(FILTERS).map(([value, [en, el]]) => h('option', { value }, T(en, el))));
+      const listCount = h('p', { class: 'ly-matches', role: 'status', 'aria-atomic': 'true' });
+      const listRows = h('div', { id: 'ly-results' });
+      const investigations = INVESTIGATIONS.map(([id, en, el, aliases]) => ({
+        terms: foldSearch([id, en, el, aliases].join(' ')),
+        link: h('a', { href: '#/fieldwork/' + id }, T(en, el)),
+      }));
+      const archiveLinks = h('section', { class: 'ly-investigations', id: 'ly-investigations', hidden: true, 'aria-labelledby': 'ly-investigations-title' },
+        h('h3', { id: 'ly-investigations-title' }, T('Archived investigations', 'Έρευνες με αρχειακά δεδομένα')),
+        h('p', null, T('Explore dated datasets in a separate workspace.', 'Μελέτησε δεδομένα συγκεκριμένων περιόδων σε ξεχωριστό χώρο εργασίας.')),
+        investigations.map((item) => item.link));
+      const listTotal = h('span');
+      const clearFilters = () => { search.value = ''; filter.value = 'all'; drawList(); search.focus(); };
+      R.list.append(
+        h('div', { class: 'ly-hd' }, h('h2', null, T('Layer catalogue', 'Κατάλογος στρωμάτων')), listTotal),
+        h('a', { class: 'ly-fieldwork', href: '#/fieldwork' }, T('Explore source data', 'Εξερεύνησε τα δεδομένα των πηγών'), h('span', { 'aria-hidden': 'true' }, ' →')),
+        h('div', { class: 'ly-filters' },
+          h('label', { for: 'ly-search' }, T('Search sources', 'Αναζήτηση πηγών')), search,
+          h('label', { for: 'ly-filter' }, T('Show', 'Προβολή')), filter),
+        listCount, archiveLinks, listRows,
+        h('a', { class: 'ly-add', href: SOURCES_URL, target: '_blank', rel: 'noopener' }, '+ ', T('Suggest a source', 'Προτείνετε μια πηγή')));
+      if (isTeacher()) R.list.append(h('button', { class: 'ly-add ly-assign', type: 'button', onclick: editAssignments }, T('Where each sensor is (teachers)', 'Πού βρίσκεται κάθε αισθητήρας (εκπαιδευτικοί)')));
+
       function toggle(l) {
-        if (!live(l)) return;
+        if (!connected(l)) return;
         if (S.off.has(l.id)) S.off.delete(l.id); else S.off.add(l.id);
         saveOff(S.off);
         drawList(); drawStage(); drawBrainLeft(); schedule();
@@ -254,26 +315,62 @@
         return (l.group === 'own' || l.id === 'cydom-stations') && l.count > 0 ? n + ' (' + l.count + ')' : n;
       }
       function drawList() {
-        const total = layers().length, liveN = layers().filter(live).length;
-        const kids = [h('div', { class: 'ly-hd' }, h('b', null, T('The layers', 'Τα στρώματα')), h('span', null, T(total + ' known · ' + liveN + ' live', total + ' γνωστά · ' + liveN + ' ζωντανά')))];
+        if (!S.reg) return;
+        const all = layers();
+        const words = foldSearch(search.value).split(' ').filter(Boolean);
+        const visible = all.filter((l) => {
+          if (!FILTERS[filter.value][2](l)) return false;
+          if (!words.length) return true;
+          const group = GROUPS[l.group];
+          const text = foldSearch([l.id, l.name, l.nameEl, l.tagline, l.taglineEl, l.summary, l.summaryEl,
+            l.publisher, l.kind, ...(l.variables || []), ...(l.period || []), group.en, group.el].join(' '));
+          return words.every((word) => text.includes(word));
+        });
+        const showArchives = filter.value === 'reference' || (filter.value === 'all' && words.length > 0);
+        let archiveCount = 0;
+        investigations.forEach(({ terms, link }) => {
+          const match = showArchives && words.every((word) => terms.includes(word));
+          link.hidden = !match;
+          if (match) archiveCount++;
+        });
+        archiveLinks.hidden = archiveCount === 0;
+        const layerCount = T(visible.length + ' of ' + all.length + ' layers shown', 'Εμφανίζονται ' + visible.length + ' από ' + all.length + ' στρώματα');
+        const archiveCountLabel = T(archiveCount + (archiveCount === 1 ? ' investigation' : ' investigations'),
+          archiveCount + (archiveCount === 1 ? ' έρευνα' : ' έρευνες'));
+        const count = [visible.length || !archiveCount ? layerCount : '', archiveCount ? archiveCountLabel : ''].filter(Boolean).join(' · ');
+        if (listCount.textContent !== count) listCount.textContent = count;
+        const connectedCount = all.filter(connected).length;
+        listTotal.textContent = T(connectedCount + ' connected', connectedCount + ' συνδεδεμένα');
+
+        // Search and filter controls stay mounted while typing and during the register's periodic refresh.
+        const active = document.activeElement;
+        const focusedRow = listRows.contains(active) && active.closest('.ly-row');
+        let refocus = null;
+        const groups = [];
         LIST_ORDER.forEach((g) => {
-          const items = inGroup(g);
+          const items = visible.filter((l) => l.group === g);
           if (!items.length) return;
-          const n = items.filter(live).length, on = onCount(g);
-          kids.push(h('div', { class: 'ly-grp ly-' + g },
-            h('h4', null, T(GROUPS[g].en, GROUPS[g].el), h('small', null, T(on + ' of ' + n + ' on', on + ' από ' + n + ' ενεργά'))),
+          const n = items.filter(connected).length, on = items.filter(isOn).length;
+          const groupCount = n ? T(on + ' of ' + n + ' on', on + ' από ' + n + ' ενεργά') : String(items.length);
+          groups.push(h('div', { class: 'ly-grp ly-' + g },
+            h('h3', null, T(GROUPS[g].en, GROUPS[g].el), h('small', null, groupCount)),
             items.map((l) => {
-              const st = STATE[l.state] || STATE.off, locked = !live(l), checked = isOn(l);
-              const sub = l.context && l.period && !locked ? l.period[isEl() ? 1 : 0] : locked || l.state === 'late' ? (l.state === 'late' || l.state === 'down' ? (isEl() ? l.noteEl : l.note) : (isEl() ? l.taglineEl : l.tagline)) : (isEl() ? l.taglineEl : l.tagline);
-              return h('div', { class: 'ly-row' + (locked ? ' ly-dim' : '') },
-                h('button', { class: 'ly-tg', type: 'button', role: 'switch', 'aria-checked': checked ? 'true' : 'false', disabled: locked, 'aria-label': T('Read ' + nameOf(l) + ' in the findings', 'Ανάγνωση «' + nameOf(l) + '» στα ευρήματα'), onclick: () => toggle(l) }),
-                h('button', { class: 'ly-nm', type: 'button', onclick: () => openLayer(l.id) }, layerLabel(l), l.kind === 'satellite' ? kindChip() : null, sub ? h('small', null, sub) : null),
+              const st = layerState(l.state, l.context, l.kind), locked = !connected(l), checked = isOn(l);
+              const sub = l.context && l.period && !locked ? placeName(l.period) :
+                l.state === 'down' || l.state === 'late' ? placeName([l.note, l.noteEl]) : placeName([l.tagline, l.taglineEl]);
+              const control = h('button', { class: 'ly-tg', type: 'button', role: 'switch', 'aria-checked': checked ? 'true' : 'false', disabled: locked,
+                'aria-label': T('Include ' + nameOf(l), 'Συμπερίληψη στρώματος «' + nameOf(l) + '»'), onclick: () => toggle(l) });
+              const details = h('button', { class: 'ly-nm', type: 'button', onclick: () => openLayer(l.id) }, layerLabel(l), l.kind === 'satellite' ? kindChip() : null, sub ? h('small', null, sub) : null);
+              if (focusedRow && focusedRow.dataset.layer === l.id) refocus = active.matches('.ly-tg') && !locked ? control : details;
+              return h('div', { class: 'ly-row' + (locked ? ' ly-dim' : ''), dataset: { layer: l.id } }, control, details,
                 h('span', { class: 'ly-pl ' + st[2] }, T(st[0], st[1])));
             })));
         });
-        kids.push(h('a', { class: 'ly-add', href: SOURCES_URL, target: '_blank', rel: 'noopener' }, '+ ', T('Suggest a source', 'Προτείνετε μια πηγή')));
-        if (isTeacher()) kids.push(h('button', { class: 'ly-add ly-assign', type: 'button', onclick: editAssignments }, T('Where each sensor is (teachers)', 'Πού βρίσκεται κάθε αισθητήρας (εκπαιδευτικοί)')));
-        R.list.replaceChildren(...kids);
+        if (!groups.length && !archiveCount) groups.push(h('div', { class: 'ly-empty' },
+          h('p', null, T('No matching layers. Try another source name or measurement.', 'Δεν βρέθηκαν στρώματα. Δοκίμασε άλλο όνομα πηγής ή άλλη μέτρηση.')),
+          btn('nm-btn', T('Clear filters', 'Καθαρισμός φίλτρων'), clearFilters)));
+        listRows.replaceChildren(...groups);
+        if (focusedRow) (refocus || search).focus({ preventScroll: true });
       }
 
       /* ----- teachers: where each sensor is (GET and PUT /layers/api/assignments) -----
@@ -403,7 +500,7 @@
           pl.querySelector('svg') && pl.querySelector('svg').remove();
           pl.prepend(planeSvg(g, on[g]));
           const names = inGroup(g).filter(isOn).map((l) => nameOf(l));
-          const any = inGroup(g).some(live);
+          const any = inGroup(g).some(connected);
           lab.firstChild.nextSibling.firstChild.textContent = T(GROUPS[g].en, GROUPS[g].el);
           lab.querySelector('small').textContent = names.length ? names.join(', ') : any ? T('all switched off', 'όλα απενεργοποιημένα') : T('none connected yet', 'κανένα συνδεδεμένο ακόμη');
         });
@@ -437,7 +534,7 @@
             h('i', { style: { width: pc(c.planned || 0), background: '#F2CF86' } }), h('i', { style: { width: pc(c.candidate || 0), background: 'rgba(255,255,255,.22)' } }))),
           h('a', { href: SOURCES_URL, onclick: (e) => { e.preventDefault(); howWeFind(); } }, T('How we find new layers', 'Πώς βρίσκουμε νέα στρώματα'), ' ↗'),
           h('div', { class: 'ly-nums' },
-            h('span', null, h('b', null, c.connected || 0), ' ', T('live', 'ζωντανά')),
+            h('span', null, h('b', null, c.connected || 0), ' ', T('connected', 'συνδεδεμένα')),
             bad ? h('span', null, h('b', null, bad), ' ', T('not answering', 'δεν απαντούν')) : null,
             h('span', null, h('b', null, c.planned || 0), ' ', T('planned', 'προγραμματισμένα')),
             h('span', null, h('b', null, c.candidate || 0), ' ', T(dayLine(c.candidate, 'candidate', 'candidates'), 'υποψήφια')),
@@ -634,7 +731,7 @@
           const s = r.layer, st = r.status, i18n = (s.i18n && s.i18n.el) || {};
           const row = (k, v) => (v == null || v === '' ? null : [h('dt', null, k), h('dd', null, v)]);
           const link = (u) => (u ? h('a', { href: u, target: '_blank', rel: 'noopener' }, u.replace(/^https?:\/\//, '').slice(0, 60)) : null);
-          const stt = STATE[(known && known.state) || st.state] || STATE.off;
+          const stt = layerState(st.state, s.x_context, s.quality && s.quality.kind);
           const ctxSlot = h('div', { class: 'ly-ctx-slot' });   // a context layer shows what it holds here (pages/layers-flow.js)
           if (s['x_context']) loadLiveLib().then((okLib) => { if (okLib && SC.layersLive.contextView && ctxSlot.isConnected) SC.layersLive.contextView(ctxSlot, id); });
           const sat = h('div', { class: 'ly-sat-slot' });   // the satellite pictures of this layer, when its feed has any
@@ -661,7 +758,7 @@
           title: T('How we find new layers', 'Πώς βρίσκουμε νέα στρώματα'),
           body: h('div', { class: 'ly-det' },
             h('p', null, T('Every layer is one small file in the sources folder of our code. It says who publishes the data, the licence, how often it changes, what it measures and where it is not representative.', 'Κάθε στρώμα είναι ένα μικρό αρχείο στον φάκελο sources του κώδικά μας. Λέει ποιος δημοσιεύει τα δεδομένα, την άδεια, πόσο συχνά αλλάζουν, τι μετρούν και πού δεν είναι αντιπροσωπευτικά.')),
-            h('p', null, T('Anyone on the team can suggest a source by adding a file. A checker refuses a file that guesses a licence or copies a provider’s text. A teacher reads it before it joins. It starts as a candidate, and becomes live once someone writes the connection that reads it.', 'Οποιοσδήποτε στην ομάδα μπορεί να προτείνει μια πηγή προσθέτοντας ένα αρχείο. Ένας έλεγχος απορρίπτει αρχείο που μαντεύει άδεια ή αντιγράφει κείμενο του εκδότη. Ένας εκπαιδευτικός το διαβάζει πριν ενταχθεί. Ξεκινά ως υποψήφιο και γίνεται ζωντανό όταν κάποιος γράψει τη σύνδεση που το διαβάζει.')),
+            h('p', null, T('Anyone on the team can suggest a source by adding a file. A checker refuses a file that guesses a licence or copies a provider’s text. A teacher reads it before it joins. The catalogue marks it as available once Athena can read it.', 'Οποιοσδήποτε στην ομάδα μπορεί να προτείνει μια πηγή προσθέτοντας ένα αρχείο. Ένας έλεγχος απορρίπτει αρχείο που μαντεύει άδεια ή αντιγράφει κείμενο του εκδότη. Ένας εκπαιδευτικός το διαβάζει πριν ενταχθεί. Ο κατάλογος το εμφανίζει ως διαθέσιμο όταν η Αθηνά μπορεί να το διαβάσει.')),
             h('p', null, h('a', { href: SOURCES_URL, target: '_blank', rel: 'noopener' }, T('Open the sources folder', 'Άνοιγμα του φακέλου sources')), ' ↗')),
         });
       }
@@ -694,6 +791,7 @@
           if (first) {
             R.right.replaceChildren(h('div', { class: 'err', role: 'alert' }, errMsg(e)), btn('nm-btn', T('Try again', 'Δοκιμάστε ξανά'), () => load(true)));
             setPill(T('Layers unavailable', 'Τα στρώματα δεν είναι διαθέσιμα'));
+            listRows.replaceChildren(btn('nm-btn', T('Reload catalogue', 'Επαναφόρτωση καταλόγου'), () => load(true)));
           }
         }
       }
@@ -702,7 +800,7 @@
 
       root.append(head, R.mission, h('div', { class: 'ly-work' }, R.list, R.stage), R.brain);
       drawBrainLeft(); drawRight();
-      R.list.replaceChildren(h('div', { class: 'ly-skel', style: { height: '420px' } }));
+      listRows.replaceChildren(h('div', { class: 'ly-skel', style: { height: '420px' } }));
       load(true);
       const poll = setInterval(() => { if (!document.hidden) load(false); }, 60000);
       timers.push(() => clearInterval(poll));

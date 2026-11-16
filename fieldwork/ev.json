@@ -1,0 +1,1644 @@
+{
+  "title": "Cyprus electric vehicle charging points by operator",
+  "sourceUrl": "https://fixcyprus.cy/gnosis/open/api/nap/datasets/electric_vehicle_chargers/",
+  "catalogueUrl": "https://www.traffic4cyprus.org.cy/en/dataset/electricvehiclecharges",
+  "attribution": "Department of Electrical and Mechanical Services, Cyprus, via CyNAP. Counts and map prepared by Athena.",
+  "attributionEl": "Τμήμα Ηλεκτρομηχανολογικών Υπηρεσιών Κύπρου μέσω CyNAP. Καταμέτρηση και χάρτης από την Athena.",
+  "licence": "CC BY 4.0",
+  "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "publishedAt": "2026-11-15T23:30:55.738736+02:00",
+  "retrievedAt": "2026-11-16T10:22:17+00:00",
+  "observedAt": null,
+  "sourceSha256": "c17fa35d7eb4186bde76249df68790fdd4861cc871804d56f241d992f9cb48f7",
+  "unit": "charging points",
+  "method": "Each inventory record counts once under its reported operator and current type. Multiple points can share coordinates. The publication timestamp dates the extract. This inventory does not report current availability.",
+  "methodEl": "Κάθε εγγραφή μετρά μία φορά ανά φορέα εκμετάλλευσης και τύπο ρεύματος. Πολλά σημεία μπορεί να έχουν τις ίδιες συντεταγμένες. Η ημερομηνία δημοσίευσης αφορά τον κατάλογο. Τα δεδομένα δεν δείχνουν διαθεσιμότητα σε πραγματικό χρόνο.",
+  "coverage": {
+    "sourceRecords": 171,
+    "distinctCoordinates": 100,
+    "connectors": 203,
+    "firstRecordCreated": "2023-07-05",
+    "lastRecordCreated": "2024-12-05"
+  },
+  "series": [
+    {
+      "name": "All charging points",
+      "nameEl": "Όλα τα σημεία φόρτισης",
+      "points": [
+        [
+          "Petrolina (Holdings) Public Ltd.",
+          112
+        ],
+        [
+          "EV Power",
+          50
+        ],
+        [
+          "Lidl Cyprus",
+          4
+        ],
+        [
+          "e-Point",
+          4
+        ],
+        [
+          "Unspecified",
+          1
+        ]
+      ]
+    },
+    {
+      "name": "AC",
+      "nameEl": "AC",
+      "points": [
+        [
+          "Petrolina (Holdings) Public Ltd.",
+          104
+        ],
+        [
+          "EV Power",
+          49
+        ],
+        [
+          "Lidl Cyprus",
+          0
+        ],
+        [
+          "e-Point",
+          4
+        ],
+        [
+          "Unspecified",
+          0
+        ]
+      ]
+    },
+    {
+      "name": "DC",
+      "nameEl": "DC",
+      "points": [
+        [
+          "Petrolina (Holdings) Public Ltd.",
+          8
+        ],
+        [
+          "EV Power",
+          1
+        ],
+        [
+          "Lidl Cyprus",
+          4
+        ],
+        [
+          "e-Point",
+          0
+        ],
+        [
+          "Unspecified",
+          1
+        ]
+      ]
+    }
+  ],
+  "locations": [
+    {
+      "name": "Petrolina GSZ Station (150kW)",
+      "latitude": 34.92514226471998,
+      "longitude": 33.601899147034,
+      "currentType": "DC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 2,
+      "recordCreated": "2023-07-05"
+    },
+    {
+      "name": "OneTower 2301 (22kW)",
+      "latitude": 34.687509725511994,
+      "longitude": 33.064895896694,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2023-07-11"
+    },
+    {
+      "name": "OneTower 2901 (22kW)",
+      "latitude": 34.687706798987,
+      "longitude": 33.064890850556,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2023-07-11"
+    },
+    {
+      "name": "OneTower Public (22kW)",
+      "latitude": 34.687507650995,
+      "longitude": 33.064890850556,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2023-07-11"
+    },
+    {
+      "name": "CapoBay Hotel Right (22kW)",
+      "latitude": 35.012958251040004,
+      "longitude": 34.056632145264,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2023-07-25"
+    },
+    {
+      "name": "CapoBay Hotel Left (22kW)",
+      "latitude": 35.013042128274,
+      "longitude": 34.056566806388,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2023-07-25"
+    },
+    {
+      "name": "The Ritz-Carlton Public Left (22kW)",
+      "latitude": 34.704027796865006,
+      "longitude": 33.10858895182,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2023-08-28"
+    },
+    {
+      "name": "Mercure Beach Resort (2x22kW)",
+      "latitude": 34.969522197958,
+      "longitude": 33.671454191208,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2023-09-06"
+    },
+    {
+      "name": "SuperHome Center Lakatamia (2x22kW)",
+      "latitude": 35.126109794373,
+      "longitude": 33.292094203762,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2023-10-09"
+    },
+    {
+      "name": "Tennis Club Larnaca (2x22kW)",
+      "latitude": 34.91282612787,
+      "longitude": 33.630952835083,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2023-10-09"
+    },
+    {
+      "name": "MyMall Limassol Right (2x22kW)",
+      "latitude": 34.653292250524004,
+      "longitude": 32.99748181477,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2023-11-09"
+    },
+    {
+      "name": "MyMall Limassol Left (2x22kW)",
+      "latitude": 34.65328422725301,
+      "longitude": 32.997374548876,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2023-11-14"
+    },
+    {
+      "name": "Alion Beach Hotel Right (22kW)",
+      "latitude": 34.984575099999994,
+      "longitude": 34.011105,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-01-04"
+    },
+    {
+      "name": "Alion Beach Hotel Left (22kW)",
+      "latitude": 34.984575099999994,
+      "longitude": 34.011105,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-01-04"
+    },
+    {
+      "name": "Papantoniou Supermarket Engomi (2x22kW)",
+      "latitude": 35.154836941655006,
+      "longitude": 33.330057263374,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-01-15"
+    },
+    {
+      "name": "Papantoniou Supermarket Polis (2x22kW)",
+      "latitude": 35.03567199999999,
+      "longitude": 32.4299139,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-01-16"
+    },
+    {
+      "name": "Papantoniou Supermarket Chloraka (2x22kW)",
+      "latitude": 34.8050075606,
+      "longitude": 32.409877181053,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-01-16"
+    },
+    {
+      "name": "Papantoniou Supermarket Geroskipou (22kW)",
+      "latitude": 34.75610507734899,
+      "longitude": 32.461311221123,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-01-17"
+    },
+    {
+      "name": "Papantoniou Supermarket Kato Paphos (2x22kW)",
+      "latitude": 34.75611389201199,
+      "longitude": 32.413610816002006,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-01-17"
+    },
+    {
+      "name": "Papantoniou Supermarket Pissouri (22kW)",
+      "latitude": 34.675357118686996,
+      "longitude": 32.696995224315,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-01-22"
+    },
+    {
+      "name": "Papantoniou Supermarket Ypsonas (2x22kW)",
+      "latitude": 34.683519716118994,
+      "longitude": 32.972572445869,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-01-22"
+    },
+    {
+      "name": "Papantoniou Supermarket Katholiki (2x22kW)",
+      "latitude": 34.680877363642,
+      "longitude": 33.0375623703,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-01-22"
+    },
+    {
+      "name": "Papantoniou Supermarket Paphos (2x22kW)",
+      "latitude": 34.78212626991499,
+      "longitude": 32.425594925880006,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-02-05"
+    },
+    {
+      "name": "S.E.K HQ Lefkosia (2x22kW)",
+      "latitude": 35.14966136443601,
+      "longitude": 33.34700345993,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-02-14"
+    },
+    {
+      "name": "I.M Tamasou (2x22kW)",
+      "latitude": 35.041898153574,
+      "longitude": 33.236737690883,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-02-23"
+    },
+    {
+      "name": "Hilton Park (2x22kW)",
+      "latitude": 35.161612899999994,
+      "longitude": 33.3283916,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-02-23"
+    },
+    {
+      "name": "SuperHome Center Limasol (2x22kW)",
+      "latitude": 34.70367792724899,
+      "longitude": 33.048834666123,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-02-29"
+    },
+    {
+      "name": "Philippos Supermarket Paphos 3 (22KW)",
+      "latitude": 34.85642102277101,
+      "longitude": 32.378554344177,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-02-29"
+    },
+    {
+      "name": "Kefalos Hotel 22kW",
+      "latitude": 34.77022202328,
+      "longitude": 32.406590174623,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-02-29"
+    },
+    {
+      "name": "Olympic Residence Left (22kW)",
+      "latitude": 34.68719857729401,
+      "longitude": 33.064202070236,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-03-06"
+    },
+    {
+      "name": "The Ritz-Carlton Public Right (22kW)",
+      "latitude": 34.7034624,
+      "longitude": 33.1087228,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-03-08"
+    },
+    {
+      "name": "The Ritz-Carlton 1602/74 (22kW)",
+      "latitude": 34.7034624,
+      "longitude": 33.1087228,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-03-08"
+    },
+    {
+      "name": "The Ritz-Carlton 1602/75 (22kW)",
+      "latitude": 34.7034624,
+      "longitude": 33.1087228,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-03-08"
+    },
+    {
+      "name": "EOA Nicosia 8 (22kW)",
+      "latitude": 35.17328860000001,
+      "longitude": 33.3595014,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-11-26"
+    },
+    {
+      "name": "The Ritz-Carlton 1606/85 (22kW)",
+      "latitude": 34.7034624,
+      "longitude": 33.1087228,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-03-08"
+    },
+    {
+      "name": "The Ritz-Carlton 2905/89 (22kW)",
+      "latitude": 34.7034624,
+      "longitude": 33.1087228,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-03-08"
+    },
+    {
+      "name": "The Ritz-Carlton 2604/59 (22kW)",
+      "latitude": 34.7034624,
+      "longitude": 33.1087228,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-03-08"
+    },
+    {
+      "name": "The Ritz-Carlton 2604/60 (22kW)",
+      "latitude": 34.7034624,
+      "longitude": 33.1087228,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-03-08"
+    },
+    {
+      "name": "The Ritz-Carlton 2905/88 (22kW)",
+      "latitude": 34.7034624,
+      "longitude": 33.1087228,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-03-08"
+    },
+    {
+      "name": "The Ritz-Carlton 1801/70 (22kW)",
+      "latitude": 34.7034624,
+      "longitude": 33.1087228,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-03-08"
+    },
+    {
+      "name": "The Ritz-Carlton 1901/78 (22kW)",
+      "latitude": 34.7034624,
+      "longitude": 33.1087228,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-03-08"
+    },
+    {
+      "name": "Olympic Residence Right (22kW)",
+      "latitude": 34.68720151805401,
+      "longitude": 33.064241381736,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-03-08"
+    },
+    {
+      "name": "Petrolina Chirokitia Station (75kW)",
+      "latitude": 34.795550048268,
+      "longitude": 33.345985334408,
+      "currentType": "DC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 2,
+      "recordCreated": "2024-03-13"
+    },
+    {
+      "name": "Faros Hotel (2x22kW)",
+      "latitude": 34.9841655,
+      "longitude": 34.0005601,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-04-03"
+    },
+    {
+      "name": "Pefkos Parking (2x22kW)",
+      "latitude": 35.164331797612995,
+      "longitude": 33.360970927185,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-04-04"
+    },
+    {
+      "name": "Electroline Latsia (2x22kW)",
+      "latitude": 35.125487500000006,
+      "longitude": 33.3702682,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-04-04"
+    },
+    {
+      "name": "Agios Theodoros Council (22kW)",
+      "latitude": 34.80103000244301,
+      "longitude": 33.383830189705,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-04-12"
+    },
+    {
+      "name": "Carousel Cafe Limasol 22kW",
+      "latitude": 34.68403250000001,
+      "longitude": 33.0309376,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-04-12"
+    },
+    {
+      "name": "SuperHome Center Larnaka (2x22kW)",
+      "latitude": 34.92936259999998,
+      "longitude": 33.6228335,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-04-15"
+    },
+    {
+      "name": "Petrolina Kato Polemidia Station (75kW)",
+      "latitude": 34.67613450000001,
+      "longitude": 32.9889001,
+      "currentType": "DC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 2,
+      "recordCreated": "2024-04-15"
+    },
+    {
+      "name": "Petrolina ENI Konia Station (50kW)",
+      "latitude": 34.773796257966,
+      "longitude": 32.458407135459,
+      "currentType": "DC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 2,
+      "recordCreated": "2024-04-22"
+    },
+    {
+      "name": "Omodos Council (2x22kW)",
+      "latitude": 34.84724533698999,
+      "longitude": 32.806592018499,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-04-26"
+    },
+    {
+      "name": "Mall of Cyprus Right (2x22kW)",
+      "latitude": 35.130263,
+      "longitude": 33.370917,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-02"
+    },
+    {
+      "name": "Mall of Cyprus Left (2x22kW)",
+      "latitude": 35.130263,
+      "longitude": 33.370917,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-02"
+    },
+    {
+      "name": "Nissi Beach Isola Parking (2x22kW)",
+      "latitude": 34.988306,
+      "longitude": 33.9683697,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-08"
+    },
+    {
+      "name": "The Ritz-Carlton 802/72 (22kW)",
+      "latitude": 34.7034624,
+      "longitude": 33.1087228,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-09"
+    },
+    {
+      "name": "Ivi Mare Hotel Right (22kW)",
+      "latitude": 34.74039500000001,
+      "longitude": 32.4339696,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-13"
+    },
+    {
+      "name": "Ivi Mare Hotel Left (22kW)",
+      "latitude": 34.74039500000001,
+      "longitude": 32.4339696,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-13"
+    },
+    {
+      "name": "Royal Apollonia Hotel 1 (22kW)",
+      "latitude": 34.69740379999999,
+      "longitude": 33.0949755,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-21"
+    },
+    {
+      "name": "BMW HQ Nicosia (150kW)",
+      "latitude": 35.12538020000001,
+      "longitude": 33.3647279,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-27"
+    },
+    {
+      "name": "St. Elias Hotel Left (22kW)",
+      "latitude": 35.01787000000001,
+      "longitude": 34.038587,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-28"
+    },
+    {
+      "name": "St. Elias Hotel Right (22kW)",
+      "latitude": 35.01787000000001,
+      "longitude": 34.038587,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-28"
+    },
+    {
+      "name": "Sunrise Oasis Hotel (2x22kW)",
+      "latitude": 35.01390419999999,
+      "longitude": 34.0503206,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-29"
+    },
+    {
+      "name": "Phaethon Hotel Left (22kW)",
+      "latitude": 34.73728799999999,
+      "longitude": 32.4379465,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-29"
+    },
+    {
+      "name": "Phaethon Hotel Right (22kW)",
+      "latitude": 34.73728799999999,
+      "longitude": 32.4379465,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-29"
+    },
+    {
+      "name": "King Jason Hotel Left (22kW)",
+      "latitude": 34.761814699999995,
+      "longitude": 32.4200485,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-29"
+    },
+    {
+      "name": "King Jason Hotel Right (22kW)",
+      "latitude": 34.761814699999995,
+      "longitude": 32.4200485,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-30"
+    },
+    {
+      "name": "Municipality of Lefkara (22kW)",
+      "latitude": 34.869237796374,
+      "longitude": 33.305195474039,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-30"
+    },
+    {
+      "name": "Columbia Beach Resort 3 (22kW)",
+      "latitude": 34.650716499999994,
+      "longitude": 32.7203409,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-30"
+    },
+    {
+      "name": "Columbia Beach Resort 1 (22kW)",
+      "latitude": 34.650716499999994,
+      "longitude": 32.7203409,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-30"
+    },
+    {
+      "name": "Columbia Beach Resort 2 (22kW)",
+      "latitude": 34.650716499999994,
+      "longitude": 32.7203409,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-30"
+    },
+    {
+      "name": "Columbia Beach Resort 5 (22kW)",
+      "latitude": 34.650716499999994,
+      "longitude": 32.7203409,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-30"
+    },
+    {
+      "name": "Columbia Beach Resort 4 (22kW)",
+      "latitude": 34.650716499999994,
+      "longitude": 32.7203409,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-30"
+    },
+    {
+      "name": "IKEA Right (22kW)",
+      "latitude": 35.129661799999994,
+      "longitude": 33.3731969,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-31"
+    },
+    {
+      "name": "IKEA Left (22kW)",
+      "latitude": 35.129661799999994,
+      "longitude": 33.3731969,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-05-31"
+    },
+    {
+      "name": "Columbia HQ Limassol 3 (2x22kW)",
+      "latitude": 34.7024608,
+      "longitude": 33.0779996,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-07-19"
+    },
+    {
+      "name": "BMW HQ Limassol (150kW)",
+      "latitude": 34.675823599999994,
+      "longitude": 33.0071778,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-06-04"
+    },
+    {
+      "name": "BMW HQ Paphos (10kW)",
+      "latitude": 34.80377750000001,
+      "longitude": 32.444638,
+      "currentType": "DC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 2,
+      "recordCreated": "2024-06-13"
+    },
+    {
+      "name": "Napa Mermaid Hotel (2x22kW)",
+      "latitude": 34.985885599999996,
+      "longitude": 34.012577,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-07-18"
+    },
+    {
+      "name": "Sunrise Beach Hotel (2x22kW)",
+      "latitude": 35.0158915,
+      "longitude": 34.05352450000001,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-07-18"
+    },
+    {
+      "name": "Sunrise Garden Hotel (2x22kW)",
+      "latitude": 35.01347169999999,
+      "longitude": 34.0539526,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-07-18"
+    },
+    {
+      "name": "Columbia HQ Limassol 1 (2x22kW)",
+      "latitude": 34.7024608,
+      "longitude": 33.0779996,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-07-19"
+    },
+    {
+      "name": "Columbia HQ Limassol 2 (2x22kW)",
+      "latitude": 34.7024608,
+      "longitude": 33.0779996,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-07-19"
+    },
+    {
+      "name": "Nicolaou Business Center (22kW)",
+      "latitude": 34.70153090000001,
+      "longitude": 33.0294407,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-07-19"
+    },
+    {
+      "name": "Radisson Blu Hotel 2 (22kW)",
+      "latitude": 34.93156710000001,
+      "longitude": 33.6369425,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-07-25"
+    },
+    {
+      "name": "Radisson Blu Hotel 1 (22kW)",
+      "latitude": 34.93156710000001,
+      "longitude": 33.6369425,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-07-25"
+    },
+    {
+      "name": "Annabelle Hotel Paphos (22kW)",
+      "latitude": 34.7553117,
+      "longitude": 32.4174519,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-08-12"
+    },
+    {
+      "name": "Almyra Hotel Paphos (22kW)",
+      "latitude": 34.75457299999999,
+      "longitude": 32.418889,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-08-12"
+    },
+    {
+      "name": "Philippos Supermarket Paphos 2 (22KW)",
+      "latitude": 34.856412218964,
+      "longitude": 32.378492336243,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-08-12"
+    },
+    {
+      "name": "Philippos Supermarket Paphos 1 (22KW)",
+      "latitude": 34.85640821698199,
+      "longitude": 32.378497211787,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-08-12"
+    },
+    {
+      "name": "Anassa Hotel Paphos (22kW)",
+      "latitude": 35.04376440000001,
+      "longitude": 32.3705102,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-08-13"
+    },
+    {
+      "name": "The Ritz-Carlton 3104/24 (22kW)",
+      "latitude": 34.7034624,
+      "longitude": 33.1087228,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-08-19"
+    },
+    {
+      "name": "The Ritz-Carlton 3202/44 (22kW)",
+      "latitude": 34.7034624,
+      "longitude": 33.1087228,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-08-19"
+    },
+    {
+      "name": "Royal Apollonia Hotel 2 (22kW)",
+      "latitude": 34.69740379999999,
+      "longitude": 33.0949755,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-08-20"
+    },
+    {
+      "name": "Petrolina ENI Leof Lemesou Station (50kW)",
+      "latitude": 35.143222136232,
+      "longitude": 33.374378084809,
+      "currentType": "DC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 2,
+      "recordCreated": "2024-08-21"
+    },
+    {
+      "name": "UNICARS Nicosia Sales Hub (50kW)",
+      "latitude": 35.12392373000001,
+      "longitude": 33.36386092,
+      "currentType": "DC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 2,
+      "recordCreated": "2024-09-23"
+    },
+    {
+      "name": "UNICARS Nicosia Workshop (50kW)",
+      "latitude": 35.092512770000006,
+      "longitude": 33.37851514,
+      "currentType": "DC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 2,
+      "recordCreated": "2024-09-23"
+    },
+    {
+      "name": "Four Seasons Hotel 1 (2x22kW)",
+      "latitude": 34.709705699999994,
+      "longitude": 33.1280484,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-10-08"
+    },
+    {
+      "name": "Four Seasons Hotel 3 (2x22kW)",
+      "latitude": 34.709705699999994,
+      "longitude": 33.1280484,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-10-08"
+    },
+    {
+      "name": "Four Seasons Hotel 4 (2x22kW)",
+      "latitude": 34.709705699999994,
+      "longitude": 33.1280484,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-10-08"
+    },
+    {
+      "name": "Four Seasons Hotel 5 (2x22kW)",
+      "latitude": 34.709705699999994,
+      "longitude": 33.1280484,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-10-08"
+    },
+    {
+      "name": "Four Seasons Hotel 2 (2x22kW)",
+      "latitude": 34.709705699999994,
+      "longitude": 33.1280484,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-10-08"
+    },
+    {
+      "name": "EOA Nicosia 2 (22kW)",
+      "latitude": 35.17328860000001,
+      "longitude": 33.3595014,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-11-25"
+    },
+    {
+      "name": "EOA Nicosia 5 (22kW)",
+      "latitude": 35.17328860000001,
+      "longitude": 33.3595014,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-11-25"
+    },
+    {
+      "name": "EOA Nicosia 6 (22kW)",
+      "latitude": 35.17328860000001,
+      "longitude": 33.3595014,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-11-25"
+    },
+    {
+      "name": "EOA Nicosia 4 (22kW)",
+      "latitude": 35.17328860000001,
+      "longitude": 33.3595014,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-11-25"
+    },
+    {
+      "name": "EOA Nicosia 9 (22kW)",
+      "latitude": 35.17328860000001,
+      "longitude": 33.3595014,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-11-26"
+    },
+    {
+      "name": "EOA Nicosia 10 (22kW)",
+      "latitude": 35.17328860000001,
+      "longitude": 33.3595014,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-11-26"
+    },
+    {
+      "name": "EOA Nicosia 7 (22kW)",
+      "latitude": 35.17328860000001,
+      "longitude": 33.3595014,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-11-26"
+    },
+    {
+      "name": "ANAD Nicosia (22kW)",
+      "latitude": 35.13930100000001,
+      "longitude": 33.374082,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-11-27"
+    },
+    {
+      "name": "EOA Nicosia 1 (22kW)",
+      "latitude": 35.17328860000001,
+      "longitude": 33.3595014,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-11-27"
+    },
+    {
+      "name": "EOA Nicosia 3 (22kW)",
+      "latitude": 35.17328860000001,
+      "longitude": 33.3595014,
+      "currentType": "AC",
+      "operator": "Petrolina (Holdings) Public Ltd.",
+      "connectors": 1,
+      "recordCreated": "2024-12-05"
+    },
+    {
+      "name": "CY*EVP*ENIC0001",
+      "latitude": 35.15774650000001,
+      "longitude": 33.3929505,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0011",
+      "latitude": 34.70469079999999,
+      "longitude": 33.1039953,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0012",
+      "latitude": 34.70469079999999,
+      "longitude": 33.1039953,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELCA0003",
+      "latitude": 34.985413,
+      "longitude": 34.00246580000001,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 2,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELCA0001",
+      "latitude": 34.9178031,
+      "longitude": 33.6385765,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 2,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELCA0005",
+      "latitude": 35.0163557,
+      "longitude": 34.0519061,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELCA0006",
+      "latitude": 35.006984900000006,
+      "longitude": 34.0606652,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ENIC0007",
+      "latitude": 35.12331919999999,
+      "longitude": 33.3737143,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 2,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0015",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0016",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0017",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0018",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0019",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0020",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0021",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0022",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0023",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0024",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0025",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0026",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0027",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0029",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0030",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0031",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0032",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0033",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0034",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0035",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0036",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0037",
+      "latitude": 34.709464499999996,
+      "longitude": 33.1331509,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0005",
+      "latitude": 34.6999546,
+      "longitude": 33.0897067,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0004",
+      "latitude": 34.6999546,
+      "longitude": 33.0897067,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELIM0009",
+      "latitude": 34.6974699,
+      "longitude": 33.0355238,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ENIC0013",
+      "latitude": 35.16703119999999,
+      "longitude": 33.3616342,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ENIC0014",
+      "latitude": 35.16703119999999,
+      "longitude": 33.3616342,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ENIC0019",
+      "latitude": 35.16703119999999,
+      "longitude": 33.3616342,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 2,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ENIC0015",
+      "latitude": 35.16703119999999,
+      "longitude": 33.3616342,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ENIC0016",
+      "latitude": 35.16703119999999,
+      "longitude": 33.3616342,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ENIC0017",
+      "latitude": 35.16703119999999,
+      "longitude": 33.3616342,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ENIC0018",
+      "latitude": 35.16703119999999,
+      "longitude": 33.3616342,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELCA0007",
+      "latitude": 34.9847563,
+      "longitude": 33.9554116,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELCA0009",
+      "latitude": 34.988580999999996,
+      "longitude": 33.966694,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 2,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ENIC0009",
+      "latitude": 35.14094990000001,
+      "longitude": 33.3807993,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 2,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ENIC0011",
+      "latitude": 35.14094990000001,
+      "longitude": 33.3807993,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 2,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELCA0011",
+      "latitude": 34.984818800000006,
+      "longitude": 34.0085845,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 2,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELCA0013",
+      "latitude": 34.983516599999994,
+      "longitude": 34.00359340000001,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 2,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ELCA0015",
+      "latitude": 35.064217,
+      "longitude": 33.538529,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 2,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ENIC0026",
+      "latitude": 35.16756059999999,
+      "longitude": 33.3575171,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 1,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*EPAF0001",
+      "latitude": 34.85683109999999,
+      "longitude": 32.3636927,
+      "currentType": "AC",
+      "operator": "EV Power",
+      "connectors": 2,
+      "recordCreated": null
+    },
+    {
+      "name": "CY*EVP*ENIC0022",
+      "latitude": 35.16703119999999,
+      "longitude": 33.3616342,
+      "currentType": "DC",
+      "operator": "EV Power",
+      "connectors": 2,
+      "recordCreated": null
+    },
+    {
+      "name": "TEC-NICOSIA-ZINAS-KANTHER",
+      "latitude": 35.167982,
+      "longitude": 33.358465,
+      "currentType": "AC",
+      "operator": "e-Point",
+      "connectors": 2,
+      "recordCreated": null
+    },
+    {
+      "name": "TEC-NICOSIA-STASANDROU-4C",
+      "latitude": 35.167193,
+      "longitude": 33.362511,
+      "currentType": "AC",
+      "operator": "e-Point",
+      "connectors": 2,
+      "recordCreated": null
+    },
+    {
+      "name": "TEC-NICOSIA-PLATIA-SOLOMOU",
+      "latitude": 35.17090499999999,
+      "longitude": 33.358635,
+      "currentType": "AC",
+      "operator": "e-Point",
+      "connectors": 2,
+      "recordCreated": null
+    },
+    {
+      "name": "TEC-NICOSIA-PARKING-DAVILLA",
+      "latitude": 35.169151,
+      "longitude": 33.362721,
+      "currentType": "AC",
+      "operator": "e-Point",
+      "connectors": 2,
+      "recordCreated": null
+    },
+    {
+      "name": "LIDL-L104",
+      "latitude": 34.937039999999996,
+      "longitude": 33.59076,
+      "currentType": "DC",
+      "operator": "Lidl Cyprus",
+      "connectors": 3,
+      "recordCreated": null
+    },
+    {
+      "name": "LIDL-L123",
+      "latitude": 34.689989999999995,
+      "longitude": 33.07203,
+      "currentType": "DC",
+      "operator": "Lidl Cyprus",
+      "connectors": 3,
+      "recordCreated": null
+    },
+    {
+      "name": "LIDL-L126",
+      "latitude": 34.70045,
+      "longitude": 33.03108,
+      "currentType": "DC",
+      "operator": "Lidl Cyprus",
+      "connectors": 3,
+      "recordCreated": null
+    },
+    {
+      "name": "LIDL-L127",
+      "latitude": 35.12553,
+      "longitude": 33.33736,
+      "currentType": "DC",
+      "operator": "Lidl Cyprus",
+      "connectors": 3,
+      "recordCreated": null
+    },
+    {
+      "name": "LSB-001",
+      "latitude": 34.9314062905196,
+      "longitude": 33.6291544139385,
+      "currentType": "DC",
+      "operator": "Unspecified",
+      "connectors": 1,
+      "recordCreated": null
+    }
+  ]
+}

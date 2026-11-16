@@ -1602,6 +1602,23 @@ const server = http.createServer(async (req, res) => {
     }
     const to = redirectFor(url);
     if (to) { res.writeHead(302, { Location: to, 'Cache-Control': 'no-store' }); return res.end(); }
+    const fieldwork = /^\/api\/fieldwork\/(reservoir|weather|coast|crossings|census|ev|power|flood|drought|aeronet|gases|verifiedno2|arakapas)$/.exec(url.pathname);
+    if (fieldwork) {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        res.writeHead(405, { Allow: 'GET, HEAD' });
+        return res.end();
+      }
+      const file = path.join(__dirname, 'fieldwork', fieldwork[1] + '.json');
+      let payload = null;
+      try { payload = await fs.promises.readFile(file); }
+      catch (e) {   // the extract is missing or unreadable: say so plainly, and keep the reason out of the answer
+        console.log('Fieldwork: ' + fieldwork[1] + ' could not be read: ' + (e && e.code));
+        res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        return res.end('{"error":"not found"}');
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache', 'Content-Length': payload.length });
+      return res.end(req.method === 'HEAD' ? undefined : payload);
+    }
     if (await sourceRoutes(req, res, url)) return;   // /api/feeds, helpers, archive, ops, search, dom/watch
     if (await toolkitWatch.handle(req, res, url)) return;   // /watch/api/title: checks a title, stores nothing
     if (dataHealth && (await dataHealth.handle(req, res, url))) return;   // /api/health: read only, no sign-in

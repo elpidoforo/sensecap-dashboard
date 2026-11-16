@@ -347,9 +347,12 @@ the last saved data keep being served. Only fixed EEA hosts (`FIXED_HOSTS` in `e
 Parquet files in SNAPPY, GZIP, BROTLI and ZSTD (Node 22.15 or newer) are read; LZ4 is not and gives a clear log line.
 
 Environment (all optional): `EEA=0` switches it off; `EEA_DAYS` (2 to 60, default 35); `EEA_EVERY_MIN` (default 60);
-`EEA_TZ_HOURS` forces the clock of the files (default: the station's `Timezone`, else +2); `EEA_API_BASE`, `EEA_META_URL`,
+`EEA_TZ_HOURS` forces the clock of the files (default: fixed UTC+1 for hourly EEA Parquet intervals); `EEA_API_BASE`, `EEA_META_URL`,
 `EEA_STATIONS_URL` point it at a test server (and allow that host). In test mode (`OPEN_METEO_MOCK=1`) it is off unless `EEA_API_BASE` is set.
 
+
+The [EEA Download Service](https://eeadmz1-downloads-webapp.azurewebsites.net/) uses fixed UTC+1 for hourly Parquet interval times.
+The first refresh after upgrading the cache or changing its clock setting downloads the hourly series again. Station metadata remains available during the refresh.
 
 After a deploy, look in the Railway log for `EEA air quality: first update done` and check that `last Start` is close to the real time.
 Vendored code: `vendor/hyparquet/` (MIT, v1.33.0, unchanged `src/`).

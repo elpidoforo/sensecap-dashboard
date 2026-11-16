@@ -46,3 +46,16 @@
 .hl-warn { margin: 8px 0; padding: 9px 11px; border: 1px solid rgba(247,196,107,.45); border-radius: 10px; font: 400 13.5px/1.5 var(--nm-font); color: #ffe2a3; }
 .hl-hd:focus-visible, .hl-go:focus-visible { outline: 3px solid rgba(255,200,87,.9); outline-offset: 2px; }
 @media (max-width: 760px) { .hl-hd { flex-wrap: wrap; } .hl-hd .hl-meta { margin-left: 0; width: 100%; text-align: left; } .hl-steps > i { display: none; } }
+
+/* the frozen extracts behind the investigations */
+.hl-xg{list-style:none;margin:0;padding:8px 14px 12px;display:grid;gap:6px}
+.hl-xg li{display:grid;grid-template-columns:20px 1fr;gap:8px;align-items:start;font-size:13px;color:var(--nm-text)}
+.hl-xg li b{font-weight:700}
+.hl-xg li p{margin:2px 0 0;grid-column:2;font-size:12.3px;color:var(--nm-mute);line-height:1.45}
+.hl-xg li.warn b{color:var(--nm-warn)}
+.hl-xg li.fail b{color:var(--nm-bad)}
+.hl-ext{border:1px solid var(--nm-edge);border-radius:16px;background:rgba(255,255,255,.03);overflow:hidden}
+.hl-ext.warn{box-shadow:inset 3px 0 0 var(--nm-warn)}
+.hl-ext.fail{box-shadow:inset 3px 0 0 var(--nm-bad)}
+.hl-ext header.hl-hd{display:flex;align-items:center;gap:10px;padding:12px 14px}
+.hl-ext header.hl-hd .hl-meta{margin-left:auto;font-size:11.5px;color:#8ea2bb;text-align:right;max-width:46%;line-height:1.35}
