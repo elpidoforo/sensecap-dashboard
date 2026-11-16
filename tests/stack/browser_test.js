@@ -47,6 +47,20 @@ const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swifts
       ok(srcs.length === 12 && srcs.every((s) => s.trim().length > 3), name + ': every layer says where it comes from');
       ok(errs.length === 0, name + ': the page threw nothing (' + errs.join(' | ') + ')');
 
+      // the sheets that are fed by real readings, and the ones that say they are not
+      for (let i = 0; i < 60; i++) { if (await frame.evaluate(() => /min ago|just now|πριν|μόλις/.test(document.querySelector('.rail').innerText))) break; await wait(300); }
+      const vals = await frame.locator('.lay .val').allTextContents();
+      const measured = vals.filter((v) => /ago|now|πριν|μόλις/.test(v));
+      const drawn = vals.filter((v) => /drawn|σχεδιασμένο/.test(v));
+      ok(measured.length >= 3, name + ': the measured sheets show a real reading with its age (' + measured.length + ')');
+      ok(drawn.length >= 3, name + ': the sheets with no feed say they are drawn (' + drawn.length + ')');
+      ok(measured.length + drawn.length === 12, name + ': every layer says which of the two it is');
+      ok(measured.every((v) => /[0-9]/.test(v)), name + ': a measured sheet shows a number');
+      const rail = await frame.evaluate(() => document.querySelector('.rail').innerText);
+      ok(/sensecap|cydom|openmeteo|metar/.test(rail), name + ': the rail names the source each reading came from');
+      const probe = await frame.evaluate(() => document.querySelector('.probe').innerText);
+      ok(/[0-9]/.test(probe) && /(ago|now|πριν|μόλις)/.test(probe), name + ': the probe shows the newest readings with their age');
+
       if (!phone) {
         // a layer can be hidden and shown again
         const press = () => frame.evaluate(() => document.querySelector('.lay').click());
@@ -68,19 +82,20 @@ const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swifts
         const text = await frame.evaluate(() => document.body.innerText);
         ok(/ΣΤΡΩΜΑΤΑ/.test(text) && /ΔΙΑΣΤΗΜΑ/.test(text) && /ΝΕΡΟ/.test(text), 'greek: the frame speaks Greek');
         ok(/Βυθός|Ανάγλυφο|Άνεμος/.test(text), 'greek: the layers are named in Greek');
-        ok(!/MOCK-UP · DEMO VALUES/.test(text), 'greek: the mock-up badge is translated too');
+        ok(!/LIVE READINGS · DRAWN RELIEF/.test(text), 'greek: the badge is translated too');
+        ok(/σχεδιασμένο/.test(text), 'greek: a sheet with no feed says so in Greek');
         const page = await p.evaluate(() => document.body.innerText);
         ok(/Η στοίβα δεδομένων σε 3D/.test(page), 'greek: the page around the frame is Greek as well');
-        ok(/Πρόχειρο σχέδιο/.test(page), 'greek: and it says the values are illustrative');
+        ok(/σχεδιασμένο/.test(page), 'greek: and it says which sheets are only drawn');
       }
 
       if (!el && !phone) {
         const page = await p.evaluate(() => document.body.innerText);
-        ok(/illustrative/.test(page), 'the page says the values are illustrative before you look at them');
+        ok(/newest reading Athena holds/.test(page) && /drawn/.test(page), 'the page says which sheets are measured and which are drawn, before you look at them');
         ok(/vehicle|person/.test(page), 'and that no vehicle and no person is drawn');
         const text = await frame.evaluate(() => document.body.innerText);
-        ok(/MOCK-UP/.test(text), 'the frame carries the mock-up badge itself');
-        ok(/RELIEF AND RASTERS STAND IN/.test(text), 'and says the relief and rasters stand in for the real feeds');
+        ok(/LIVE READINGS · DRAWN RELIEF/.test(text), 'the frame says which parts are measured and which are drawn');
+        ok(/EACH LAYER SHOWS ITS SOURCE/.test(text), 'and tells the reader where to look for that');
       }
 
       if (phone) {

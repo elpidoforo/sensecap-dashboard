@@ -88,6 +88,13 @@ const windC = buf(), rainC = buf();
 const NP = mobile ? 700 : 1500, pcl = new Float32Array(NP * 4);
 for (let i = 0; i < NP; i++) { pcl[i * 4] = Math.random() * LW; pcl[i * 4 + 1] = Math.random() * LH; pcl[i * 4 + 3] = Math.random() * 80; }
 
+// Which live measurement stands behind each sheet. A sheet with no entry here is drawn, not measured, and says so.
+const FEED = {
+  island: { vars: ['temperature', 'co2', 'pm25'], own: true },
+  air: { vars: ['pm25', 'pm10', 'ozone'] },
+  wind: { vars: ['wind_speed'] },
+  seabed: { vars: ['sea_surface_temperature', 'wave_height'] },
+};
 const LAYERS = [
   { id: 'seabed', band: 'WATER', name: 'Seabed and sea temperature', src: 'EMODnet DTM · Open-Meteo marine', nameEl: 'Βυθός και θερμοκρασία θάλασσας', srcEl: 'EMODnet DTM · θαλάσσιο Open-Meteo', val: '22.8', unit: '°C', c: '#2f7fb8', state: 'live',
     make: () => { const c = raster(() => null, (x, y, g) => { const d = Math.min(1, g0.inland[g] * 7), s = 1 - d, n = fbm(x / 26, y / 16, 3);
@@ -297,8 +304,9 @@ const geoCone = new THREE.Mesh(new THREE.ConeGeometry(120, 420, 32, 1, true),
 }
 
 /* ---- the two sheets that move ---- */
+let windScale = 1;   // set from the measured wind speed once the readings arrive
 function flow(x, y, t) { const n = fbm(x / 230 + t * .035, y / 230 - t * .02, 3);
-  const ang = -.3 + (n - .5) * 1.5, sp = 1.3 + 2.2 * fbm(x / 170 - t * .02, y / 170, 2);
+  const ang = -.3 + (n - .5) * 1.5, sp = (1.3 + 2.2 * fbm(x / 170 - t * .02, y / 170, 2)) * windScale;
   return [Math.cos(ang) * sp, Math.sin(ang) * sp, sp]; }
 function windStep(t) { const c = windC.getContext('2d');
   c.globalCompositeOperation = 'source-over'; c.fillStyle = 'rgba(3,8,14,.12)'; c.fillRect(0, 0, LW, LH);
@@ -413,5 +421,163 @@ function tick() {
   renderer.render(scene, camera); frame++;
   requestAnimationFrame(tick);
 }
+/* ---- the real readings ---- */
+const CITY = ['larnaka', 'lefkosia', 'limassol', 'paphos'];
+const SCHOOL_CITY = { larnaka: 'larnaka', lefkosia: 'lefkosia', limassol: 'limassol', paphos: 'paphos' };
+const fmt = (v) => (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 10) / 10);
+const ageText = (m) => (m == null ? T('not stated', 'δεν δηλώνεται')
+  : m < 1 ? T('just now', 'μόλις τώρα') : m < 90 ? T(Math.round(m) + ' min ago', 'πριν ' + Math.round(m) + ' λ')
+    : T(Math.round(m / 60) + ' h ago', 'πριν ' + Math.round(m / 60) + ' ώ'));
+let live = null;
+
+function pick(cityId, variable, ownOnly) {
+  const c = live && live.cities && live.cities[cityId];
+  if (!c) return null;
+  const rows = c.rows.filter((r) => r.variable === variable && (!ownOnly || /^sensecap-/.test(r.source)));
+  if (!rows.length) return null;
+  rows.sort((a, b) => (a.ageMin == null ? 1e9 : a.ageMin) - (b.ageMin == null ? 1e9 : b.ageMin));
+  return rows[0];
+}
+function best(variable, ownOnly) {          // the newest reading of one measurement anywhere on the island
+  let out = null;
+  CITY.forEach((c) => { const r = pick(c, variable, ownOnly); if (r && (!out || (r.ageMin || 0) < (out.ageMin || 0))) out = { ...r, city: c }; });
+  return out;
+}
+
+function paintRail() {
+  LAYERS.forEach((layer) => {
+    const s = sheets.find((x) => x.layer.id === layer.id); if (!s || !s.btn) return;
+    const feed = FEED[layer.id];
+    const valEl = s.btn.querySelector('.val'), stEl = s.btn.querySelector('.st'), srcEl = s.btn.querySelector('small');
+    if (!feed || !live) {
+      valEl.replaceChildren(Object.assign(document.createElement('b'), { textContent: T('drawn', 'σχεδιασμένο') }),
+        Object.assign(document.createElement('em'), { textContent: T('not measured yet', 'όχι ακόμη μετρημένο') }));
+      stEl.className = 'st year';
+      stEl.title = T('This sheet is drawn, not measured.', 'Αυτό το φύλλο είναι σχεδιασμένο, όχι μετρημένο.');
+      return;
+    }
+    let r = null, v = null;
+    for (const name of feed.vars) { r = best(name, feed.own); if (r) { v = name; break; } }
+    if (!r) {
+      valEl.replaceChildren(Object.assign(document.createElement('b'), { textContent: '—' }),
+        Object.assign(document.createElement('em'), { textContent: T('nothing arrived', 'δεν ήρθε τίποτα') }));
+      stEl.className = 'st year';
+      return;
+    }
+    valEl.innerHTML = '';
+    const bEl = document.createElement('b'); bEl.textContent = String(fmt(r.value));
+    const eEl = document.createElement('em'); eEl.textContent = (r.unit || '') + ' · ' + ageText(r.ageMin);
+    valEl.append(bEl, eEl);
+    stEl.className = 'st ' + (r.ageMin != null && r.ageMin < 90 ? 'live' : 'old');
+    stEl.title = r.source + ' · ' + ageText(r.ageMin);
+    srcEl.textContent = r.source + (r.where ? ' · ' + r.where : '');
+  });
+}
+
+function paintProbe() {
+  const box = document.querySelector('.probe');
+  const rows = [
+    ['AIR TEMP', 'ΘΕΡΜΟΚΡΑΣΙΑ', 'temperature', true],
+    ['CO₂', 'CO₂', 'co2', true],
+    ['PM2.5', 'PM2.5', 'pm25', false],
+    ['WIND 10 M', 'ΑΝΕΜΟΣ 10 M', 'wind_speed', false],
+    ['PRESSURE', 'ΠΙΕΣΗ', 'pressure', false],
+    ['SEA', 'ΘΑΛΑΣΣΑ', 'sea_surface_temperature', false],
+  ];
+  const city = 'larnaka';
+  const out = [document.createElement('h2')];
+  out[0].textContent = T('PROBE · PASCAL LARNAKA', 'ΜΕΤΡΗΣΗ · PASCAL ΛΑΡΝΑΚΑ');
+  rows.forEach(([en, el, variable, own]) => {
+    const r = pick(city, variable, own) || pick(city, variable, false);
+    const d = document.createElement('div'); d.className = 'kv';
+    const a = document.createElement('span'); a.textContent = T(en, el);
+    const b = document.createElement('b');
+    if (r) { b.textContent = String(fmt(r.value)); const em = document.createElement('em'); em.textContent = (r.unit || '') + ' · ' + ageText(r.ageMin); b.append(em); }
+    else { b.textContent = '—'; }
+    d.append(a, b); out.push(d);
+  });
+  const p = document.createElement('p');
+  p.textContent = live
+    ? T('These are the newest readings Athena holds for Larnaka, with the age of each one. Sheets marked "drawn" are not measured yet.',
+      'Αυτές είναι οι πιο πρόσφατες μετρήσεις που κρατά η Athena για τη Λάρνακα, με την ηλικία της καθεμιάς. Τα φύλλα που λένε "σχεδιασμένο" δεν μετριούνται ακόμη.')
+    : T('Waiting for the newest readings…', 'Αναμονή για τις πιο πρόσφατες μετρήσεις…');
+  out.push(p);
+  box.replaceChildren(...out);
+}
+
+// the four school pins carry the newest reading of their own city
+const pinLabels = [];
+I.schools.forEach((sc) => {
+  const p = p3(sc.lng, sc.lat, ISLAND_Y);
+  const lab = label(sc.name, '—', '#F7C46B', mobile ? 40 : 28);
+  lab.position.set(p.x + 14, ISLAND_Y + 34, p.z); scene.add(lab);
+  pinLabels.push({ sc, lab, p });
+});
+function paintPins() {
+  pinLabels.forEach(({ sc, lab, p }) => {
+    const city = SCHOOL_CITY[sc.id] || sc.id;
+    const t1 = pick(city, 'temperature', true) || pick(city, 'temperature', false);
+    const c1 = pick(city, 'co2', true);
+    const bits = [];
+    if (t1) bits.push(fmt(t1.value) + ' ' + (t1.unit || ''));
+    if (c1) bits.push(fmt(c1.value) + ' ' + (c1.unit || ''));
+    const sub = bits.length ? bits.join(' · ') + ' · ' + ageText(Math.min(...[t1, c1].filter(Boolean).map((r) => r.ageMin == null ? 1e9 : r.ageMin))) : T('nothing arrived', 'δεν ήρθε τίποτα');
+    const old = lab.material.map;
+    const next = label(sc.name, sub, '#F7C46B', mobile ? 40 : 28);
+    lab.material.map = next.material.map; lab.material.needsUpdate = true;
+    if (old) old.dispose();
+  });
+}
+
+// the wind sheet moves at the speed that was actually measured
+function paintWind() {
+  const r = best('wind_speed', false);
+  windScale = r ? Math.max(.35, Math.min(2.2, r.value / 5)) : 1;
+}
+
+// a real satellite picture, when the site has one stored
+let satReal = false;
+async function loadSatellite() {
+  try {
+    const r = await fetch('/api/satellite/images', { headers: { accept: 'application/json' } });
+    if (!r.ok) return;
+    const j = await r.json(), list = (j && j.images) || [];
+    if (!list.length) return;
+    list.sort((a, b) => String(b.time || '').localeCompare(String(a.time || '')));
+    const im = list[0];
+    const sheet = sheets.find((x) => x.layer.id === 'sat'); if (!sheet) return;
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+      c.getContext('2d').drawImage(img, 0, 0);
+      sheet.mesh.material.map = new THREE.CanvasTexture(c);
+      sheet.mesh.material.needsUpdate = true;
+      satReal = true;
+      const when = im.time ? new Date(im.time) : null;
+      const sub = (im.feed || 'satellite') + (when ? ' · ' + when.toISOString().slice(11, 16) + 'Z' : '');
+      const lab = sheet.group.children.find((x) => x.isSprite);
+      if (lab) { const next = label(T(sheet.layer.name, sheet.layer.nameEl), sub, sheet.layer.c, mobile ? 62 : 46);
+        lab.material.map = next.material.map; lab.material.needsUpdate = true; }
+      if (sheet.btn) { sheet.btn.querySelector('small').textContent = sub;
+        sheet.btn.querySelector('.val').replaceChildren(Object.assign(document.createElement('b'), { textContent: '1' }),
+          Object.assign(document.createElement('em'), { textContent: T('real picture', 'πραγματική εικόνα') }));
+        sheet.btn.querySelector('.st').className = 'st old'; }
+    };
+    img.src = '/api/satellite/image/' + encodeURIComponent(im.feed) + '/' + encodeURIComponent(im.id);
+  } catch (e) { /* no picture: the drawn stand-in stays, and the rail still says "drawn" */ }
+}
+
+async function loadLive() {
+  try {
+    const r = await fetch('/layers/api/live', { headers: { accept: 'application/json' } });
+    if (!r.ok) return;
+    live = await r.json();
+    paintRail(); paintProbe(); paintPins(); paintWind();
+  } catch (e) { /* keep what is on the screen; the next refresh tries again */ }
+}
+paintRail(); paintProbe();
+loadLive(); loadSatellite();
+setInterval(() => { if (!document.hidden) loadLive(); }, 120000);
+
 tick();
 window.__embedReady = true;
