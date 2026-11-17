@@ -31,15 +31,19 @@ const FULL = '#/lessonbuilder?q=heat&y=12-15&d=2x45&stops=yard-shade.yard-open.s
 
       await p.goto(BASE + '/' + (el ? '?lang=el' : '') + '#/lessonbuilder', { waitUntil: 'load' });
       await wait(2600);
-      ok(await p.locator('.lb-step').count() === 7, name + ': the builder has its seven steps');
-      ok(await p.locator('.lb-chip').count() >= 5, name + ': the first step offers the questions');
+      ok(await p.locator('.lb-card').count() >= 6, name + ': the builder opens on the questions, not on a form');
+      ok(await p.locator('.lb-paper').count() === 0, name + ': and shows no plan until a question is chosen');
       ok(!/\bnull\b/.test(await p.locator('.lb').innerText()), name + ': nothing shows the word null');
-      const empty = await p.locator('.lb-paper').innerText();
-      ok(/(Your field lesson|Το μάθημα πεδίου)/.test(empty), name + ': the plan starts empty but named');
+      const card = await p.locator('.lb-card').first().innerText();
+      ok(card.split('\n').length >= 3, name + ': a card says what the question is about');
 
-      // a question fills the plan
-      await p.click('.lb-chip');
-      await wait(500);
+      // a question fills the plan, with the stops and measures it was written for
+      await p.click('.lb-card');
+      await wait(900);
+      ok(await p.locator('.lb-edit').count() >= 5, name + ': the plan carries phrases you can change');
+      ok(await p.locator('.lb-seg').count() >= 3, name + ': the ribbon shows how the time is spent');
+      const pct = parseInt(await p.locator('.lb-pct em').innerText(), 10);
+      ok(pct >= 80, name + ': a chosen question arrives nearly complete (' + pct + '%)');
       const filled = await p.locator('.lb-paper').innerText();
       ok(/(yard|αυλή)/i.test(filled), name + ': choosing a question writes it on the plan');
       ok(/(Success indicators|ΔΕΙΚΤΕΣ ΕΠΙΤΥΧΙΑΣ)/i.test(filled), name + ': the plan carries success indicators');
@@ -47,30 +51,112 @@ const FULL = '#/lessonbuilder?q=heat&y=12-15&d=2x45&stops=yard-shade.yard-open.s
       ok(/(Department of Meteorology|Μετεωρολογικής)/.test(filled), name + ': and says which data it uses');
       ok(/#\/lessonbuilder\?q=/.test(await p.evaluate(() => location.href)), name + ': the link carries the choice');
 
+      // pressing a phrase opens its choices on the phrase itself
+      await p.locator('.lb-edit').nth(1).click();
+      await wait(600);
+      ok(await p.locator('.lb-pop').count() === 1, name + ': a phrase opens its own choices');
+      ok(await p.locator('.lb-opt').count() >= 3, name + ': the choices are listed');
+      const before = await p.locator('.lb-paper').innerText();
+      await p.locator('.lb-opt').nth(2).click();
+      await wait(600);
+      ok((await p.locator('.lb-paper').innerText()) !== before, name + ': choosing one rewrites the plan at once');
+
       // a whole plan arrives by link
       await p.goto(BASE + '/' + (el ? '?lang=el' : '') + FULL, { waitUntil: 'load' });
       await wait(2600);
-      const done = await p.evaluate(() => document.querySelectorAll('.lb-step.done').length);
-      ok(done >= 6, name + ': a link reopens every choice in it (' + done + ' steps filled)');
+      const done = await p.evaluate(() => document.querySelectorAll('.lb-o.done').length);
+      ok(done >= 6, name + ': a link reopens every choice in it (' + done + ' sections filled)');
       const rows = await p.locator('.lb-tab tr').count();
       ok(rows === 12, name + ': three stops and the rubric make the sheet (' + rows + ' rows)');
       const heads = await p.locator('.lb-tab th').allTextContents();
       ok(heads.some((h) => /(°C)/.test(h)), name + ': every measured column carries its unit');
-      ok(await p.locator('.lb-balseg').count() >= 3, name + ': the balance of learning types is shown');
-
       // the assistant: with no key on this server it says so instead of inventing a lesson
-      ok(await p.locator('.lb-idea').count() >= 4, name + ': the assistant offers ways to adapt the plan');
-      await p.click('.lb-idea');
+      ok(await p.locator('.lb-sug').count() >= 4, name + ': the assistant offers ways to adapt the plan');
+      await p.click('.lb-sug');
       await wait(2500);
-      const chat = await p.locator('.lb-chatfeed').innerText();
+      const chat = await p.locator('.lb-feed').innerText();
       ok(/(not switched on|δεν έχει ενεργοποιηθεί|could not|δεν μπόρεσε)/i.test(chat), name + ': with the assistant off it says so, and changes nothing');
-      ok(/(not a person|όχι άνθρωπος)/.test(await p.locator('.lb-chat').innerText()), name + ': the panel says it is not a person');
+      ok(/(NOT A PERSON|ΟΧΙ ΑΝΘΡΩΠΟΣ)/i.test(await p.locator('.lb-side').innerText()), name + ': the panel says it is not a person');
 
       if (phone) {
         const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
         ok(over <= 1, 'phone: the builder does not push the page sideways (' + over + ')');
       }
       ok(errs.length === 0, name + ': nothing threw (' + errs.slice(0, 2).join(' | ') + ')');
+      await ctx.close();
+    }
+
+    // the assistant input goes through the same privacy check as the plan, and nothing leaves the page
+    {
+      const ctx = await b.newContext({ viewport: { width: 1440, height: 1000 } });
+      const p = await ctx.newPage();
+      const sent = [];
+      p.on('request', (r) => { if (r.method() === 'POST') sent.push(r.postData() || ''); });
+      await p.goto(BASE + FULL, { waitUntil: 'load' });
+      await wait(2600);
+      await p.fill('.lb-askin', 'Maria in my class cannot read the sheet, ring me on 99123456');
+      await p.click('.lb-askgo');
+      await wait(1200);
+      ok(sent.length === 0, 'assistant: a question with a name and a number in it is never sent (' + sent.length + ' requests)');
+      ok(/(safe|ασφαλ)/i.test(await p.locator('.lb-feed').innerText()), 'assistant: and the teacher is told why');
+      // the same question without the name and the number does go
+      await p.fill('.lb-askin', 'My class is younger than this plan assumes');
+      await p.click('.lb-askgo');
+      await wait(2200);
+      ok(sent.length === 1, 'assistant: a question that passes the check is sent');
+      ok(!/99123456|Maria/.test(sent.join(' ')), 'assistant: nothing of the blocked line reached the network');
+      await ctx.close();
+    }
+
+    // leaving the page takes the popover listener with it
+    {
+      const ctx = await b.newContext({ viewport: { width: 1440, height: 1000 } });
+      const p = await ctx.newPage();
+      await p.goto(BASE + FULL, { waitUntil: 'load' });
+      await wait(2600);
+      await p.locator('.lb-edit').nth(1).click();
+      await wait(500);
+      await p.locator('.lb-opt').nth(1).click();          // a pick closes the popover
+      await wait(500);
+      ok(await p.locator('.lb-pop').count() === 0, 'a one-choice pick closes the popover');
+      await p.evaluate(() => { location.hash = '#/methods'; });
+      await wait(1800);
+      ok(await p.locator('.lb-pop').count() === 0, 'leaving the builder leaves no popover behind');
+      await ctx.close();
+    }
+
+    // a many-choice popover keeps its ticks in step with the plan
+    {
+      const ctx = await b.newContext({ viewport: { width: 1440, height: 1000 } });
+      const p = await ctx.newPage();
+      await p.goto(BASE + FULL, { waitUntil: 'load' });
+      await wait(2600);
+      const stops = p.locator('.lb-edit').filter({ hasText: /stop|σημεί/i }).first();
+      await stops.click();
+      await wait(500);
+      const before = await p.locator('.lb-opt.on').count();
+      await p.locator('.lb-opt:not(.on)').first().click();
+      await wait(500);
+      ok(await p.locator('.lb-pop').count() === 1, 'a many-choice popover stays open while you pick');
+      ok(await p.locator('.lb-opt.on').count() === before + 1, 'and the tick appears on what you just added');
+      await ctx.close();
+    }
+
+    // the ribbon and the printed stage times come from one clock
+    {
+      const ctx = await b.newContext({ viewport: { width: 1440, height: 1000 } });
+      const p = await ctx.newPage();
+      for (const d of ['1x45', '2x45']) {
+        await p.goto(BASE + '#/lessonbuilder?q=heat&y=12-15&d=' + d + '&stops=yard-shade.yard-open&meas=temperature', { waitUntil: 'load' });
+        await wait(2400);
+        const head = await p.locator('.lb-timehead').innerText();
+        const total = parseInt((head.match(/(\d+)\s*MIN/i) || [])[1], 10);
+        const segs = await p.locator('.lb-seg small').allTextContents();
+        const sum = segs.reduce((a, s) => a + parseInt(s, 10), 0);
+        ok(sum === total, d + ': the parts of the ribbon add up to the whole (' + sum + ' of ' + total + ')');
+        const last = (await p.locator('.lb-stage b').allTextContents()).pop();
+        ok(new RegExp('–' + total + '$').test(last), d + ': the last stage ends when the lesson does (' + last + ')');
+      }
       await ctx.close();
     }
 
@@ -96,9 +182,9 @@ const FULL = '#/lessonbuilder?q=heat&y=12-15&d=2x45&stops=yard-shade.yard-open.s
       await wait(400);
       const shown = await p.evaluate(() => {
         const vis = (s) => { const n = document.querySelector(s); return n ? getComputedStyle(n).display !== 'none' : false; };
-        return { paper: vis('.lb-paper'), rail: vis('.lb-rail'), chat: vis('.lb-chat'), tools: vis('.lb-tools') };
+        return { paper: vis('.lb-paper'), out: vis('.lb-out'), side: vis('.lb-side'), top: vis('.lb-top'), time: vis('.lb-time') };
       });
-      ok(shown.paper && !shown.rail && !shown.chat && !shown.tools, 'print: only the plan goes on the paper');
+      ok(shown.paper && !shown.out && !shown.side && !shown.top && !shown.time, 'print: only the plan goes on the paper');
       await p.emulateMedia({ media: 'screen' });
       await ctx.close();
     }
