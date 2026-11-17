@@ -26,6 +26,9 @@ const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swifts
     ok(/script-src 'self' 'sha256-/.test(csp), 'its scripts are its own, plus one hash for the import map');
     ok(!/unsafe-inline/.test(csp.split('style-src')[0]), 'no inline script is allowed');
     ok(/default-src 'self'/.test(csp) && !/https?:\/\//.test(csp), 'nothing may be loaded from another host');
+    // inside another page the scene takes that page's background instead of its own black
+    const onSite = await (await fetch(BASE + '/stack.html?embed=1&bg=site')).text();
+    ok(/on-site/.test(onSite), 'the page can be asked to sit on the background of the page that holds it');
     const html = await (await fetch(BASE + '/stack.html')).text();
     ok(/\/vendor\/three-r160\//.test(html) && !/cdn|unpkg|jsdelivr/i.test(html), 'three.js is served from this site, not from a CDN');
     ok((await fetch(BASE + '/stack-app.js')).ok && (await fetch(BASE + '/stack-guard.js')).ok, 'the module and its guard are served');

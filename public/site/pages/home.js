@@ -385,7 +385,7 @@
         if (stackOn || !alive) return;
         stackOn = true;
         stackFrame = el('iframe', {
-          src: '/stack.html?embed=1&lang=' + (SC.lang === 'el' ? 'el' : 'en'),
+          src: '/stack.html?embed=1&bg=site&lang=' + (SC.lang === 'el' ? 'el' : 'en'),
           title: T('The data stack over Cyprus in 3D', 'Η στοίβα δεδομένων πάνω από την Κύπρο σε 3D'),
           loading: 'lazy', allow: 'fullscreen',
         });
@@ -397,7 +397,8 @@
         T('Start the 3D view', 'Ξεκίνα την τρισδιάστατη προβολή'));
       stackCard.append(go);
 
-      const hm = el('div', { class: 'hm' }, el('div', { class: 'hm-sky', 'aria-hidden': 'true' }), head, route, stage, list, status, legend, stackSec, coreSlot, three, sec);
+      // The page reads: the live core, then the island with the schools, then the stack in 3D, then the tools.
+      const hm = el('div', { class: 'hm' }, el('div', { class: 'hm-sky', 'aria-hidden': 'true' }), head, route, coreSlot, stage, list, status, legend, stackSec, three, sec);
       root.append(hm);
 
       /* ---------- layout: ring, chevrons, travelling dots and the light pillars ---------- */

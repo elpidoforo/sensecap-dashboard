@@ -203,16 +203,16 @@ const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + 
     const c3 = await b.newContext(opts), p3 = await c3.newPage(), e3 = [];
     p3.on('pageerror', (e) => e3.push(String(e)));
     await p3.goto(BASE + '/#/home'); await p3.waitForSelector('.hm-core .cn-pi', { timeout: 30000 });
-    // the page reads island, then the stack in 3D, then this scene, then the tools
+    // the page reads this scene, then the island with the schools, then the stack in 3D, then the tools
     ok(await p3.evaluate(() => {
       const top = (sel) => document.querySelector(sel).getBoundingClientRect().top;
-      return top('.hm-stage') < top('.hm-stack') && top('.hm-stack') < top('.hm-core') && top('.hm-core') < top('.hm3');
-    }), name + ': the scene sits under the stack in 3D, which sits under the island, and the tools come after it');
+      return top('.hm-core') < top('.hm-stage') && top('.hm-stage') < top('.hm-stack') && top('.hm-stack') < top('.hm3');
+    }), name + ': the scene comes first, then the island, then the stack in 3D, and the tools after them');
     ok(await p3.evaluate(() => { const f = document.querySelector('.hm-stack-frame'); return !!f && f.getBoundingClientRect().height > 200; }), name + ': the stack in 3D has a frame of its own on the home page');
     ok(await p3.evaluate(() => !document.querySelector('.hm-stack-frame iframe') && !!document.querySelector('.hm-stack-go')), name + ': and it waits to be asked, so the page carries one live 3D scene at a time');
     await p3.click('.hm-stack-go');
     await p3.waitForSelector('.hm-stack-frame iframe', { timeout: 10000 });
-    ok(await p3.evaluate(() => /stack\.html/.test(document.querySelector('.hm-stack-frame iframe').src)), name + ': pressing it starts the same 3D stack the full page shows');
+    ok(await p3.evaluate(() => { const src = document.querySelector('.hm-stack-frame iframe').src; return /stack\.html/.test(src) && /bg=site/.test(src); }), name + ': pressing it starts the same 3D stack the full page shows, on this page\u2019s own background');
     ok(await p3.locator('.hm-core .cn-po').count() === 6 && /\d/.test(await p3.locator('.hm-core .cn-words').innerText()), name + ': the scene has its panels and its sentence');
     ok(await p3.locator('.hm-stage .hm-plane').count() === 1, name + ': the island is still there');
     ok(await p3.evaluate(() => { const k = [...document.querySelectorAll('.hm-tile .hm-mv > *')]; return k.length >= 30 && k.every((e) => /hm-v-[a-z]+/.test(e.getAttribute('class') || '')); }), name + ': every tile picture carries its kind');

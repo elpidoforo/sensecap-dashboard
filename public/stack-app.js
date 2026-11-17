@@ -160,9 +160,13 @@ const LAYERS = [
 
 /* ---- scene ---- */
 const canvas = document.getElementById('gl');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: !mobile, powerPreference: 'high-performance' });
+// Shown inside another page (the home page) the scene sits on that page's own background rather than on its own
+// black, so the section matches everything around it. On its own page nothing changes.
+const SITE_BG = new URLSearchParams(location.search).get('bg') === 'site';
+if (SITE_BG) document.documentElement.classList.add('on-site');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !mobile, powerPreference: 'high-performance', alpha: SITE_BG });
 renderer.setPixelRatio(Math.min(mobile ? 1.5 : 2, devicePixelRatio || 1));
-const scene = new THREE.Scene(); scene.background = new THREE.Color('#02050a');
+const scene = new THREE.Scene(); scene.background = SITE_BG ? null : new THREE.Color('#02050a');
 const camera = new THREE.PerspectiveCamera(38, 2, 1, 20000);
 camera.position.set(-1850, 1420, 2050);
 const controls = new OrbitControls(camera, canvas);
