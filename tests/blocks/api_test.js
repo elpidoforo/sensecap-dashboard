@@ -1,5 +1,6 @@
 'use strict';
-// Real server (demo data): student builds with blocks, teacher approves, visitor opens the live page.
+// Real server (demo data): student builds with blocks, teacher approves AND publishes, visitor opens the live page.
+// Approving and publishing are two acts: an approved page stays private until a teacher publishes it.
 const os = require('os'), fs = require('fs'), path = require('path');
 const { spawn } = require('child_process');
 const PORT = 3941, BASE = `http://127.0.0.1:${PORT}`;
@@ -85,7 +86,7 @@ const recipe = (patch) => ({ show: { measurement: '4100', school: 'larnaca' }, l
 
   // ---- change the draft with blocks (same id), then submit
   r = await mia.post('/studio/api/blocks/save', { id: p.id, recipe: recipe({ as: 'bars', last: 72 }), lang: 'en', title: 'Class air', submit: true, show_name: false });
-  ok(r.status === 200 && r.json.project.id === p.id && r.json.project.status === 'pending' && r.json.project.recipe.as === 'bars', 'updated in place and sent to the teacher (' + r.json.project.status + ')');
+  ok(r.status === 200 && r.json.project.id === p.id && r.json.project.status === 'submitted' && r.json.project.recipe.as === 'bars', 'updated in place and sent to the teacher (' + r.json.project.status + ')');
   const mine = (await mia.get('/studio/api/projects?scope=mine')).json.projects;
   ok(mine.filter((x) => x.id === p.id).length === 1 && mine.find((x) => x.id === p.id).via === 'blocks', 'one project, marked via blocks');
   const rev = (await teacher.get('/studio/api/projects?scope=review')).json.projects;
@@ -96,6 +97,12 @@ const recipe = (patch) => ({ show: { measurement: '4100', school: 'larnaca' }, l
   ok(pg.status === 404, 'a visitor cannot open it before approval');
   r = await teacher.post(`/studio/api/projects/${p.id}/review`, { decision: 'approve', note: 'Nice' });
   ok(r.status === 200 && r.json.project.status === 'approved', 'approved');
+  ok(r.json.project.public === false, 'approving it does not publish it');
+  let gal0 = (await vis.get('/studio/api/projects?scope=gallery')).json.projects || [];
+  ok(!gal0.some((x) => x.id === p.id), 'an approved page a teacher has not published is not in the gallery');
+  ok((await vis.get(`/studio/p/${p.id}`)).status === 404, 'and a visitor cannot open it yet');
+  r = await teacher.post(`/studio/api/projects/${p.id}/publish`, { show: true });
+  ok(r.status === 200 && r.json.project.public === true, 'the teacher publishes it as a separate act (' + r.status + ')');
 
   // ---- the public live page
   pg = await vis.get('/studio/p/' + p.id, { 'sec-fetch-dest': 'iframe' });

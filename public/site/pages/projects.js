@@ -60,11 +60,11 @@
       at: toMs(p.updatedAt || p.updated_at || p.at), label: p.author_label || null,
     };
   }
-  const isWaiting = (p) => ['submitted', 'pending', 'review', 'in_review'].includes(p.status);
+  const isWaiting = (p) => ['submitted', 'pending', 'review', 'in_review', 'ready'].includes(p.status);
   const isBack = (p) => ['sent_back', 'rejected', 'changes', 'needs_changes'].includes(p.status) || (p.status === 'draft' && Boolean(p.reviewNote));
-  const phase = (p) => (p.status === 'done' || (p.status !== 'draft' && p.stage === 'done') ? 'done' : p.status === 'running' ? 'running' : p.status === 'draft' ? 'draft' : p.progress === 100 ? 'done' : 'running');
+  const phase = (p) => (p.status === 'ready' || (p.status !== 'draft' && p.stage === 'done') ? 'done' : p.status === 'progress' ? 'running' : p.status === 'draft' ? 'draft' : p.progress === 100 ? 'done' : 'running');
   function progress(p) {
-    if (p.status === 'done') return { pct: 100, done: p.steps.length, of: p.steps.length };
+    if (p.status === 'ready') return { pct: 100, done: p.steps.length, of: p.steps.length };
     if (p.steps.length) { const d = p.steps.filter((s) => s.done).length; return { pct: Math.round((100 * d) / p.steps.length), done: d, of: p.steps.length }; }
     if (p.progress != null) return { pct: p.progress, done: null, of: null };
     return { pct: null, done: null, of: null };
@@ -202,7 +202,7 @@
         el('div', { class: 'pr-gt' },
           pr.of ? el('b', null, t(pr.done + ' of ' + pr.of + ' steps', pr.done + ' από ' + pr.of + ' βήματα')) : el('b', null, pr.pct == null ? t('Steps not counted yet', 'Τα βήματα δεν έχουν μετρηθεί ακόμη') : t('Progress ' + pr.pct + '%', 'Πρόοδος ' + pr.pct + '%')),
           el('span', { class: 'pr-bar', 'aria-hidden': 'true' }, el('i', { style: { width: (pr.pct == null ? 0 : Math.max(pr.pct ? 4 : 0, pr.pct)) + '%' } })),
-          el('small', null, p.steps.length ? (() => { const nx = p.steps.find((s) => !s.done); return nx && p.status !== 'done' ? t('Next: ', 'Επόμενο: ') + nx.label : t('All steps are done.', 'Όλα τα βήματα έχουν γίνει.'); })() : t('The team has not listed its steps yet.', 'Η ομάδα δεν έχει καταγράψει ακόμη τα βήματά της.'))));
+          el('small', null, p.steps.length ? (() => { const nx = p.steps.find((s) => !s.done); return nx && p.status !== 'ready' ? t('Next: ', 'Επόμενο: ') + nx.label : t('All steps are done.', 'Όλα τα βήματα έχουν γίνει.'); })() : t('The team has not listed its steps yet.', 'Η ομάδα δεν έχει καταγράψει ακόμη τα βήματά της.'))));
     }
     function card(p, mine) {
       const sensors = p.sensors.map(sensorName), data = dataList(p).map(dataName);
@@ -248,9 +248,9 @@
     }
     function ownerControls(p) {
       const busy = S.busyId === p.id, locked = isWaiting(p) || p.approved || busy;
-      const cur = isWaiting(p) ? '' : isBack(p) ? 'draft' : phase(p);
+      const cur = isWaiting(p) ? '' : isBack(p) ? 'draft' : ({ done: 'ready', running: 'progress', draft: 'draft' })[phase(p)];
       const seg = el('div', { class: 'pr-seg', role: 'group', 'aria-label': t('Status of ' + p.title, 'Κατάσταση του ' + p.title) },
-        [['draft', t('Draft', 'Προσχέδιο')], ['running', t('Running', 'Σε εξέλιξη')], ['done', t('Done', 'Ολοκληρώθηκε')]].map(([id, label]) => el('button', { type: 'button', class: cur === id ? 'on' : '', 'aria-pressed': cur === id ? 'true' : 'false', disabled: locked, onclick: () => { if (cur !== id) setStatus(p, id); } }, label)));
+        [['draft', t('Draft', 'Προσχέδιο')], ['progress', t('In progress', 'Σε εξέλιξη')], ['ready', t('Ready for review', 'Έτοιμο για έλεγχο')]].map(([id, label]) => el('button', { type: 'button', class: cur === id ? 'on' : '', 'aria-pressed': cur === id ? 'true' : 'false', disabled: locked, onclick: () => { if (cur !== id) setStatus(p, id); } }, label)));
       const send = el('button', { class: 'nm-btn nm-btn--sm nm-btn--primary', type: 'button', disabled: locked, onclick: () => confirmSubmit(p) }, ic('send'), isBack(p) ? t('Send again', 'Νέα αποστολή') : t('Send to teacher', 'Αποστολή στον εκπαιδευτικό'));
       return el('div', { class: 'pr-own' }, seg, p.approved ? el('span', { class: 'pr-ok' }, ic('checkc'), t('Public', 'Δημόσιο')) : isWaiting(p) ? el('span', { class: 'pr-wait' }, ic('clock'), t('Waiting for a teacher', 'Περιμένει εκπαιδευτικό')) : send);
     }
@@ -324,7 +324,7 @@
       const sensors = p.sensors.map((s) => ({ name: sensorName(s), on: (s.eui && S.devices.get(s.eui) || {}).online, group: (s.eui && S.devices.get(s.eui) || {}).group }));
       const x = el('button', { class: 'nm-btn nm-btn--sm', type: 'button', onclick: () => closeSheet() }, ic('x'), t('Close', 'Κλείσιμο'));
       const steps = p.steps.length
-        ? el('ol', { class: 'pr-steps' }, p.steps.map((s) => el('li', { class: s.done ? 'done' : '' }, ic(s.done || p.status === 'done' ? 'checkc' : 'circle'), el('span', null, s.label), el('span', { class: 'sr-only' }, s.done ? t(' (done)', ' (έγινε)') : t(' (not yet)', ' (όχι ακόμη)')))))
+        ? el('ol', { class: 'pr-steps' }, p.steps.map((s) => el('li', { class: s.done ? 'done' : '' }, ic(s.done || p.status === 'ready' ? 'checkc' : 'circle'), el('span', null, s.label), el('span', { class: 'sr-only' }, s.done ? t(' (done)', ' (έγινε)') : t(' (not yet)', ' (όχι ακόμη)')))))
         : el('p', { class: 'muted' }, t('The team has not listed its steps yet.', 'Η ομάδα δεν έχει καταγράψει ακόμη τα βήματά της.'));
       const body = el('div', { class: 'pr-sheet-b' },
         el('div', { class: 'pr-sheet-top' }, el('span', { class: 'pr-sch' }, el('i', { style: { background: schoolColor(p.school) } }), p.school || t('A school', 'Ένα σχολείο')), statusBadge(p, mine)),

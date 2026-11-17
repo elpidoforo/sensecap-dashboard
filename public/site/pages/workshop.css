@@ -51,3 +51,15 @@
 .ws-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (max-width: 1180px) { .ws-grid { grid-template-columns: 210px minmax(0, 1fr); } .ws-ideas { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0 8px; } .ws-ideas > h2, .ws-ideas > p { grid-column: 1 / -1; } .ws-pal { grid-column: 1; grid-row: 2; } .ws-mid { grid-column: 2; grid-row: 2; } }
 @media (max-width: 760px) { .ws-grid { grid-template-columns: minmax(0, 1fr); } .ws-pal, .ws-mid { grid-column: 1; grid-row: auto; } .ws-pal { order: 3; } .ws-wire { display: none; } .ws-cols { grid-template-columns: minmax(0, 1fr); gap: 12px; } .ws-col { min-height: 0; } .ws-irow { margin-top: 12px; } .ws-irow .ws-box { width: 100%; } .ws-pb, .ws-box { cursor: pointer; } .ws-hr input { width: 130px; } .ws-hd em { margin-left: 0; } }
+
+/* What a chosen idea could not find. Said once, above the blocks, and never instead of the readings. */
+.ws-warn { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid #c9a227; background: rgba(201, 162, 39, .10); }
+.ws-warn b { display: block; font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: #c9a227; margin-bottom: 4px; }
+.ws-warn p { margin: 2px 0; font-size: .86rem; line-height: 1.45; }
+
+/* The review checklist, before anything is sent. The tick is the marker, so the list needs no bullet. */
+.ws-checks { list-style: none; margin: 12px 0 0; padding: 0; }
+.ws-checks li { display: flex; gap: 10px; align-items: baseline; padding: 4px 0; font-size: .92rem; line-height: 1.45; opacity: .72; }
+.ws-checks li.done { opacity: 1; }
+.ws-checks i { font-style: normal; font-weight: 700; color: #7f93ac; flex: 0 0 auto; }
+.ws-checks li.done i { color: #5EE0A8; }

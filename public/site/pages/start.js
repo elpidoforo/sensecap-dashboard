@@ -179,7 +179,7 @@
     function drawHead() {
       headHost.replaceChildren(SC.head({
         title: t('Start a project.', 'Ξεκινήστε ένα έργο.'),
-        lede: t('Four short steps turn a question into a plan: the question, the sensors, the data and your team. Then it appears in Running projects.', 'Τέσσερα σύντομα βήματα μετατρέπουν ένα ερώτημα σε σχέδιο: το ερώτημα, οι αισθητήρες, τα δεδομένα και η ομάδα σας. Μετά εμφανίζεται στα Ενεργά έργα.'),
+        lede: t('Five short steps turn a question into a plan: the question, the sensors, the data, your team, then a last look. After that it appears in Running projects.', 'Πέντε σύντομα βήματα μετατρέπουν ένα ερώτημα σε σχέδιο: το ερώτημα, οι αισθητήρες, τα δεδομένα, η ομάδα σας και μια τελευταία ματιά. Μετά εμφανίζεται στα Ενεργά έργα.'),
         tags: S.demo ? [{ text: t('Demo data', 'Δεδομένα επίδειξης'), cls: 'demo' }] : [],
         help: [
           'Step 1: write one question that numbers can answer. Step 2: pick the sensors that will give the numbers. Step 3: pick which readings to use, and add official Met Office data or outdoor air if you want to compare. Step 4: give your team name and a short note. Then check everything and create the plan. Your work is kept in this browser until you create it. A plan starts as a draft that only your team and teachers can see; you send it to a teacher from Running projects.',

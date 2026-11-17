@@ -147,6 +147,8 @@
     render(root) {
       SC.css('/site/pages/workshop.css');
       let alive = true, timer = 0, dragKind = null, dragFrom = -1, open = null, fresh = null, raf = 0;
+      let warn = [];   // what a chosen idea could not find, said plainly above the result
+      let sentId = null, sending = false;   // the tool this page has already sent, so a second send is a second version of it
       const store = new Map(), undo = [], ui = { city: null, m: null, hour: null, hidden: new Set() };
       let recipe = unpack((location.hash.split('?r=')[1] || '').split('&')[0]);
       if (!recipe) { try { recipe = clean(JSON.parse(localStorage.getItem(KEY) || localStorage.getItem(KEY1) || 'null')); } catch (e) { recipe = null; } }
@@ -165,7 +167,7 @@
       const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ v: 2, b: recipe })); } catch (e) { /* private window: the draft lives in the address only */ } try { history.replaceState(null, '', '#/workshop?r=' + pack(recipe)); } catch (e) { /* ignore */ } };
       const snap = () => { undo.push(JSON.stringify(recipe)); if (undo.length > 30) undo.shift(); };
       const sortIn = () => { const at = new Map(recipe.map((b, i) => [b, i])); recipe.sort((x, y) => ORDER.indexOf(gOf(x)) - ORDER.indexOf(gOf(y)) || at.get(x) - at.get(y)); };   // keeps the same objects, so the open block stays open
-      function changed(msg) { sortIn(); if (open && !recipe.includes(open)) open = null; if (fresh && !recipe.includes(fresh)) fresh = null; save(); fetchAll(); drawAll(); if (msg) said.textContent = msg; }
+      function changed(msg) { warn = []; sortIn(); if (open && !recipe.includes(open)) open = null; if (fresh && !recipe.includes(fresh)) fresh = null; save(); fetchAll(); drawAll(); if (msg) said.textContent = msg; }
       function add(k, extra) {
         if (recipe.length >= MAX) { SC.toast(T('A tool holds at most ' + MAX + ' blocks. Take one out first.', 'Ένα εργαλείο χωρά το πολύ ' + MAX + ' κουτιά. Βγάλε πρώτα ένα.')); return; }
         if (k === 'data' && recipe.filter((b) => b.k === 'data').length >= MAXD) { SC.toast(T('A tool holds at most ' + MAXD + ' data blocks.', 'Ένα εργαλείο χωρά το πολύ ' + MAXD + ' κουτιά δεδομένων.')); return; }
@@ -179,6 +181,40 @@
       function remove(b) { if (b.k === 'data' && recipe.filter((x) => x.k === 'data').length < 2) { SC.toast(T('A tool needs at least one data block.', 'Ένα εργαλείο χρειάζεται τουλάχιστον ένα κουτί δεδομένων.')); return; } snap(); recipe.splice(recipe.indexOf(b), 1); changed(T('Removed: ', 'Αφαιρέθηκε: ') + kn(b.k)); }
       function setTo(list, msg) { snap(); recipe = clean({ b: JSON.parse(JSON.stringify(list)) }); open = null; fresh = null; ui.city = ui.m = ui.hour = null; ui.hidden.clear(); changed(msg); }
       function back() { if (!undo.length) return; recipe = clean({ b: JSON.parse(undo.pop()) }); open = null; fresh = null; changed(T('Undone.', 'Αναιρέθηκε.')); }
+
+      /* ---------- what a recipe would actually find, checked before it is offered ----------
+         A comparison is only worth opening when both of its lines exist. Where a layer holds nothing
+         for a city and a measurement, this says so and offers a layer that does; where nothing holds
+         it, the comparison blocks come out rather than drawing one line and a silent gap. Readings are
+         never stood in for: no zero, no sample, no invented number ever enters a recipe here. */
+      function availOf(c, m, g) {
+        const st = store.get(c + '|' + m);
+        if (!st || st.state !== 'ok') return { known: st && (st.state === 'none' || st.state === 'fail') ? true : false, has: false, alt: null };
+        const all = (st.r.series || []).filter((s) => (s.points || []).length);
+        return { known: true, has: all.some((s) => g === 'any' || s.group === g), alt: all.find((s) => s.group !== g) || null };
+      }
+      const CMP = ['diff', 'match', 'pattern'];
+      // Pressing an idea goes through here: the recipe is repaired, or trimmed, and the student is told which.
+      function useIdea(list, msg) {
+        const want = JSON.parse(JSON.stringify(list));
+        const notes = [], lost = [];
+        want.filter((b) => b.k === 'data').forEach((b) => {
+          const a = availOf(b.c, b.m, b.g);
+          if (!a.known || a.has) return;
+          const had = L(SRC[b.g]);
+          if (a.alt) { b.g = a.alt.group; b.s = a.alt.source; notes.push(T(had + ' has no ' + vname(b.m).toLowerCase() + ' for ' + cname(b.c) + ' right now, so this uses ' + L(SRC[b.g]) + ' instead.', had + ' δεν έχει ' + vname(b.m).toLowerCase() + ' για ' + cname(b.c) + ' αυτή τη στιγμή, οπότε χρησιμοποιείται ' + L(SRC[b.g]) + '.')); }
+          else { lost.push(b); notes.push(T('No layer holds ' + vname(b.m).toLowerCase() + ' for ' + cname(b.c) + ' right now.', 'Κανένα στρώμα δεν έχει ' + vname(b.m).toLowerCase() + ' για ' + cname(b.c) + ' αυτή τη στιγμή.')); }
+        });
+        let out = want.filter((b) => !lost.includes(b));
+        if (out.filter((b) => b.k === 'data').length < 2 && out.some((b) => CMP.includes(b.k))) {
+          out = out.filter((b) => !CMP.includes(b.k));
+          notes.push(T('A comparison needs two lines, so the comparing blocks were left out. Add a second data block to put them back.', 'Μια σύγκριση θέλει δύο γραμμές, οπότε τα κουτιά σύγκρισης δεν μπήκαν. Πρόσθεσε δεύτερο κουτί δεδομένων για να επιστρέψουν.'));
+        }
+        if (!out.some((b) => b.k === 'data')) { warn = notes.concat(T('This idea cannot be built from what the layers hold right now. Try another city or another measurement.', 'Αυτή η ιδέα δεν χτίζεται από όσα έχουν τα στρώματα τώρα. Δοκίμασε άλλη πόλη ή άλλη μέτρηση.')); drawCanvas(); return; }
+        setTo(out, msg);
+        warn = notes;                      // set after setTo, which clears it
+        if (notes.length) drawCanvas();
+      }
 
       // ---------- the data ----------
       const effOf = (b) => ({ c: hasK('city') && ui.city ? ui.city : b.c, m: hasK('measure') && ui.m ? ui.m : b.m });
@@ -376,17 +412,66 @@
       canvas.addEventListener('dragover', (e) => { if (dragKind) { e.preventDefault(); canvas.classList.add('over'); } });
       canvas.addEventListener('dragleave', (e) => { if (!canvas.contains(e.relatedTarget)) canvas.classList.remove('over'); });
       canvas.addEventListener('drop', (e) => { e.preventDefault(); canvas.classList.remove('over'); if (dragKind) add(dragKind[0], dragKind[1]); dragKind = null; });
+      /* ---------- sending a tool to a teacher ----------
+         Nothing is sent until the student has seen what a teacher will be asked to judge. The checklist
+         is the review checklist: what the tool must carry before it is worth anyone's reading. A student
+         who is not signed in keeps their work — the recipe is in the address of this page. */
+      const CHECKS = [
+        { id: 'data', en: 'At least one data block with readings in it', el: 'Τουλάχιστον ένα κουτί δεδομένων με μετρήσεις',
+          ok: () => run().ser.some((s) => s.pts.length) },
+        { id: 'show', en: 'Something that shows the result: a chart, a number or a table', el: 'Κάτι που δείχνει το αποτέλεσμα: γράφημα, αριθμός ή πίνακας',
+          ok: () => recipe.some((b) => gOf(b) === 'show') },
+        { id: 'work', en: 'A block that does the work: matching, a difference, a pattern or a summary', el: 'Ένα κουτί που κάνει τη δουλειά: ταίριασμα, διαφορά, μοτίβο ή σύνοψη',
+          ok: () => recipe.some((b) => gOf(b) === 'process' || gOf(b) === 'ai') },
+        { id: 'gaps', en: 'No block is left without the lines it needs', el: 'Κανένα κουτί δεν έμεινε χωρίς τις γραμμές που χρειάζεται',
+          ok: () => !run().results.some((r) => r.kids.some((k) => k && k.className === 'ws-empty')) },
+      ];
+      function sendToTeacher() {
+        const done = CHECKS.map((c) => { let ok = false; try { ok = Boolean(c.ok()); } catch (e) { ok = false; } return { ...c, done: ok }; });
+        const left = done.filter((c) => !c.done);
+        const link = location.origin + '/#/workshop?r=' + pack(recipe);
+        SC.modal({
+          title: left.length ? T('Not ready yet', 'Δεν είναι ακόμη έτοιμο') : T('Send this to your teacher?', 'Να σταλεί στον εκπαιδευτικό σου;'),
+          body: h('div', { class: 'ws-check' },
+            h('p', null, left.length
+              ? T('A teacher is asked to judge the whole tool, so it needs all of this first:', 'Ο εκπαιδευτικός κρίνει όλο το εργαλείο, οπότε χρειάζεται πρώτα όλα αυτά:')
+              : T('Your teacher will see exactly what is on this page now. You can keep working afterwards: what you send is kept as it is.', 'Ο εκπαιδευτικός σου θα δει ακριβώς ό,τι είναι τώρα σε αυτή τη σελίδα. Μπορείς να συνεχίσεις μετά: ό,τι στέλνεις κρατιέται όπως είναι.')),
+            h('ul', { class: 'ws-checks' }, done.map((c) => h('li', { class: c.done ? 'done' : '' }, h('i', null, c.done ? '✓' : '○'), T(c.en, c.el))))),
+          actions: left.length
+            ? [{ label: T('Back to the blocks', 'Πίσω στα κουτιά'), primary: true }]
+            : [{ label: T('Not yet', 'Όχι ακόμη') }, { label: T('Send it', 'Στείλ’ το'), primary: true, run: doSend }],
+        });
+        function doSend() {
+          if (sending) return;
+          sending = true;
+          SC.api('/studio/api/blocks/save', { method: 'POST', body: { id: sentId, recipe, lang: SC.lang(), submit: true } })
+            .then((r) => { if (r && r.project) { sentId = r.project.id; SC.toast(T('Sent. Your teacher will see it in Submitted work.', 'Στάλθηκε. Ο εκπαιδευτικός σου θα το δει στις Υποβολές.')); location.hash = '#/submitted'; } })
+            .catch((e) => {
+              const code = e && (e.code || e.status);
+              if (code === 401 || code === 'signin' || code === 403) {
+                SC.modal({ title: T('Sending needs an account', 'Η αποστολή χρειάζεται λογαριασμό'),
+                  body: h('p', null, T('Your tool is safe: the address of this page holds it, so copy the link before you go and it reopens exactly as it is.', 'Το εργαλείο σου είναι ασφαλές: η διεύθυνση αυτής της σελίδας το κρατά, οπότε αντίγραψε τον σύνδεσμο πριν φύγεις και ανοίγει ακριβώς όπως είναι.')),
+                  actions: [{ label: T('Copy the link', 'Αντίγραψε τον σύνδεσμο'), run: () => { (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(link) : Promise.reject()).then(() => SC.toast(T('Link copied.', 'Ο σύνδεσμος αντιγράφηκε.'))).catch(() => SC.toast(T('Copy the address of this page.', 'Αντίγραψε τη διεύθυνση αυτής της σελίδας.'))); } },
+                    { label: T('Join or sign in', 'Εγγραφή ή σύνδεση'), primary: true, run: () => { location.hash = '#/join'; } }] });
+              } else SC.toast(T('It could not be sent: ', 'Δεν στάλθηκε: ') + (e && e.message ? e.message : T('try again in a moment.', 'δοκίμασε ξανά σε λίγο.')));
+            })
+            .finally(() => { sending = false; });
+        }
+      }
+
       function drawCanvas() {
         const R = run(), col = (g, hint) => { const list = recipe.filter((b) => gOf(b) === g); return h('div', { class: 'ws-col g-' + g, role: 'group', 'aria-label': L(GROUP[g]) }, list.length ? list.map((b) => boxEl(b, R)) : h('p', { class: 'ws-hint' }, hint)); };
         flow.replaceChildren(wire, h('div', { class: 'ws-cols' }, col('data', ''), col('process', T('Process blocks go here', 'Εδώ μπαίνουν κουτιά Επεξεργασίας')), col('ai', T('AI model blocks go here', 'Εδώ μπαίνουν κουτιά Μοντέλων ΤΝ')), col('show', T('Show blocks go here', 'Εδώ μπαίνουν κουτιά Εμφάνισης'))),
           h('div', { class: 'ws-irow g-interact', role: 'group', 'aria-label': L(GROUP.interact) }, recipe.filter((b) => gOf(b) === 'interact').map((b) => boxEl(b, R)), recipe.some((b) => gOf(b) === 'interact') ? null : h('p', { class: 'ws-hint' }, T('Interact blocks go here: they give your tool controls', 'Εδώ μπαίνουν κουτιά Αλληλεπίδρασης: δίνουν χειριστήρια στο εργαλείο σου'))));
-        canvas.replaceChildren(h('div', { class: 'ws-hd' }, h('span', { class: 'ws-n', 'aria-hidden': 'true' }, '2'), h('h2', null, T('How it works, in blocks', 'Πώς δουλεύει, με κουτιά')), h('em', null, T('Press a block to change it. Drag one onto another of its group to reorder.', 'Πάτησε ένα κουτί για να το αλλάξεις. Σύρε το πάνω σε άλλο της ομάδας του για αλλαγή σειράς.'))), flow,
+        canvas.replaceChildren(h('div', { class: 'ws-hd' }, h('span', { class: 'ws-n', 'aria-hidden': 'true' }, '2'), h('h2', null, T('How it works, in blocks', 'Πώς δουλεύει, με κουτιά')), h('em', null, T('Press a block to change it. Drag one onto another of its group to reorder.', 'Πάτησε ένα κουτί για να το αλλάξεις. Σύρε το πάνω σε άλλο της ομάδας του για αλλαγή σειράς.'))),
+          warn.length ? h('div', { class: 'ws-warn', role: 'status' }, h('b', null, T('What the layers hold right now', 'Τι έχουν τα στρώματα αυτή τη στιγμή')), ...warn.map((w) => h('p', null, w))) : null,
+          flow,
           h('div', { class: 'ws-act' },
             h('button', { type: 'button', class: 'ws-btn quiet', dataset: { a: 'undo' }, disabled: !undo.length, onclick: back }, T('Undo', 'Αναίρεση')),
             h('button', { type: 'button', class: 'ws-btn quiet', dataset: { a: 'link' }, onclick: () => { const url = location.origin + '/#/workshop?r=' + pack(recipe); (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => SC.toast(T('Link copied. It reopens this tool.', 'Ο σύνδεσμος αντιγράφηκε. Ανοίγει ξανά αυτό το εργαλείο.'))).catch(() => SC.toast(T('Copy the address of this page: it holds your tool.', 'Αντίγραψε τη διεύθυνση αυτής της σελίδας: περιέχει το εργαλείο σου.'))); } }, T('Copy the link', 'Αντίγραψε τον σύνδεσμο')),
             h('span', { class: 'ws-count' }, T(recipe.length + ' of ' + MAX + ' blocks', recipe.length + ' από ' + MAX + ' κουτιά')),
-            h('button', { type: 'button', class: 'ws-btn send', disabled: true, title: T('Coming next', 'Έρχεται') }, T('Send to my teacher (coming next)', 'Στείλε στον εκπαιδευτικό μου (έρχεται)'))),
-          h('p', { class: 'ws-fine' }, T('Your tool is kept in this browser and in the link. Nothing is sent anywhere yet. A tool is a list of choices, never code.', 'Το εργαλείο σου μένει σε αυτό το πρόγραμμα περιήγησης και στον σύνδεσμο. Τίποτα δεν στέλνεται πουθενά ακόμη. Ένα εργαλείο είναι μια λίστα επιλογών, ποτέ κώδικας.')));
+            h('button', { type: 'button', class: 'ws-btn send', dataset: { a: 'send' }, onclick: sendToTeacher }, T('Send to my teacher', 'Στείλε στον εκπαιδευτικό μου'))),
+          h('p', { class: 'ws-fine' }, T('Your tool is kept in this browser and in the link. Nothing leaves this page until you press "Send to my teacher". A tool is a list of choices, never code.', 'Το εργαλείο σου μένει σε αυτό το πρόγραμμα περιήγησης και στον σύνδεσμο. Τίποτα δεν φεύγει από τη σελίδα μέχρι να πατήσεις «Στείλε στον εκπαιδευτικό μου». Ένα εργαλείο είναι μια λίστα επιλογών, ποτέ κώδικας.')));
         rewire();
       }
       function drawShelf() {
@@ -400,14 +485,16 @@
       }
       function drawIdeas() {
         ideas.replaceChildren(h('h2', null, T('Start from an idea', 'Ξεκίνα από μια ιδέα')), h('p', { class: 'ws-how' }, T('Press one and the whole tool is built. Then change any block.', 'Πάτησε μία και χτίζεται όλο το εργαλείο. Μετά άλλαξε όποιο κουτί θέλεις.')),
-          ...IDEAS.map((x, n) => h('button', { type: 'button', class: 'ws-idea', dataset: { n: String(n) }, onclick: () => setTo(x.b, T('Built: ', 'Χτίστηκε: ') + L(x.q)) }, h('span', null, L(x.q)), h('small', null, L(x.s)))),
-          h('button', { type: 'button', class: 'ws-idea blank', dataset: { n: 'blank' }, onclick: () => setTo([D('any', 'larnaka', 'temperature'), { k: 'line' }], T('Started again.', 'Ξεκίνησες από την αρχή.')) }, h('span', null, T('Start with almost nothing', 'Ξεκίνα σχεδόν από το μηδέν')), h('small', null, T('One data block and a line chart', 'Ένα κουτί δεδομένων και ένα γραμμικό γράφημα'))),
+          ...IDEAS.map((x, n) => h('button', { type: 'button', class: 'ws-idea', dataset: { n: String(n) }, onclick: () => useIdea(x.b, T('Built: ', 'Χτίστηκε: ') + L(x.q)) }, h('span', null, L(x.q)), h('small', null, L(x.s)))),
+          h('button', { type: 'button', class: 'ws-idea blank', dataset: { n: 'blank' }, onclick: () => { warn = []; setTo([D('any', 'larnaka', 'temperature'), { k: 'line' }], T('Started again.', 'Ξεκίνησες από την αρχή.')); } }, h('span', null, T('Start with almost nothing', 'Ξεκίνα σχεδόν από το μηδέν')), h('small', null, T('One data block and a line chart', 'Ένα κουτί δεδομένων και ένα γραμμικό γράφημα'))),
           h('p', { class: 'ws-note' }, T('Coming next: describe your own idea in a chat and the helper builds it from these same blocks.', 'Έρχεται: περιέγραψε τη δική σου ιδέα σε μια συνομιλία και ο βοηθός τη χτίζει με τα ίδια κουτιά.')));
       }
       function drawAll() { drawTool(); drawCanvas(); }
 
       const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(rewire) : null; if (ro) ro.observe(flow);
       drawIdeas(); drawShelf(); save(); fetchAll(); drawAll();
+      // the ideas are checked against real layers, so what they need is loaded before one is pressed
+      [...new Set(IDEAS.flatMap((x) => x.b.filter((b) => b.k === 'data').map((b) => b.c + '|' + b.m)))].forEach((k) => fetchOne(k, true));
       timer = setInterval(() => { if (alive && !document.hidden) fetchAll(true); }, 120000);
       return () => { alive = false; clearInterval(timer); if (ro) ro.disconnect(); if (raf) cancelAnimationFrame(raf); };
     },

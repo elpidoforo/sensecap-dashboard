@@ -250,8 +250,8 @@
 
     /* ----- what the viewer owns ----- */
     const myLocal = () => S.drafts.filter((d) => isClass() && V().school && d.school === V().school.slug && sameTeam(d.team, V().team)).sort((a, b) => b.at - a.at);
-    const pendingMine = () => S.mine.filter((p) => p.status === 'pending');
-    const rejectedMine = () => S.mine.filter((p) => p.status === 'rejected' && !S.drafts.some((d) => d.fromId === p.id));
+    const pendingMine = () => S.mine.filter((p) => p.status === 'submitted');
+    const rejectedMine = () => S.mine.filter((p) => p.status === 'changes' && !S.drafts.some((d) => d.fromId === p.id));
     const serverDrafts = () => (isUser() ? S.mine.filter((p) => p.status === 'draft') : []);
     const draftCount = () => myLocal().length + serverDrafts().length + rejectedMine().length;
 
@@ -936,7 +936,7 @@
         const q = r.project;
         if (!forceWords && isUser() && q.via === 'blocks' && q.recipe) { openBlocks(q); return; }
         if (isClass()) {
-          const d = { id: 'd' + Date.now().toString(36) + rid(), school: V().school.slug, team: V().team, title: q.title, prompt: q.idea || '', html: q.html || '', msgs: [], at: Date.now(), fromId: q.status === 'rejected' ? q.id : null };
+          const d = { id: 'd' + Date.now().toString(36) + rid(), school: V().school.slug, team: V().team, title: q.title, prompt: q.idea || '', html: q.html || '', msgs: [], at: Date.now(), fromId: q.status === 'changes' ? q.id : null };
           S.drafts.unshift(d); persist(); S.cur = d;
         } else S.cur = { id: 's' + q.id, serverId: q.id, title: q.title, prompt: q.idea || '', html: q.html || '', guide: r.guideHtml || null, msgs: [], at: Date.now() };
         S.convo = []; S.reply = null; S.buildErr = null; S.mode = 'update'; S.tab = 'words';

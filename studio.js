@@ -176,6 +176,68 @@ function createStudio(opts) {
   db.run('CREATE INDEX IF NOT EXISTS studio_plans_status ON studio_plans(status, school_id)');
   db.run('CREATE INDEX IF NOT EXISTS studio_plans_author ON studio_plans(author_kind, school_id)');
 
+  /* ---------- one piece of work, followed across the seven pages ---------- */
+
+  // A built tool belongs to the plan it came from, so a question, the tool that answers it and the
+  // submission are one piece of work rather than three unrelated rows. NULL on a tool made before this.
+  addCol('studio_projects', 'plan_id', 'INTEGER');
+  db.run('CREATE INDEX IF NOT EXISTS studio_projects_plan ON studio_projects(plan_id)');
+
+  // Approving work and publishing it are two different acts. Until now one column did both, so a
+  // teacher who approved a project also published it without being asked. 1 = shown publicly.
+  // The backfill runs once, in the same breath as the column is added, and never again: a repeated
+  // backfill would publish on every restart exactly the work a teacher approved and chose to keep in.
+  // New rows default to 0, so nothing becomes public except by the publish route below.
+  for (const t of ['studio_projects', 'studio_plans']) {
+    if (hasCol(t, 'public')) continue;
+    db.run(`ALTER TABLE ${t} ADD COLUMN public INTEGER NOT NULL DEFAULT 0`);
+    // Everything approved before this existed was already public, and stays public: hiding work
+    // retrospectively would take it from the students who made it without anyone deciding to.
+    db.run(`UPDATE ${t} SET public = 1 WHERE status = 'approved'`);
+  }
+
+  // What a teacher is reviewing, frozen at the moment it was sent. A student may keep working: their
+  // edits make the next version and never change the version under review, and every version stays readable.
+  db.run(`CREATE TABLE IF NOT EXISTS studio_submissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, ref_id INTEGER NOT NULL, version INTEGER NOT NULL,
+    snapshot_json TEXT NOT NULL, submitted_at INTEGER NOT NULL, submitted_by INTEGER,
+    decision TEXT, reviewed_by INTEGER, reviewed_at INTEGER, review_note TEXT)`);
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS studio_submissions_ver ON studio_submissions(kind, ref_id, version)');
+
+  /* One vocabulary for every status a student or teacher reads: draft, progress, ready, submitted,
+     changes, approved. The two tables keep the names they have always stored, so no row is rewritten
+     and no permission check changes meaning — this map is the only place the two vocabularies meet. */
+  const SHOWN = { draft: 'draft', running: 'progress', active: 'progress', done: 'ready',
+    submitted: 'submitted', pending: 'submitted', sent_back: 'changes', rejected: 'changes', approved: 'approved' };
+  const shown = (s) => SHOWN[s] || 'draft';
+  const STATUS_WORDS = { draft: ['Draft', 'Πρόχειρο'], progress: ['In progress', 'Σε εξέλιξη'],
+    ready: ['Ready for review', 'Έτοιμο για έλεγχο'], submitted: ['Submitted', 'Υποβλήθηκε'],
+    changes: ['Changes requested', 'Ζητήθηκαν αλλαγές'], approved: ['Approved', 'Εγκρίθηκε'] };
+
+  // The snapshot a teacher reviews. Taking it is what "submitted" means: everything the review needs,
+  // copied, so that nothing the student does afterwards can change what is being judged.
+  function snapshot(kind, row, byUserId) {
+    const last = db.get('SELECT MAX(version) AS v FROM studio_submissions WHERE kind = ? AND ref_id = ?', kind, row.id);
+    const version = (last && last.v ? last.v : 0) + 1;
+    const body = kind === 'plan'
+      ? { title: row.title, question: row.question, sensors: row.sensors_json, data: row.data_json, notes: row.notes, stage: row.stage }
+      : { title: row.title, idea: row.idea, html: row.html, data: row.data_json, recipe: row.recipe_json, via: row.via, planId: row.plan_id };
+    db.run('INSERT INTO studio_submissions(kind, ref_id, version, snapshot_json, submitted_at, submitted_by) VALUES (?,?,?,?,?,?)',
+      kind, row.id, version, JSON.stringify(body), Date.now(), byUserId || null);
+    return version;
+  }
+  // `notes` is false for anyone but the author, their team and staff: a teacher's note is written to one
+  // student about their work, and a published project must not carry it out to the world.
+  const versionsOf = (kind, id, notes) => db.all('SELECT id, version, submitted_at, decision, reviewed_at, review_note FROM studio_submissions WHERE kind = ? AND ref_id = ? ORDER BY version', kind, id)
+    .map((s) => ({ version: s.version, submittedAt: s.submitted_at, decision: s.decision || null, reviewedAt: s.reviewed_at || null, reviewNote: notes ? s.review_note || null : null }));
+  // A review decides one version: the newest one still waiting. Marking it keeps the history honest
+  // when a student resubmits, because each version carries the decision that was made about it.
+  function markReviewed(kind, id, decision, userId, note) {
+    const open = db.get('SELECT id FROM studio_submissions WHERE kind = ? AND ref_id = ? AND decision IS NULL ORDER BY version DESC LIMIT 1', kind, id);
+    if (open) db.run('UPDATE studio_submissions SET decision = ?, reviewed_by = ?, reviewed_at = ?, review_note = ? WHERE id = ?',
+      decision, userId || null, Date.now(), String(note || '').slice(0, 300), open.id);
+  }
+
   const isStaff = (u) => u && (u.role === 'teacher' || u.role === 'admin');
   const audit = (user, action, target, detail) => db.run('INSERT INTO audit(at, actor_id, action, target, detail) VALUES (?,?,?,?,?)', Date.now(), user ? user.id : null, action, target == null ? null : String(target), detail == null ? null : String(detail).slice(0, 300));
   const schoolOf = (id) => (id ? db.get('SELECT * FROM schools WHERE id = ?', id) : null);
@@ -263,7 +325,9 @@ function createStudio(opts) {
 
   const classOwns = (v, p) => v.kind === 'class' && p.author_kind === 'class' && p.school_id === v.school.id && nameKey(p.team_label || '') === v.teamKey;
   const canEdit = (u, p) => p.user_id === u.id || (u.team_id && p.team_id === u.team_id) || u.role === 'admin' || (u.role === 'teacher' && u.school_id && u.school_id === p.school_id);
-  const canViewProject = (v, p) => p.status === 'approved' || (v.kind === 'user' && canEdit(v.user, p)) || classOwns(v, p);
+  // Approved is not the same as published: an approved project that nobody chose to publish is still
+  // only the team's and its teachers' to see. canEdit already covers a teacher of that school.
+  const canViewProject = (v, p) => (p.status === 'approved' && p.public === 1) || (v.kind === 'user' && canEdit(v.user, p)) || classOwns(v, p);
   const canSeeHtml = (v, p) => (v.kind === 'user' && canEdit(v.user, p)) || classOwns(v, p);
 
   // Public viewers never see the display name of a signed-in student: they see the team (or "Student") and the school.
@@ -300,7 +364,8 @@ function createStudio(opts) {
     const showNote = reveal || (v && classOwns(v, p));
     const author = reveal && !klass ? (db.get('SELECT name FROM users WHERE id = ?', p.user_id) || { name: 'Deleted user' }).name : label;
     const out = {
-      id: p.id, title: p.title, idea: p.idea, status: p.status, school: s ? s.short : null, team: klass ? p.team_label : (t ? t.name : null),
+      id: p.id, title: p.title, idea: p.idea, status: shown(p.status), planId: p.plan_id || null, public: p.public === 1,
+      versions: versionsOf('tool', p.id, Boolean((v && v.kind === 'user' && canEdit(v.user, p)) || classOwns(v, p))), school: s ? s.short : null, team: klass ? p.team_label : (t ? t.name : null),
       author, author_label: label, authorKind: klass ? 'class' : 'user', creator: creatorOf(p), showName: p.show_name === 1,
       mine: Boolean(v && v.kind === 'user' && p.author_kind !== 'class' && p.user_id === v.user.id),
       canHideName: Boolean(v && v.kind === 'user' && isStaff(v.user) && (v.user.role === 'admin' || v.user.school_id === p.school_id)),
@@ -338,7 +403,9 @@ function createStudio(opts) {
       if (!p || !canEdit(user, p)) fail(404, 'No such project.');
       if (p.author_kind === 'class') fail(403, 'A page sent by a class team cannot be edited. Reject it with a note and the team can send a new version.');
       // Any change sends an approved or submitted page back to draft, so approved work cannot be swapped afterwards.
-      db.run('UPDATE studio_projects SET title = ?, idea = ?, html = ?, status = ?, updated_at = ?, reviewed_by = NULL, review_note = NULL, via = ? WHERE id = ?', title, idea, html, 'draft', now, via, p.id);
+      // An edit sends the page back to draft, and takes it off the public list with it: what a teacher
+      // approved is not what is there now, so the next approval must be published deliberately again.
+      db.run('UPDATE studio_projects SET title = ?, idea = ?, html = ?, status = ?, public = 0, updated_at = ?, reviewed_by = NULL, review_note = NULL, via = ? WHERE id = ?', title, idea, html, 'draft', now, via, p.id);
       audit(user, 'studio.update', p.id, via);
       return db.get('SELECT * FROM studio_projects WHERE id = ?', p.id);
     }
@@ -353,9 +420,11 @@ function createStudio(opts) {
     const p = db.get('SELECT * FROM studio_projects WHERE id = ?', Number(id));
     if (!p || !canEdit(user, p)) fail(404, 'No such project.');
     if (p.status === 'approved') return p;
+    const already = p.status === 'pending';   // a second press on the same waiting tool is not a second version
     if (typeof showName === 'boolean' && p.user_id === user.id) db.run('UPDATE studio_projects SET show_name = ? WHERE id = ?', showName ? 1 : 0, p.id);
     db.run('UPDATE studio_projects SET status = ?, updated_at = ? WHERE id = ?', 'pending', Date.now(), p.id);
-    audit(user, 'studio.submit', p.id);
+    const ver = already ? null : snapshot('tool', p, user.id);   // frozen here: what the student does next cannot change what is reviewed
+    audit(user, 'studio.submit', p.id, ver ? 'v' + ver : 'again');
     if (p.status !== 'pending' && opts.notify && !isStaff(user)) {
       const tm = teamOf(p.team_id);
       opts.notify.event({ kind: 'tool', title: p.title, team: tm ? tm.name : null, school: (schoolOf(p.school_id) || {}).short || null, stillWaiting: () => { const q = db.get('SELECT status FROM studio_projects WHERE id = ?', p.id); return Boolean(q && q.status === 'pending'); } });
@@ -391,7 +460,7 @@ function createStudio(opts) {
 
   function listProjects(v, scope) {
     let rows;
-    if (scope === 'gallery') rows = db.all("SELECT * FROM studio_projects WHERE status = 'approved' ORDER BY updated_at DESC LIMIT 100");
+    if (scope === 'gallery') rows = db.all("SELECT * FROM studio_projects WHERE status = 'approved' AND public = 1 ORDER BY updated_at DESC LIMIT 100");
     else if (scope === 'review') {
       if (v.kind !== 'user') fail(v.kind === 'class' ? 403 : 401, 'Teachers only.', v.kind === 'class' ? 'class_viewer' : 'signin');
       const u = v.user;
@@ -464,7 +533,7 @@ function createStudio(opts) {
     return p.user_id === u.id || Boolean(u.team_id && p.team_id === u.team_id) || u.role === 'admin' || (u.role === 'teacher' && Boolean(u.school_id) && u.school_id === p.school_id);
   }
   const planReviewer = (u, p) => isStaff(u) && (u.role === 'admin' || (Boolean(u.school_id) && u.school_id === p.school_id));
-  const canViewPlan = (v, p) => p.status === 'approved' || planOwns(v, p);
+  const canViewPlan = (v, p) => (p.status === 'approved' && p.public === 1) || planOwns(v, p);
 
   // "Team <name>, <school>": a team name that students typed or a teacher chose, never a person's name.
   function planLabel(p) {
@@ -484,7 +553,11 @@ function createStudio(opts) {
     const staff = Boolean(v) && v.kind === 'user' && isStaff(v.user);
     const out = {
       id: p.id, title: p.title, question: p.question, sensors: parseList(p.sensors_json), data: parseList(p.data_json), team: p.team_label || (t ? t.name : null), notes: p.notes,
-      status: p.status, stage: p.stage === 'running' || p.stage === 'done' ? p.stage : null, school: s ? s.short : null, author_label: planLabel(p), authorKind: p.author_kind === 'class' ? 'class' : 'user',
+      status: shown(p.status), public: p.public === 1, versions: versionsOf('plan', p.id, mine || staff),
+      // a plan that is public does not thereby show the titles of its unfinished tools
+      tools: db.all('SELECT * FROM studio_projects WHERE plan_id = ? ORDER BY updated_at DESC', p.id)
+        .filter((t2) => (v ? canViewProject(v, t2) : false)).map((t2) => ({ id: t2.id, title: t2.title, status: shown(t2.status) })),
+      stage: p.stage === 'running' || p.stage === 'done' ? p.stage : null, school: s ? s.short : null, author_label: planLabel(p), authorKind: p.author_kind === 'class' ? 'class' : 'user',
       createdAt: p.created_at, updatedAt: p.updated_at, submittedAt: p.submitted_at || null, reviewedAt: p.reviewed_at || null,
       reviewNote: (mine || staff) && (p.status === 'approved' || p.status === 'sent_back') ? p.review_note : null,
     };
@@ -495,7 +568,7 @@ function createStudio(opts) {
 
   function listPlans(v, scope) {
     let rows;
-    if (scope === 'public') rows = db.all("SELECT * FROM studio_plans WHERE status = 'approved' ORDER BY updated_at DESC, id DESC LIMIT 100");
+    if (scope === 'public') rows = db.all("SELECT * FROM studio_plans WHERE status = 'approved' AND public = 1 ORDER BY updated_at DESC, id DESC LIMIT 100");
     else if (scope === 'review') {
       if (v.kind !== 'user') fail(v.kind === 'class' ? 403 : 401, 'Teachers only.', v.kind === 'class' ? 'class_viewer' : 'signin');
       const u = v.user;
@@ -581,8 +654,11 @@ function createStudio(opts) {
     let status = p.status;
     if (changed && (status === 'approved' || status === 'submitted')) status = 'draft';   // approved or waiting work cannot be swapped without a new look
     if (hasStatus) {
-      const want = body.status;
-      if (typeof want !== 'string' || !PLAN_SET_BY_TEAM.includes(want)) fail(400, 'status must be draft, running, done or submitted.', 'status');
+      // The pages speak the one vocabulary; the table keeps its own names. Both are accepted here so
+      // that an older page and a newer one can send the same plan to a teacher.
+      const STORED = { draft: 'draft', progress: 'running', ready: 'done', submitted: 'submitted' };
+      const want = typeof body.status === 'string' && STORED[body.status] ? STORED[body.status] : body.status;
+      if (typeof want !== 'string' || !PLAN_SET_BY_TEAM.includes(want)) fail(400, 'status must be draft, progress, ready or submitted.', 'status');
       if (status === 'approved' && want !== 'draft') fail(409, 'This plan is public. Change it back to a draft first.', 'approved');
       if (want === 'submitted' && status !== 'submitted') {
         const merged = { title: 'title' in sets ? sets.title : p.title, question: 'question' in sets ? sets.question : p.question };
@@ -597,6 +673,7 @@ function createStudio(opts) {
     }
     const now = Date.now();
     const cols = { ...sets, status, updated_at: now };
+    if (status !== 'approved') cols.public = 0;   // only an approved plan a teacher published stays public
     if (status === 'running' || status === 'done') cols.stage = status;
     else if (status === 'draft') cols.stage = null;
     else if (status === 'submitted' && p.status !== 'submitted') cols.stage = p.status === 'done' ? 'done' : 'running';   // sent in from draft or running: the work is under way
@@ -605,6 +682,7 @@ function createStudio(opts) {
     if (p.status === 'approved' || (status === 'submitted' && p.status !== 'submitted')) { cols.reviewed_by = null; cols.reviewed_at = null; cols.review_note = null; }
     const keys = Object.keys(cols);
     db.run(`UPDATE studio_plans SET ${keys.map((k) => k + ' = ?').join(', ')} WHERE id = ?`, ...keys.map((k) => cols[k]), p.id);
+    if (status === 'submitted' && p.status !== 'submitted') snapshot('plan', planRow(p.id), v.kind === 'user' ? v.user.id : null);
     audit(v.kind === 'user' ? v.user : null, 'studio.plan.update', p.id, `${p.status}->${status}`);
     if (status === 'submitted' && p.status !== 'submitted' && opts.notify && !(v.kind === 'user' && isStaff(v.user))) {
       const tm = teamOf(p.team_id), label = tm ? tm.name : p.team_label;
@@ -624,6 +702,8 @@ function createStudio(opts) {
     const status = body.decision === 'approve' ? 'approved' : 'sent_back';
     const now = Date.now();
     db.run('UPDATE studio_plans SET status = ?, reviewed_by = ?, reviewed_at = ?, review_note = ?, updated_at = ? WHERE id = ?', status, user.id, now, note || null, now, p.id);
+    if (status !== 'approved') db.run('UPDATE studio_plans SET public = 0 WHERE id = ?', p.id);
+    markReviewed('plan', p.id, body.decision === 'approve' ? 'approved' : 'changes', user.id, note);
     audit(user, 'studio.plan.' + body.decision, p.id);
     return planRow(p.id);
   }
@@ -640,11 +720,11 @@ function createStudio(opts) {
     const items = [];
     const toolRows = pending
       ? (wide ? db.all("SELECT * FROM studio_projects WHERE status = 'pending' ORDER BY updated_at LIMIT 100") : db.all("SELECT * FROM studio_projects WHERE status = 'pending' AND school_id = ? ORDER BY updated_at LIMIT 100", u.school_id))
-      : db.all("SELECT * FROM studio_projects WHERE status = 'approved' ORDER BY updated_at DESC LIMIT 100");
+      : db.all("SELECT * FROM studio_projects WHERE status = 'approved' AND public = 1 ORDER BY updated_at DESC LIMIT 100");
     for (const p of toolRows) items.push({ kind: 'tool', id: p.id, title: p.title, author_label: authorLabel(p, null), creator: pending ? null : creatorOf(p), school: (schoolOf(p.school_id) || {}).short || null, at: p.updated_at, status: pending ? 'pending' : 'approved', url: '/studio/p/' + p.id });
     const planRows = pending
       ? (wide ? db.all("SELECT * FROM studio_plans WHERE status = 'submitted' ORDER BY submitted_at LIMIT 100") : db.all("SELECT * FROM studio_plans WHERE status = 'submitted' AND school_id = ? ORDER BY submitted_at LIMIT 100", u.school_id))
-      : db.all("SELECT * FROM studio_plans WHERE status = 'approved' ORDER BY updated_at DESC LIMIT 100");
+      : db.all("SELECT * FROM studio_plans WHERE status = 'approved' AND public = 1 ORDER BY updated_at DESC LIMIT 100");
     for (const p of planRows) items.push({ kind: 'plan', id: p.id, title: p.title, author_label: planLabel(p), school: (schoolOf(p.school_id) || {}).short || null, at: (pending ? p.submitted_at : p.updated_at) || p.updated_at, status: pending ? 'pending' : 'approved' });
     const outside = typeof appCore.provided === 'function' ? appCore.provided('queue:') : [];
     for (const src of [...queueSources, ...outside]) {
@@ -839,7 +919,7 @@ function createStudio(opts) {
       const tools = [];
       for (const id of toolIds) {
         if (tools.length >= 3) break;
-        const p = db.get("SELECT id, title, school_id, team_id, team_label, status, show_name, author_kind, user_id FROM studio_projects WHERE id = ? AND status = 'approved'", id);
+        const p = db.get("SELECT id, title, school_id, team_id, team_label, status, show_name, author_kind, user_id FROM studio_projects WHERE id = ? AND status = 'approved' AND public = 1", id);
         if (!p) continue;   // unknown, pending or rejected: dropped without a word
         tools.push({ id: p.id, title: cleanLine(p.title, 80), school: (schoolOf(p.school_id) || {}).short || '', team: (teamOf(p.team_id) || {}).name || p.team_label || '', creator: creatorOf(p) || null });
       }
@@ -860,9 +940,9 @@ function createStudio(opts) {
     if (name === 'gallery_ideas') {
       const short = (id) => (schoolOf(id) || {}).short || '';
       const q = cleanLine(input.query, 120), lim = q ? 200 : 20;   // with a query the best fits of up to 200 approved tools, not only the newest 20
-      const all = db.all(`SELECT id, title, idea, school_id, team_id, team_label FROM studio_projects WHERE status = 'approved' ORDER BY updated_at DESC LIMIT ${lim}`)
+      const all = db.all(`SELECT id, title, idea, school_id, team_id, team_label FROM studio_projects WHERE status = 'approved' AND public = 1 ORDER BY updated_at DESC LIMIT ${lim}`)
         .map((p) => ({ id: p.id, title: cleanLine(p.title, 80), idea: cleanLine(p.idea, 160), school: short(p.school_id), team: (teamOf(p.team_id) || {}).name || p.team_label || '' }));
-      const allPlans = db.all(`SELECT title, question, school_id, team_id, team_label FROM studio_plans WHERE status = 'approved' ORDER BY updated_at DESC LIMIT ${lim}`)
+      const allPlans = db.all(`SELECT title, question, school_id, team_id, team_label FROM studio_plans WHERE status = 'approved' AND public = 1 ORDER BY updated_at DESC LIMIT ${lim}`)
         .map((p) => ({ title: cleanLine(p.title, 80), question: cleanLine(p.question, 160), school: short(p.school_id), team: (teamOf(p.team_id) || {}).name || p.team_label || '' }));
       const pick = guideSearch.galleryFor(all, allPlans, q);
       const tools = pick.tools.slice(0, 20), plans = pick.plans.slice(0, 20);
@@ -1159,6 +1239,7 @@ function createStudio(opts) {
         enabled: true, configured: !!apiKey, model: apiKey ? model : null, demo: !!data.demo,
         user: user ? { id: user.id, name: user.name, role: user.role, team: user.team_id || null } : null,
         viewer: viewerJson(v), limits: limitsFor(v, req), maxHtml: MAX_HTML,
+        statusWords: STATUS_WORDS, statusOrder: ['draft', 'progress', 'ready', 'submitted', 'changes', 'approved'],
         schools: db.all('SELECT id, name, short FROM schools ORDER BY id').map((x) => ({ id: x.id, name: x.name, short: x.short })),
       });
     }
@@ -1242,9 +1323,49 @@ function createStudio(opts) {
       if (!p || (user.role === 'teacher' && p.school_id !== user.school_id)) fail(404, 'No such project.');
       if (!['approve', 'reject'].includes(body.decision)) fail(400, 'Choose approve or reject.');
       db.run('UPDATE studio_projects SET status = ?, reviewed_by = ?, review_note = ?, updated_at = ? WHERE id = ?', body.decision === 'approve' ? 'approved' : 'rejected', user.id, String(body.note || '').slice(0, 300), Date.now(), p.id);
+      if (body.decision !== 'approve') db.run('UPDATE studio_projects SET public = 0 WHERE id = ?', p.id);   // work sent back is not left on public view
+      markReviewed('tool', p.id, body.decision === 'approve' ? 'approved' : 'changes', user.id, body.note);
       if (body.hide_name === true) db.run('UPDATE studio_projects SET show_name = 0 WHERE id = ?', p.id);   // a teacher can only hide a name, never show one
       audit(user, 'studio.' + body.decision, p.id);
       return sendJson(res, 200, { project: publicProject(db.get('SELECT * FROM studio_projects WHERE id = ?', p.id), v, false) });
+    }
+    // Attach a built tool to the plan it answers, so the question, the tool and the submission are one
+    // piece of work. The student must be allowed to edit both sides, or neither; passing null detaches.
+    if (req.method === 'POST' && (r = m(/^\/studio\/api\/projects\/(\d+)\/plan$/))) {
+      needUser(v);
+      const body = (await readJson(req)) || {};
+      const p = db.get('SELECT * FROM studio_projects WHERE id = ?', Number(r[1]));
+      if (!p || !canEdit(user, p)) fail(404, 'No such project.');
+      let planId = null;
+      if (body.planId !== null && body.planId !== undefined) {
+        const plan = planRow(Number(body.planId));
+        if (!plan || !planOwns(v, plan)) fail(404, 'No such plan.');
+        if (plan.school_id !== p.school_id) fail(400, 'That plan belongs to another school.');
+        planId = plan.id;
+      }
+      db.run('UPDATE studio_projects SET plan_id = ?, updated_at = ? WHERE id = ?', planId, Date.now(), p.id);
+      audit(user, planId ? 'studio.attach' : 'studio.detach', p.id, planId ? String(planId) : null);
+      return sendJson(res, 200, { project: publicProject(db.get('SELECT * FROM studio_projects WHERE id = ?', p.id), v, false) });
+    }
+    // Publishing is its own act, and only a teacher's. Approving work no longer puts it in front of
+    // the world as a side effect, and a student cannot publish their own work by any route.
+    if (req.method === 'POST' && (r = m(/^\/studio\/api\/projects\/(\d+)\/publish$/))) {
+      needUser(v);
+      if (!isStaff(user)) fail(403, 'Teachers only.');
+      const body = (await readJson(req)) || {};
+      const p = db.get('SELECT * FROM studio_projects WHERE id = ?', Number(r[1]));
+      if (!p || (user.role === 'teacher' && p.school_id !== user.school_id)) fail(404, 'No such project.');
+      if (typeof body.show !== 'boolean') fail(400, 'Say whether to publish it.');
+      if (body.show && p.status !== 'approved') fail(400, 'Approve the project before publishing it.');
+      db.run('UPDATE studio_projects SET public = ?, updated_at = ? WHERE id = ?', body.show ? 1 : 0, Date.now(), p.id);
+      audit(user, body.show ? 'studio.publish' : 'studio.unpublish', p.id);
+      return sendJson(res, 200, { project: publicProject(db.get('SELECT * FROM studio_projects WHERE id = ?', p.id), v, false) });
+    }
+    // Every version a teacher has been asked to review, newest last, with the decision made on each.
+    if (req.method === 'GET' && (r = m(/^\/studio\/api\/projects\/(\d+)\/versions$/))) {
+      const p = db.get('SELECT * FROM studio_projects WHERE id = ?', Number(r[1]));
+      if (!p || !canViewProject(v, p)) fail(404, 'No such project.');
+      return sendJson(res, 200, { versions: versionsOf('tool', p.id, Boolean((user && canEdit(user, p)) || classOwns(v, p))) });
     }
     if (req.method === 'POST' && (r = m(/^\/studio\/api\/projects\/(\d+)\/delete$/))) {
       needViewer(v);
@@ -1252,6 +1373,8 @@ function createStudio(opts) {
       const own = p && classOwns(v, p) && ['pending', 'rejected'].includes(p.status);   // a team can withdraw its own page until it is approved
       if (!p || !(own || (user && canEdit(user, p)))) fail(404, 'No such project.');
       db.run('DELETE FROM studio_projects WHERE id = ?', p.id);
+      // ids are handed out again after a delete, so the frozen versions go with the row, not the number
+      db.run("DELETE FROM studio_submissions WHERE kind = 'tool' AND ref_id = ?", p.id);
       audit(user, user ? 'studio.delete' : 'studio.class.withdraw', p.id);
       return sendJson(res, 200, { deleted: true });
     }
@@ -1387,12 +1510,28 @@ function createStudio(opts) {
       const body = objectBody(await readJson(req, 4096));
       return sendJson(res, 200, { plan: planOut(reviewPlan(v, p, body), v) });
     }
+    // A plan is published the same way a tool is: approving it is the teacher's judgement, publishing
+    // it is a second, deliberate act. Without this a plan approved from now on could never be public.
+    if (req.method === 'POST' && (r = m(/^\/studio\/api\/plans\/(\d+)\/publish$/))) {
+      needUser(v);
+      if (!isStaff(user)) fail(403, 'Teachers only.');
+      const p = planRow(Number(r[1]));
+      if (!p || !planReviewer(user, p)) fail(404, 'No such plan.');
+      const body = objectBody(await readJson(req, 4096));
+      if (typeof body.show !== 'boolean') fail(400, 'Say whether to publish it.');
+      if (body.show && p.status !== 'approved') fail(400, 'Approve the plan before publishing it.');
+      db.run('UPDATE studio_plans SET public = ?, updated_at = ? WHERE id = ?', body.show ? 1 : 0, Date.now(), p.id);
+      audit(user, body.show ? 'studio.plan.publish' : 'studio.plan.unpublish', p.id);
+      return sendJson(res, 200, { plan: planOut(planRow(p.id), v) });
+    }
     if (req.method === 'POST' && (r = m(/^\/studio\/api\/plans\/(\d+)\/delete$/))) {
       needViewer(v);
       const p = planRow(Number(r[1]));
       const may = p && ((user && isStaff(user) && planReviewer(user, p)) || (planOwns(v, p) && p.status !== 'approved'));   // a team can take back its plan until it is approved
       if (!may) fail(404, 'No such plan.');
       db.run('DELETE FROM studio_plans WHERE id = ?', p.id);
+      db.run("DELETE FROM studio_submissions WHERE kind = 'plan' AND ref_id = ?", p.id);   // the frozen versions go with the row, not the number
+      db.run('UPDATE studio_projects SET plan_id = NULL WHERE plan_id = ?', p.id);         // a tool outlives its plan rather than pointing at a stranger
       audit(user, user ? 'studio.plan.delete' : 'studio.plan.withdraw', p.id);
       return sendJson(res, 200, { deleted: true });
     }
@@ -1454,7 +1593,7 @@ function createStudio(opts) {
     const p = db.get('SELECT * FROM studio_projects WHERE id = ?', id);
     if (!p || !canViewProject(v, p)) return notFound(res);
     const html = p.via === 'blocks' && p.recipe_json && String(req.headers['sec-fetch-dest'] || '').toLowerCase() !== 'document' ? (await liveBlocksHtml(p, pageLang(req, url))) || p.html : p.html;
-    return pageResponse(req, res, html, { title: p.title, label: p.status === 'approved' ? `${creatorOf(p) ? 'by ' + creatorOf(p) + ' · ' : ''}${authorLabel(p, null)} · student tool, approved by a teacher` : `${authorLabel(p, v)} · not public yet`, path: url.pathname });
+    return pageResponse(req, res, html, { title: p.title, label: p.status === 'approved' && p.public === 1 ? `${creatorOf(p) ? 'by ' + creatorOf(p) + ' · ' : ''}${authorLabel(p, null)} · student tool, approved by a teacher` : `${authorLabel(p, v)} · not public yet`, path: url.pathname });
   }
   function handlePreviewPage(req, res, url) {
     const v = viewerOf(req);
@@ -1560,7 +1699,7 @@ function createStudio(opts) {
         const sch = schools.find((x) => String(x.match || '').split(',').some((m) => m.trim() && text.includes(m.trim())));
         if (sch) row(sch.id).online++;
       }
-      for (const r of db.all("SELECT school_id, COUNT(*) AS n FROM studio_projects WHERE status = 'approved' AND school_id IS NOT NULL GROUP BY school_id")) row(r.school_id).tools = r.n;
+      for (const r of db.all("SELECT school_id, COUNT(*) AS n FROM studio_projects WHERE status = 'approved' AND public = 1 AND school_id IS NOT NULL GROUP BY school_id")) row(r.school_id).tools = r.n;
       for (const r of db.all("SELECT school_id, COUNT(*) AS n FROM studio_plans WHERE status IN ('done', 'submitted', 'approved') GROUP BY school_id")) row(r.school_id).plans = r.n;
       return { schools: out, partial, demo: Boolean(data.demo) };
     });
