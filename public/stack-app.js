@@ -304,9 +304,11 @@ const geoCone = new THREE.Mesh(new THREE.ConeGeometry(120, 420, 32, 1, true),
 }
 
 /* ---- the two sheets that move ---- */
-let windScale = 1;   // set from the measured wind speed once the readings arrive
+let windScale = 1;        // set from the measured wind speed once the readings arrive
+let windAng = -.3;        // where the wind blows TO, in the flat frame of the sheet, from the measured bearing
+let rainScale = 1;        // how hard the rain falls: from the model's millimetres, 0 when it says none
 function flow(x, y, t) { const n = fbm(x / 230 + t * .035, y / 230 - t * .02, 3);
-  const ang = -.3 + (n - .5) * 1.5, sp = (1.3 + 2.2 * fbm(x / 170 - t * .02, y / 170, 2)) * windScale;
+  const ang = windAng + (n - .5) * .7, sp = (1.3 + 2.2 * fbm(x / 170 - t * .02, y / 170, 2)) * windScale;
   return [Math.cos(ang) * sp, Math.sin(ang) * sp, sp]; }
 function windStep(t) { const c = windC.getContext('2d');
   c.globalCompositeOperation = 'source-over'; c.fillStyle = 'rgba(3,8,14,.12)'; c.fillRect(0, 0, LW, LH);
@@ -316,9 +318,12 @@ function windStep(t) { const c = windC.getContext('2d');
     c.strokeStyle = `rgba(${110 + hot * 140},${210 + hot * 45},${240 + hot * 15},${(.3 + hot * .55).toFixed(3)})`;
     c.lineWidth = .8 + hot; c.beginPath(); c.moveTo(x, y); c.lineTo(nx, ny); c.stroke();
     pcl[o] = nx; pcl[o + 1] = ny; pcl[o + 3]++;
-    if (nx > LW + 15 || ny < -15 || ny > LH + 15 || pcl[o + 3] > 130) { pcl[o] = Math.random() * LW * .4 - 15; pcl[o + 1] = Math.random() * LH; pcl[o + 3] = 0; } } }
-function rainStep(t) { const c = rainC.getContext('2d'); c.clearRect(0, 0, LW, LH); c.globalCompositeOperation = 'lighter';
-  [[.28, .4, .17, 1], [.39, .63, .12, .8], [.18, .28, .1, .6]].forEach(([cu, cvv, rr, w], i) => {
+    if (nx < -15 || nx > LW + 15 || ny < -15 || ny > LH + 15 || pcl[o + 3] > 130) { pcl[o] = Math.random() * LW; pcl[o + 1] = Math.random() * LH; pcl[o + 3] = 0; } } }
+function rainStep(t) { const c = rainC.getContext('2d'); c.clearRect(0, 0, LW, LH);
+  if (rainScale <= 0) return;                                      // the model says no rain this hour, so none is drawn
+  c.globalCompositeOperation = 'lighter';
+  [[.28, .4, .17, 1], [.39, .63, .12, .8], [.18, .28, .1, .6]].forEach(([cu, cvv, rr0, w0], i) => {
+    const rr = rr0 * (.5 + .5 * rainScale), w = w0 * rainScale;
     const U = (cu + Math.sin(t * .09 + i) * .012) * LW, V = cvv * LH, R = rr * LW;
     for (let k = 0; k < 16; k++) { const a = k * 2.399, d = Math.sqrt((k % 13) / 13) * R * .8;
       const bx = U + Math.cos(a) * d, by = V + Math.sin(a) * d * .72, br = R * (.3 + .4 * fbm(k * 3.1, t * .2, 2));
@@ -518,6 +523,7 @@ function best(variable, ownOnly) {          // the newest reading of one measure
 
 function paintRail() {
   LAYERS.forEach((layer) => {
+    if (MODEL_SHEET.has(layer.id)) return;     // rain and cloud come from the model grid; paintSky owns those two cards
     const s = sheets.find((x) => x.layer.id === layer.id); if (!s || !s.btn) return;
     const feed = FEED[layer.id];
     const valEl = s.btn.querySelector('.val'), stEl = s.btn.querySelector('.st'), srcEl = s.btn.querySelector('small');
@@ -564,7 +570,14 @@ function paintProbe() {
     const d = document.createElement('div'); d.className = 'kv';
     const a = document.createElement('span'); a.textContent = T(en, el);
     const b = document.createElement('b');
-    if (r) { b.textContent = String(fmt(r.value)); const em = document.createElement('em'); em.textContent = (r.unit || '') + ' · ' + ageText(r.ageMin); b.append(em); }
+    if (r) {
+      b.textContent = String(fmt(r.value));
+      const em = document.createElement('em');
+      // the wind row carries its bearing, so the one line says how hard and which way
+      const from = variable === 'wind_speed' && windDir != null ? ' · ' + T('from ', 'από ') + Math.round(windDir) + '° ' + compass(windDir) : '';
+      em.textContent = (r.unit || '') + from + ' · ' + ageText(r.ageMin);
+      b.append(em);
+    }
     else { b.textContent = '—'; }
     d.append(a, b); out.push(d);
   });
@@ -619,9 +632,79 @@ function haloAt(ageMin) {
 }
 
 // the wind sheet moves at the speed that was actually measured
+// Which way the wind blows, how much rain fell this hour, how much of the sky is covered. The bearing is measured at
+// the airports when they are reporting (METAR gives a wind direction); otherwise it is the model's, and the card says
+// which. Rain and cloud are the model's own grid values, never a gauge, and they are labelled "model" wherever shown.
+let windDir = null, windSrc = null, rainMm = null, cloudPct = null;
+const meanBearing = (list) => {
+  if (!list.length) return null;
+  let x = 0, y = 0;
+  list.forEach((d) => { const a = d * Math.PI / 180; x += Math.cos(a); y += Math.sin(a); });
+  if (!x && !y) return null;
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+};
+const meanOf = (list) => (list.length ? list.reduce((a, b) => a + b, 0) / list.length : null);
+
 function paintWind() {
   const r = best('wind_speed', false);
   windScale = r ? Math.max(.35, Math.min(2.2, r.value / 5)) : 1;
+  const m = (live && live.map) || {};
+  const airports = (m.stations || []).filter((st) => st.src === 'metar-airports' && st.wd != null);
+  const grid = (m.wind || []).filter((p) => p.wd != null);
+  if (airports.length) { windDir = meanBearing(airports.map((a) => a.wd)); windSrc = 'metar-airports'; }
+  else if (grid.length) { windDir = meanBearing(grid.map((p) => p.wd)); windSrc = 'openmeteo-weather'; }
+  else { windDir = null; windSrc = null; }
+  if (windDir != null) {
+    const to = ((windDir + 180) % 360) * Math.PI / 180;            // a bearing names where the wind comes FROM
+    windAng = Math.atan2(-Math.cos(to), Math.sin(to));             // north is up the sheet, east is to the right
+  }
+  const rains = (m.wind || []).map((p) => p.rain).filter((v) => v != null);
+  const clouds = (m.wind || []).map((p) => p.cloud).filter((v) => v != null);
+  rainMm = rains.length ? Math.round(meanOf(rains) * 100) / 100 : null;
+  cloudPct = clouds.length ? Math.round(meanOf(clouds)) : null;
+  rainScale = rainMm == null ? 1 : Math.min(1, rainMm / 1.5);      // until the model has spoken, the drawn rain stays
+}
+
+// The three sheets the model feeds: wind direction on the wind card, rain and cloud on their own. Each says "model"
+// unless the bearing came from an airport, and each keeps the age of the reading behind it.
+const MODEL_SHEET = new Set(['rain', 'cloud']);
+const COMPASS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+const COMPASS_EL = ['Β', 'ΒΒΑ', 'ΒΑ', 'ΑΒΑ', 'Α', 'ΑΝΑ', 'ΝΑ', 'ΝΝΑ', 'Ν', 'ΝΝΔ', 'ΝΔ', 'ΔΝΔ', 'Δ', 'ΔΒΔ', 'ΒΔ', 'ΒΒΔ'];
+const compass = (deg) => (EL ? COMPASS_EL : COMPASS)[Math.round(deg / 22.5) % 16];
+function cardOf(id) { const sh = sheets.find((x) => x.layer.id === id); return sh && sh.btn ? sh : null; }
+function setCard(sh, value, unit, tail, cls) {
+  const valEl = sh.btn.querySelector('.val');
+  valEl.replaceChildren(Object.assign(document.createElement('b'), { textContent: String(value) }),
+    Object.assign(document.createElement('em'), { textContent: unit + ' · ' + tail }));
+  sh.btn.querySelector('.st').className = 'st ' + cls;
+}
+function paintSky() {
+  const age = live ? ageText(ageNow(0)) : '';
+  const w = cardOf('wind');
+  if (w && windDir != null) {
+    const measured = windSrc === 'metar-airports';
+    w.btn.querySelector('small').textContent = (best('wind_speed', false) || {}).source || T(w.layer.src, w.layer.srcEl);
+    const from = T('from ', 'από ') + Math.round(windDir) + '° ' + compass(windDir)
+      + ' · ' + (measured ? T('measured at the airports', 'μετρημένο στα αεροδρόμια') : T('model', 'μοντέλο'));
+    w.btn.title = from;
+    const sub = w.group.children.find((x) => x.isSprite);
+    if (sub) { const next = label(T(w.layer.name, w.layer.nameEl), from.toUpperCase(), w.layer.c, mobile ? 62 : 46);
+      sub.material.map = next.material.map; sub.material.needsUpdate = true; }
+  }
+  const drawn = (sh) => {
+    sh.btn.querySelector('.val').replaceChildren(Object.assign(document.createElement('b'), { textContent: T('drawn', 'σχεδιασμένο') }),
+      Object.assign(document.createElement('em'), { textContent: T('not measured yet', 'όχι ακόμη μετρημένο') }));
+    sh.btn.querySelector('.st').className = 'st year';
+  };
+  const r = cardOf('rain');
+  if (r) { if (rainMm == null) drawn(r); else setCard(r, fmt(rainMm), 'MM', T('model · ', 'μοντέλο · ') + age, 'live'); }
+  const c = cardOf('cloud');
+  if (c && cloudPct == null) drawn(c);
+  if (c && cloudPct != null) {
+    setCard(c, cloudPct, '%', T('model · ', 'μοντέλο · ') + age, 'live');
+    const mesh = c.mesh;
+    if (mesh && mesh.material) { mesh.material.opacity = (c.baseOpacity == null ? (c.baseOpacity = mesh.material.opacity) : c.baseOpacity) * (.12 + .88 * cloudPct / 100); mesh.material.needsUpdate = true; }
+  }
 }
 
 // a real satellite picture, when the site has one stored
@@ -661,14 +744,19 @@ async function loadLive() {
     const r = await fetch('/layers/api/live', { headers: { accept: 'application/json' } });
     if (!r.ok) return;
     live = await r.json(); liveAt = Date.now();
-    paintRail(); paintProbe(); paintPins(); paintWind(); drawTwins();
-  } catch (e) { /* keep what is on the screen; the next refresh tries again */ }
+    paintWind(); paintRail(); paintProbe(); paintPins(); paintSky(); drawTwins();   // the sky is read first (the probe shows its bearing) and painted last (its two cards are its own)
+  } catch (e) {
+    // Keep what is on the screen and try again at the next refresh; the ages on it keep running, so nothing here
+    // starts looking fresher than it is. The reason is kept where the tests and the console can see it.
+    window.__liveError = String((e && e.message) || e);
+    console.error('The live readings could not be shown: ' + window.__liveError);
+  }
 }
 paintRail(); paintProbe();
 loadLive(); loadSatellite();
 setInterval(() => { if (!document.hidden) loadLive(); }, 120000);
 // The readings on the screen age even when no new ones arrive, so the clock on them keeps running between fetches.
-setInterval(() => { if (!document.hidden && live) { paintRail(); paintProbe(); paintPins(); } }, 30000);
+setInterval(() => { if (!document.hidden && live) { paintRail(); paintProbe(); paintPins(); paintSky(); } }, 30000);
 // A seam for the tests only: move this page's clock forward and repaint, to check that the ages and the rings
 // really do keep running when no new reading arrives. It changes nothing that a reader can reach.
 window.__ageForward = (minutes) => { liveAt -= minutes * 60000; paintRail(); paintProbe(); paintPins(); return pinLabels.map((r) => r.ageMin); };

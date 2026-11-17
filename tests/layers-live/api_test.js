@@ -88,6 +88,16 @@ const up = async () => { for (let i = 0; i < 100; i++) { try { await fetch(BASE 
   ok(RP.cities.larnaka.air && RP.cities.larnaka.own && /sensecap/.test(RP.cities.larnaka.own.source), 'replay: Larnaka has outdoor air and our own sensors');
   ok(!/"lat"|"lng"|eui|"name"/i.test(r.text), 'replay: numbers only, no positions or ids');
 
+  // the map carries what the model says about the sky, and the only measured bearing there is
+  r = await get('/layers/api/live');
+  const MP = r.json.map || {};
+  const gw = (MP.wind || []).filter((p2) => p2.wd != null);
+  ok(gw.length > 0 && gw.every((p2) => p2.wd >= 0 && p2.wd <= 360), 'map: every wind point says which way the wind blows');
+  ok((MP.wind || []).some((p2) => p2.rain != null) && (MP.wind || []).some((p2) => p2.cloud != null), 'map: the model grid carries the rain of the hour and the cloud cover');
+  ok((MP.wind || []).every((p2) => p2.rain == null || p2.rain >= 0) && (MP.wind || []).every((p2) => p2.cloud == null || (p2.cloud >= 0 && p2.cloud <= 100)), 'map: rain is never negative and cloud never above all of the sky');
+  const air = (MP.stations || []).filter((st) => st.src === 'metar-airports');
+  ok(air.length > 0 && air.every((st) => st.wd == null || (st.wd >= 0 && st.wd <= 360)), 'map: the airports report the wind they measure, bearing included');
+
   ok(fs.existsSync(path.join(dataDir, 'layers-pulse.json')), 'log: saved in the data folder');
   srv.kill(); await wait(600);
   srv = start(); await up();

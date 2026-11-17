@@ -67,6 +67,18 @@ const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swifts
       ok(twins > 0, name + ': a disagreement between two sources is drawn where it happens (' + twins + ')');
       const halos = await frame.evaluate(() => window.__halos || 0);
       ok(halos > 0, name + ': the school pins carry the age of their newest reading (' + halos + ')');
+      // the sky: a bearing for the wind, and the model's rain and cloud, each saying which it is
+      const railText = await frame.evaluate(() => document.querySelector('.rail').innerText);
+      ok(/(model|μοντέλο)/.test(railText), name + ': a sheet fed by the model says so rather than calling itself measured');
+      const windCard = await frame.evaluate(() => [...document.querySelectorAll('.lay')].find((x) => /Wind at 10|Άνεμος/.test(x.innerText)).title);
+      ok(/\d+°/.test(windCard) && /(airports|measured|μοντέλο|model|αεροδρόμια)/.test(windCard), name + ': the wind sheet names the bearing and where it came from (' + windCard + ')');
+      const probe2 = await frame.evaluate(() => document.querySelector('.probe').innerText);
+      ok(/(from|από)\s*\d+°/.test(probe2), name + ': the probe says which way the wind is blowing, beside how hard');
+      const rainCard = await frame.evaluate(() => [...document.querySelectorAll('.lay')].find((x) => /Rain this hour|Βροχή/.test(x.innerText)).innerText);
+      ok(/(MM|mm)/.test(rainCard) && /(model|μοντέλο)/.test(rainCard), name + ': the rain sheet shows millimetres from the model (' + rainCard.replace(/\n/g, ' ') + ')');
+      const cloudCard = await frame.evaluate(() => [...document.querySelectorAll('.lay')].find((x) => /Clouds|Σύννεφα/.test(x.innerText)).innerText);
+      ok(/%/.test(cloudCard) && /(model|μοντέλο)/.test(cloudCard), name + ': the cloud sheet shows the cover the model reports');
+
       // the ages keep running while the page is open, even when no new reading arrives
       const fresh = await frame.evaluate(() => document.querySelector('.probe').innerText);
       const w0 = await frame.evaluate(() => window.__haloWidth());
