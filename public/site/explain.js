@@ -13,7 +13,8 @@
     layers: 'record', weather: 'record', explore: 'record', library: 'record',
     join: 'schools', schools: 'schools', districts: 'schools', guides: 'schools',
     council: 'think', mirror: 'think', whatif: 'think', reports: 'think',
-    map: 'field', vehicles: 'field', trip: 'field', desk: 'field', projects: 'field', start: 'field',
+    vehicles: 'field', desk: 'field', projects: 'field', start: 'field',
+    stack: 'newer', health: 'newer', fieldwork: 'newer', city: 'newer',
     research: 'sources', archive: 'sources', feeds: 'sources', helpers: 'sources', warnings: 'sources', submitted: 'sources',
     studio: 'studio',
   };

@@ -411,7 +411,7 @@
       items.forEach(([id, ic, en, el]) => { if (id === 'join' && SC.account) { en = 'My account'; el = 'Ο λογαριασμός μου'; } nav.append(SC.el('a', { class: 'nm-side-a' + (id === active ? ' on' : ''), href: id === 'home' ? '#/' : '#/' + id, 'data-id': id, 'aria-current': id === active ? 'page' : null }, SC.icon(ic), SC.el('span', null, SC.t(en, el)))); });
     });
     side.append(nav);
-    side.append(SC.el('a', { class: 'sm-ask' + (active === 'ask' ? ' on' : ''), href: '#/ask', 'data-id': 'ask-link' }, SC.icon('sparkle'), SC.el('span', null, SC.t('Ask', 'Ρωτήστε'), SC.el('small', null, SC.t('opens full screen', 'ανοίγει σε πλήρη οθόνη')))));
+    side.append(SC.el('a', { class: 'sm-ask' + (active === 'ask' ? ' on' : ''), href: '#/ask', 'data-id': 'ask-link' }, SC.icon('sparkle'), SC.el('span', null, SC.t('Ask Kleanthis', 'Ρώτα τον Κλεάνθη'), SC.el('small', null, SC.t('opens full screen', 'ανοίγει σε πλήρη οθόνη')))));
     const A = SC.me || SC.account;
     const initials = A ? String((A.name || 'A').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('')).toUpperCase() || 'A' : 'SC';
     const who = !A ? [SC.t('Visitor', 'Επισκέπτης'), SC.t('Sign in or join · no account needed to look around', 'Σύνδεση ή εγγραφή · δεν χρειάζεται λογαριασμός για να δείτε')]
@@ -491,7 +491,7 @@
     if (document.querySelector('.pal-scrim')) return;
     const items = [];
     MENU.forEach((g) => g.items.forEach(([id, ic, en, el]) => { if (showable(id)) items.push({ id, ic, label: SC.t(en, el), keys: fold(en + ' ' + el + ' ' + id), group: g.h ? SC.t(g.h[0], g.h[1]) : '' }); }));
-    items.push({ id: 'ask', ic: 'sparkle', label: SC.t('Ask', 'Ρωτήστε'), keys: fold('ask ρωτηστε ask'), group: '' });
+    items.push({ id: 'ask', ic: 'sparkle', label: SC.t('Ask Kleanthis', 'Ρώτα τον Κλεάνθη'), keys: fold('ask kleanthis ρωτηστε κλεανθη ask'), group: '' });
     const input = SC.el('input', { type: 'text', placeholder: SC.t('Search or jump to…', 'Αναζήτηση…'), 'aria-label': SC.t('Search pages', 'Αναζήτηση σελίδων'), role: 'combobox', 'aria-expanded': 'true', 'aria-controls': 'pal-list', autocomplete: 'off' });
     const list = SC.el('ul', { role: 'listbox', id: 'pal-list' });
     let sel = 0, shown = items;
@@ -683,6 +683,7 @@
       window.scrollTo(0, 0);
       const pending = def.render(fresh, { id, args: route.args, query: route.query, me: SC.me, lang: SC.lang, go: SC.go });
       stopEx = SC.explain ? SC.explain.mount(fresh, id) : null;   // the "how this page works" strip goes under the title while the page is still loading its data
+      if (SC.askBubble) { const inf = SC.pageInfo(id); SC.askBubble.setPage(id, inf ? inf.name : id); }   // the Ask bubble follows the page it is on
       const out = await pending;
       if (my !== token) { if (stopEx) stopEx(); if (typeof out === 'function') out(); return; }
       cleanup = () => { if (stopEx) stopEx(); if (typeof out === 'function') out(); };
