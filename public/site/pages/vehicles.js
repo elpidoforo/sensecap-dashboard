@@ -26,8 +26,8 @@
   const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
   const fmt = (v, d) => (v == null || !isFinite(v) ? '–' : Number(v).toFixed(d == null ? 1 : d).replace('-', '−'));
   const enc = encodeURIComponent;
-  // where "follow" leads: the trip page when it exists, else the map opened on that vehicle
-  const followHref = (eui) => (SC.ready.has('trip') ? '#/trip' + (eui ? '/' + enc(eui) : '') : SC.ready.has('map') ? '#/map' + (eui ? '?eui=' + enc(eui) : '') : null);
+  // There is nowhere to follow a vehicle to: the pages that drew one trip were taken out, so nothing offers it.
+  const followHref = () => null;
   const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
   const when = (t) => (SC.date(t) === SC.date(Date.now()) ? SC.time(t) : SC.date(t) + ' ' + SC.time(t));
 

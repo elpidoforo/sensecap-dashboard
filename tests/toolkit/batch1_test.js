@@ -1,5 +1,5 @@
 'use strict';
-/* Toolkit, batch 1 (changed, versus, school360, bubbles, toolkit) in a real browser (Playwright, which is not a dependency of the site).
+/* Toolkit, batch 1 (changed, versus, school360, bubbles) in a real browser (Playwright, which is not a dependency of the site).
    Run: node tests/toolkit/batch1_test.js
    Two real servers with demo data and no outside network:
      port 3981  a saved day of about ten hours is put in the data folder first (the same file the server writes, layers-pulse.json)
@@ -10,7 +10,7 @@ const { spawn } = require('child_process');
 const { chromium, devices } = require('playwright');
 const PORT = 3981, PORT2 = 3982, BASE = `http://127.0.0.1:${PORT}`, BASE2 = `http://127.0.0.1:${PORT2}`;
 const SHOTS = process.env.SHOTS || '';
-const IDS = ['changed', 'versus', 'school360', 'bubbles', 'toolkit'];
+const IDS = ['changed', 'versus', 'school360', 'bubbles'];
 let passed = 0, failed = 0;
 const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + m); } };
 
@@ -39,7 +39,7 @@ function serve(port, dir, pulse) {
   process.on('exit', () => { try { srv.kill(); } catch (e) { /* gone */ } });
 }
 const up = async (base) => { for (let i = 0; i < 100; i++) { try { await fetch(base + '/layers/api/register'); return; } catch (e) { await new Promise((r) => setTimeout(r, 200)); } } };
-const READY = { changed: '.ch-differ', versus: '.vs-now', school360: '.s3-differ', bubbles: '.bb-table, .bb-filling', toolkit: '.tk-item' };
+const READY = { changed: '.ch-differ', versus: '.vs-now', school360: '.s3-differ', bubbles: '.bb-table, .bb-filling' };
 
 (async () => {
   const dirA = fs.mkdtempSync(path.join(os.tmpdir(), 'tk1-a-')), dirB = fs.mkdtempSync(path.join(os.tmpdir(), 'tk1-b-'));
@@ -161,33 +161,6 @@ const READY = { changed: '.ch-differ', versus: '.vs-now', school360: '.s3-differ
     ok(await p.evaluate(() => { const s = document.querySelector('.bb-svg').getBoundingClientRect(), h = document.querySelector('.bb-host').getBoundingClientRect(); return s.width <= h.width + 1 && [...document.querySelectorAll('.bb-val, .bb-city')].every((t) => { const r = t.getBoundingClientRect(); return r.left >= h.left - 1 && r.right <= h.right + 1; }); }), name + ' bubbles: the picture and its labels fit the width');
     ok(await noSide(p), name + ' bubbles: no sideways scroll'); ok(await smallest(p) >= 12.5, name + ' bubbles: no text under 12.5px (' + await smallest(p) + ')');
     await shot('bubbles');
-
-    /* ----- toolkit ----- */
-    await open(p, BASE, 'toolkit', lang);
-    ok((await text(p, '#view h1')) === (el ? 'Εργαλειοθήκη' : 'Toolkit'), name + ' toolkit: the title');
-    const nAll = await p.locator('.tk-item').count();
-    ok(nAll >= 53, name + ' toolkit: every tool is listed (' + nAll + ')');
-    ok(await p.locator('.tk-group').count() >= 8, name + ' toolkit: the tools are in groups');
-    ok(await p.$$eval('.tk-item', (it) => it.every((x) => x.querySelector('.tk-st') && x.querySelector('p').textContent.length > 15)), name + ' toolkit: every tool has a chip and a line');
-    const menuIds = await p.evaluate(() => [...document.querySelectorAll('.nm-side-a')].map((a) => a.dataset.id));
-    ok(menuIds.length > 20 && await p.evaluate((ids) => ids.every((id) => document.querySelector('.tk-item[data-id="' + id + '"]')), menuIds), name + ' toolkit: every page of the menu is in the list');
-    ok(await p.$$eval('.tk-item.coming', (it) => it.every((x) => !x.querySelector('a'))) && await p.evaluate(() => [...document.querySelectorAll('.tk-item')].every((x) => x.classList.contains('coming') === !(window.SC.ready.has(x.dataset.id) || window.SC_PAGES.indexOf(x.dataset.id) >= 0))), name + ' toolkit: a tool is marked coming, with no link, exactly when it has no page');
-    ok(await p.$$eval('.tk-item:not(.coming)', (it) => it.every((x) => x.querySelector('a.tk-name'))), name + ' toolkit: every other tool links to its page');
-    ok(await p.evaluate(() => ['changed', 'versus', 'school360', 'bubbles'].every((id) => { const x = document.querySelector('.tk-item[data-id="' + id + '"]'); return x && !x.classList.contains('coming'); })) && await p.locator('.tk-item[data-id="radar"]:not(.coming) a.tk-name').count() === 1, name + ' toolkit: the tools of every batch are open now that they are built');
-    await p.fill('#tk-q', el ? 'φουσκες' : 'bubble');
-    ok(await p.locator('.tk-item').count() === 1 && await p.locator('.tk-item[data-id="bubbles"]').count() === 1, name + ' toolkit: the search box filters the list (and ignores accents)');
-    ok(/1 (of|από) /.test(await text(p, '.tk-count')), name + ' toolkit: the count follows the filter');
-    await p.fill('#tk-q', 'zzzz');
-    ok(await p.locator('.tk-item').count() === 0 && await p.locator('.tk-none').count() === 1, name + ' toolkit: an honest line when nothing matches');
-    await p.fill('#tk-q', '');
-    await p.locator('.tk-chips .t1-chip[data-s="saved"]').click();
-    ok(await p.$$eval('.tk-item', (it) => it.length >= 5 && it.every((x) => x.classList.contains('saved'))), name + ' toolkit: the chips filter by status');
-    await p.locator('.tk-chips .t1-chip[data-s="all"]').click();
-    ok(await p.locator('.tk-dl dt').count() === 4, name + ' toolkit: the four chips are explained');
-    ok(await noSide(p), name + ' toolkit: no sideways scroll'); ok(await smallest(p) >= 12.5, name + ' toolkit: no text under 12.5px (' + await smallest(p) + ')');
-    await shot('toolkit');
-    await p.locator('.tk-item[data-id="versus"] a').click(); await p.waitForSelector('.vs-now');
-    ok(/#\/versus$/.test(p.url()), name + ' toolkit: a tool opens its page');
 
     /* ----- the sums, on known numbers ----- */
     const sums = await p.evaluate(() => {

@@ -25,25 +25,25 @@
     sensecap: {
       name: T('SenseCAP sensors', 'Αισθητήρες SenseCAP'),
       what: T('Our own sensors on buses, cars and in classrooms. This is measured data.', 'Οι δικοί μας αισθητήρες σε λεωφορεία, αυτοκίνητα και αίθουσες. Είναι μετρημένα δεδομένα.'),
-      uses: ['board', 'vehicles', 'map', 'city3d', 'explore', 'schools', 'alerts', 'ask'],
+      uses: ['board', 'vehicles', 'city3d', 'explore', 'schools', 'alerts', 'ask'],
       stops: T('New readings from the school sensors stop arriving. The City board, Vehicles, Live map, Cyprus 3D, Explore data, Schools and Alerts show no new numbers, and Ask cannot read live values.', 'Σταματούν να έρχονται νέες μετρήσεις από τους αισθητήρες των σχολείων. Ο Πίνακας πόλης, τα Οχήματα, ο Ζωντανός χάρτης, η Κύπρος 3D, η Εξερεύνηση, τα Σχολεία και οι Ειδοποιήσεις δεν δείχνουν νέους αριθμούς, και το Ρωτήστε δεν μπορεί να διαβάσει ζωντανές τιμές.'),
     },
     dom: {
       name: T('Cyprus Met Office', 'Μετεωρολογική Υπηρεσία Κύπρου'),
       what: T('About 54 automatic stations, warnings, forecast and radar, updated about every 10 minutes.', 'Περίπου 54 αυτόματοι σταθμοί, προειδοποιήσεις, πρόγνωση και ραντάρ, με ενημέρωση περίπου ανά 10 λεπτά.'),
-      uses: ['weather', 'warnings', 'board', 'explore', 'map', 'alerts', 'ask', 'archive'],
+      uses: ['weather', 'warnings', 'board', 'explore', 'alerts', 'ask', 'archive'],
       stops: T('The Met Office record, the warning tile on the City board, the station comparison in Explore data, the Live map stations and the Warnings watch stop getting new data, and this site stops saving new Met Office days and page copies. What is already saved stays.', 'Το Μετεωρολογικό αρχείο, το πλακίδιο προειδοποιήσεων στον Πίνακα πόλης, η σύγκριση σταθμών στην Εξερεύνηση, οι σταθμοί στον Ζωντανό χάρτη και η Παρακολούθηση προειδοποιήσεων σταματούν να παίρνουν νέα δεδομένα, και ο ιστότοπος σταματά να αποθηκεύει νέες ημέρες και αντίγραφα σελίδων της Υπηρεσίας. Ό,τι έχει ήδη αποθηκευτεί μένει.'),
     },
     openmeteo: {
       name: 'Open-Meteo',
       what: T('A weather and air-quality computer model on a grid over Cyprus. A model estimate, not a measurement.', 'Μοντέλο καιρού και ποιότητας αέρα σε πλέγμα πάνω από την Κύπρο. Εκτίμηση μοντέλου, όχι μέτρηση.'),
-      uses: ['board', 'map', 'ask'],
+      uses: ['board', 'ask'],
       stops: T('The model values for weather, air quality and sea (on the City board and the Live map layers) stop updating, and Ask cannot give model values.', 'Οι τιμές του μοντέλου για καιρό, ποιότητα αέρα και θάλασσα (στον Πίνακα πόλης και στα επίπεδα του Ζωντανού χάρτη) σταματούν να ενημερώνονται και το Ρωτήστε δεν μπορεί να δώσει τιμές μοντέλου.'),
     },
     sensorcommunity: {
       name: 'Sensor.Community',
       what: T('Particle sensors run by volunteers. Useful for the idea, but a single sensor can be wrong.', 'Αισθητήρες σωματιδίων που τρέχουν εθελοντές. Χρήσιμοι ως ιδέα, αλλά ένας μεμονωμένος αισθητήρας μπορεί να κάνει λάθος.'),
-      uses: ['board', 'map', 'alerts'],
+      uses: ['board', 'alerts'],
       stops: T('The nearby volunteer particle sensors stop updating on the City board, the Live map and in Alerts.', 'Οι κοντινοί αισθητήρες σωματιδίων των εθελοντών σταματούν να ενημερώνονται στον Πίνακα πόλης, στον Ζωντανό χάρτη και στις Ειδοποιήσεις.'),
     },
     metar: {

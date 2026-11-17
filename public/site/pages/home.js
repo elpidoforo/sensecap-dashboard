@@ -97,7 +97,7 @@
         { id: 'explore', ic: 'search', n: T('Explore data', 'Εξερεύνηση'), v: () => P.two(), f: () => T('Our sensor against the official station', 'Ο αισθητήρας μας απέναντι στον επίσημο σταθμό'), sch: 1 },
         { id: 'library', ic: 'db', n: T('Library', 'Βιβλιοθήκη'), v: () => P.tabs(), f: () => T('Handbook, guides, sources, glossary', 'Εγχειρίδιο, οδηγοί, πηγές, γλωσσάρι'), sch: 1 },
         { id: 'research', ic: 'search', n: T('Research', 'Έρευνα'), v: () => P.search(), f: () => T('One box for archive, handbook and Met pages', 'Ένα πλαίσιο για αρχείο, εγχειρίδιο και σελίδες Μετεωρολογικής'), sch: 1 }] },
-    { c: '#4CCBEA', n: T('The picture', 'Η εικόνα'), d: T('What is happening now: the city board, Cyprus in 3D, the live map and one trip followed from start to end.', 'Τι συμβαίνει τώρα: ο πίνακας της πόλης, η Κύπρος σε 3D, ο ζωντανός χάρτης και μία διαδρομή από την αρχή ως το τέλος.'), s: T('What is happening now', 'Τι συμβαίνει τώρα'), tags: ['live', 'arch'],
+    { c: '#4CCBEA', n: T('The picture', 'Η εικόνα'), d: T('What is happening now: the city board, Cyprus in 3D and every layer we hold stacked over the island.', 'Τι συμβαίνει τώρα: ο πίνακας της πόλης, η Κύπρος σε 3D και κάθε στρώμα που κρατάμε, στοιβαγμένο πάνω από το νησί.'), s: T('What is happening now', 'Τι συμβαίνει τώρα'), tags: ['live', 'arch'],
       bigs: [
         () => [String((window.ISLAND && ISLAND.schools || []).length), T('school sites', 'σχολεία')],
         (S) => { const n = vehiclesOf(S); return n == null ? null : [String(n), T('vehicles on the road', 'οχήματα στον δρόμο')]; },
@@ -105,8 +105,7 @@
       tiles: [
         { id: 'board', ic: 'board', n: T('City board', 'Πίνακας πόλης'), v: (S) => { const mx = Math.max(1, ...SCH.map((s) => (S.live && S.live[s.id] ? S.live[s.id].total : 0))); return P.columns(SCH.map((s) => { const i = S.live && S.live[s.id]; return i && i.total ? Math.max(0.15, i.on / mx) : 0.1; })); }, f: (S) => { const d = devOn(S); return d ? T(d.on + ' of ' + d.total + ' sensors online, a column at each school', d.on + ' από ' + d.total + ' αισθητήρες ενεργοί, μια στήλη σε κάθε σχολείο') : T('A light column at each school', 'Μια στήλη φωτός σε κάθε σχολείο'); } },
         { id: 'city3d', ic: 'globe', n: T('Cyprus 3D', 'Κύπρος 3D'), v: () => P.island(), f: () => T('Turn the island, switch layers', 'Γυρίστε το νησί, αλλάξτε επίπεδα') },
-        { id: 'map', ic: 'map', n: T('Live map', 'Ζωντανός χάρτης'), v: () => P.map(), f: () => T('Satellite, radar, wind and stations', 'Δορυφόρος, ραντάρ, άνεμος και σταθμοί'), sch: 1 },
-        { id: 'trip', ic: 'route', n: T('Follow one trip', 'Ακολουθήστε μια διαδρομή'), v: () => P.route(), f: () => T('Replay with readings · delayed, rounded', 'Επανάληψη με μετρήσεις · με καθυστέρηση'), sch: 1 }] },
+        { id: 'stack', ic: 'layers', n: T('The data stack in 3D', 'Η στοίβα δεδομένων σε 3D'), v: () => P.island(), f: () => T('Every layer, with its source and its age', 'Κάθε στρώμα, με την πηγή και την ηλικία του') }] },
     { c: '#A5B4FC', n: T('Schools and teams', 'Σχολεία και ομάδες'), d: T('The four schools and their teams, the districts and neighbourhoods, today’s desk and the projects that are running.', 'Τα τέσσερα σχολεία και οι ομάδες τους, οι επαρχίες και οι γειτονιές, το γραφείο της ημέρας και τα έργα που τρέχουν.'), s: T('Who is doing the work', 'Ποιος κάνει τη δουλειά'), tags: ['team'],
       bigs: [
         (S) => (S.schools ? [String(S.schools.length), T('schools', 'σχολεία')] : null),
@@ -151,7 +150,7 @@
     explore: T('Explore data', 'Εξερεύνηση'), council: T('Council room', 'Αίθουσα συμβουλίου'), map: T('Live map', 'Ζωντανός χάρτης'), ask: T('Ask', 'Ρωτήστε'),
   };
   // the same six steps as the Tour mode switch in the menu (the shell decides: Council room, or Live map until that page exists)
-  const tourIds = () => (SC.tourSteps ? SC.tourSteps() : ['city3d', 'board', 'weather', 'explore', 'map', 'ask']);
+  const tourIds = () => (SC.tourSteps ? SC.tourSteps() : ['city3d', 'board', 'weather', 'explore', 'stack', 'ask']);
 
   const TAGS = [
     ['live', T('LIVE', 'ΖΩΝΤΑΝΟ'), T('read from the sensors and the Met Office as it arrives', 'διαβάζεται από τους αισθητήρες και τη Μετεωρολογική μόλις φτάνει')],
@@ -235,7 +234,7 @@
           el('div', { class: 'hm3-h' }, el('h2', null, sc.name), el('span', { class: 'hm3-n' }, T(sc.items.length + ' tools', sc.items.length + ' εργαλεία'))),
           el('p', { class: 'hm3-q' }, SEC_Q[sc.id] || ''),
           sc.items.slice(0, 6).map(toolRow),
-          sc.items.length > 6 ? el('a', { class: 'hm3-more', href: link('toolkit') }, T('All ' + sc.name + ' tools', 'Όλα τα εργαλεία: ' + sc.name), ' →') : null))),
+          null))),
         el('div', { class: 'hm3-build' },
           el('div', null, el('h2', null, T('Build your own tool', 'Φτιάξε το δικό σου εργαλείο')),
             el('p', { class: 'hm3-q' }, T('Drag boxes from all three sections, join them and test the tool on real data. A tool is a list of choices, never code.', 'Σύρε κουτιά και από τα τρία μέρη, ένωσέ τα και δοκίμασε το εργαλείο σε πραγματικά δεδομένα. Ένα εργαλείο είναι μια λίστα επιλογών, ποτέ κώδικας.')),
@@ -380,7 +379,7 @@
             'Τα φύλλα που είναι συνδεδεμένα κρατούν την πιο πρόσφατη μέτρηση του Kleanthis, με την πηγή και την ηλικία της. Τα υπόλοιπα λένε «σχεδιασμένο» — η εικόνα τους φτιάχνεται στο πρόγραμμα περιήγησης, δεν μετριέται. Τίποτα εδώ δεν σχεδιάζει όχημα ή άνθρωπο.')),
         stackCard);
       // A 3D scene is heavy, so it is only started once the reader has scrolled to it, and never on a page they pass by.
-      let stackOn = false, stackFrame = null;
+      let stackOn = false, stackFrame = null, stackIO = null;
       const startStack = () => {
         if (stackOn || !alive) return;
         stackOn = true;
@@ -389,13 +388,19 @@
           title: T('The data stack over Cyprus in 3D', 'Η στοίβα δεδομένων πάνω από την Κύπρο σε 3D'),
           loading: 'lazy', allow: 'fullscreen',
         });
+        const wait = stackCard.querySelector('.hm-stack-wait');
         stackCard.append(stackFrame);
+        stackFrame.addEventListener('load', () => { if (wait) wait.remove(); });
       };
-      // The Data core below is already a live 3D scene. Two of them at once is a heavy page on a modest laptop and a
-      // phone, so this one waits to be asked; one press and it runs exactly as the full page does.
-      const go = el('button', { type: 'button', class: 'hm-stack-go', onclick: () => { go.remove(); startStack(); } },
-        T('Start the 3D view', 'Ξεκίνα την τρισδιάστατη προβολή'));
-      stackCard.append(go);
+      // It starts on its own, as the reader comes down to it. The core higher up the page is also a live 3D scene,
+      // so the stack holds off until the section is on its way into view rather than running both at the top.
+      stackCard.append(el('div', { class: 'hm-stack-wait', role: 'status' },
+        el('span', { class: 'mp-spin', 'aria-hidden': 'true' }),
+        el('span', null, T('Starting the 3D view…', 'Ξεκινά η τρισδιάστατη προβολή…'))));
+      if ('IntersectionObserver' in window) {
+        stackIO = new IntersectionObserver((rows) => { if (rows.some((r) => r.isIntersecting)) { stackIO.disconnect(); stackIO = null; startStack(); } }, { rootMargin: '400px' });
+        stackIO.observe(stackCard);
+      } else { timers.push(setTimeout(startStack, 4000)); }
 
       // The page reads: the live core, then the island with the schools, then the stack in 3D, then the tools.
       const hm = el('div', { class: 'hm' }, el('div', { class: 'hm-sky', 'aria-hidden': 'true' }), head, route, coreSlot, stage, list, status, legend, stackSec, three, sec);
@@ -565,6 +570,7 @@
         window.removeEventListener('resize', relayout);
         if (ro) ro.disconnect();
         if (core) { core.destroy(); core = null; }
+        if (stackIO) { stackIO.disconnect(); stackIO = null; }
         if (stackFrame) stackFrame.src = 'about:blank';      // the 3D scene stops when the reader leaves the page
         clearTimeout(packT);
       };

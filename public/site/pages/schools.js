@@ -542,8 +542,7 @@
               ? T('vehicle sensor, shown about ' + hours() + ' hours late and rounded to about ' + gridKm() + ' km', 'αισθητήρας οχήματος, εμφανίζεται με καθυστέρηση περίπου ' + hours() + ' ωρών και στρογγυλοποιημένος στο ' + gridKm() + ' χλμ.')
               : T('fixed sensor', 'σταθερός αισθητήρας')))),
             el('span', { class: 'sp' }), sensorBadge(st)))));
-        pane.append(el('div', { class: 'sx-links' }, el('a', { class: 'pill-link', href: '#/vehicles/' + enc(d.eui) }, T('Open its full history', 'Άνοιγμα του πλήρους ιστορικού')),
-          el('a', { class: 'pill-link', href: '#/map?eui=' + enc(d.eui) }, T('Show it on the map', 'Εμφάνιση στον χάρτη'))));
+        pane.append(el('div', { class: 'sx-links' }, el('a', { class: 'pill-link', href: '#/vehicles/' + enc(d.eui) }, T('Open its full history', 'Άνοιγμα του πλήρους ιστορικού'))));
       }
       let chartMid = null;
       function drawData(pane, x) {

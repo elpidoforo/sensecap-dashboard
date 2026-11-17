@@ -338,7 +338,7 @@
           id: 'pm25_spike:open:' + e.s.id, cat: 'air', icon: 'air', school: e.s.id, schoolName: nm,
           where: T('Public Sensor.Community sensor, about ' + r + ' km from ' + nm, 'Δημόσιος αισθητήρας Sensor.Community, περίπου ' + r + ' χλμ. από ' + nm),
           sensor: T('Sensor.Community public sensor', 'Δημόσιος αισθητήρας Sensor.Community'), sensorNote: T('Not one of ours. Location rounded, never shown as coordinates.', 'Δεν είναι δικός μας. Η θέση στρογγυλοποιείται και δεν εμφανίζεται ως συντεταγμένες.'),
-          source: { label: 'Sensor.Community', kind: 'sensorcommunity' }, home: '#/map', homeLabel: T('Show on the live map', 'Εμφάνιση στον ζωντανό χάρτη'),
+          source: { label: 'Sensor.Community', kind: 'sensorcommunity' },
           mk: () => T('PM2.5 above ' + numA(lim) + ' µg/m³ near ' + nm, 'PM2.5 πάνω από ' + numA(lim) + ' µg/m³ κοντά στο ' + nm),
           limit: { value: lim, unit: 'µg/m³', text: numA(lim) + ' µg/m³' }, nowText: num(top.p.pm25, 1) + ' µg/m³' + (e.hits.length > 1 ? T(' (highest of ' + e.hits.length + ' public sensors above the line)', ' (το υψηλότερο από ' + e.hits.length + ' δημόσιους αισθητήρες πάνω από το όριο)') : ''),
           value: top.p.pm25, readingAt: top.t, last: top.t, since: null, sinceKind: 'now',

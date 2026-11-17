@@ -672,7 +672,7 @@
           chipsBox,
           h('div', { class: 'wx-d-chart-h' }, h('b', { class: 'wx-chart-title' }), rangeBtns),
           chartBox, noteBox,
-          h('div', { class: 'wx-d-btns' }, csvLink, h('a', { class: 'nm-btn nm-btn--primary', href: '#/map?station=' + encodeURIComponent(S.sel) }, SC.icon('pin', 17), T('Open on the map', 'Άνοιγμα στον χάρτη'))),
+          h('div', { class: 'wx-d-btns' }, csvLink),
           p && p.obs && p.obs.length ? h('details', { class: 'wx-all' }, h('summary', null, T('All ' + p.obs.length + ' readings in the feed', 'Και οι ' + p.obs.length + ' μετρήσεις της πηγής')),
             h('div', { class: 'nm-table-wrap' }, h('table', { class: 'nm-table wx-table' }, h('tbody', null, p.obs.map((o) => h('tr', null, h('td', null, o.name), h('td', { class: 'n' }, SC.num(o.value, 2) + ' ' + (/celcius|celsius/i.test(o.unit) ? '°C' : o.unit || ''))))))))
             : null);

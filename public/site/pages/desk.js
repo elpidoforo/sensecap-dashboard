@@ -48,7 +48,7 @@
     ['Did the CO2 in a classroom rise during a lesson and fall at break? What does that tell you?', 'Ανέβηκε το CO2 σε μια τάξη κατά το μάθημα και έπεσε στο διάλειμμα; Τι σας λέει αυτό;', '#/explore?tool=timeline&mid=4100'],
     ['Is the humidity higher or lower than yesterday at the same time? What could explain it?', 'Η υγρασία είναι υψηλότερη ή χαμηλότερη από χθες την ίδια ώρα; Τι θα μπορούσε να το εξηγεί;', '#/explore?tool=compare'],
     ['Read the Met Office warnings. Does anything in them matter for your school today?', 'Διαβάστε τις προειδοποιήσεις της Μετεωρολογικής. Αφορά κάτι από αυτές το σχολείο σας σήμερα;', '#/weather'],
-    ['Pick one vehicle. Where did its last trip go, and what was the temperature along it?', 'Διαλέξτε ένα όχημα. Πού πήγε η τελευταία του διαδρομή και ποια ήταν η θερμοκρασία κατά μήκος της;', '#/trip'],
+    ['Pick one vehicle. When did it last report, and how does its temperature compare with the school it belongs to?', 'Διαλέξτε ένα όχημα. Πότε έστειλε τελευταία φορά και πώς συγκρίνεται η θερμοκρασία του με το σχολείο του;', '#/vehicles'],
     ['Which reading changed most since yesterday at your school? Why do you think so?', 'Ποια μέτρηση άλλαξε περισσότερο από χθες στο σχολείο σας; Γιατί νομίζετε;', '#/explore?tool=compare'],
     ['Is our sensor higher or lower than the nearest official station? By how much?', 'Ο αισθητήρας μας δείχνει υψηλότερα ή χαμηλότερα από τον πλησιέστερο επίσημο σταθμό; Πόσο;', '#/explore?tool=official'],
     ['What is the highest temperature at any Met Office station today?', 'Ποια είναι η υψηλότερη θερμοκρασία σε οποιονδήποτε σταθμό της Μετεωρολογικής σήμερα;', '#/weather'],

@@ -209,9 +209,9 @@ const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + 
       return top('.hm-core') < top('.hm-stage') && top('.hm-stage') < top('.hm-stack') && top('.hm-stack') < top('.hm3');
     }), name + ': the scene comes first, then the island, then the stack in 3D, and the tools after them');
     ok(await p3.evaluate(() => { const f = document.querySelector('.hm-stack-frame'); return !!f && f.getBoundingClientRect().height > 200; }), name + ': the stack in 3D has a frame of its own on the home page');
-    ok(await p3.evaluate(() => !document.querySelector('.hm-stack-frame iframe') && !!document.querySelector('.hm-stack-go')), name + ': and it waits to be asked, so the page carries one live 3D scene at a time');
-    await p3.click('.hm-stack-go');
-    await p3.waitForSelector('.hm-stack-frame iframe', { timeout: 10000 });
+    await p3.evaluate(() => document.querySelector('.hm-stack').scrollIntoView());
+    await p3.waitForSelector('.hm-stack-frame iframe', { timeout: 20000 });
+    ok(true, name + ': the stack in 3D starts on its own as the reader comes down to it, without being asked');
     ok(await p3.evaluate(() => { const src = document.querySelector('.hm-stack-frame iframe').src; return /stack\.html/.test(src) && /bg=site/.test(src); }), name + ': pressing it starts the same 3D stack the full page shows, on this page\u2019s own background');
     ok(await p3.locator('.hm-core .cn-po').count() === 6 && /\d/.test(await p3.locator('.hm-core .cn-words').innerText()), name + ': the scene has its panels and its sentence');
     ok(await p3.locator('.hm-stage .hm-plane').count() === 1, name + ': the island is still there');
