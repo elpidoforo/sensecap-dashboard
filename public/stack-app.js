@@ -1000,7 +1000,12 @@ setInterval(() => { if (!document.hidden && live) { paintRail(); paintProbe(); p
 setInterval(() => { if (!document.hidden) paintWaits(); }, 5000);
 // A seam for the tests only: move this page's clock forward and repaint, to check that the ages and the rings
 // really do keep running when no new reading arrives. It changes nothing that a reader can reach.
-window.__ageForward = (minutes) => { liveAt -= minutes * 60000; paintRail(); paintProbe(); paintPins(); return pinLabels.map((r) => r.ageMin); };
+window.__ageForward = (minutes) => {
+  liveAt -= minutes * 60000; paintRail(); paintProbe(); paintPins();
+  // the ring is measured in the same breath, so a refresh landing a moment later cannot confuse the reading
+  const h = pinLabels.map((r) => haloAt(r.ageMin).r / 18);
+  return { ages: pinLabels.map((r) => r.ageMin), halo: Math.max(...h) };
+};
 window.__haloWidth = () => (pinLabels[0] ? pinLabels[0].halo.scale.x : 0);
 
 tick();

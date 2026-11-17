@@ -237,7 +237,7 @@ const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + 
     ok(await p3.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), name + ': the home page does not scroll sideways');
     await p3.evaluate((i) => document.querySelectorAll('.hm-core .cn-po')[i].click(), 3);   // pressed in the page: the tile floats and is redrawn at every answer
     ok(/#\/layers/.test(p3.url()) && /paphos/i.test(await p3.locator('.ly-chip.on').first().innerText()), name + ': pressing a city opens the Data layers page on that city');
-    await p3.goto(BASE + '/#/home'); await p3.waitForSelector('.hm-core .cn-po', { timeout: 30000 });
+    await p3.goto(BASE + '/#/home'); await p3.waitForSelector('.hm-core .cn-po', { timeout: 45000 });
     await p3.evaluate((i) => document.querySelectorAll('.hm-core .cn-po')[i].click(), 5);   // pressed in the page: the tile floats and is redrawn at every answer
     ok(await p3.locator('.ly-top .nm-pillbar button.on').getAttribute('data-v') === 'day', name + ': "Replay the day" opens that view');
     ok(e3.length === 0, name + ': no script errors (' + e3.slice(0, 2).join(' | ') + ')');

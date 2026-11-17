@@ -392,13 +392,25 @@
         stackCard.append(stackFrame);
         stackFrame.addEventListener('load', () => { if (wait) wait.remove(); });
       };
-      // It starts on its own, as the reader comes down to it. The core higher up the page is also a live 3D scene,
-      // so the stack holds off until the section is on its way into view rather than running both at the top.
-      stackCard.append(el('div', { class: 'hm-stack-wait', role: 'status' },
+      // It starts on its own, as the reader comes down to it, and it stops again once it has been out of sight for a
+      // while: the core higher up the page is a live 3D scene too, and a school laptop should only ever run one of
+      // them at a time.
+      const waitLine = () => el('div', { class: 'hm-stack-wait', role: 'status' },
         el('span', { class: 'mp-spin', 'aria-hidden': 'true' }),
-        el('span', null, T('Starting the 3D view…', 'Ξεκινά η τρισδιάστατη προβολή…'))));
+        el('span', null, T('Starting the 3D view…', 'Ξεκινά η τρισδιάστατη προβολή…')));
+      stackCard.append(waitLine());
+      const stopStack = () => {
+        if (!stackFrame) return;
+        stackFrame.src = 'about:blank'; stackFrame.remove(); stackFrame = null; stackOn = false;
+        stackCard.append(waitLine());
+      };
+      let awayAt = 0;
       if ('IntersectionObserver' in window) {
-        stackIO = new IntersectionObserver((rows) => { if (rows.some((r) => r.isIntersecting)) { stackIO.disconnect(); stackIO = null; startStack(); } }, { rootMargin: '400px' });
+        stackIO = new IntersectionObserver((rows) => {
+          const seen = rows.some((r) => r.isIntersecting);
+          if (seen) { awayAt = 0; startStack(); return; }
+          awayAt = awayAt || setTimeout(() => { awayAt = 0; stopStack(); }, 20000);   // a scroll past it does not stop it
+        }, { rootMargin: '400px' });
         stackIO.observe(stackCard);
       } else { timers.push(setTimeout(startStack, 4000)); }
 

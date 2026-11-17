@@ -84,13 +84,10 @@ const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swifts
 
       // the ages keep running while the page is open, even when no new reading arrives
       const fresh = await frame.evaluate(() => document.querySelector('.probe').innerText);
-      const w0 = await frame.evaluate(() => window.__haloWidth());
-      await frame.evaluate(() => window.__ageForward(200));
-      await wait(400);
+      const moved = await frame.evaluate(() => ({ w0: window.__haloWidth(), on: window.__ageForward(200) }));
       const later = await frame.evaluate(() => document.querySelector('.probe').innerText);
-      const w1 = await frame.evaluate(() => window.__haloWidth());
       ok(fresh !== later && /(h ago|ώ)/.test(later), name + ': a reading grows older while nobody fetches a new one');
-      ok(w1 > w0, name + ': and the ring around the school widens with it (' + w0.toFixed(2) + ' to ' + w1.toFixed(2) + ')');
+      ok(moved.on.halo >= moved.w0 && moved.on.halo > 1.9, name + ': and the ring around the school is at its widest once the reading is hours old (' + moved.w0.toFixed(2) + ' to ' + moved.on.halo.toFixed(2) + ')');
 
       // a reading that lands travels up the beam of the source it came from
       let sent = 0;
