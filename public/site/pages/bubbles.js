@@ -19,7 +19,7 @@
   SC.register('bubbles', {
     title: ['Measurement bubbles', 'Φούσκες μετρήσεων'],
     async render(root) {
-      document.title = T('Measurement bubbles', 'Φούσκες μετρήσεων') + ' · Athena';
+      document.title = T('Measurement bubbles', 'Φούσκες μετρήσεων') + ' · Kleanthis';
       root.append(SC.head({ title: T('Measurement bubbles', 'Φούσκες μετρήσεων'),
         lede: T('Which readings are far from their own usual level today? One bubble for each measurement of each city.', 'Ποιες μετρήσεις απέχουν σήμερα από το δικό τους συνηθισμένο επίπεδο; Μία φούσκα για κάθε μέτρηση κάθε πόλης.'),
         help: ['For each city and measurement the page takes the newest saved value and the average of all the values saved over the day. The further the newest value is from that average (compared with the day\'s lowest-to-highest range), the bigger the bubble. Amber with an up arrow means above the average, cyan with a down arrow means below. Big means unusual for today, not bad. Press a bubble to read it in words; the table underneath has the same numbers.',

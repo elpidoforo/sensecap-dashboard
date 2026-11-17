@@ -2,7 +2,7 @@
   "title": "Signal-controlled pedestrian crossings near four city centres",
   "sourceUrl": "https://fixcyprus.cy/gnosis/open/api/nap/datasets/pedestrian_crossings/",
   "catalogueUrl": "https://www.traffic4cyprus.org.cy/en/dataset/pedestrian_crossings",
-  "attribution": "Cyprus Public Works Department, Ministry of Transport, Communications and Works, via CyNAP. Proximity counts calculated by Athena.",
+  "attribution": "Cyprus Public Works Department, Ministry of Transport, Communications and Works, via CyNAP. Proximity counts calculated by Kleanthis.",
   "licence": "CC BY 4.0",
   "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
   "publishedAt": "2026-11-15T23:30:13.869747+02:00",
@@ -11,7 +11,7 @@
   "timestampNote": "Publication time dates the inventory release. The source supplies no installation or inspection date for each crossing.",
   "sourceSha256": "6e25c5c0214a413894d17937157bb1e5290335f322cfa1ca4d784b5bbaa3c815",
   "unit": "mapped crossings",
-  "method": "Count each publisher record within 5 km straight-line distance of the nearest Athena city-centre point. Only signal-controlled crossings in the published inventory are covered. Counts apply to these circles and do not measure pedestrian safety.",
+  "method": "Count each publisher record within 5 km straight-line distance of the nearest Kleanthis city-centre point. Only signal-controlled crossings in the published inventory are covered. Counts apply to these circles and do not measure pedestrian safety.",
   "radiusKm": 5,
   "centres": {
     "Larnaka": [

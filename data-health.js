@@ -41,7 +41,7 @@ const EXTRACT_GATE = {
   fingerprint: ['Still matches the file it was made from', 'Ταιριάζει ακόμη με το αρχείο από το οποίο φτιάχτηκε'],
 };
 
-// what Athena builds from what arrives; shown as the second stage
+// what Kleanthis builds from what arrives; shown as the second stage
 const BUILDERS = [
   { id: 'pulse', n: ['Live pulse', 'Ζωντανός παλμός'], d: ['Reads every source every 10 minutes and keeps the newest reading per city', 'Διαβάζει κάθε πηγή κάθε 10 λεπτά και κρατά την πιο πρόσφατη μέτρηση ανά πόλη'] },
   { id: 'day', n: ['The saved day', 'Η αποθηκευμένη μέρα'], d: ['Keeps 24 hours of readings so a day can be replayed', 'Κρατά 24 ώρες μετρήσεων ώστε να παίζει ξανά μια μέρα'] },
@@ -229,7 +229,7 @@ function createDataHealth(o) {
       const env = (src.representativeness && src.representativeness.environment) || null;
       add('env', 'meta', env ? 'pass' : 'fail', 1, env ? 0 : 1,
         env ? [`Recorded as ${ENV[env] ? ENV[env][0] : env}.`, `Καταγεγραμμένο ως ${ENV[env] ? ENV[env][1] : env}.`]
-          : ['The source file does not say whether these sensors stand indoors or outdoors, so Athena cannot stop their readings being compared with outdoor air.', 'Το αρχείο της πηγής δεν λέει αν αυτοί οι αισθητήρες είναι μέσα ή έξω, άρα η Athena δεν μπορεί να εμποδίσει τη σύγκρισή τους με τον αέρα έξω.']);
+          : ['The source file does not say whether these sensors stand indoors or outdoors, so Kleanthis cannot stop their readings being compared with outdoor air.', 'Το αρχείο της πηγής δεν λέει αν αυτοί οι αισθητήρες είναι μέσα ή έξω, άρα ο Kleanthis δεν μπορεί να εμποδίσει τη σύγκρισή τους με τον αέρα έξω.']);
     }
 
     // 5. does it agree with the other sources of the same measurement, where there is another source

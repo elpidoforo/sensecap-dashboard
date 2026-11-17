@@ -119,7 +119,7 @@
         if (!r) { sheet.replaceChildren(h('p', { class: 't2-empty' }, h('span', { class: 't2-err', role: 'alert' }, T('The saved day could not be loaded, so there is no brief. ', 'Η αποθηκευμένη μέρα δεν φορτώθηκε, άρα δεν υπάρχει ενημέρωση. ')), h('button', { type: 'button', class: 't2-go bf-noprint', onclick: () => load() }, T('Try again', 'Δοκίμασε ξανά')))); return; }
         const newest = times.length ? times[times.length - 1] : null, old = newest != null && Date.now() - newest > 2 * HOUR;
         sheet.replaceChildren(...[
-          h('header', { class: 'bf-top' }, h('p', { class: 'bf-eye' }, T('Morning brief · Athena', 'Πρωινή ενημέρωση · Αθηνά')), h('h2', null, CITY[city][2] + ' · ' + cityName(city)),
+          h('header', { class: 'bf-top' }, h('p', { class: 'bf-eye' }, T('Morning brief · Kleanthis', 'Πρωινή ενημέρωση · Κλεάνθης')), h('h2', null, CITY[city][2] + ' · ' + cityName(city)),
             h('p', { class: 'bf-date' }, SC.day(Date.now()) + (newest ? ' · ' + T('newest saved reading ', 'νεότερη αποθηκευμένη μέτρηση ') + SC.dateTime(newest) : ''))),
           !times.length ? h('p', { class: 'bf-old' }, T('Nothing has been saved yet. The lines below fill as the layers report.', 'Δεν έχει αποθηκευτεί τίποτα ακόμη. Οι γραμμές πιο κάτω γεμίζουν όσο αναφέρουν τα στρώματα.'))
             : old ? h('p', { class: 'bf-old' }, T('Careful: the newest saved reading is ' + SC.ago(newest) + '. These lines are not "now".', 'Προσοχή: η νεότερη αποθηκευμένη μέτρηση είναι ' + SC.ago(newest) + '. Αυτές οι γραμμές δεν είναι «τώρα».')) : null,

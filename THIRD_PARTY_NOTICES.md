@@ -66,15 +66,15 @@ The checks on `#/health` report any extract whose licence, credit line, method o
 | Extract | Publisher and terms |
 |---|---|
 | Reservoir storage (`reservoir`) | Water Development Department, Republic of Cyprus, via the national open data portal. CC BY 4.0. |
-| Weather history (`weather`) | Republic of Cyprus, Department of Meteorology. CC BY 4.0. Monthly means calculated by Athena. |
+| Weather history (`weather`) | Republic of Cyprus, Department of Meteorology. CC BY 4.0. Monthly means calculated by Kleanthis. |
 | Seabed profiles (`coast`) | EMODnet Bathymetry Consortium, EMODnet Digital Terrain Model. CC BY 4.0. |
-| Pedestrian crossings (`crossings`) | Cyprus Public Works Department, Ministry of Transport, Communications and Works, via the National Access Point. CC BY 4.0. Proximity counts calculated by Athena. |
-| Arakapas fire maps (`arakapas`) | Copernicus Emergency Management Service (© 2021 European Union), EMSR515 Melini (AOI01), delineation and grading products. Copernicus EMS On-Demand Mapping terms; credit required when redistributing or adapting. Burnt-area attributes summed by Athena. |
+| Pedestrian crossings (`crossings`) | Cyprus Public Works Department, Ministry of Transport, Communications and Works, via the National Access Point. CC BY 4.0. Proximity counts calculated by Kleanthis. |
+| Arakapas fire maps (`arakapas`) | Copernicus Emergency Management Service (© 2021 European Union), EMSR515 Melini (AOI01), delineation and grading products. Copernicus EMS On-Demand Mapping terms; credit required when redistributing or adapting. Burnt-area attributes summed by Kleanthis. |
 | Verified hourly nitrogen dioxide (`verifiedno2`) | European Environment Agency, E1a archive, data reported by the Cyprus Department of Labour Inspection. CC BY 4.0. |
 | Hourly air pollution (`gases`) | Cyprus Department of Labour Inspection, Air Quality Monitoring Network. CC BY 4.0. |
 | Aerosol optical depth (`aeronet`) | NASA AERONET Version 3, CUT-TEPAK and Nicosia sites. Public domain contribution with the acknowledgement AERONET asks for, including the site principal investigators, which is shown on the page. |
-| Agricultural drought (`drought`) | European Drought Observatory, © European Commission JRC. CC BY 4.0 for the JRC product; contains modified Copernicus service information. Grid cells sampled by Athena. |
-| Flood scenarios by river reach (`flood`) | Water Development Department, Republic of Cyprus. CC BY 4.0 for the risk maps. River reaches and floodplain polygons intersected by Athena. |
+| Agricultural drought (`drought`) | European Drought Observatory, © European Commission JRC. CC BY 4.0 for the JRC product; contains modified Copernicus service information. Grid cells sampled by Kleanthis. |
+| Flood scenarios by river reach (`flood`) | Water Development Department, Republic of Cyprus. CC BY 4.0 for the risk maps. River reaches and floodplain polygons intersected by Kleanthis. |
 | Electricity generation by fuel (`power`) | Eurostat, dataset `nrg_cb_pem` (https://doi.org/10.2908/nrg_cb_pem). Free reuse of Eurostat statistics with the source named; Eurostat is not responsible for the reuse. |
 | EV charging points (`ev`) | Department of Electrical and Mechanical Services, Cyprus, via the National Access Point. CC BY 4.0. |
 | Municipal population (`census`) | © Republic of Cyprus, Statistical Service (CYSTAT), Census of Population and Housing 2021. CYSTAT data reuse terms: name the source and identify any processing. |

@@ -221,7 +221,7 @@
   // The menu follows the three kinds of tool (view, analyze, predict), then the place to build your own, then the classroom pages.
   const MENU = [
     { items: [['home', 'globe', 'The whole project', 'Όλο το έργο'], ['toolkit', 'layers', 'Toolkit', 'Εργαλειοθήκη']] },
-    { sec: 'view', h: ['View', 'Προβολή'], items: [['layers', 'layers', 'Data layers', 'Στρώματα δεδομένων'], ['fieldwork', 'db', 'Explore source data', 'Διερεύνηση πηγών'], ['board', 'board', 'City board', 'Πίνακας πόλης'], ['city', 'globe', 'City centres in 3D', 'Κέντρα πόλεων σε 3D'], ['stack', 'layers', 'The data stack in 3D', 'Η στοίβα δεδομένων σε 3D'], ['health', 'check', 'Data health', 'Υγεία δεδομένων'], ['city3d', 'globe', 'Cyprus 3D', 'Κύπρος 3D'], ['map', 'map', 'Live map', 'Ζωντανός χάρτης'], ['trip', 'route', 'Follow one trip', 'Ακολουθήστε μία διαδρομή'], ['vehicles', 'bus', 'Vehicles', 'Οχήματα'], ['weather', 'check', 'Met Office record', 'Μετεωρολογικό αρχείο'], ['brief', 'file', 'Morning brief', 'Πρωινή ενημέρωση'], ['timemachine', 'refresh', 'Time machine', 'Μηχανή του χρόνου'], ['bubbles', 'bars', 'Measurement bubbles', 'Φούσκες μετρήσεων'], ['school360', 'users', 'School 360', 'Σχολείο 360'], ['districts', 'bars', 'Districts and neighbourhoods', 'Επαρχίες και γειτονιές'], ['archive', 'layers', 'Data archive', 'Αρχείο δεδομένων'], ['feeds', 'sensor', 'Feed list', 'Λίστα πηγών'], ['warnings', 'mic', 'Warnings watch', 'Παρακολούθηση προειδοποιήσεων']] },
+    { sec: 'view', h: ['View', 'Προβολή'], items: [['layers', 'layers', 'Data layers', 'Στρώματα δεδομένων'], ['stack', 'layers', 'The data stack in 3D', 'Η στοίβα δεδομένων σε 3D'], ['fieldwork', 'db', 'Explore source data', 'Διερεύνηση πηγών'], ['board', 'board', 'City board', 'Πίνακας πόλης'], ['city', 'globe', 'City centres in 3D', 'Κέντρα πόλεων σε 3D'], ['health', 'check', 'Data health', 'Υγεία δεδομένων'], ['city3d', 'globe', 'Cyprus 3D', 'Κύπρος 3D'], ['map', 'map', 'Live map', 'Ζωντανός χάρτης'], ['trip', 'route', 'Follow one trip', 'Ακολουθήστε μία διαδρομή'], ['vehicles', 'bus', 'Vehicles', 'Οχήματα'], ['weather', 'check', 'Met Office record', 'Μετεωρολογικό αρχείο'], ['brief', 'file', 'Morning brief', 'Πρωινή ενημέρωση'], ['timemachine', 'refresh', 'Time machine', 'Μηχανή του χρόνου'], ['bubbles', 'bars', 'Measurement bubbles', 'Φούσκες μετρήσεων'], ['school360', 'users', 'School 360', 'Σχολείο 360'], ['districts', 'bars', 'Districts and neighbourhoods', 'Επαρχίες και γειτονιές'], ['archive', 'layers', 'Data archive', 'Αρχείο δεδομένων'], ['feeds', 'sensor', 'Feed list', 'Λίστα πηγών'], ['warnings', 'mic', 'Warnings watch', 'Παρακολούθηση προειδοποιήσεων']] },
     { sec: 'analyze', h: ['Analyze', 'Ανάλυση'], items: [['explore', 'search', 'Explore data', 'Εξερεύνηση'], ['versus', 'bars', 'City vs city', 'Πόλη με πόλη'], ['changed', 'refresh', 'What changed since yesterday', 'Τι άλλαξε από χθες'], ['radar', 'sensor', 'Event radar', 'Ραντάρ γεγονότων'], ['alerts', 'bell', 'Alerts', 'Ειδοποιήσεις'], ['claims', 'check', 'Claim check', 'Έλεγχος ισχυρισμού'], ['beforeafter', 'refresh', 'Before and after', 'Πριν και μετά'], ['askmap', 'map', 'Ask the map', 'Ρώτα τον χάρτη'], ['vent', 'bolt', 'Ventilation coach', 'Οδηγός αερισμού'], ['mirror', 'users', 'Mirror', 'Καθρέφτης'], ['council', 'shield', 'Council room', 'Αίθουσα συμβουλίου'], ['research', 'search', 'Research', 'Έρευνα'], ['reports', 'file', 'Reports', 'Αναφορές']] },
     { sec: 'predict', h: ['Predict', 'Πρόβλεψη'], items: [['forecast', 'check', 'Forecast against reality', 'Πρόβλεψη και πραγματικότητα'], ['whatif', 'refresh', 'What-if', 'Σενάρια'], ['watch', 'bell', 'My watch', 'Η παρακολούθησή μου'], ['experiment', 'flag', 'Experiment builder', 'Σχεδίασε ένα πείραμα']] },
     { sec: 'build', h: ['Build', 'Κατασκευή'], items: [['workshop', 'layers', 'Workshop', 'Εργαστήρι'], ['studio', 'pencil', 'Build studio', 'Στούντιο'], ['start', 'layers', 'Start a project', 'Νέο έργο'], ['projects', 'flag', 'Running projects', 'Ενεργά έργα'], ['submitted', 'inbox', 'Submitted work', 'Υποβολές'], ['notebook', 'pencil', 'Field notebook', 'Τετράδιο πεδίου'], ['desk', 'home', 'Today’s desk', 'Το γραφείο σήμερα']] },
@@ -390,7 +390,7 @@
   /* ---------- side menu ---------- */
   function brandSvg() {
     const s = SC.svgEl('svg', { viewBox: '0 0 38 38', 'aria-hidden': 'true' });
-    // the Athena mark: her owl, with eyes drawn like sensor rings
+    // the Kleanthis mark: her owl, with eyes drawn like sensor rings
     s.innerHTML = '<defs><linearGradient id="lg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#4CCBEA"/><stop offset=".55" stop-color="#F2A56B"/><stop offset="1" stop-color="#F7C46B"/></linearGradient></defs><rect x="1" y="1" width="36" height="36" rx="10" fill="#10223a" stroke="url(#lg)" stroke-width="1.5"/><path d="M8 7.500c1 4.500 5 6.500 11 8.500 6-2 10-4 11-8.500" fill="none" stroke="url(#lg)" stroke-width="1.900" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 7.500v13.500c0 6 4.500 10.500 11 10.500s11-4.500 11-10.500V7.500" fill="none" stroke="url(#lg)" stroke-width="1.900" stroke-linecap="round" stroke-linejoin="round"/><circle cx="13.800" cy="19.800" r="3.700" fill="none" stroke="url(#lg)" stroke-width="1.700"/><circle cx="24.200" cy="19.800" r="3.700" fill="none" stroke="url(#lg)" stroke-width="1.700"/><circle cx="13.800" cy="19.800" r="1.400" fill="url(#lg)"/><circle cx="24.200" cy="19.800" r="1.400" fill="url(#lg)"/><path d="M19 22.800l-1.700 2.500 1.700 2 1.700-2z" fill="url(#lg)"/>';
     return s;
   }
@@ -401,7 +401,7 @@
     side.replaceChildren();
     const steps = tourSteps();
     side.append(
-      SC.el('div', { class: 'sm-brand' }, brandSvg(), SC.el('div', null, SC.el('b', null, SC.t('ATHENA', 'ΑΘΗΝΑ')), SC.el('small', null, SC.t('Smart Cities · Cyprus', 'Smart Cities · Κύπρος')))),
+      SC.el('div', { class: 'sm-brand' }, brandSvg(), SC.el('div', null, SC.el('b', null, SC.t('KLEANTHIS', 'ΚΛΕΑΝΘΗΣ')), SC.el('small', null, SC.t('Smart Cities · Cyprus', 'Smart Cities · Κύπρος')))),
       SC.el('button', { class: 'sm-search', type: 'button', style: { width: '100%', textAlign: 'left', cursor: 'pointer' }, onclick: openPalette }, SC.icon('search', 16), SC.el('span', null, SC.t('Search or jump to…', 'Αναζήτηση…')), SC.el('kbd', null, 'Ctrl K')),
       SC.el('div', { class: 'sm-brief' + (tourOn ? ' on' : ''), id: 'tour-card', role: 'switch', 'aria-checked': tourOn ? 'true' : 'false', tabindex: 0, onclick: toggleTour, onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTour(); } } },
         SC.el('div', null, SC.el('b', null, SC.t('Tour mode', 'Λειτουργία ξενάγησης')), SC.el('small', null, SC.t('A ' + steps.length + '-step route', 'Διαδρομή ' + steps.length + ' βημάτων'))), SC.el('i')));
@@ -583,7 +583,7 @@
     const logo = brandSvg(); logo.setAttribute('class', 'wl-logo');
     logo.querySelector('linearGradient').setAttribute('id', 'lg2'); logo.querySelectorAll('[stroke="url(#lg)"]').forEach((n) => n.setAttribute('stroke', 'url(#lg2)')); logo.querySelectorAll('[fill="url(#lg)"]').forEach((n) => n.setAttribute('fill', 'url(#lg2)'));
     const h1 = SC.el('h1', { id: 'wl-h' }, SC.el('span', { class: 'wl-w wl-w1' }, SC.t('Our schools.', 'Τα σχολεία μας.')), ' ', SC.el('span', { class: 'wl-w wl-w2' }, SC.t('One live city.', 'Μία ζωντανή πόλη.')));
-    const hero = SC.el('div', { class: 'wl-v' }, svg, SC.el('div', { class: 'wl-brand' }, logo, SC.el('b', null, SC.t('ATHENA', 'ΑΘΗΝΑ'))),
+    const hero = SC.el('div', { class: 'wl-v' }, svg, SC.el('div', { class: 'wl-brand' }, logo, SC.el('b', null, SC.t('KLEANTHIS', 'ΚΛΕΑΝΘΗΣ'))),
       SC.el('div', { class: 'wl-mt' }, h1, SC.el('p', { class: 'wl-tag' }, SC.t('Live readings you can check', 'Ζωντανές μετρήσεις που μπορείτε να ελέγξετε'))));
     const CARDS = [
       ['#4CCBEA', 'sensor', SC.t('Live from our schools', 'Ζωντανά από τα σχολεία μας'), SC.t('Readings from sensors on buses, cars and classrooms at four schools, in one place.', 'Μετρήσεις από αισθητήρες σε λεωφορεία, αυτοκίνητα και τάξεις τεσσάρων σχολείων, σε ένα σημείο.')],
@@ -647,7 +647,7 @@
     const lab = labelOf[id], d = DESC[id];
     const known = Boolean(lab);
     const title = known ? SC.t(lab[0], lab[1]) : SC.t('Nothing here yet', 'Δεν υπάρχει τίποτα εδώ ακόμα');
-    document.title = title + ' · Athena';
+    document.title = title + ' · Kleanthis';
     const next = ['board', 'vehicles', 'weather'].filter((x) => isReady(x));
     view.append(SC.head({ title, help: false }),
       SC.el('section', { class: 'nm-card nm-card--glow sc-soon' },
@@ -673,7 +673,7 @@
     const fresh = view.cloneNode(false);
     fresh.id = 'view'; fresh.className = 'nm-enter'; fresh.tabIndex = -1;
     view.replaceWith(fresh);
-    document.title = SC.t(labelOf[id] ? labelOf[id][0] : 'Smart Cities', labelOf[id] ? labelOf[id][1] : 'Smart Cities') + ' · Athena';
+    document.title = SC.t(labelOf[id] ? labelOf[id][0] : 'Smart Cities', labelOf[id] ? labelOf[id][1] : 'Smart Cities') + ' · Kleanthis';
     fresh.append(SC.el('div', { class: 'loading' }, SC.t('Loading', 'Φόρτωση')));
     let def = null;
     if (/^[a-z0-9_-]+$/i.test(id)) { try { def = await loadPage(id); } catch (e) { def = null; } }

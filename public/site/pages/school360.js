@@ -22,7 +22,7 @@
   SC.register('school360', {
     title: ['School 360', 'Σχολείο 360'],
     async render(root, ctx) {
-      document.title = T('School 360', 'Σχολείο 360') + ' · Athena';
+      document.title = T('School 360', 'Σχολείο 360') + ' · Kleanthis';
       root.append(SC.head({ title: T('School 360', 'Σχολείο 360'),
         lede: T('One school, one topic at a time: its sensors, the readings for its city, the saved day and the places where sources do not agree.', 'Ένα σχολείο, ένα θέμα τη φορά: οι αισθητήρες του, οι μετρήσεις για την πόλη του, η αποθηκευμένη μέρα και τα σημεία όπου οι πηγές δεν συμφωνούν.'),
         help: ['Pick a school and a topic. First you see how many of the school\'s sensors sent a reading in the last hour (a count, never a place). Then the newest readings for the school\'s city from stations, models and our own sensors, each with its time and its layer. Then the saved day, and any measurement where two sources read differently right now.',

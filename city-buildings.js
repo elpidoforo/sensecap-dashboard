@@ -37,7 +37,7 @@ const GAP_MS = 8000;              // between two cities
 const MAX_BYTES = 40 * 1024 * 1024;
 const LEVEL_M = 3.2, DEFAULT_H = 9;
 const DAY = 86400000;
-const UA = 'Athena-Smart-Cities-Cyprus/1.0 (school data platform; buildings of four city centres, fetched once a month)';
+const UA = 'Kleanthis-Smart-Cities-Cyprus/1.0 (school data platform; buildings of four city centres, fetched once a month)';
 const ROAD = {
   motorway: 'major', trunk: 'major', primary: 'major', secondary: 'major', tertiary: 'major', motorway_link: 'major', trunk_link: 'major', primary_link: 'major', secondary_link: 'major', tertiary_link: 'major',
   residential: 'minor', unclassified: 'minor', living_street: 'minor', service: 'minor', road: 'minor',

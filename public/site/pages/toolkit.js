@@ -52,6 +52,7 @@
     ['health', 'today', 'now', 'Data health', 'Υγεία δεδομένων', 'Where every number comes from, and what the checks found.', 'Από πού έρχεται κάθε αριθμός και τι βρήκαν οι έλεγχοι.'],
     ['city', 'today', 'now', 'City centres in 3D', 'Κέντρα πόλεων σε 3D', 'Fly from the island down to a city centre: its buildings and streets in 3D.', 'Πέτα από το νησί σε ένα κέντρο πόλης: τα κτίρια και οι δρόμοι του σε 3D.'],
     ['city3d', 'today', 'now', 'Cyprus 3D', 'Κύπρος 3D', 'Our 3D island with a rail of layers to switch on and off.', 'Το τρισδιάστατο νησί μας με μια μπάρα στρωμάτων που ανοίγουν και κλείνουν.'],
+    ['stack', 'today', 'now', 'The data stack in 3D', 'Η στοίβα δεδομένων σε 3D', 'Every layer we hold, from the seabed up to the satellites, stacked over the island, each sheet with its source and the age of its newest reading.', 'Κάθε στρώμα που κρατάμε, από τον βυθό ως τους δορυφόρους, στοιβαγμένο πάνω από το νησί, με την πηγή και την ηλικία της πιο πρόσφατης μέτρησης σε κάθε φύλλο.'],
     ['alerts', 'today', 'teacher', 'Alerts', 'Ειδοποιήσεις', 'Alerts from rules that teachers write, such as high CO2. Each names its source and rule, never a person.', 'Ειδοποιήσεις από κανόνες που γράφουν οι εκπαιδευτικοί, όπως υψηλό CO2. Καθεμία δείχνει την πηγή και τον κανόνα της, ποτέ πρόσωπο.'],
     ['ask', 'today', 'now', 'Ask', 'Ρωτήστε', 'A full-screen assistant that answers from live tools and the handbook, with source chips.', 'Βοηθός πλήρους οθόνης που απαντά από ζωντανά εργαλεία και το εγχειρίδιο, με ετικέτες πηγών.'],
 
@@ -104,7 +105,7 @@
   SC.register('toolkit', {
     title: ['Toolkit', 'Εργαλειοθήκη'],
     render(root) {
-      document.title = T('Toolkit', 'Εργαλειοθήκη') + ' · Athena';
+      document.title = T('Toolkit', 'Εργαλειοθήκη') + ' · Kleanthis';
       root.append(SC.head({ title: T('Toolkit', 'Εργαλειοθήκη'),
         lede: T('Every tool of the platform in one list: what it does, and an honest word on whether it works yet.', 'Κάθε εργαλείο της πλατφόρμας σε μία λίστα: τι κάνει, και μια ειλικρινής λέξη για το αν δουλεύει ήδη.'),
         help: ['Type in the search box to find a tool by its name or by what it does. The chips filter by status. "Works now" opens and shows something. "Needs saved data" fills up as the platform saves readings. "Needs a teacher" waits for a teacher to sign in, approve or switch it on. "Coming" is not built yet, so it has no link.',

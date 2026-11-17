@@ -34,7 +34,8 @@ const up = async () => { for (let i = 0; i < 100; i++) { try { await fetch(BASE 
   // privacy: nothing about a vehicle has a position, a device id or a name
   const own = JSON.stringify(Object.values(L.cities).map((c) => c.rows.filter((x) => /sensecap/.test(x.source))));
   ok(!/"(lat|lng|eui|name|where|whereEl)"/i.test(own), 'privacy: our own sensors are numbers only (no position, id or name)');
-  ok(Object.keys(L.map).sort().join() === 'air,sea,stations,wind', 'privacy: the map part holds only wind, sea, official stations and model air (' + Object.keys(L.map) + ')');
+  ok(Object.keys(L.map).sort().join() === 'air,sea,stations,weatherAt,wind', 'privacy: the map part holds only wind, sea, official stations, model air and the time the model grid was made (' + Object.keys(L.map) + ')');
+  ok(L.map.weatherAt == null || (typeof L.map.weatherAt === 'number' && L.map.weatherAt > 0), 'the model grid says when it was made, so nothing drawn from it can claim to be newer');
   ok(L.map.stations.every((s) => s.src === 'cydom-stations' || s.src === 'metar-airports'), 'privacy: every point with a name is an official station');
   ok(!/2CF7F1|eui|"gps"|4197|4198/i.test(r.text), 'privacy: no device id and no GPS measurement anywhere in the answer');
   ok(L.map.wind.length > 4 && L.map.wind.every((p) => p.ws >= 0 && p.wd >= 0 && p.wd <= 360), 'live: the wind points have a speed and a direction');

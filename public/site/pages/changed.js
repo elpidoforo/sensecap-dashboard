@@ -132,7 +132,7 @@
   SC.register('changed', {
     title: ['What changed since yesterday', 'Τι άλλαξε από χθες'],
     async render(root) {
-      document.title = T('What changed since yesterday', 'Τι άλλαξε από χθες') + ' · Athena';
+      document.title = T('What changed since yesterday', 'Τι άλλαξε από χθες') + ' · Kleanthis';
       root.append(SC.head({ title: T('What changed since yesterday', 'Τι άλλαξε από χθες'),
         lede: T('The newest reading of each city next to the oldest one we still keep and the one from an hour ago. Then the layers that are quiet, and the places where two sources do not agree.', 'Η πιο πρόσφατη μέτρηση κάθε πόλης δίπλα στην παλαιότερη που κρατάμε και σε αυτήν πριν από μία ώρα. Μετά τα στρώματα που σώπασαν και τα σημεία όπου δύο πηγές δεν συμφωνούν.'),
         help: ['The platform saves a reading for each city every few minutes and keeps about one day. This page takes the newest saved reading and subtracts the oldest one and the one from an hour ago. Each line shows the unit, both times and the layer (the source) it came from. A change is only a change: the page does not say why it happened.',

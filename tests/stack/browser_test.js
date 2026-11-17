@@ -89,6 +89,40 @@ const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swifts
       ok(fresh !== later && /(h ago|ώ)/.test(later), name + ': a reading grows older while nobody fetches a new one');
       ok(w1 > w0, name + ': and the ring around the school widens with it (' + w0.toFixed(2) + ' to ' + w1.toFixed(2) + ')');
 
+      // a reading that lands travels up the beam of the source it came from
+      let sent = 0;
+      for (let i = 0; i < 30; i++) { sent = await frame.evaluate(() => (window.__pulses ? window.__pulses() : 0)); if (sent) break; await wait(300); }
+      ok(sent > 0, name + ': a reading that arrives travels up the beam from its source (' + sent + ')');
+      const bars = await frame.evaluate(() => [...document.querySelectorAll('.lay .go')].map((b2) => parseFloat(b2.style.width) || 0));
+      ok(bars.length === 12 && bars.some((w) => w > 0), name + ': a sheet shows how far it is through the wait for its next reading');
+
+      // the bearings are averaged the way angles have to be
+      const bear = await frame.evaluate(() => [window.__meanBearing([350, 10]), window.__meanBearing([90, 90]), window.__meanBearing([])]);
+      ok(Math.min(Math.abs(bear[0]), Math.abs(360 - bear[0])) < 0.001, name + ': 350° and 10° average to 0°, not to 180° (' + bear[0] + ')');
+      ok(Math.abs(bear[1] - 90) < 0.001 && bear[2] === null, name + ': one bearing stays itself, and no bearing is no answer');
+
+      // one sheet on its own, with what every city has for it
+      await frame.evaluate(() => { const b2 = [...document.querySelectorAll('.row')].find((r) => /Air quality|Ποιότητα/.test(r.innerText)); b2.querySelector('.solo').click(); });
+      await wait(600);
+      const alone = await frame.evaluate(() => [...document.querySelectorAll('.lay')].filter((x) => x.getAttribute('aria-pressed') === 'true').length);
+      ok(alone === 1, name + ': the solo button leaves one sheet on its own (' + alone + ')');
+      const open2 = await frame.evaluate(() => { const c = [...document.querySelectorAll('.cities')].find((x) => !x.hidden); return c ? c.innerText : ''; });
+      ok(/Larnaka|Λάρνακα/.test(open2) && /(Paphos|Πάφος)/.test(open2), name + ': and lists what every city has for it');
+      ok(/[0-9]/.test(open2) && /(openmeteo|sensecap|cydom|metar|drawn|σχεδιασμένο|nothing|τίποτα)/.test(open2), name + ': with the source of each reading beside it');
+      await frame.evaluate(() => { const b2 = [...document.querySelectorAll('.row')].find((r) => /Air quality|Ποιότητα/.test(r.innerText)); b2.querySelector('.solo').click(); });
+      await wait(500);
+      ok(await frame.evaluate(() => [...document.querySelectorAll('.lay')].every((x) => x.getAttribute('aria-pressed') === 'true')), name + ': pressing it again brings the others back');
+
+      // the honest view in one press
+      await frame.evaluate(() => document.getElementById('measured').click());
+      await wait(600);
+      const left = await frame.evaluate(() => [...document.querySelectorAll('.lay')].filter((x) => x.getAttribute('aria-pressed') === 'true').map((x) => x.innerText));
+      ok(left.length >= 1 && left.length < 12, name + ': "measured only" leaves the sheets that stand on a reading (' + left.length + ' of 12)');
+      ok(left.every((x) => !/drawn|σχεδιασμένο/.test(x)), name + ': and not one of them is a drawing');
+      ok(left.every((x) => !/(model|μοντέλο)/.test(x)), name + ': and not one of them is a model either (' + left.map((x) => x.split('\n')[0]).join(', ') + ')');
+      await frame.evaluate(() => document.getElementById('all').click());
+      await wait(500);
+
       // a hidden sheet takes its disagreements with it
       await frame.evaluate(() => document.querySelectorAll('.lay').forEach((x) => { if (x.getAttribute('aria-pressed') === 'true') x.click(); }));
       await wait(600);
@@ -127,7 +161,7 @@ const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swifts
 
       if (!el && !phone) {
         const page = await p.evaluate(() => document.body.innerText);
-        ok(/newest reading Athena holds/.test(page) && /drawn/.test(page), 'the page says which sheets are measured and which are drawn, before you look at them');
+        ok(/newest reading Kleanthis holds/.test(page) && /drawn/.test(page), 'the page says which sheets are measured and which are drawn, before you look at them');
         ok(/vehicle|person/.test(page), 'and that no vehicle and no person is drawn');
         const text = await frame.evaluate(() => document.body.innerText);
         ok(/LIVE READINGS · DRAWN RELIEF/.test(text), 'the frame says which parts are measured and which are drawn');

@@ -367,7 +367,37 @@
         (winsGrid = el('div', { class: 'hm-wins' }, built.map((b) => b.box))),
         el('div', { class: 'nm-callout nm-callout--info' }, T('There is no account for visitors. Teachers sign in only to approve work and change settings.', 'Οι επισκέπτες δεν χρειάζονται λογαριασμό. Οι εκπαιδευτικοί συνδέονται μόνο για να εγκρίνουν εργασίες και να αλλάξουν ρυθμίσεις.')));
 
-      const hm = el('div', { class: 'hm' }, el('div', { class: 'hm-sky', 'aria-hidden': 'true' }), head, route, coreSlot, three, stage, list, status, legend, sec);
+      /* ---------- the data stack in 3D, under the ring: the same frame as #/stack, started only when it comes into view ---------- */
+      const stackCard = el('div', { class: 'hm-stack-frame' });
+      const stackSec = el('section', { class: 'hm-stack', 'aria-label': T('The data stack in 3D', 'Η στοίβα δεδομένων σε 3D') },
+        el('div', { class: 'hm-stack-h' },
+          el('div', null,
+            el('div', { class: 'eyebrow' }, T('Every layer, one above the other', 'Κάθε στρώμα, το ένα πάνω στο άλλο')),
+            el('h2', null, T('The data stack in 3D', 'Η στοίβα δεδομένων σε 3D'))),
+          el('a', { class: 'hm3-btn', href: link('stack') }, T('Open it full screen', 'Άνοιξέ το σε πλήρη οθόνη'))),
+        el('p', { class: 'hm3-q' },
+          T('The sheets that are wired carry the newest reading Kleanthis holds, with its source and its age. The others say "drawn" — their picture is made in your browser, not measured. Nothing here draws a vehicle or a person.',
+            'Τα φύλλα που είναι συνδεδεμένα κρατούν την πιο πρόσφατη μέτρηση του Kleanthis, με την πηγή και την ηλικία της. Τα υπόλοιπα λένε «σχεδιασμένο» — η εικόνα τους φτιάχνεται στο πρόγραμμα περιήγησης, δεν μετριέται. Τίποτα εδώ δεν σχεδιάζει όχημα ή άνθρωπο.')),
+        stackCard);
+      // A 3D scene is heavy, so it is only started once the reader has scrolled to it, and never on a page they pass by.
+      let stackOn = false, stackFrame = null;
+      const startStack = () => {
+        if (stackOn || !alive) return;
+        stackOn = true;
+        stackFrame = el('iframe', {
+          src: '/stack.html?embed=1&lang=' + (SC.lang === 'el' ? 'el' : 'en'),
+          title: T('The data stack over Cyprus in 3D', 'Η στοίβα δεδομένων πάνω από την Κύπρο σε 3D'),
+          loading: 'lazy', allow: 'fullscreen',
+        });
+        stackCard.append(stackFrame);
+      };
+      // The Data core below is already a live 3D scene. Two of them at once is a heavy page on a modest laptop and a
+      // phone, so this one waits to be asked; one press and it runs exactly as the full page does.
+      const go = el('button', { type: 'button', class: 'hm-stack-go', onclick: () => { go.remove(); startStack(); } },
+        T('Start the 3D view', 'Ξεκίνα την τρισδιάστατη προβολή'));
+      stackCard.append(go);
+
+      const hm = el('div', { class: 'hm' }, el('div', { class: 'hm-sky', 'aria-hidden': 'true' }), head, route, stage, list, status, legend, stackSec, coreSlot, three, sec);
       root.append(hm);
 
       /* ---------- layout: ring, chevrons, travelling dots and the light pillars ---------- */
@@ -534,6 +564,7 @@
         window.removeEventListener('resize', relayout);
         if (ro) ro.disconnect();
         if (core) { core.destroy(); core = null; }
+        if (stackFrame) stackFrame.src = 'about:blank';      // the 3D scene stops when the reader leaves the page
         clearTimeout(packT);
       };
     },

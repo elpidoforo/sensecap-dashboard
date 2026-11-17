@@ -21,7 +21,7 @@ document.documentElement.lang = LANG;
 if (LANG === 'el') {
   document.querySelectorAll('[data-el]').forEach((e) => { e.textContent = e.getAttribute('data-el'); });
   document.querySelectorAll('[data-ael]').forEach((e) => e.setAttribute('aria-label', e.getAttribute('data-ael')));
-  document.title = 'Τα κέντρα των πόλεων σε 3D · Athena';
+  document.title = 'Τα κέντρα των πόλεων σε 3D · Kleanthis';
 }
 const REDUCED = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const body = document.body;

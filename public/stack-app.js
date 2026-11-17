@@ -1,5 +1,5 @@
 /*
-  The Cyprus data stack in 3D (#/stack): every layer Athena holds, from the seabed up to space, with the source of each one
+  The Cyprus data stack in 3D (#/stack): every layer Kleanthis holds, from the seabed up to space, with the source of each one
   drawn in the scene. Shown inside the site shell through a same-origin frame (pages/stack.js), the way the city page is.
 
   Honest limits, printed on the page itself: the values are illustrative, and the relief and rasters are drawn here rather
@@ -216,13 +216,13 @@ const TOP = (LAYERS.length - 1) * GAPY, ISLAND_Y = 2 * GAPY;
 
 /* ---- where each layer comes from ---- */
 const beams = [];
-function beam(from, to, colour) {
+function beam(from, to, colour, tag, city) {
   const g = new THREE.BufferGeometry().setFromPoints([from, to]);
   const line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: colour, transparent: true, opacity: .35 })); scene.add(line);
   const dots = [];
   for (let i = 0; i < 3; i++) { const d = new THREE.Mesh(new THREE.SphereGeometry(3.4, 10, 8), new THREE.MeshBasicMaterial({ color: colour }));
     scene.add(d); dots.push({ mesh: d, t: i / 3 }); }
-  beams.push({ from, to, dots });
+  beams.push({ from, to, dots, tag: tag || null, city: city || null });
 }
 const p3 = (lng, lat, y) => { const [u, v] = uv(lng, lat); return new THREE.Vector3((u - .5) * SW, y, (v - .5) * SH); };
 (I.stations || []).forEach((st, i) => { const lng = st.lng, lat = st.lat;
@@ -233,7 +233,7 @@ const p3 = (lng, lat, y) => { const [u, v] = uv(lng, lat); return new THREE.Vect
   const cup = new THREE.Mesh(new THREE.SphereGeometry(3.4, 10, 8),
     new THREE.MeshStandardMaterial({ color: '#d9f0ff', emissive: '#59d7e8', emissiveIntensity: .7 }));
   cup.position.set(p.x, ISLAND_Y + 28, p.z); scene.add(cup);
-  beam(new THREE.Vector3(p.x, ISLAND_Y + 28, p.z), new THREE.Vector3(p.x, (i < 3 ? 7 : 6) * GAPY, p.z), i < 3 ? '#59d7e8' : '#d9b3ff');
+  beam(new THREE.Vector3(p.x, ISLAND_Y + 28, p.z), new THREE.Vector3(p.x, (i < 3 ? 7 : 6) * GAPY, p.z), i < 3 ? '#59d7e8' : '#d9b3ff', 'stations');
 });
 I.schools.forEach((sc) => {
   const p = p3(sc.lng, sc.lat, ISLAND_Y);
@@ -242,18 +242,18 @@ I.schools.forEach((sc) => {
   pin.position.set(p.x, ISLAND_Y + 11, p.z); scene.add(pin);
   const ring = new THREE.Mesh(new THREE.RingGeometry(14, 19, 28), new THREE.MeshBasicMaterial({ color: '#F7C46B', transparent: true, opacity: .35, side: THREE.DoubleSide }));
   ring.rotation.x = -Math.PI / 2; ring.position.set(p.x, ISLAND_Y + 1.5, p.z); scene.add(ring);
-  beam(new THREE.Vector3(p.x, ISLAND_Y + 22, p.z), new THREE.Vector3(p.x, TOP, p.z), '#F7C46B');
+  beam(new THREE.Vector3(p.x, ISLAND_Y + 22, p.z), new THREE.Vector3(p.x, TOP, p.z), '#F7C46B', 'own', sc.id);
 });
-function sourceBox(pos, colour, text, sub, toY) {
+function sourceBox(pos, colour, text, sub, toY, tag) {
   const geo = new THREE.BoxGeometry(34, 34, 34);
   const b = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#16293f', emissive: colour, emissiveIntensity: .25, metalness: .6, roughness: .35 }));
   b.position.copy(pos); scene.add(b);
   const w = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: colour, transparent: true, opacity: .8 }));
   w.position.copy(pos); scene.add(w);
   const lab = label(text, sub, colour, mobile ? 44 : 30); lab.position.set(pos.x + 26, pos.y + 4, pos.z); scene.add(lab);
-  beam(pos.clone(), new THREE.Vector3(pos.x, toY, pos.z), colour);
+  beam(pos.clone(), new THREE.Vector3(pos.x, toY, pos.z), colour, tag || null);
 }
-sourceBox(new THREE.Vector3(-SW * .62, 8 * GAPY, -SH * .3), '#7fb3ff', 'Open-Meteo', T('MODEL · 11 KM GRID', 'ΜΟΝΤΕΛΟ · ΠΛΕΓΜΑ 11 KM'), 8 * GAPY);
+sourceBox(new THREE.Vector3(-SW * .62, 9.4 * GAPY, -SH * .3), '#7fb3ff', 'Open-Meteo', T('MODEL · 11 KM GRID', 'ΜΟΝΤΕΛΟ · ΠΛΕΓΜΑ 11 KM'), 8 * GAPY, 'model');
 sourceBox(new THREE.Vector3(SW * .6, 3 * GAPY, SH * .34), '#C4B8FF', 'CYSTAT · GTFS', T('PUBLISHED FILES', 'ΔΗΜΟΣΙΕΥΜΕΝΑ ΑΡΧΕΙΑ'), 3 * GAPY);
 sourceBox(new THREE.Vector3(SW * .6, 0, -SH * .3), '#2f7fb8', 'EMODnet', T('BATHYMETRY · BUOYS', 'ΒΑΘΥΜΕΤΡΙΑ · ΣΗΜΑΔΟΥΡΕΣ'), 0);
 sourceBox(new THREE.Vector3(-SW * .6, 1 * GAPY, SH * .36), '#5bc8e0', T('WDD gauges', 'Μετρητές ΤΑΥ'), T('RESERVOIRS · REACHES', 'ΦΡΑΓΜΑΤΑ · ΤΜΗΜΑΤΑ'), 1 * GAPY);
@@ -319,21 +319,20 @@ function windStep(t) { const c = windC.getContext('2d');
     c.lineWidth = .8 + hot; c.beginPath(); c.moveTo(x, y); c.lineTo(nx, ny); c.stroke();
     pcl[o] = nx; pcl[o + 1] = ny; pcl[o + 3]++;
     if (nx < -15 || nx > LW + 15 || ny < -15 || ny > LH + 15 || pcl[o + 3] > 130) { pcl[o] = Math.random() * LW; pcl[o + 1] = Math.random() * LH; pcl[o + 3] = 0; } } }
+// One number for the whole island is what the model gives, so the rain is drawn as one veil over the whole island.
+// Nothing here says where it is raining, because nothing in the feed knows.
 function rainStep(t) { const c = rainC.getContext('2d'); c.clearRect(0, 0, LW, LH);
   if (rainScale <= 0) return;                                      // the model says no rain this hour, so none is drawn
   c.globalCompositeOperation = 'lighter';
-  [[.28, .4, .17, 1], [.39, .63, .12, .8], [.18, .28, .1, .6]].forEach(([cu, cvv, rr0, w0], i) => {
-    const rr = rr0 * (.5 + .5 * rainScale), w = w0 * rainScale;
-    const U = (cu + Math.sin(t * .09 + i) * .012) * LW, V = cvv * LH, R = rr * LW;
-    for (let k = 0; k < 16; k++) { const a = k * 2.399, d = Math.sqrt((k % 13) / 13) * R * .8;
-      const bx = U + Math.cos(a) * d, by = V + Math.sin(a) * d * .72, br = R * (.3 + .4 * fbm(k * 3.1, t * .2, 2));
-      const g = c.createRadialGradient(bx, by, 1, bx, by, br);
-      g.addColorStop(0, `rgba(95,150,230,${(.12 * w).toFixed(3)})`); g.addColorStop(1, 'rgba(70,120,200,0)');
-      c.fillStyle = g; c.beginPath(); c.arc(bx, by, br, 0, 7); c.fill(); }
-    for (let k = 0; k < (mobile ? 110 : 220) * w; k++) { const a = k * 2.399, d = Math.sqrt((k % 97) / 97) * R;
-      const sx = U + Math.cos(a) * d, sy = V + Math.sin(a) * d * .8 + ((t * 170 + k * 11) % 26);
-      c.strokeStyle = `rgba(190,228,255,${((.18 + ((k % 9) / 24)) * w).toFixed(3)})`; c.lineWidth = .8;
-      c.beginPath(); c.moveTo(sx, sy); c.lineTo(sx - 1.4, sy + 8); c.stroke(); } });
+  c.fillStyle = `rgba(80,130,210,${(.05 + .07 * rainScale).toFixed(3)})`;
+  c.fillRect(0, 0, LW, LH);
+  const n = Math.round((mobile ? 320 : 820) * (.25 + .75 * rainScale));
+  c.lineWidth = .8;
+  for (let k = 0; k < n; k++) {
+    const sx = ((k * 73.13) % LW + Math.sin(t * .3 + k) * 2), sy = ((k * 131.7 + t * 190) % LH);
+    c.strokeStyle = `rgba(190,228,255,${((.12 + ((k % 9) / 30)) * (.4 + .6 * rainScale)).toFixed(3)})`;
+    c.beginPath(); c.moveTo(sx, sy); c.lineTo(sx - 1.4, sy + 8); c.stroke();
+  }
   c.globalCompositeOperation = 'source-over'; }
 
 /* ---- the rail, and what the buttons do ---- */
@@ -345,15 +344,77 @@ const rail = document.getElementById('rail');
     const btn = document.createElement('button');
     btn.className = 'lay'; btn.type = 'button'; btn.style.setProperty('--c', x.c); btn.setAttribute('aria-pressed', 'true');
     btn.innerHTML = `<span class="key"></span><span class="nm"><b></b><small></small></span>
-      <span class="val"></span><span class="st ${x.state}"></span>`;
+      <span class="val"></span><span class="st ${x.state}"></span><i class="go" aria-hidden="true"></i>`;
     btn.querySelector('b').textContent = T(x.name, x.nameEl);
     btn.querySelector('small').textContent = T(x.src, x.srcEl);
     btn.querySelector('.val').innerHTML = `${x.val}<em>${x.unit}</em>`;
     btn.addEventListener('click', () => { s.on = !s.on; s.group.visible = s.on; btn.setAttribute('aria-pressed', String(s.on)); drawTwins(); });
-    s.btn = btn; rail.appendChild(btn);
+    const row = document.createElement('div'); row.className = 'row'; row.style.setProperty('--c', x.c);
+    const head = document.createElement('div'); head.className = 'head';
+    const solo = document.createElement('button');
+    solo.type = 'button'; solo.className = 'solo'; solo.textContent = '◎'; solo.setAttribute('aria-pressed', 'false');
+    solo.setAttribute('aria-label', T('Show only this sheet, with every city', 'Δείξε μόνο αυτό το φύλλο, με όλες τις πόλεις'));
+    solo.title = solo.getAttribute('aria-label');
+    solo.addEventListener('click', (ev) => { ev.stopPropagation(); setSolo(x.id); });
+    const cities = document.createElement('div'); cities.className = 'cities'; cities.hidden = true;
+    s.btn = btn; s.solo = solo; s.cities = cities;
+    head.append(btn, solo); row.append(head, cities); rail.appendChild(row);
   });
 });
-const setAll = (fn) => { sheets.forEach((s) => { s.on = fn(s); s.group.visible = s.on; if (s.btn) s.btn.setAttribute('aria-pressed', String(s.on)); }); drawTwins(); };
+let soloId = null;
+const cityName = (c) => { const n = (live.cities[c] || {}).name; return Array.isArray(n) ? T(n[0], n[1]) : (n || c); };
+function cityLines(id) {
+  const out = [];
+  if (!live || !live.cities) return out;
+  const feed = FEED[id];
+  if (feed) {
+    Object.keys(live.cities).forEach((c) => {
+      let r = null;
+      for (const name of feed.vars) { r = pick(c, name, feed.own) || pick(c, name, false); if (r) break; }
+      out.push([cityName(c),
+        r ? fmt(r.value) + ' ' + (r.unit || '') + ' · ' + ageText(r.ageMin) : T('nothing arrived', 'δεν ήρθε τίποτα'),
+        r ? r.source : '']);
+    });
+    return out;
+  }
+  if (id === 'rain' && rainMm != null) out.push([T('whole island', 'όλο το νησί'), fmt(rainMm) + ' mm · ' + T('model', 'μοντέλο'), 'openmeteo-weather']);
+  if (id === 'cloud' && cloudPct != null) out.push([T('whole island', 'όλο το νησί'), cloudPct + ' % · ' + T('model', 'μοντέλο'), 'openmeteo-weather']);
+  if (!out.length) out.push([T('This sheet is drawn', 'Αυτό το φύλλο είναι σχεδιασμένο'), T('not measured yet', 'όχι ακόμη μετρημένο'), '']);
+  return out;
+}
+function paintCities(s) {
+  if (!s.cities) return;
+  s.cities.replaceChildren(...cityLines(s.layer.id).map(([a, b, src]) => {
+    const d = document.createElement('div');
+    const x1 = document.createElement('span'); x1.textContent = a;
+    const x2 = document.createElement('b'); x2.textContent = b + (src ? ' · ' + src : '');
+    d.append(x1, x2); return d;
+  }));
+}
+function setSolo(id) {
+  soloId = soloId === id ? null : id;
+  allBtn.setAttribute('aria-pressed', String(soloId == null));
+  if (onlyBtn) onlyBtn.setAttribute('aria-pressed', 'false');
+  tools.querySelectorAll('[data-band]').forEach((o) => o.setAttribute('aria-pressed', 'false'));
+  sheets.forEach((s) => {
+    const on = soloId == null ? true : s.layer.id === soloId;
+    s.on = on; s.group.visible = on;
+    if (s.btn) s.btn.setAttribute('aria-pressed', String(on));
+    if (s.solo) s.solo.setAttribute('aria-pressed', String(s.layer.id === soloId));
+    if (s.cities) { const show = s.layer.id === soloId; s.cities.hidden = !show; if (show) paintCities(s); }
+  });
+  drawTwins();
+}
+const setAll = (fn) => {
+  soloId = null;
+  sheets.forEach((s) => {
+    s.on = fn(s); s.group.visible = s.on;
+    if (s.btn) s.btn.setAttribute('aria-pressed', String(s.on));
+    if (s.solo) s.solo.setAttribute('aria-pressed', 'false');
+    if (s.cities) s.cities.hidden = true;
+  });
+  drawTwins();
+};
 const tools = document.querySelector('.tools');
 const allBtn = document.getElementById('all'), tourBtn = document.getElementById('tour'), hint = document.getElementById('hint');
 tools.querySelectorAll('[data-band]').forEach((b) => b.addEventListener('click', () => {
@@ -363,7 +424,32 @@ tools.querySelectorAll('[data-band]').forEach((b) => b.addEventListener('click',
   allBtn.setAttribute('aria-pressed', String(!only));
   setAll((s) => (only ? s.layer.band === band || s.layer.id === 'island' : true));
 }));
+// Which sheets stand on a reading rather than on a drawing: the ones with a feed, plus the two the model fills in
+// once it has spoken, plus the satellite when a real picture has landed.
+const MEASURED_KIND = new Set(['reference-station', 'calibrated-network', 'low-cost-sensor', 'crowd-sourced']);
+function measuredIds() {
+  const ids = new Set();
+  Object.keys(FEED).forEach((id) => {
+    const feed = FEED[id];
+    for (const name of feed.vars) {
+      const r = best(name, feed.own);
+      if (r) { if (MEASURED_KIND.has(r.kind)) ids.add(id); break; }
+    }
+  });
+  if (satReal) ids.add('sat');                                     // a real picture, not the drawn stand-in
+  return ids;                                                      // rain and cloud never qualify: a model is not a gauge
+}
+const onlyBtn = document.getElementById('measured');
+if (onlyBtn) onlyBtn.addEventListener('click', () => {
+  const on = onlyBtn.getAttribute('aria-pressed') !== 'true';
+  onlyBtn.setAttribute('aria-pressed', String(on));
+  allBtn.setAttribute('aria-pressed', String(!on));
+  tools.querySelectorAll('[data-band]').forEach((o) => o.setAttribute('aria-pressed', 'false'));
+  const ids = measuredIds();
+  setAll((s) => (on ? ids.has(s.layer.id) : true));
+});
 allBtn.addEventListener('click', () => {
+  if (onlyBtn) onlyBtn.setAttribute('aria-pressed', 'false');
   allBtn.setAttribute('aria-pressed', 'true');
   tools.querySelectorAll('[data-band]').forEach((o) => o.setAttribute('aria-pressed', 'false'));
   setAll(() => true);
@@ -415,6 +501,7 @@ function tick() {
   geoCone.position.copy(geo.position.clone().lerp(new THREE.Vector3(0, TOP, 0), .5));
   geoCone.lookAt(geo.position); geoCone.rotateX(Math.PI / 2);
   beams.forEach((b) => b.dots.forEach((d) => { d.t = (d.t + .004) % 1; d.mesh.position.lerpVectors(b.from, b.to, d.t); }));
+  stepPulses(dt);
   pinLabels.forEach((rec, i) => {
     const h = haloAt(rec.ageMin);
     const pulse = rec.ageMin != null && rec.ageMin < 15 ? 1 + Math.sin(t * 2 + i) * .06 : 1;
@@ -440,6 +527,135 @@ const VAR_SHEET = { temperature: 'island', co2: 'island', pm25: 'air', pm10: 'ai
   wind_speed: 'wind', sea_surface_temperature: 'seabed', wave_height: 'seabed' };
 const CITY_POS = {};   // filled once the island is placed
 const twins = new THREE.Group(); scene.add(twins);
+/* ---- the ruler down the side: what height each sheet stands for ---- */
+// Plain words, not invented numbers: the sheets are stacked for reading, not drawn to any scale, and the ruler says so.
+const HEIGHT = {
+  seabed: ['SEA FLOOR TO SURFACE', 'ΒΥΘΟΣ ΩΣ ΕΠΙΦΑΝΕΙΑ'],
+  water: ['GROUND LEVEL', 'ΣΤΑΘΜΗ ΕΔΑΦΟΥΣ'],
+  island: ['GROUND', 'ΕΔΑΦΟΣ'],
+  city: ['STREET LEVEL', 'ΣΤΑΘΜΗ ΔΡΟΜΟΥ'],
+  heat: ['GROUND SURFACE', 'ΕΠΙΦΑΝΕΙΑ ΕΔΑΦΟΥΣ'],
+  veg: ['GROUND SURFACE', 'ΕΠΙΦΑΝΕΙΑ ΕΔΑΦΟΥΣ'],
+  air: ['WHERE PEOPLE BREATHE', 'ΕΚΕΙ ΠΟΥ ΑΝΑΠΝΕΟΥΜΕ'],
+  wind: ['10 M ABOVE GROUND', '10 M ΠΑΝΩ ΑΠΟ ΤΟ ΕΔΑΦΟΣ'],
+  rain: ['CLOUD BASE', 'ΒΑΣΗ ΝΕΦΩΝ'],
+  haze: ['THE WHOLE AIR COLUMN', 'ΟΛΗ Η ΣΤΗΛΗ ΑΕΡΑ'],
+  cloud: ['CLOUD TOPS', 'ΚΟΡΥΦΕΣ ΝΕΦΩΝ'],
+  sat: ['FROM ORBIT', 'ΑΠΟ ΤΡΟΧΙΑ'],
+};
+{
+  const rx = SW * .5 + 70, rz = SH * .5 + 30, lo = 0, hi = (LAYERS.length - 1) * GAPY;
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(rx, lo, rz), new THREE.Vector3(rx, hi, rz)]),
+    new THREE.LineBasicMaterial({ color: '#4d6a86', transparent: true, opacity: .5 }));
+  scene.add(line);
+  LAYERS.forEach((layer, i) => {
+    const y = i * GAPY, h = HEIGHT[layer.id]; if (!h) return;
+    const tick = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(rx - 26, y, rz), new THREE.Vector3(rx, y, rz)]),
+      new THREE.LineBasicMaterial({ color: layer.c, transparent: true, opacity: .55 }));
+    scene.add(tick);
+    const lab = label(T(h[0], h[1]), '', '#8fa9c4', mobile ? 34 : 24);
+    lab.position.set(rx + 12, y, rz); scene.add(lab);
+  });
+  const head = label(T('WHAT EACH SHEET STANDS FOR', 'ΤΙ ΔΕΙΧΝΕΙ ΚΑΘΕ ΦΥΛΛΟ'), T('stacked to be read, not to scale', 'στοιβαγμένα για να διαβάζονται, όχι σε κλίμακα'), '#8fa9c4', mobile ? 38 : 28);
+  head.position.set(rx + 12, hi + GAPY * .55, rz); scene.add(head);
+}
+
+/* ---- a reading arriving is the only thing that sends a pulse up a beam ---- */
+const pulses = [];
+const lastSeen = new Map();            // sheet id -> the reading it last showed, so only a new one fires
+// Which kind of beam belongs to a source: our own cards at the schools, the stations on the island, the model boxes
+// off to the side. A source with no beam of its own sends no pulse, rather than borrowing someone else's.
+const beamOf = (src) => (/^sensecap/.test(src) ? 'own' : /^(cydom|metar)/.test(src) ? 'stations'
+  : /^(openmeteo|cams|ecmwf|copernicus|noaa)/.test(src) ? 'model' : null);
+let pulsesSent = 0;
+window.__pulses = () => pulsesSent;        // the tests count the readings that travelled up a beam
+function firePulse(tag, city) {
+  beams.filter((b) => b.tag === tag && (!city || b.city === city) && b.from.distanceTo(b.to) > 1).forEach((b) => {
+    pulsesSent++;
+    const m = new THREE.Mesh(new THREE.SphereGeometry(5.5, 12, 10),
+      new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: .95 }));
+    m.position.copy(b.from); scene.add(m);
+    pulses.push({ mesh: m, from: b.from, to: b.to, t: 0 });
+  });
+}
+function stepPulses(dt) {
+  for (let i = pulses.length - 1; i >= 0; i--) {
+    const p = pulses[i];
+    p.t += dt * .75;                                      // about a second and a third from source to sheet
+    if (p.t >= 1) { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); pulses.splice(i, 1); continue; }
+    p.mesh.position.lerpVectors(p.from, p.to, p.t);
+    p.mesh.material.opacity = .95 * (1 - p.t * p.t);
+    p.mesh.scale.setScalar(1 + p.t * 1.6);
+  }
+}
+// What each sheet is showing now; when that changes, the reading is new and the beam carries it up.
+// A reading is the same reading whenever it was taken at the same minute, however often the page asks for it: the age
+// the feed gives and the time of the fetch put that minute back together. Only a reading taken at a new minute is new.
+const readingKey = (r) => r.source + '|' + r.variable + '|' + r.value + '|' + Math.round((Date.now() - r.ageMin * 60000) / 60000);
+let firstArrivals = true;
+function markArrivals() {
+  if (!live) return;
+  const fire = (key, value, tag, city, cardId, ageMin) => {
+    const had = lastSeen.get(key);
+    lastSeen.set(key, value);
+    if (had === value) return;
+    // On the very first fetch only what has just come in is announced; nothing old is paraded as an arrival.
+    if (firstArrivals && !(ageMin != null && ageMin < 30)) return;
+    if (tag) firePulse(tag, city);
+    flashCard(cardId);
+  };
+  Object.keys(FEED).forEach((id) => {
+    const feed = FEED[id];
+    let r = null;
+    for (const name of feed.vars) { r = best(name, feed.own); if (r) break; }
+    if (!r) return;
+    if (id === 'island') return;                                   // our own sensors are announced school by school, below
+    fire(id, readingKey(r), beamOf(r.source), null, id, r.ageMin);
+  });
+  // our own cards: the beam that lights up is the school the reading came from
+  I.schools.forEach((sc) => {
+    const city = SCHOOL_CITY[sc.id] || sc.id;
+    let r = null;
+    for (const name of FEED.island.vars) { r = pick(city, name, true); if (r) break; }
+    if (r) fire('own|' + sc.id, readingKey(r), 'own', sc.id, 'island', r.ageMin);
+  });
+  if (rainMm != null && skyAt) fire('rain', 'model|' + rainMm + '|' + skyAt, 'model', null, 'rain', (Date.now() - skyAt) / 60000);
+  if (cloudPct != null && skyAt) fire('cloud', 'model|' + cloudPct + '|' + skyAt, null, null, 'cloud', (Date.now() - skyAt) / 60000);
+  firstArrivals = false;
+}
+function flashCard(id) {
+  const sh = sheets.find((x) => x.layer.id === id);
+  if (!sh || !sh.btn) return;
+  sh.btn.classList.remove('fresh');
+  void sh.btn.offsetWidth;                                 // let the browser see it go, so the same card can flash twice
+  sh.btn.classList.add('fresh');
+}
+
+/* ---- how long each sheet has to wait for its next reading ---- */
+function paintSolo() {
+  if (soloId == null) return;
+  const s = sheets.find((x) => x.layer.id === soloId);
+  if (s) paintCities(s);
+}
+function paintWaits() {
+  if (!live || !live.layers) return;
+  const now = Date.now();
+  LAYERS.forEach((layer) => {
+    const sh = sheets.find((x) => x.layer.id === layer.id); if (!sh || !sh.btn) return;
+    const bar = sh.btn.querySelector('.go'); if (!bar) return;
+    const row = live.layers.find((l) => l.id === sh.btn.dataset.src);
+    if (!row || !row.everyMs || !row.lastAt) { bar.style.width = '0%'; bar.removeAttribute('title'); return; }
+    const waited = now - row.lastAt, every = Math.round(row.everyMs / 60000);
+    bar.style.width = (Math.max(0, Math.min(1, waited / row.everyMs)) * 100).toFixed(1) + '%';
+    const over = Math.round((waited - row.everyMs) / 60000);
+    bar.title = over > 0
+      ? T(row.name + ' reports about every ' + every + ' min · about ' + over + ' min late',
+        row.nameEl + ' στέλνει περίπου κάθε ' + every + ' λεπτά · περίπου ' + over + ' λεπτά αργοπορία')
+      : T(row.name + ' reports about every ' + every + ' min · next in about ' + Math.round(-over) + ' min',
+        row.nameEl + ' στέλνει περίπου κάθε ' + every + ' λεπτά · επόμενη σε περίπου ' + Math.round(-over) + ' λεπτά');
+  });
+}
+
 function clearGroup(g) { while (g.children.length) { const c = g.children.pop();
   if (c.geometry) c.geometry.dispose(); if (c.material) { if (c.material.map) c.material.map.dispose(); c.material.dispose(); } } }
 
@@ -549,6 +765,7 @@ function paintRail() {
     stEl.className = 'st ' + (r.ageMin != null && r.ageMin < 90 ? 'live' : 'old');
     stEl.title = r.source + ' · ' + ageText(r.ageMin);
     srcEl.textContent = r.source + (r.where ? ' · ' + r.where : '');
+    s.btn.dataset.src = r.source;
   });
 }
 
@@ -574,7 +791,7 @@ function paintProbe() {
       b.textContent = String(fmt(r.value));
       const em = document.createElement('em');
       // the wind row carries its bearing, so the one line says how hard and which way
-      const from = variable === 'wind_speed' && windDir != null ? ' · ' + T('from ', 'από ') + Math.round(windDir) + '° ' + compass(windDir) : '';
+      const from = variable === 'wind_speed' && windDir != null ? ' · ' + T('from ', 'από ') + Math.round(windDir) + '°' : '';
       em.textContent = (r.unit || '') + from + ' · ' + ageText(r.ageMin);
       b.append(em);
     }
@@ -583,8 +800,8 @@ function paintProbe() {
   });
   const p = document.createElement('p');
   p.textContent = live
-    ? T('These are the newest readings Athena holds for Larnaka, with the age of each one. Sheets marked "drawn" are not measured yet.',
-      'Αυτές είναι οι πιο πρόσφατες μετρήσεις που κρατά η Athena για τη Λάρνακα, με την ηλικία της καθεμιάς. Τα φύλλα που λένε "σχεδιασμένο" δεν μετριούνται ακόμη.')
+    ? T('These are the newest readings Kleanthis holds for Larnaka, with the age of each one. Sheets marked "drawn" are not measured yet.',
+      'Αυτές είναι οι πιο πρόσφατες μετρήσεις που κρατά ο Kleanthis για τη Λάρνακα, με την ηλικία της καθεμιάς. Τα φύλλα που λένε "σχεδιασμένο" δεν μετριούνται ακόμη.')
     : T('Waiting for the newest readings…', 'Αναμονή για τις πιο πρόσφατες μετρήσεις…');
   out.push(p);
   box.replaceChildren(...out);
@@ -635,7 +852,7 @@ function haloAt(ageMin) {
 // Which way the wind blows, how much rain fell this hour, how much of the sky is covered. The bearing is measured at
 // the airports when they are reporting (METAR gives a wind direction); otherwise it is the model's, and the card says
 // which. Rain and cloud are the model's own grid values, never a gauge, and they are labelled "model" wherever shown.
-let windDir = null, windSrc = null, rainMm = null, cloudPct = null;
+let windDir = null, windSrc = null, rainMm = null, cloudPct = null, skyAt = null, airportWind = [];
 const meanBearing = (list) => {
   if (!list.length) return null;
   let x = 0, y = 0;
@@ -644,16 +861,22 @@ const meanBearing = (list) => {
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 };
 const meanOf = (list) => (list.length ? list.reduce((a, b) => a + b, 0) / list.length : null);
+window.__meanBearing = meanBearing;     // the tests check the circular mean, which plain averaging gets wrong
 
+// The flow across the whole island can only come from something that covers the whole island, so it comes from the
+// model grid and is labelled as the model's. What the airports measure is a reading at one airport: it is named, one
+// airport at a time, and never averaged into an island-wide direction.
 function paintWind() {
   const r = best('wind_speed', false);
   windScale = r ? Math.max(.35, Math.min(2.2, r.value / 5)) : 1;
   const m = (live && live.map) || {};
-  const airports = (m.stations || []).filter((st) => st.src === 'metar-airports' && st.wd != null);
+  const fresh = (st) => st.at == null || Date.now() - st.at < 2 * 3600000;
+  airportWind = (m.stations || [])
+    .filter((st) => st.src === 'metar-airports' && st.wd != null && st.ws != null && st.ws > 0 && fresh(st))
+    .map((st) => ({ name: st.name, wd: Math.round(st.wd), ws: st.ws }));
   const grid = (m.wind || []).filter((p) => p.wd != null);
-  if (airports.length) { windDir = meanBearing(airports.map((a) => a.wd)); windSrc = 'metar-airports'; }
-  else if (grid.length) { windDir = meanBearing(grid.map((p) => p.wd)); windSrc = 'openmeteo-weather'; }
-  else { windDir = null; windSrc = null; }
+  windDir = grid.length ? meanBearing(grid.map((p) => p.wd)) : null;
+  windSrc = windDir == null ? null : 'openmeteo-weather';
   if (windDir != null) {
     const to = ((windDir + 180) % 360) * Math.PI / 180;            // a bearing names where the wind comes FROM
     windAng = Math.atan2(-Math.cos(to), Math.sin(to));             // north is up the sheet, east is to the right
@@ -662,6 +885,7 @@ function paintWind() {
   const clouds = (m.wind || []).map((p) => p.cloud).filter((v) => v != null);
   rainMm = rains.length ? Math.round(meanOf(rains) * 100) / 100 : null;
   cloudPct = clouds.length ? Math.round(meanOf(clouds)) : null;
+  skyAt = m.weatherAt || null;                                     // when the model grid itself was made
   rainScale = rainMm == null ? 1 : Math.min(1, rainMm / 1.5);      // until the model has spoken, the drawn rain stays
 }
 
@@ -679,17 +903,24 @@ function setCard(sh, value, unit, tail, cls) {
   sh.btn.querySelector('.st').className = 'st ' + cls;
 }
 function paintSky() {
-  const age = live ? ageText(ageNow(0)) : '';
+  const age = skyAt ? ageText((Date.now() - skyAt) / 60000) : T('age unknown', 'άγνωστη ηλικία');
   const w = cardOf('wind');
-  if (w && windDir != null) {
-    const measured = windSrc === 'metar-airports';
-    w.btn.querySelector('small').textContent = (best('wind_speed', false) || {}).source || T(w.layer.src, w.layer.srcEl);
-    const from = T('from ', 'από ') + Math.round(windDir) + '° ' + compass(windDir)
-      + ' · ' + (measured ? T('measured at the airports', 'μετρημένο στα αεροδρόμια') : T('model', 'μοντέλο'));
-    w.btn.title = from;
-    const sub = w.group.children.find((x) => x.isSprite);
-    if (sub) { const next = label(T(w.layer.name, w.layer.nameEl), from.toUpperCase(), w.layer.c, mobile ? 62 : 46);
-      sub.material.map = next.material.map; sub.material.needsUpdate = true; }
+  if (w) {
+    const air = airportWind.map((a) => a.name.replace(/ airport$/i, '') + ' ' + a.wd + '° ' + compass(a.wd)).join(' · ');
+    const from = windDir == null ? '' : T('model grid, island mean: from ', 'πλέγμα μοντέλου, μέσος όρος νησιού: από ')
+      + Math.round(windDir) + '° ' + compass(windDir);
+    const both = [from, air ? T('airports measure ', 'τα αεροδρόμια μετρούν ') + air : ''].filter(Boolean).join(' · ');
+    if (both) {
+      w.btn.title = both;
+      const sub = w.group.children.find((x) => x.isSprite);
+      if (sub) { const next = label(T(w.layer.name, w.layer.nameEl), both.toUpperCase(), w.layer.c, mobile ? 62 : 46);
+        sub.material.map = next.material.map; sub.material.needsUpdate = true; }
+    } else {
+      w.btn.removeAttribute('title');                              // nothing said which way: the sheet says nothing either
+      const sub = w.group.children.find((x) => x.isSprite);
+      if (sub) { const next = label(T(w.layer.name, w.layer.nameEl), T(w.layer.src, w.layer.srcEl), w.layer.c, mobile ? 62 : 46);
+        sub.material.map = next.material.map; sub.material.needsUpdate = true; }
+    }
   }
   const drawn = (sh) => {
     sh.btn.querySelector('.val').replaceChildren(Object.assign(document.createElement('b'), { textContent: T('drawn', 'σχεδιασμένο') }),
@@ -697,8 +928,12 @@ function paintSky() {
     sh.btn.querySelector('.st').className = 'st year';
   };
   const r = cardOf('rain');
-  if (r) { if (rainMm == null) drawn(r); else setCard(r, fmt(rainMm), 'MM', T('model · ', 'μοντέλο · ') + age, 'live'); }
+  if (r) {
+    r.btn.dataset.src = 'openmeteo-weather';
+    if (rainMm == null) drawn(r); else setCard(r, fmt(rainMm), 'MM', T('model · ', 'μοντέλο · ') + age, 'live');
+  }
   const c = cardOf('cloud');
+  if (c) c.btn.dataset.src = 'openmeteo-weather';
   if (c && cloudPct == null) drawn(c);
   if (c && cloudPct != null) {
     setCard(c, cloudPct, '%', T('model · ', 'μοντέλο · ') + age, 'live');
@@ -745,6 +980,7 @@ async function loadLive() {
     if (!r.ok) return;
     live = await r.json(); liveAt = Date.now();
     paintWind(); paintRail(); paintProbe(); paintPins(); paintSky(); drawTwins();   // the sky is read first (the probe shows its bearing) and painted last (its two cards are its own)
+    markArrivals(); paintWaits(); paintSolo();
   } catch (e) {
     // Keep what is on the screen and try again at the next refresh; the ages on it keep running, so nothing here
     // starts looking fresher than it is. The reason is kept where the tests and the console can see it.
@@ -756,7 +992,8 @@ paintRail(); paintProbe();
 loadLive(); loadSatellite();
 setInterval(() => { if (!document.hidden) loadLive(); }, 120000);
 // The readings on the screen age even when no new ones arrive, so the clock on them keeps running between fetches.
-setInterval(() => { if (!document.hidden && live) { paintRail(); paintProbe(); paintPins(); paintSky(); } }, 30000);
+setInterval(() => { if (!document.hidden && live) { paintRail(); paintProbe(); paintPins(); paintSky(); paintSolo(); } }, 30000);
+setInterval(() => { if (!document.hidden) paintWaits(); }, 5000);
 // A seam for the tests only: move this page's clock forward and repaint, to check that the ages and the rings
 // really do keep running when no new reading arrives. It changes nothing that a reader can reach.
 window.__ageForward = (minutes) => { liveAt -= minutes * 60000; paintRail(); paintProbe(); paintPins(); return pinLabels.map((r) => r.ageMin); };

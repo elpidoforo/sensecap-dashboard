@@ -5,8 +5,8 @@
   "catalogueUrl": "https://data.jrc.ec.europa.eu/dataset/afa8a5ee-5473-439a-b062-ffdaedc38b2d",
   "licence": "CC BY 4.0",
   "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
-  "attribution": "European Drought Observatory (https://drought.emergency.copernicus.eu), © European Commission JRC, 2012–2026. Contains modified Copernicus Emergency Management Service information (2022), DOI 10.2905/JRC.9QA0Z6R. Athena selected four grid cells and translated labels.",
-  "attributionEl": "Ευρωπαϊκό Παρατηρητήριο Ξηρασίας (https://drought.emergency.copernicus.eu), © Ευρωπαϊκή Επιτροπή JRC, 2012–2026. Περιέχει τροποποιημένες πληροφορίες της υπηρεσίας διαχείρισης εκτάκτων αναγκών Copernicus (2022), DOI 10.2905/JRC.9QA0Z6R. Η Αθηνά επέλεξε τέσσερα κελιά και μετέφρασε τις ετικέτες.",
+  "attribution": "European Drought Observatory (https://drought.emergency.copernicus.eu), © European Commission JRC, 2012–2026. Contains modified Copernicus Emergency Management Service information (2022), DOI 10.2905/JRC.9QA0Z6R. Kleanthis selected four grid cells and translated labels.",
+  "attributionEl": "Ευρωπαϊκό Παρατηρητήριο Ξηρασίας (https://drought.emergency.copernicus.eu), © Ευρωπαϊκή Επιτροπή JRC, 2012–2026. Περιέχει τροποποιημένες πληροφορίες της υπηρεσίας διαχείρισης εκτάκτων αναγκών Copernicus (2022), DOI 10.2905/JRC.9QA0Z6R. Ο Κλεάνθης επέλεξε τέσσερα κελιά και μετέφρασε τις ετικέτες.",
   "datasetDoi": "10.2905/JRC.9QA0Z6R",
   "sourceReferences": [
     "Cammalleri, C., Barbosa, P., and Vogt, J. V. (2020). Evaluating simulated daily discharge for operational hydrological drought monitoring in the Global Drought Observatory (GDO). Hydrological Sciences Journal 65(8), 1316–1325.",

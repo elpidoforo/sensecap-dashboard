@@ -102,8 +102,8 @@ const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + 
       await p.keyboard.press('Escape'); await p.waitForTimeout(200);
     }
     // the platform's name and logo
-    ok(await p.evaluate((g) => { const b = document.querySelector('.sm-brand'); return !!b && b.querySelector('b').textContent === (g ? 'ΑΘΗΝΑ' : 'ATHENA') && /Smart Cities/.test(b.querySelector('small').textContent) && b.querySelectorAll('svg path').length >= 2; }, el), name + ': the menu carries the Athena name and mark');
-    ok(/ · Athena$/.test(await p.title()) && await p.evaluate(() => document.querySelector('link[rel=icon]').getAttribute('href')) === '/site/logo.svg', name + ': the tab title and icon are Athena');
+    ok(await p.evaluate((g) => { const b = document.querySelector('.sm-brand'); return !!b && b.querySelector('b').textContent === (g ? 'ΚΛΕΑΝΘΗΣ' : 'KLEANTHIS') && /Smart Cities/.test(b.querySelector('small').textContent) && b.querySelectorAll('svg path').length >= 2; }, el), name + ': the menu carries the Kleanthis name and mark');
+    ok(/ · Kleanthis$/.test(await p.title()) && await p.evaluate(() => document.querySelector('link[rel=icon]').getAttribute('href')) === '/site/logo.svg', name + ': the tab title and icon are Kleanthis');
     // replay the day
     await tab(p, 'day'); await p.waitForSelector('.dy-c', { timeout: 15000 });
     const nb = await p.locator('.dy-b').count();
@@ -135,7 +135,7 @@ const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + 
     ok(await p.locator('.cn-pi').count() >= 3 && await p.locator('.cn-po').count() === 6, name + ': the core has its layers in and six ways out');
     ok(await p.evaluate(() => { const c = document.querySelector('.cn-gl'); return !!c && c.width > 100 && c.height > 100; }), name + ': the 3D canvas is drawn at a real size');
     ok(/\d/.test(await p.locator('.cn-tot').innerText()) && /\d/.test(await p.locator('.cn-words').innerText()), name + ': the core gives its totals in the bar and in words');
-    ok(new RegExp(el ? 'ΑΘΗΝΑ' : 'ATHENA').test(await p.locator('.cn-top b').innerText()), name + ': the scene carries the name');
+    ok(new RegExp(el ? 'ΚΛΕΑΝΘΗΣ' : 'KLEANTHIS').test(await p.locator('.cn-top b').innerText()), name + ': the scene carries the name');
     ok(/decoration|διακοσμητικ/.test(await p.locator('.cn-words').innerText()), name + ': the core says the shape and the map carry no numbers');
     await p.waitForFunction(() => { const t = document.querySelector('.cn-tick'); return t && t.querySelector('.cn-tk.in'); }, null, { timeout: 20000 }).catch(() => {});   // the scene's clock runs slower when frames are slow
     ok((await p.locator('.cn-tick').innerText()).length > 12 && !/Replaying|Επανάληψη/.test(await p.locator('.cn-tick').innerText()), name + ': a real reading is named in the bottom line');
@@ -145,7 +145,7 @@ const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + 
     const fr1 = await p.locator('.cn-beat').evaluate((e) => e.style.opacity + e.querySelector('u').style.width); await p.waitForTimeout(600);
     ok(fr1 === await p.locator('.cn-beat').evaluate((e) => e.style.opacity + e.querySelector('u').style.width), name + ': a paused scene stands still');
     await p.locator('.cn-pause').click();
-    if (el) ok(/Πυρήνας δεδομένων/.test(await p.locator('.ly-top .nm-pillbar').innerText()) && /ΑΘΗΝΑ · SMART CITIES ΚΥΠΡΟΣ/.test(await p.locator('.cn-top').innerText()) && /Με λόγια/.test(await p.locator('.cn-words').innerText()), name + ': the core is in Greek');
+    if (el) ok(/Πυρήνας δεδομένων/.test(await p.locator('.ly-top .nm-pillbar').innerText()) && /ΚΛΕΑΝΘΗΣ · SMART CITIES ΚΥΠΡΟΣ/.test(await p.locator('.cn-top').innerText()) && /Με λόγια/.test(await p.locator('.cn-words').innerText()), name + ': the core is in Greek');
     ok(await p.evaluate(() => { const s = document.querySelector('.cn'), r = s.getBoundingClientRect(); return [...s.querySelectorAll('.cn-pi, .cn-po, .cn-top, .cn-bot')].every((e) => { const q = e.getBoundingClientRect(); return q.left >= r.left - 1 && q.right <= r.right + 1; }); }), name + ': the panels stay inside the scene');
     ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), name + ': the core does not scroll sideways');
     const want = await p.locator('.cn-po b').nth(2).innerText();
@@ -203,7 +203,16 @@ const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + 
     const c3 = await b.newContext(opts), p3 = await c3.newPage(), e3 = [];
     p3.on('pageerror', (e) => e3.push(String(e)));
     await p3.goto(BASE + '/#/home'); await p3.waitForSelector('.hm-core .cn-pi', { timeout: 30000 });
-    ok(await p3.evaluate(() => { const a = document.querySelector('.hm-route'), c = document.querySelector('.hm-core'), s = document.querySelector('.hm-stage'); return a.getBoundingClientRect().bottom <= c.getBoundingClientRect().top + 1 && c.getBoundingClientRect().bottom <= s.getBoundingClientRect().top + 60 - 0 || c.getBoundingClientRect().bottom <= document.querySelector('.hm3').getBoundingClientRect().top + 60; }), name + ': the scene sits under the tour route, above the three sections and the island');
+    // the page reads island, then the stack in 3D, then this scene, then the tools
+    ok(await p3.evaluate(() => {
+      const top = (sel) => document.querySelector(sel).getBoundingClientRect().top;
+      return top('.hm-stage') < top('.hm-stack') && top('.hm-stack') < top('.hm-core') && top('.hm-core') < top('.hm3');
+    }), name + ': the scene sits under the stack in 3D, which sits under the island, and the tools come after it');
+    ok(await p3.evaluate(() => { const f = document.querySelector('.hm-stack-frame'); return !!f && f.getBoundingClientRect().height > 200; }), name + ': the stack in 3D has a frame of its own on the home page');
+    ok(await p3.evaluate(() => !document.querySelector('.hm-stack-frame iframe') && !!document.querySelector('.hm-stack-go')), name + ': and it waits to be asked, so the page carries one live 3D scene at a time');
+    await p3.click('.hm-stack-go');
+    await p3.waitForSelector('.hm-stack-frame iframe', { timeout: 10000 });
+    ok(await p3.evaluate(() => /stack\.html/.test(document.querySelector('.hm-stack-frame iframe').src)), name + ': pressing it starts the same 3D stack the full page shows');
     ok(await p3.locator('.hm-core .cn-po').count() === 6 && /\d/.test(await p3.locator('.hm-core .cn-words').innerText()), name + ': the scene has its panels and its sentence');
     ok(await p3.locator('.hm-stage .hm-plane').count() === 1, name + ': the island is still there');
     ok(await p3.evaluate(() => { const k = [...document.querySelectorAll('.hm-tile .hm-mv > *')]; return k.length >= 30 && k.every((e) => /hm-v-[a-z]+/.test(e.getAttribute('class') || '')); }), name + ': every tile picture carries its kind');

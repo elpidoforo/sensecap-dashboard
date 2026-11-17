@@ -19,7 +19,7 @@
   SC.register('versus', {
     title: ['City vs city', 'Πόλη με πόλη'],
     async render(root, ctx) {
-      document.title = T('City vs city', 'Πόλη με πόλη') + ' · Athena';
+      document.title = T('City vs city', 'Πόλη με πόλη') + ' · Kleanthis';
       root.append(SC.head({ title: T('City vs city', 'Πόλη με πόλη'),
         lede: T('Pick two cities and read them side by side, measure by measure. Every number shows its time and the layer it came from.', 'Διάλεξε δύο πόλεις και διάβασέ τες δίπλα δίπλα, μέτρηση προς μέτρηση. Κάθε αριθμός δείχνει την ώρα του και το στρώμα από όπου ήρθε.'),
         help: ['Choose two cities. For each measure you see the newest number of each city, when it was read and which layer (source) gave it, plus a small line of the saved day. Under it, every measurement both cities have right now. The page never says which city is better: it puts numbers side by side and tells you when they come from different kinds of sources.',

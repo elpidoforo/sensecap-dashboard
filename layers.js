@@ -901,14 +901,14 @@ const lc = (s) => String(s).replace(/^\S+/, (w) => (/[A-Z0-9]/.test(w.slice(1)) 
     } catch (e) { log('Layers: the pulse log could not be saved: ' + plain(e && e.message, 120)); }
   }
   async function mapExtras(usable) {
-    const out = { wind: [], sea: [], stations: [], air: [] };
+    const out = { wind: [], sea: [], stations: [], air: [], weatherAt: null };
     const pt = (p) => isFinite(Number(p.lat)) && isFinite(Number(p.lng));
     const jobs = [];
     const want = (id, fn) => { if (usable.has(id)) jobs.push(timeout(Promise.resolve().then(fn), 6000, 'The map data').catch(() => { /* this part of the map is left out */ })); };
     // The model grid also carries which way the wind blows, how much rain fell in the hour and how much of the sky is
     // covered. They are model values for a grid cell about 11 km wide, not readings from a gauge, and the pages that
     // draw them say so; no measurement is invented here, the fields are simply passed on.
-    want('openmeteo-weather', async () => { const w = await data.weather(); out.wind = (w.points || []).filter((p) => pt(p) && num(p.ws) != null && num(p.wd) != null).slice(0, 60).map((p) => ({ lat: r2(p.lat), lng: r2(p.lng), ws: r2(p.ws), wd: Math.round(p.wd), t: num(p.t) == null ? null : r2(p.t), rain: num(p.rain) == null ? null : r2(p.rain), cloud: num(p.cloud) == null ? null : Math.round(p.cloud) })); });
+    want('openmeteo-weather', async () => { const w = await data.weather(); out.weatherAt = toMs(w.updated); out.wind = (w.points || []).filter((p) => pt(p) && num(p.ws) != null && num(p.wd) != null).slice(0, 60).map((p) => ({ lat: r2(p.lat), lng: r2(p.lng), ws: r2(p.ws), wd: Math.round(p.wd), t: num(p.t) == null ? null : r2(p.t), rain: num(p.rain) == null ? null : r2(p.rain), cloud: num(p.cloud) == null ? null : Math.round(p.cloud) })); });
     want('openmeteo-marine', async () => { const s = await data.sea(); out.sea = (s.points || []).filter((p) => pt(p) && num(p.sst) != null).slice(0, 40).map((p) => ({ lat: r2(p.lat), lng: r2(p.lng), sst: r2(p.sst), wave: num(p.wave) == null ? null : r2(p.wave) })); });
     want('openmeteo-air', async () => { const a = await data.air(); out.air = (a.points || []).filter((p) => pt(p) && num(p.pm25) != null).slice(0, 60).map((p) => ({ lat: r2(p.lat), lng: r2(p.lng), pm25: r2(p.pm25) })); });
     want('cydom-stations', async () => { const c = await data.cydom(); for (const p of (c.points || []).filter((x) => pt(x) && num(x.temp) != null).slice(0, 40)) out.stations.push({ src: 'cydom-stations', name: plain(p.name, 40), lat: Number(p.lat), lng: Number(p.lng), temp: r2(p.temp), at: toMs(p.time) }); });

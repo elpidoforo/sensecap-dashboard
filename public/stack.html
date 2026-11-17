@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The data stack in 3D · Athena</title>
+<title>The data stack in 3D · Kleanthis</title>
 <style>
 /* Instrument panel: a dark observation deck. One accent (sensor amber) against instrument cyan;
    every layer carries its own hue, which is the only other colour on the page. */
@@ -50,6 +50,21 @@ body{background:var(--void);color:var(--ink);font:400 14px/1.5 var(--sans);-webk
 .lay .val{font:700 10px/1 var(--mono);white-space:nowrap;text-align:right}
 .lay .val em{font-style:normal;display:block;margin-top:3px;font-size:8px;color:var(--faint)}
 .lay .st{width:6px;height:6px;border-radius:50%;flex:0 0 auto}
+.lay{position:relative;overflow:hidden}
+.lay .go{position:absolute;left:0;bottom:0;height:2px;width:0;background:var(--c);opacity:.5;transition:width .9s linear}
+.lay.fresh{animation:arrived 1.1s ease-out}
+@keyframes arrived{0%{background:rgba(255,255,255,.22)}100%{background:rgba(255,255,255,.028)}}
+.solo{position:absolute;right:6px;bottom:5px;width:15px;height:15px;padding:0;border-radius:50%;cursor:pointer;
+  background:transparent;border:1px solid rgba(255,255,255,.22);color:var(--faint);font:700 8px/1 var(--mono)}
+.solo:hover{border-color:var(--c);color:#dff1fb}
+.solo[aria-pressed="true"]{background:var(--c);border-color:var(--c);color:#06131f}
+.solo:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.row{position:relative}
+.row .head{position:relative}
+.cities{margin:-2px 0 6px;padding:5px 9px 6px;border-radius:0 0 9px 9px;background:rgba(255,255,255,.04);
+  font:600 8.5px/1.6 var(--mono);color:var(--faint)}
+.cities div{display:flex;justify-content:space-between;gap:8px}
+.cities b{color:#dff1fb;font-weight:700}
 .st.live{background:var(--live);box-shadow:0 0 7px var(--live)}
 .st.old{background:var(--old);opacity:.8}
 .st.year{background:var(--year);opacity:.5}
@@ -80,14 +95,14 @@ body{background:var(--void);color:var(--ink);font:400 14px/1.5 var(--sans);-webk
   .probe .kv:nth-child(n+6){display:none}
   .note{display:none}
 }
-@media (prefers-reduced-motion:reduce){ .lay{transition:none} }
+@media (prefers-reduced-motion:reduce){ .lay,.lay .go{transition:none} .lay.fresh{animation:none} }
 </style>
 </head>
 <body>
 <canvas id="gl" tabindex="0" aria-label="The data stack over Cyprus in 3D" data-ael="Η στοίβα δεδομένων πάνω από την Κύπρο σε 3D"></canvas>
 <div class="ui">
   <div class="top">
-    <div class="glass brand"><i>ATHENA</i><b>CYPRUS DATA STACK</b></div>
+    <div class="glass brand"><i>KLEANTHIS</i><b>CYPRUS DATA STACK</b></div>
     <div class="badge" data-el="ΖΩΝΤΑΝΕΣ ΜΕΤΡΗΣΕΙΣ · ΣΧΕΔΙΑΣΜΕΝΟ ΑΝΑΓΛΥΦΟ">LIVE READINGS · DRAWN RELIEF</div>
     <div class="glass clock" id="clock"></div>
   </div>
@@ -112,6 +127,7 @@ body{background:var(--void);color:var(--ink);font:400 14px/1.5 var(--sans);-webk
     <div class="glass tools">
       <button type="button" id="tour" aria-pressed="true" data-el="ΞΕΝΑΓΗΣΗ">TOUR</button>
       <button type="button" id="all" aria-pressed="true" data-el="ΟΛΑ">ALL</button>
+      <button type="button" id="measured" aria-pressed="false" data-el="ΜΟΝΟ ΜΕΤΡΗΜΕΝΑ">MEASURED ONLY</button>
       <button type="button" data-band="SPACE" data-el="ΔΙΑΣΤΗΜΑ">SPACE</button>
       <button type="button" data-band="AIR" data-el="ΑΕΡΑΣ">AIR</button>
       <button type="button" data-band="GROUND" data-el="ΕΔΑΦΟΣ">GROUND</button>

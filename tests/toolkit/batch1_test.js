@@ -211,7 +211,7 @@ const READY = { changed: '.ch-differ', versus: '.vs-now', school360: '.s3-differ
     const ctx = await b.newContext({ viewport: { width: 1366, height: 900 } }), p = await ctx.newPage();
     for (const id of IDS) {
       await open(p, BASE, id, 'el');
-      const t = (await text(p, '#view')).replace(/PASCAL|CO2|PM2\.5|PM10|NO2|SO2|UV|METAR|SenseCAP|NASA|Open-Meteo|Sensor\.Community|CSV|Athena|3D|hPa|ppm|km|AI\b/g, '');
+      const t = (await text(p, '#view')).replace(/PASCAL|CO2|PM2\.5|PM10|NO2|SO2|UV|METAR|SenseCAP|NASA|Open-Meteo|Sensor\.Community|CSV|Kleanthis|3D|hPa|ppm|km|AI\b/g, '');
       const words = t.match(/\b[A-Za-z]{4,}\b/g) || [];
       ok(words.length === 0, 'desktop/el ' + id + ': no English words left (' + [...new Set(words)].slice(0, 8).join(', ') + ')');
     }
