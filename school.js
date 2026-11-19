@@ -750,7 +750,9 @@ function createApp(opts = {}) {
       seen.add(id); targets.push({ id, label });
     }
     if (!page || !targets.length) return null;
-    return { page, name: guideLabel(g.name, 40) || page, targets, lang: g.lang === 'el' ? 'el' : 'en', mode: ['explain', 'challenge', 'here', 'ask'].includes(g.mode) ? g.mode : 'explain' };
+    return { page, name: guideLabel(g.name, 40) || page, targets, lang: g.lang === 'el' ? 'el' : 'en', mode: ['explain', 'challenge', 'here', 'ask'].includes(g.mode) ? g.mode : 'explain',
+      // who is in front of the screen, as three choices pressed on the page: never a name, never an exact age
+      who: ['student', 'class', 'teacher'].includes(g.who) ? g.who : null, age: ['primary', 'lower', 'upper'].includes(g.age) ? g.age : null, goal: ['look', 'question', 'build'].includes(g.goal) ? g.goal : null };
   }
   // The assistant ends a guide answer with lines "STEP: <id> | <what to press and notice>". They are cut out of the text and checked.
   function splitGuide(text, guide) {

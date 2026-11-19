@@ -49,6 +49,7 @@
 .kg-steps li.done { text-decoration: line-through; opacity: .6; }
 .kg-ctl, .kg-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
 .kg-chip { border-color: rgba(242, 165, 107, .45); }
+.kg-chip.kg-quiet { border-color: rgba(255, 255, 255, .16); color: #b6c8dd; font-weight: 500; }
 .kg-chip:disabled, .kg-in button:disabled { opacity: .5; cursor: default; }
 .kg-in { display: flex; gap: 7px; margin-top: 10px; }
 .kg-in input { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 12px; color: #e6eef8; background: rgba(0, 0, 0, .28); border: 1px solid rgba(255, 255, 255, .14); font: inherit; }

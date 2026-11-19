@@ -71,7 +71,7 @@
     const u = new SpeechSynthesisUtterance(text);
     u.lang = want === 'el' ? 'el-GR' : 'en-GB';
     if (voice) u.voice = voice;
-    u.rate = 0.96;
+    u.rate = 0.88;   // a little slower than normal speech: easier to follow, above all for younger students
     try { s.speak(u); } catch (e) { /* the text is on the screen anyway */ }
   }
 
@@ -116,7 +116,14 @@
   }
   function next(wasNav) {
     if (at < 0) return;
+    const done = steps[at];
     at++; scrolled = false;
+    if (touring) {                      // the written tour: say what this page is, then point at the next link (or finish)
+      const here = wasNav && done && done.after ? done.after : '';
+      if (here) say(el('div', { class: 'kg-a' }, el('p', null, here)));
+      if (at >= steps.length) { const bye = tourEnd(); speak((here ? here + ' ' : '') + bye); return; }
+      drawSteps(); place(); speak((here ? here + ' ' : '') + steps[at].say); return;
+    }
     if (at >= steps.length) {
       arrived = !!wasNav; arrivedAt = Date.now();
       finish(wasNav ? T('You are there. Press "What do I do here?" and we carry on.', 'Έφτασες. Πάτησε «Τι κάνω εδώ;» και συνεχίζουμε.')
@@ -126,7 +133,7 @@
     drawSteps(); place(); speak(steps[at].say);
   }
   function finish(text, aloud) {
-    runId++; clearInterval(watch); watch = null; steps = []; at = -1; dot.hidden = true; panel.classList.remove('up'); unlight();
+    touring = false; runId++; clearInterval(watch); watch = null; steps = []; at = -1; dot.hidden = true; panel.classList.remove('up'); unlight();
     drawSteps();
     if (text) { note(text); if (aloud) speak(text); }
     chips();
@@ -148,7 +155,85 @@
     const list = [];
     if (arrived) list.push(['here', T('What do I do here?', 'Τι κάνω εδώ;')]);
     list.push(['explain', T('Explain this page', 'Εξήγησέ μου τη σελίδα')], ['challenge', T('Give me a challenge', 'Δώσε μου μια πρόκληση')]);
-    box.replaceChildren(...list.map(([mode, text]) => el('button', { type: 'button', class: 'kg-chip', onclick: () => ask(text, mode) }, text)));
+    box.replaceChildren(...list.map(([mode, text]) => el('button', { type: 'button', class: 'kg-chip', onclick: () => ask(text, mode) }, text)),
+      el('button', { type: 'button', class: 'kg-chip kg-quiet', onclick: tour }, T('Show me round', 'Ξενάγησέ με')),
+      el('button', { type: 'button', class: 'kg-chip kg-quiet', onclick: welcome }, T('Change who is here', 'Άλλαξε ποιος είναι εδώ')));
+  }
+
+  /* ---------- the welcome: who Kleanthis is, three questions, and a short tour ----------
+   * The three answers are choices pressed on the page (who is here, which age group, what they want to do). No name and no
+   * exact age is ever asked. They are kept in this browser only and sent with a question as three words, so that Kleanthis
+   * can speak to a primary class differently from one older student. The tour is written here, not made by the assistant:
+   * it is the same for everyone, costs no question, and points only at menu links. */
+  const WHO_KEY = 'sc.guide.who.v1';
+  let who = null;
+  try { const w = JSON.parse(store.get(WHO_KEY) || 'null'); if (w && typeof w === 'object') who = { who: w.who || null, age: w.age || null, goal: w.goal || null }; } catch (e) { who = null; }
+  const QUESTIONS = [
+    { key: 'who', q: ['First: who is here with me?', 'Πρώτα: ποιος είναι εδώ μαζί μου;'],
+      opts: [['student', 'Just me', 'Μόνο εγώ'], ['class', 'A class with a teacher', 'Μια τάξη με εκπαιδευτικό'], ['teacher', 'I am a teacher', 'Είμαι εκπαιδευτικός']] },
+    { key: 'age', q: ['Which school are the students in?', 'Σε ποιο σχολείο πάνε οι μαθητές;'],
+      opts: [['primary', 'Primary school', 'Δημοτικό'], ['lower', 'Gymnasium (12 to 14)', 'Γυμνάσιο (12 έως 14)'], ['upper', 'Lyceum (15 to 18)', 'Λύκειο (15 έως 18)']] },
+    { key: 'goal', q: ['And what would you like to do today?', 'Και τι θα ήθελες να κάνεις σήμερα;'],
+      opts: [['look', 'Look around', 'Να ρίξω μια ματιά'], ['question', 'Answer a question with data', 'Να απαντήσω μια ερώτηση με δεδομένα'], ['build', 'Build something', 'Να φτιάξω κάτι']] },
+  ];
+  function welcome() {
+    hush(); finish('');
+    const hello = T('Hello! I am Kleanthis, your guide on this site. I am an AI, not a person. I will show you where to press with a red light, so that you find the answers yourself. I have three quick questions, so I can explain things in the way that suits you.',
+      'Γεια σου! Είμαι ο Κλεάνθης, ο οδηγός σου σε αυτόν τον ιστότοπο. Είμαι τεχνητή νοημοσύνη, όχι άνθρωπος. Θα σου δείχνω με ένα κόκκινο φως πού να πατήσεις, για να βρίσκεις μόνος σου τις απαντήσεις. Έχω τρεις σύντομες ερωτήσεις, για να σου εξηγώ με τον τρόπο που σου ταιριάζει.');
+    const box = el('div', { class: 'kg-a' }, el('p', null, hello)); say(box);
+    who = { who: null, age: null, goal: null };
+    askWho(0, hello);
+  }
+  function askWho(i, lead) {
+    const box = panel.querySelector('.kg-chips');
+    if (i >= QUESTIONS.length) {
+      store.set(WHO_KEY, JSON.stringify(who));
+      const done = who.who === 'teacher'
+        ? T('Thank you. I will speak to you as a colleague. Shall I show you round in one minute?', 'Ευχαριστώ. Θα σου μιλάω ως συνάδελφος. Να σε ξεναγήσω σε ένα λεπτό;')
+        : T('Thank you. Shall I show you round in one minute? We start with where all the data comes from.', 'Ευχαριστώ. Να σε ξεναγήσω σε ένα λεπτό; Ξεκινάμε από το πού έρχονται όλα τα δεδομένα.');
+      say(el('div', { class: 'kg-a' }, el('p', null, done))); speak(done);
+      box.replaceChildren(
+        el('button', { type: 'button', class: 'kg-chip', onclick: tour }, T('Yes, show me round', 'Ναι, ξενάγησέ με')),
+        el('button', { type: 'button', class: 'kg-chip', onclick: () => { hush(); chips(); } }, T('Not now', 'Όχι τώρα')));
+      return;
+    }
+    const Q = QUESTIONS[i];
+    if (Q.key === 'age' && who.who === 'teacher') { who.age = null; return askWho(i + 1, ''); }   // a teacher on their own: no students to ask about
+    const q = T(Q.q[0], Q.q[1]);
+    say(el('div', { class: 'kg-a' }, el('p', null, q))); speak((lead ? lead + ' ' : '') + q);
+    box.replaceChildren(...Q.opts.map(([v, en, gr]) => el('button', { type: 'button', class: 'kg-chip', onclick: () => {
+      who[Q.key] = v; say(el('div', { class: 'kg-you' }, T(en, gr))); askWho(i + 1, '');
+    } }, T(en, gr))));
+    const first = box.querySelector('.kg-chip'); if (first && open) first.focus();
+  }
+  // The tour: each step points at a menu link, and says something once the student has arrived there.
+  const TOUR = [
+    { id: 'nav:layers',
+      say: ['Let us start with where the data comes from. Press Data layers in the menu.', 'Ας ξεκινήσουμε από το πού έρχονται τα δεδομένα. Πάτησε Στρώματα δεδομένων στο μενού.'],
+      after: ['Here they are. Each card is one source of data: our own sensors on buses, cars and in classrooms, the official weather stations, weather models and satellites. A card says who publishes the data and how fresh it is.',
+        'Εδώ είναι. Κάθε κάρτα είναι μία πηγή δεδομένων: οι δικοί μας αισθητήρες σε λεωφορεία, αυτοκίνητα και τάξεις, οι επίσημοι μετεωρολογικοί σταθμοί, τα μοντέλα καιρού και οι δορυφόροι. Η κάρτα λέει ποιος δημοσιεύει τα δεδομένα και πόσο πρόσφατα είναι.'] },
+    { id: 'nav:stack',
+      say: ['Now let us see all of it together. Press The data stack in 3D.', 'Τώρα ας τα δούμε όλα μαζί. Πάτησε Η στοίβα δεδομένων σε 3D.'],
+      after: ['Each sheet is one kind of data, one on top of the other, over the same map. You can turn it, and press a sheet to see what it measures and where its numbers come from.',
+        'Κάθε φύλλο είναι ένα είδος δεδομένων, το ένα πάνω στο άλλο, πάνω στον ίδιο χάρτη. Μπορείς να το γυρίσεις και να πατήσεις ένα φύλλο για να δεις τι μετρά και από πού έρχονται οι αριθμοί του.'] },
+  ];
+  let touring = false;
+  function tour() {
+    hush(); collect();
+    const list = TOUR.map((st) => ({ id: st.id, say: T(st.say[0], st.say[1]), after: T(st.after[0], st.after[1]) }));
+    touring = true;
+    // a link that is not in the menu of this visitor cannot be pointed at: leave that step out and say so
+    const usable = list.filter((st) => [...document.querySelectorAll('a.nm-side-a[data-id]')].some((a) => 'nav:' + a.getAttribute('data-id') === st.id));
+    usable.forEach((st) => targets.set(st.id, null));
+    if (!usable.length) { touring = false; note(T('I cannot find the menu here, so the tour has to wait.', 'Δεν βρίσκω το μενού εδώ, οπότε η ξενάγηση θα περιμένει.')); chips(); return; }
+    panel.querySelector('.kg-chips').replaceChildren();
+    startSteps(usable);
+    speak(usable[0].say);
+  }
+  function tourEnd() {
+    touring = false;
+    const bye = T('That was the tour. Now it is your turn: ask me something, or press Give me a challenge.', 'Αυτή ήταν η ξενάγηση. Τώρα είναι η σειρά σου: ρώτησέ με κάτι ή πάτησε Δώσε μου μια πρόκληση.');
+    finish(bye, false); return bye;
   }
 
   let kit = null;                       // the privacy check for typed text, loaded when the panel first opens
@@ -190,7 +275,7 @@
     try {
       const r = await fetch('/app/api/ask', {
         method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, signal: ctrl.signal,
-        body: JSON.stringify({ question: text, history: history.slice(-6), guide: { page: pageId, name: pageName, lang: SC.lang === 'el' ? 'el' : 'en', mode, targets: list } }),
+        body: JSON.stringify({ question: text, history: history.slice(-6), guide: { page: pageId, name: pageName, lang: SC.lang === 'el' ? 'el' : 'en', mode, targets: list, who: who && who.who, age: who && who.age, goal: who && who.goal } }),
       });
       if (!r.ok) {
         let b = null; try { b = await r.json(); } catch (e) { /* not JSON */ }
@@ -264,7 +349,7 @@
     open = !!want;
     panel.hidden = !open;
     btn.setAttribute('aria-expanded', String(open));
-    if (open) { if (SC.askBubble && SC.askBubble.close) SC.askBubble.close(); loadKit(); chips(); setTimeout(() => { const c = panel.querySelector('.kg-chip'); if (c && open) c.focus(); }, 30); }
+    if (open) { if (SC.askBubble && SC.askBubble.close) SC.askBubble.close(); loadKit(); if (!who && !feed().children.length) welcome(); else chips(); setTimeout(() => { const c = panel.querySelector('.kg-chip'); if (c && open) c.focus(); }, 30); }
     else { if (stop) stop(); hush(); finish(''); if (panel.contains(document.activeElement)) btn.focus(); }
   }
 
