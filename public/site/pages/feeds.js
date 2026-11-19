@@ -1,5 +1,5 @@
 /*
-  Feed list: the five outside sources this site reads (SenseCAP, Met Office, Open-Meteo, Sensor.Community, airport METAR):
+  Feed list: the six outside sources this site reads (SenseCAP, Met Office, Open-Meteo, Sensor.Community, airport METAR, adsb.fi):
   last success, working or not, 24 h success and failure counts, what each one feeds, and a link to the source.
   Signed-in teachers can switch a source on or off (POST /api/feeds/<id> {enabled}); everyone else sees the state only.
   Route: #/feeds.   Data: GET /api/feeds { feeds:[{ id, name, what, home, enabled, lastOk, lastError:{at,message}|null, ok24h, fail24h, everyMin }] }.
@@ -19,7 +19,7 @@
     board: ['#/board', T('City board', 'Πίνακας πόλης')], vehicles: ['#/vehicles', T('Vehicles', 'Οχήματα')], map: ['#/map', T('Live map', 'Ζωντανός χάρτης')],
     city3d: ['#/city3d', T('Cyprus 3D', 'Κύπρος 3D')], explore: ['#/explore', T('Explore data', 'Εξερεύνηση')], schools: ['#/schools', T('Schools and teams', 'Σχολεία και ομάδες')],
     alerts: ['#/alerts', T('Alerts', 'Ειδοποιήσεις')], weather: ['#/weather', T('Met Office record', 'Μετεωρολογικό αρχείο')], warnings: ['#/' + warnId(), T('Warnings watch', 'Παρακολούθηση προειδοποιήσεων')],
-    ask: ['#/ask', T('Ask', 'Ρωτήστε')], archive: ['#/archive', T('Data archive', 'Αρχείο δεδομένων')],
+    ask: ['#/ask', T('Ask', 'Ρωτήστε')], aircraft: ['#/aircraft', T('Aeroplanes over Cyprus', 'Αεροπλάνα πάνω από την Κύπρο')], archive: ['#/archive', T('Data archive', 'Αρχείο δεδομένων')],
   };
   const KNOWN = {
     sensecap: {
@@ -51,6 +51,12 @@
       what: T('Weather reports from Larnaka and Pafos airports, about once an hour.', 'Δελτία καιρού από τα αεροδρόμια Λάρνακας και Πάφου, περίπου μία φορά την ώρα.'),
       uses: ['ask'],
       stops: T('The airport weather reports for Larnaka and Pafos stop updating wherever they are shown, including for Ask.', 'Τα δελτία καιρού των αεροδρομίων Λάρνακας και Πάφου σταματούν να ενημερώνονται παντού όπου εμφανίζονται, και στο Ρωτήστε.'),
+    },
+    adsbfi: {
+      name: T('Aeroplanes (adsb.fi)', 'Αεροπλάνα (adsb.fi)'),
+      what: T('Where aeroplanes around Cyprus are right now, heard by volunteer radio receivers. Rounded places, no flight names, nothing saved.', 'Πού βρίσκονται τώρα τα αεροπλάνα γύρω από την Κύπρο, όπως τα ακούν ραδιοδέκτες εθελοντών. Στρογγυλεμένες θέσεις, χωρίς ονόματα πτήσεων, τίποτα δεν αποθηκεύεται.'),
+      uses: ['aircraft'],
+      stops: T('The Aeroplanes over Cyprus page stops getting new positions. No other page and no assistant uses this source.', 'Η σελίδα Αεροπλάνα πάνω από την Κύπρο σταματά να παίρνει νέες θέσεις. Καμία άλλη σελίδα και κανένας βοηθός δεν χρησιμοποιεί αυτή την πηγή.'),
     },
   };
   const GENERIC_STOPS = () => T('Pages that read this source stop getting new data.', 'Οι σελίδες που διαβάζουν αυτή την πηγή σταματούν να παίρνουν νέα δεδομένα.');
@@ -108,7 +114,7 @@
       function head() {
         headHost.replaceChildren(SC.head({
           title: T('Where our numbers come from.', 'Από πού προέρχονται οι αριθμοί μας.'),
-          lede: T('Five outside sources feed this site. Each card says when it last worked, how many of its checks worked in the last 24 hours, and which pages depend on it.', 'Πέντε εξωτερικές πηγές τροφοδοτούν τον ιστότοπο. Κάθε κάρτα λέει πότε λειτούργησε τελευταία φορά, πόσοι έλεγχοί της πέτυχαν τις τελευταίες 24 ώρες και ποιες σελίδες εξαρτώνται από αυτήν.'),
+          lede: T('Six outside sources feed this site. Each card says when it last worked, how many of its checks worked in the last 24 hours, and which pages depend on it.', 'Έξι εξωτερικές πηγές τροφοδοτούν τον ιστότοπο. Κάθε κάρτα λέει πότε λειτούργησε τελευταία φορά, πόσοι έλεγχοί της πέτυχαν τις τελευταίες 24 ώρες και ποιες σελίδες εξαρτώνται από αυτήν.'),
           fresh: data ? T('Checked ' + SC.ago(data.at), 'Ελέγχθηκε ' + SC.ago(data.at)) : null,
           tags: (demo || (data && data.demo)) ? [{ text: T('Demo data', 'Δεδομένα επίδειξης'), cls: 'demo' }] : [],
           help: [

@@ -469,6 +469,7 @@ const OM_AIR_BASE = (process.env.OPEN_METEO_AIR_BASE || 'https://air-quality-api
 const OM_MARINE_BASE = (process.env.OPEN_METEO_MARINE_BASE || 'https://marine-api.open-meteo.com').replace(/\/$/, '');
 const SC_BASE = (process.env.SENSOR_COMMUNITY_BASE || 'https://data.sensor.community').replace(/\/$/, '');
 const METAR_BASE = (process.env.METAR_BASE || 'https://aviationweather.gov').replace(/\/$/, '');
+const ADSBFI_BASE = (process.env.ADSBFI_BASE || 'https://opendata.adsb.fi').replace(/\/$/, '');
 const B = { lat0: 34.5, lat1: 35.75, lng0: 32.2, lng1: 34.7, step: 0.04 };
 const WG = { lat0: 34.5, latStep: 0.25, rows: 6, lng0: 32.3, lngStep: 0.25, cols: 10 };
 const SEA_POINTS = [
@@ -800,6 +801,66 @@ function metar() {
   });
 }
 
+/* ---------- Aeroplanes over Cyprus (adsb.fi open data, positions heard by volunteer receivers) ----------
+ * A picture for the #/aircraft page ONLY. Privacy by design, so please keep it this way:
+ * - This is not a source in sources/*.json and it is not wired into layers.js: the AI brain never gets a position ("No vehicle
+ *   position, no coordinate ... is ever in the evidence, in a finding or in a prompt"), and that holds for aircraft too.
+ * - The browser never gets the callsign or the aircraft's hex id. Each point has only an index for this one answer ("a1", "a2", ...,
+ *   in south-to-north order, so the index says nothing), a place rounded to 2 decimals, a height rounded to 100 ft, speed and heading
+ *   as whole numbers. It is the sky as a whole, not a tracker of one flight. Nothing is saved.
+ * - 'phase' is a guess from the height alone (below 10,000 ft: likely arriving or departing), never a fact about a flight.
+ * adsb.fi terms: no key, at most 1 request a second, personal and non-commercial use, credit with a link (the page shows it).
+ * ONE call, centred on the island, at most every 20 s however many pupils have the page open; a failed call is not repeated for 20 s. */
+const AIRCRAFT = { lat: 35.0, lon: 33.2, distNm: 120, max: 200, ttl: 20000, lowBelowFt: 10000 };
+const aircraftCache = createCache({ max: 2, staleMs: 120000 });   // a failed refresh may serve the last picture for 2 minutes, not longer: old positions are not "live"
+const AIRCRAFT_MOCK = MOCK && !process.env.ADSBFI_BASE;   // test mode fetches nothing, unless a test points ADSBFI_BASE at its own fake service (as with EEA_API_BASE)
+let aircraftFail = null;   // { at, error }: the last failed call
+function aircraftPoints(body) {
+  const list = body && Array.isArray(body.ac) ? body.ac : body && Array.isArray(body.aircraft) ? body.aircraft : [];
+  const num = (v, min, max) => (typeof v === 'number' && isFinite(v) && v >= min && v <= max ? v : null);
+  const rows = [];
+  for (const a of list) {
+    if (!a || typeof a !== 'object') continue;
+    const lat = num(a.lat, -90, 90), lng = num(a.lon, -180, 180);
+    if (lat === null || lng === null) continue;
+    const onGround = a.alt_baro === 'ground';
+    const alt = onGround ? null : num(a.alt_baro, -2000, 100000) ?? num(a.alt_geom, -2000, 100000);
+    const gs = num(a.gs, 0, 3000), track = num(a.track, 0, 360);
+    const altFt = alt === null ? null : Math.round(alt / 100) * 100;
+    rows.push({
+      lat: Math.round(lat * 100) / 100, lng: Math.round(lng * 100) / 100, altFt, onGround,
+      gs: gs === null ? null : Math.round(gs), track: track === null ? null : Math.round(track) % 360,
+      phase: onGround ? 'ground' : altFt === null ? 'unknown' : altFt < AIRCRAFT.lowBelowFt ? 'low' : 'high',   // from the rounded height, so the label always agrees with the number shown
+    });
+  }
+  const kept = rows.slice(0, AIRCRAFT.max).sort((p, q) => p.lat - q.lat || p.lng - q.lng);   // cut first, then sort: sorting first would always cut the north
+  return { points: kept.map((p, i) => ({ id: 'a' + (i + 1), ...p })), more: Math.max(0, rows.length - AIRCRAFT.max) };
+}
+function aircraft() {
+  return viaFeed('adsbfi', aircraftCache.get, 'aircraft', AIRCRAFT.ttl, async () => {
+    const centre = { lat: AIRCRAFT.lat, lng: AIRCRAFT.lon, distNm: AIRCRAFT.distNm };
+    if (AIRCRAFT_MOCK) {   // test mode: three fixed points, nothing is fetched (the page labels them as demo data)
+      const points = [
+        { id: 'a1', lat: 34.72, lng: 32.49, altFt: null, onGround: true, gs: 12, track: 110, phase: 'ground' },
+        { id: 'a2', lat: 34.83, lng: 33.9, altFt: 3200, onGround: false, gs: 165, track: 222, phase: 'low' },
+        { id: 'a3', lat: 35.41, lng: 32.6, altFt: 36000, onGround: false, gs: 452, track: 118, phase: 'high' },
+      ];
+      return { points, more: 0, centre, updated: new Date().toISOString(), source: 'adsb.fi', mock: true };
+    }
+    if (aircraftFail && Date.now() - aircraftFail.at < AIRCRAFT.ttl) throw aircraftFail.error;
+    let body;
+    try {
+      body = await feeds.track('adsbfi', async () => {
+        const r = await fetch(`${ADSBFI_BASE}/api/v3/lat/${AIRCRAFT.lat}/lon/${AIRCRAFT.lon}/dist/${AIRCRAFT.distNm}`, { signal: AbortSignal.timeout(15000) });
+        if (!r.ok) throw new Error(`Aircraft positions returned HTTP ${r.status}`);
+        return r.json();
+      });
+    } catch (e) { if (!feeds.isOff(e)) aircraftFail = { at: Date.now(), error: e }; throw e; }
+    aircraftFail = null;
+    return { ...aircraftPoints(body), centre, updated: new Date().toISOString(), source: 'adsb.fi', mock: false };
+  });
+}
+
 /* ---------- Cyprus Department of Meteorology automatic stations (official open data) ---------- */
 
 const CYDOM_URL = process.env.CYDOM_URL || 'https://www.dom.org.cy/AWS/OpenData/CyDoM.xml';
@@ -921,11 +982,11 @@ const PERSISTENT = Boolean(process.env.DATA_DIR || process.env.RAILWAY_VOLUME_MO
 const HISTORY_DAYS = Number(process.env.HISTORY_DAYS) || 400;
 let history = null, pageStore = null;
 
-/* The five outside sources, what they did lately and the teachers' on/off switch (feeds.js). SenseCAP counts as simulated in demo
+/* The six outside sources, what they did lately and the teachers' on/off switch (feeds.js). SenseCAP counts as simulated in demo
  * mode and the weather services in test mode (OPEN_METEO_MOCK), because nothing is fetched from them then. */
 const feeds = createFeeds({
   dataDir: DATA_DIR, log: (m) => console.error(m),
-  simulated: { sensecap: DEMO, openmeteo: MOCK, sensorcommunity: MOCK, metar: MOCK },
+  simulated: { sensecap: DEMO, openmeteo: MOCK, sensorcommunity: MOCK, metar: MOCK, adsbfi: AIRCRAFT_MOCK },
   secrets: [ID, KEY, PASS, process.env.ANTHROPIC_API_KEY, process.env.ADMIN_SETUP_CODE, process.env.CLASS_LOGIN_PASSWORD, process.env.STUDIO_CLASS_SECRET],
 });
 // SenseCAP by push (Seeed's OpenStream MQTT feed). OFF unless SENSECAP_MQTT=1 plus an organisation id and a TLS port (see
@@ -1421,7 +1482,7 @@ function opsView() {
   nodes.push({ id: 'studio', label: 'Build studio', labelEl: 'Εργαστήρι δημιουργίας', kind: 'site', status: stud.status, detail: stud.detail, detailEl: stud.detailEl });
   add('site', ['The Smart Cities site', 'Ο ιστότοπος Smart Cities'], 'site', 'ok', P('The pages, map and 3D view that visitors open.', 'Οι σελίδες, ο χάρτης και η τρισδιάστατη προβολή που ανοίγουν οι επισκέπτες.'));
   const edges = [
-    ['sensors', 'sensecap'], ['sensecap', 'server'], ['openmeteo', 'server'], ['sensorcommunity', 'server'], ['metar', 'server'], ['dom', 'server'],
+    ['sensors', 'sensecap'], ['sensecap', 'server'], ['openmeteo', 'server'], ['sensorcommunity', 'server'], ['metar', 'server'], ['adsbfi', 'server'], ['dom', 'server'],
     ['server', 'archive'], ['server', 'database'], ['server', 'assistant'], ['database', 'assistant'], ['server', 'studio'], ['database', 'studio'],
     ['assistant', 'site'], ['studio', 'site'], ['server', 'site'],
   ].map(([from, to]) => ({ from, to }));
@@ -1710,7 +1771,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': img.type, 'Cache-Control': 'public, max-age=300' });
       return res.end(img.buf);
     }
-    const extra = { '/api/weather': weather, '/api/forecast': forecast, '/api/air': air, '/api/sea': sea, '/api/opensensors': openSensors, '/api/metar': metar, '/api/cydom': cydom }[url.pathname];
+    const extra = { '/api/weather': weather, '/api/forecast': forecast, '/api/air': air, '/api/sea': sea, '/api/opensensors': openSensors, '/api/metar': metar, '/api/aircraft': aircraft, '/api/cydom': cydom }[url.pathname];
     if (extra) return sendJson(res, 200, await extra());
     let file = url.pathname === '/' ? '/index.html' : url.pathname.endsWith('/') ? url.pathname + 'index.html' : url.pathname;
     const full = path.join(__dirname, 'public', path.normalize(file));

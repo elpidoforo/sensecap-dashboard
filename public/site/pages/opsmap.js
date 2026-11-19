@@ -32,7 +32,7 @@
     { id: 'out', kinds: ['site'], title: ['What people see', 'Τι βλέπουν οι άνθρωποι'] },
   ];
   // Greek names for the parts we know by id; anything else keeps the name the server sends.
-  const EL_LABEL = { sensors: 'Αισθητήρες', server: 'Διακομιστής', sensecap: 'SenseCAP', dom: 'Μετεωρολογία', openmeteo: 'Open-Meteo', sensorcommunity: 'Sensor.Community', metar: 'METAR', assistant: 'Βοηθός', store: 'Ιστορικό', site: 'Ιστότοπος' };
+  const EL_LABEL = { sensors: 'Αισθητήρες', server: 'Διακομιστής', sensecap: 'SenseCAP', dom: 'Μετεωρολογία', openmeteo: 'Open-Meteo', sensorcommunity: 'Sensor.Community', metar: 'METAR', adsbfi: 'Αεροπλάνα (adsb.fi)', assistant: 'Βοηθός', store: 'Ιστορικό', site: 'Ιστότοπος' };
 
   const stOf = (s) => (STATUS[s] ? s : 'unknown');
   const stWord = (s) => t(STATUS[stOf(s)][0], STATUS[stOf(s)][1]);

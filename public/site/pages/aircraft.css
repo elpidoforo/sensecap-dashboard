@@ -1,0 +1,44 @@
+/* Aeroplanes over Cyprus (aircraft.js). Tokens and recipes come from site.css. */
+.ac-card { padding: 20px 22px; min-width: 0; }
+.ac-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(260px, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 900px) { .ac-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.ac-map { min-width: 0; }
+.ac-svg { display: block; width: 100%; height: auto; max-height: 78vh; border-radius: 18px; background: #0a1728; border: 1px solid var(--nm-edge); }
+.ac-land { fill: #213a47; stroke: #2f4f5e; stroke-width: 1; }
+.ac-ring { fill: rgba(76, 203, 234, .04); stroke: rgba(143, 227, 247, .45); stroke-width: 3; stroke-dasharray: 14 12; }
+.ac-ringt { fill: var(--nm-muted); font: 500 40px/1 var(--nm-font); }
+.ac-ap { stroke: #EAF0F7; stroke-width: 4; stroke-linecap: round; fill: none; }
+.ac-apt { fill: #EAF0F7; font: 500 36px/1 var(--nm-font); paint-order: stroke; stroke: #0a1728; stroke-width: 8px; }
+
+/* phase by shape and by colour: filled arrow, hollow arrow, square, ring */
+.ac-m { stroke-width: 6; stroke-linejoin: round; vector-effect: none; }
+.ac-high { fill: #8FE3F7; stroke: #06202b; stroke-width: 3; }
+.ac-low { fill: #0a1728; stroke: #F7C46B; stroke-width: 8; }
+.ac-ground { fill: #9BD88F; stroke: #0b2410; stroke-width: 3; }
+.ac-unknown { fill: none; stroke: #9fb2ca; stroke-width: 7; stroke-dasharray: 9 7; }
+
+.ac-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.ac-now { display: flex; flex-direction: column; gap: 4px; }
+.ac-status { margin: 0; font: 600 22px/1.25 var(--nm-font-display); color: var(--nm-ink); }
+.ac-age { font-size: 13.5px; color: var(--nm-muted); }
+.ac-age.old { color: var(--nm-warn); }
+.ac-lh { margin: 6px 0 0; }
+.ac-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ac-legend li { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 14px; background: var(--nm-well); }
+.ac-lg { width: 30px; height: 30px; flex: none; }
+.ac-ln { display: flex; flex-direction: column; flex: 1; min-width: 0; color: var(--nm-text); font-size: 14.5px; }
+.ac-ln small { color: var(--nm-muted); font-size: 12.5px; }
+.ac-count { font: 600 20px/1 var(--nm-font-display); color: var(--nm-ink); font-variant-numeric: tabular-nums; }
+.ac-note { margin: 0; font-size: 13.5px; color: var(--nm-muted); }
+.ac-more { color: var(--nm-text); }
+
+.ac-tw { max-height: 460px; overflow: auto; }
+.ac-table caption { caption-side: top; text-align: left; padding: 0 10px 8px; font-size: 13.5px; color: var(--nm-muted); }
+.ac-table td { font-variant-numeric: tabular-nums; }
+.ac-tm { display: inline-block; vertical-align: middle; margin-right: 8px; }
+.ac-tm .ac-lg { width: 20px; height: 20px; display: block; }
+
+.ac-about p { margin: 0 0 10px; max-width: 78ch; font-size: 14.5px; }
+.ac-about p:last-child { margin-bottom: 0; }
+.ac-credit a { color: var(--nm-copper-2); font-weight: 600; }

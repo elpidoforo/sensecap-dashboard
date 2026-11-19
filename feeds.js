@@ -1,7 +1,7 @@
 'use strict';
 /* Feeds, and what the server has saved from the Met Office.
  *
- * createFeeds   Book-keeping for the five outside sources (SenseCAP, the Met Office, Open-Meteo, Sensor.Community, airport METAR):
+ * createFeeds   Book-keeping for the six outside sources (SenseCAP, the Met Office, Open-Meteo, Sensor.Community, airport METAR, adsb.fi):
  *               when each last worked, its last error, how many calls worked or failed in the last 24 hours, and a switch that a
  *               teacher can turn off. A switched-off feed makes no calls at all (the callers get a SwitchedOff error, which the
  *               server turns into a 503 'switched off by a teacher'); the answers already in the caches are still served.
@@ -32,6 +32,8 @@ const DEFS = [
     what: ['Air sensors run by volunteers around the island (dust, temperature, humidity).', 'Αισθητήρες αέρα εθελοντών σε όλο το νησί (σκόνη, θερμοκρασία, υγρασία).'] },
   { id: 'metar', name: ['Airport weather (METAR)', 'Καιρός αεροδρομίων (METAR)'], home: 'https://aviationweather.gov/', everyMin: 10, background: false,
     what: ['Observations at the airports of Larnaca, Paphos, Ercan and Akrotiri.', 'Παρατηρήσεις από τα αεροδρόμια Λάρνακας, Πάφου, Ercan και Ακρωτηρίου.'] },
+  { id: 'adsbfi', name: ['Aeroplanes (adsb.fi)', 'Αεροπλάνα (adsb.fi)'], home: 'https://adsb.fi/', everyMin: 1, background: false,
+    what: ['Where aeroplanes around Cyprus are right now, heard by volunteer radio receivers. Only for the Aeroplanes page: rounded places, no flight names, nothing saved.', 'Πού βρίσκονται τώρα τα αεροπλάνα γύρω από την Κύπρο, όπως τα ακούν ραδιοδέκτες εθελοντών. Μόνο για τη σελίδα Αεροπλάνα: στρογγυλεμένες θέσεις, χωρίς ονόματα πτήσεων, τίποτα δεν αποθηκεύεται.'] },
 ];
 const FEED_IDS = DEFS.map((d) => d.id);
 
