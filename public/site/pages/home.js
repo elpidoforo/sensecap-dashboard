@@ -179,8 +179,8 @@
       /* ---------- head ---------- */
       const head = SC.head({
         title: T('Eight windows, one city', 'Οκτώ παράθυρα, μία πόλη'),
-        lede: T('Every page of Smart Cities sits in one of eight windows, in the order the data travels: it comes in from buses, cars and classrooms, it is checked, it is kept, it becomes a picture, schools and teams work with it, the council room tests it, it becomes a report, and a teacher approves what goes public.',
-          'Κάθε σελίδα του Smart Cities βρίσκεται σε ένα από οκτώ παράθυρα, με τη σειρά που ταξιδεύουν τα δεδομένα: έρχονται από λεωφορεία, αυτοκίνητα και τάξεις, ελέγχονται, αποθηκεύονται, γίνονται εικόνα, τα σχολεία και οι ομάδες δουλεύουν μαζί τους, η αίθουσα συμβουλίου τα εξετάζει, γίνονται αναφορά και ένας εκπαιδευτικός εγκρίνει ό,τι δημοσιεύεται.'),
+        lede: T('Every page sits in one of eight windows, in the order the data travels: from the sensors, through checking and analysis, to a report that a teacher approves.',
+          'Κάθε σελίδα βρίσκεται σε ένα από οκτώ παράθυρα, με τη σειρά που ταξιδεύουν τα δεδομένα: από τους αισθητήρες, μέσα από τον έλεγχο και την ανάλυση, ως μια αναφορά που εγκρίνει ένας εκπαιδευτικός.'),
         help: ['Each of the eight windows is a stage the data passes through. Click a window on the ring to jump to its box. Every box holds the tools of that stage: click a tool to open its page. The four light pillars are the four school sites: a taller pillar means more of that school’s sensors are online right now. Copper dots are buses and cars, shown about 2 hours late and rounded to about 1 km to protect the students.',
           'Κάθε ένα από τα οκτώ παράθυρα είναι ένα στάδιο από το οποίο περνούν τα δεδομένα. Πατήστε ένα παράθυρο στον κύκλο για να μεταβείτε στο πλαίσιό του. Κάθε πλαίσιο περιέχει τα εργαλεία του σταδίου: πατήστε ένα εργαλείο για να ανοίξει η σελίδα του. Οι τέσσερις στήλες φωτός είναι τα τέσσερα σχολεία: όσο ψηλότερη η στήλη, τόσοι περισσότεροι αισθητήρες του σχολείου είναι σε λειτουργία τώρα. Οι χάλκινες τελείες είναι λεωφορεία και αυτοκίνητα, με καθυστέρηση περίπου 2 ωρών και στρογγυλοποίηση περίπου 1 χλμ. για την προστασία των μαθητών.'],
       });
@@ -415,7 +415,19 @@
       } else { timers.push(setTimeout(startStack, 4000)); }
 
       // The page reads: the live core, then the island with the schools, then the stack in 3D, then the tools.
-      const hm = el('div', { class: 'hm' }, el('div', { class: 'hm-sky', 'aria-hidden': 'true' }), head, route, coreSlot, stage, list, status, legend, stackSec, three, sec);
+      // The mission comes first: why the site exists, the vision and what the visitor is asked to do. The words are the project's own (/site/project.js).
+      const mission = el('section', { class: 'nm-card hm-mission', hidden: true, 'aria-labelledby': 'hm-mission-h' });
+      SC.project().then((P) => {
+        if (!P || !mission.isConnected) return;
+        const M = P.mission;
+        mission.append(
+          el('h2', { id: 'hm-mission-h' }, T(M.title[0], M.title[1])),
+          el('p', { class: 'hm-mission-tag' }, T(M.tag[0], M.tag[1])),
+          el('dl', null, SC.missionLines(P).map(([k, v]) => el('div', null, el('dt', null, k), el('dd', null, v)))),
+          el('a', { class: 'nm-btn', href: '#/about' }, T('Read about the project', 'Διάβασε για το έργο')));
+        mission.hidden = false;
+      });
+      const hm = el('div', { class: 'hm' }, el('div', { class: 'hm-sky', 'aria-hidden': 'true' }), mission, head, route, coreSlot, stage, list, status, legend, stackSec, three, sec);
       root.append(hm);
 
       /* ---------- layout: ring, chevrons, travelling dots and the light pillars ---------- */

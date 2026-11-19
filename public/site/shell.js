@@ -597,6 +597,7 @@
       + SC.t('Reopen this tour any time from “How this page works”.', 'Ανοίξτε ξανά την ξενάγηση από το «Πώς λειτουργεί αυτή η σελίδα».');
     const ov = SC.el('div', { class: 'wl-ov', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'wl-h' },
       SC.el('div', { class: 'wl' }, hero, SC.el('div', { class: 'wl-b' },
+        SC.el('dl', { class: 'wl-mission', hidden: true }),
         SC.el('div', { class: 'wl-cards' }, CARDS.map(([c, ic, h, p], i) => SC.el('div', { class: 'wl-cd', style: '--c:' + c + ';--i:' + i }, SC.el('i', null, SC.icon(ic)), SC.el('b', null, h), SC.el('span', null, p)))),
         SC.el('div', { class: 'wl-f' }, SC.el('label', { class: 'wl-chk', for: 'wl-never' }, never, SC.t('Don’t show again', 'Να μην εμφανιστεί ξανά')), SC.el('span', { class: 'wl-sp' }),
           SC.el('button', { class: 'wl-btn', type: 'button', onclick: () => close(false) }, SC.t('Skip', 'Παράλειψη')),
@@ -609,7 +610,29 @@
     const fit = () => { let fs = 47; h1.style.fontSize = fs + 'px'; while (h1.scrollWidth > h1.clientWidth && fs > 22) { fs--; h1.style.fontSize = fs + 'px'; } };
     fit(); if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
     const box = ov.querySelector('.wl'); box.tabIndex = -1; box.focus({ preventScroll: true });
+    // the purpose, the vision and the mission come first, above how the site is laid out
+    SC.project().then((P) => { const dl = ov.querySelector('.wl-mission'); if (!P || !dl) return; SC.missionLines(P).forEach(([k, v]) => dl.append(SC.el('div', null, SC.el('dt', null, k), SC.el('dd', null, v)))); dl.hidden = false; });
   }
+  // The project's own text (/site/project.js): mission, vision, purpose. Loaded once; resolves to null if it cannot be read.
+  let projectP = null;
+  SC.project = () => {
+    if (SC.PROJECT) return Promise.resolve(SC.PROJECT);
+    if (projectP) return projectP;
+    projectP = new Promise((done) => {
+      const s = document.createElement('script');
+      s.src = '/site/project.js';
+      s.onload = () => done(SC.PROJECT || null);
+      s.onerror = () => { s.remove(); projectP = null; done(null); };
+      document.head.append(s);
+    });
+    return projectP;
+  };
+  // Purpose, vision and mission as three short lines, for the home page and the welcome screen (the same words in both).
+  SC.missionLines = (P) => {
+    const M = P.mission, pick = (p) => SC.t(p[0], p[1]), cut = (t) => t.replace(/^[^:]+:\s*/, '');
+    const up = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+    return [[SC.t('Why this site exists', 'Γιατί υπάρχει αυτός ο ιστότοπος'), up(cut(pick(M.created)))], [SC.t('Our vision', 'Το όραμά μας'), up(cut(pick(M.vision)))], [SC.t('Your mission', 'Η αποστολή σου'), pick(M.yours)]];
+  };
   SC.welcome = async () => { let demo = false; try { const c = await SC.cached('/api/config', 300000); demo = !!(c && c.demo); } catch (e) { /* no flag */ } welcome(true, demo); };
 
   /* ---------- router ---------- */

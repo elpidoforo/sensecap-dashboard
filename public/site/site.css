@@ -368,6 +368,12 @@ body.nm-page { overflow-x: hidden; }
 .wl-core { animation: wl-breathe 3.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
 .wl-p { animation: wl-tw var(--d, 3s) ease-in-out var(--l, 0s) infinite; }
 .wl-b { padding: 22px 28px 22px; }
+.wl-mission { margin: 0 0 16px; display: grid; gap: 8px; }
+.wl-mission[hidden] { display: none; }
+.wl-mission div { display: grid; grid-template-columns: 11.5em minmax(0, 1fr); gap: 4px 14px; align-items: baseline; }
+.wl-mission dt { font: 700 13.5px/1.35 var(--nm-font); color: #8fe3f7; }
+.wl-mission dd { margin: 0; font: 400 14.5px/1.45 var(--nm-font); color: #e6eef8; }
+@media (max-width: 640px) { .wl-mission div { grid-template-columns: 1fr; } }
 .wl-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .wl-cd { border-radius: 16px; padding: 16px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); opacity: 0; animation: wl-rise .6s calc(.7s + var(--i) * .15s) cubic-bezier(.2,1.1,.4,1) forwards; }
 .wl-cd i { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; margin-bottom: 10px; background: var(--c); color: #10131f; box-shadow: 0 0 18px -2px var(--c); }
@@ -469,3 +475,6 @@ select.nm-input { appearance: none; }
 /* 14 Nov 2026: the menu follows the three kinds of tool. Each section has its colour, also used on the home page and in the workshop. */
 :root { --sec-view: #4CCBEA; --sec-analyze: #F7C46B; --sec-predict: #B79CFF; --sec-build: #5EE0A8; }
 .nm-side-h.sec-view { color: var(--sec-view); } .nm-side-h.sec-analyze { color: var(--sec-analyze); } .nm-side-h.sec-predict { color: var(--sec-predict); } .nm-side-h.sec-build { color: var(--sec-build); }
+
+/* on a phone the motto sits below the name, not on top of it */
+@media (max-width: 640px) { .wl-mt { top: 21%; } }

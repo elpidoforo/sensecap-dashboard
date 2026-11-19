@@ -124,6 +124,10 @@ ok(g && !/['"]more['"]/.test(g[1]), 'no page loads more.js in the browser');
   const m = /const hello = T\('((?:[^'\\]|\\.)*)',\s*'((?:[^'\\]|\\.)*)'\);/.exec(gsrc);
   ok(m && /was created so that/.test(m[1]) && /Our vision:/.test(m[1]) && /Your mission:/.test(m[1]), 'welcome: he first says why the platform was created, the vision and the mission');
   ok(m && /δημιουργήθηκε/.test(m[2]) && /Το όραμά μας/.test(m[2]) && /Η αποστολή σου/.test(m[2]), 'welcome: and the same in Greek');
+  const home = fs.readFileSync(path.join(ROOT, 'public', 'site', 'pages', 'home.js'), 'utf8'), shellSrc = fs.readFileSync(path.join(ROOT, 'public', 'site', 'shell.js'), 'utf8');
+  ok(/hm-mission/.test(home) && /SC\.missionLines\(P\)/.test(home) && home.indexOf('mission, head, route') > 0, 'home: the mission card stands before the heading and uses the project text');
+  ok(/wl-mission/.test(shellSrc) && /SC\.missionLines\(P\)/.test(shellSrc), 'welcome screen: it states the purpose, the vision and the mission from the same text');
+  ok(P.mission.yours && /HELLO_ASKED \|\| 1000/.test(gsrc), 'hello: Kleanthis pops up one second after the platform opens');
   ok(m && m[1].split(/\s+/).length <= 85 && m[2].split(/\s+/).length <= 85, 'welcome: short enough to say in about thirty seconds (' + (m && m[1].split(/\s+/).length) + ' and ' + (m && m[2].split(/\s+/).length) + ' words)');
 }
 

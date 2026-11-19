@@ -247,8 +247,10 @@
     if (i >= QUESTIONS.length) {
       store.set(WHO_KEY, JSON.stringify(who));
       const done = who.who === 'teacher'
-        ? T('Thank you. I will speak to you as a colleague. Shall I show you round in one minute?', 'Ευχαριστώ. Θα σου μιλάω ως συνάδελφος. Να σε ξεναγήσω σε ένα λεπτό;')
-        : T('Thank you. Shall I show you round in one minute? We start with where all the data comes from.', 'Ευχαριστώ. Να σε ξεναγήσω σε ένα λεπτό; Ξεκινάμε από το πού έρχονται όλα τα δεδομένα.');
+        ? (needsAccount() ? T('Thank you. I will speak to you as a colleague. Shall I show you round in one minute? We start with how to get your account, which then has to be approved.', 'Ευχαριστώ. Θα σου μιλάω ως συνάδελφος. Να σε ξεναγήσω σε ένα λεπτό; Ξεκινάμε από το πώς παίρνεις τον λογαριασμό σου, που μετά πρέπει να εγκριθεί.')
+          : T('Thank you. I will speak to you as a colleague. Shall I show you round in one minute?', 'Ευχαριστώ. Θα σου μιλάω ως συνάδελφος. Να σε ξεναγήσω σε ένα λεπτό;'))
+        : !needsAccount() ? T('Thank you. Shall I show you round in one minute? We start with where all the data comes from.', 'Ευχαριστώ. Να σε ξεναγήσω σε ένα λεπτό; Ξεκινάμε από το πού έρχονται όλα τα δεδομένα.')
+          : T('Thank you. Shall I show you round in one minute? We start with how to get your account, which a teacher then approves.', 'Ευχαριστώ. Να σε ξεναγήσω σε ένα λεπτό; Ξεκινάμε από το πώς παίρνεις τον λογαριασμό σου, που μετά τον εγκρίνει ένας εκπαιδευτικός.');
       say(el('div', { class: 'kg-a' }, el('p', null, done))); speak(done);
       box.replaceChildren(
         el('button', { type: 'button', class: 'kg-chip', onclick: tour }, T('Yes, show me round', 'Ναι, ξενάγησέ με')),
@@ -266,8 +268,14 @@
   }
   // The tour: each step points at a menu link, and says something once the student has arrived there.
   const TOUR = [
+    // The first thing for one person on their own (a student or a teacher): how to get an account, and that it has to be approved.
+    // Left out for a class watching one screen, and for someone who is already signed in.
+    { id: 'nav:join', guest: true,
+      say: ['First, your account. Press Join or sign in, in the menu.', 'Πρώτα, ο λογαριασμός σου. Πάτησε Εγγραφή ή σύνδεση στο μενού.'],
+      after: ['Here you ask for your own account: choose your city and your team, and make a password. No email is needed. After you send it, a teacher has to approve it before it works, so it is not ready straight away. Until then you can still look at all the data.',
+        'Εδώ ζητάς τον δικό σου λογαριασμό: διάλεξε την πόλη και την ομάδα σου και φτιάξε έναν κωδικό. Δεν χρειάζεται email. Αφού τον στείλεις, πρέπει να τον εγκρίνει ένας εκπαιδευτικός πριν λειτουργήσει, οπότε δεν είναι έτοιμος αμέσως. Μέχρι τότε μπορείς να βλέπεις όλα τα δεδομένα.'] },
     { id: 'nav:layers',
-      say: ['Let us start with where the data comes from. Press Data layers in the menu.', 'Ας ξεκινήσουμε από το πού έρχονται τα δεδομένα. Πάτησε Στρώματα δεδομένων στο μενού.'],
+      say: ['Now, where the data comes from. Press Data layers in the menu.', 'Τώρα, από πού έρχονται τα δεδομένα. Πάτησε Στρώματα δεδομένων στο μενού.'],
       after: ['Here they are. Each card is one source of data: our own sensors on buses, cars and in classrooms, the official weather stations, weather models and satellites. A card says who publishes the data and how fresh it is.',
         'Εδώ είναι. Κάθε κάρτα είναι μία πηγή δεδομένων: οι δικοί μας αισθητήρες σε λεωφορεία, αυτοκίνητα και τάξεις, οι επίσημοι μετεωρολογικοί σταθμοί, τα μοντέλα καιρού και οι δορυφόροι. Η κάρτα λέει ποιος δημοσιεύει τα δεδομένα και πόσο πρόσφατα είναι.'] },
     { id: 'nav:stack',
@@ -276,9 +284,10 @@
         'Κάθε φύλλο είναι ένα είδος δεδομένων, το ένα πάνω στο άλλο, πάνω στον ίδιο χάρτη. Μπορείς να το γυρίσεις και να πατήσεις ένα φύλλο για να δεις τι μετρά και από πού έρχονται οι αριθμοί του.'] },
   ];
   let touring = false;
+  const needsAccount = () => Boolean(who && (who.who === 'student' || who.who === 'teacher')) && !(SC.me || SC.account);
   function tour() {
     hush(); collect();
-    const list = TOUR.map((st) => ({ id: st.id, say: T(st.say[0], st.say[1]), after: T(st.after[0], st.after[1]) }));
+    const list = TOUR.filter((st) => !st.guest || needsAccount()).map((st) => ({ id: st.id, say: T(st.say[0], st.say[1]), after: T(st.after[0], st.after[1]) }));
     touring = true;
     // a link that is not in the menu of this visitor cannot be pointed at: leave that step out and say so
     const usable = list.filter((st) => [...document.querySelectorAll('a.nm-side-a[data-id]')].some((a) => 'nav:' + a.getAttribute('data-id') === st.id));
@@ -516,19 +525,23 @@
     e.preventDefault();
   }
 
-  /* ---------- the first hello: a minute after a first visit, a small bubble by the button offers the introduction ----------
-   * Once per browser, never while a panel is open, and it only speaks after it is pressed (a browser allows no voice before a press). */
+  /* ---------- the hello: a second after the platform opens, Kleanthis's face pops up by the button, says who he is and asks if you need help ----------
+   * Once per visit, never while a panel is open, and it only speaks after it is pressed (a browser allows no voice before a press). */
   const HELLO_KEY = 'sc.guide.hello.v1';
   let helloTimer = null, bubble = null;
+  const seen = { get() { try { return sessionStorage.getItem(HELLO_KEY); } catch (e) { return helloShown ? '1' : null; } }, set() { helloShown = true; try { sessionStorage.setItem(HELLO_KEY, '1'); } catch (e) { /* private window */ } } };
+  let helloShown = false;
   function helloLater() {
-    if (who || store.get(HELLO_KEY) || helloTimer) return;
-    helloTimer = setTimeout(() => {
+    if (seen.get() || helloTimer || (HELLO_AUTO === false)) return;
+    helloTimer = setTimeout(function tick() {
       helloTimer = null;
-      if (open || who || root.hidden || (SC.askBubble && SC.askBubble.isOpen && SC.askBubble.isOpen())) return;
-      store.set(HELLO_KEY, '1');
+      if (seen.get() || open || root.hidden) return;
+      // the site's own welcome screen, a dialog or the Ask box is in front: wait until it is gone, then say hello
+      if (document.querySelector('.wl-ov, .nm-modal, dialog[open]') || (SC.askBubble && SC.askBubble.isOpen && SC.askBubble.isOpen())) { helloTimer = setTimeout(tick, 1000); return; }
+      seen.set();
       bubble = el('div', { class: 'kg-hello', role: 'status' },
         face(96, 'kg-face-hello'),
-        el('p', null, T('Hello, my name is Kleanthis. Shall I show you how this site works?', 'Γεια σου, με λένε Κλεάνθη. Να σου δείξω πώς δουλεύει αυτός ο ιστότοπος;')),
+        el('p', null, T('Hello, my name is Kleanthis. I am the AI guide of this site. Do you need any help?', 'Γεια σου, με λένε Κλεάνθη. Είμαι ο οδηγός τεχνητής νοημοσύνης αυτού του ιστότοπου. Χρειάζεσαι βοήθεια;')),
         el('div', null,
           el('button', { type: 'button', class: 'kg-chip', onclick: () => { hideHello(); toggle(true); } }, T('Yes, please', 'Ναι, παρακαλώ')),
           el('button', { type: 'button', class: 'kg-chip kg-quiet', onclick: hideHello }, T('Not now', 'Όχι τώρα'))));
@@ -536,7 +549,10 @@
     }, HELLO_MS);
   }
   function hideHello() { if (bubble) { bubble.remove(); bubble = null; } }
-  const HELLO_MS = (() => { try { const m = /[?&]guidehello=(\d+)/.exec(location.search); if (m) return Math.max(200, Number(m[1])); } catch (e) { /* no address */ } return 60000; })();
+  // One second after the platform opens, once per visit (a new tab or a new day starts a new visit). ?guidehello=<ms> sets the wait.
+  // An automated browser gets no hello unless it asks for one, so the other pages' tests are not interrupted.
+  const HELLO_ASKED = (() => { try { const m = /[?&]guidehello=(\d+)/.exec(location.search); return m ? Math.max(200, Number(m[1])) : 0; } catch (e) { return 0; } })();
+  const HELLO_MS = HELLO_ASKED || 1000, HELLO_AUTO = Boolean(HELLO_ASKED) || !navigator.webdriver;
 
   function toggle(want) {
     open = !!want;

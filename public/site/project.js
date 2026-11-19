@@ -24,6 +24,7 @@
         'Κάθε πόλη γίνεται εργαστήρι μάθησης: ο τόπος όπου ζεις είναι αυτό που μελετάς, με πραγματικά δεδομένα αντί για παραδείγματα βιβλίου.'],
       created: ['Why the platform was created: so that students do not only learn about sustainability. They measure it, model it and explain it to their city.', 'Γιατί δημιουργήθηκε η πλατφόρμα: για να μη μαθαίνουν απλώς οι μαθητές για τη βιωσιμότητα. Τη μετρούν, τη μοντελοποιούν και την εξηγούν στην πόλη τους.'],
       vision: ['The vision: a smarter, more sustainable Cyprus that starts in school, where students across the island collect, connect and explain city data together.', 'Το όραμα: μια πιο έξυπνη και βιώσιμη Κύπρος που ξεκινά από το σχολείο, όπου μαθητές σε όλο το νησί συλλέγουν, συνδέουν και εξηγούν μαζί τα δεδομένα της πόλης.'],
+      yours: ['Explore the data, ask questions, and explain to your city what you find.', 'Εξερεύνησε τα δεδομένα, κάνε ερωτήσεις και εξήγησε στην πόλη σου τι βρήκες.'],
       promise: ['The promise to students: you become a data collector, an AI analyst, a space observer, a sustainability thinker and a city storyteller.', 'Η υπόσχεση προς τους μαθητές: γίνεσαι συλλέκτης δεδομένων, αναλυτής τεχνητής νοημοσύνης, παρατηρητής του διαστήματος, στοχαστής της βιωσιμότητας και αφηγητής της πόλης.'],
     },
     schools: [

@@ -235,18 +235,26 @@ const post = async (body, cookie) => {
       ok(/(three quick questions, so that I can adapt|τρεις σύντομες ερωτήσεις, για να προσαρμοστώ)/.test(intro), name + ': and why he asks three questions');
       ok(/(Kleanthis|Κλεάνθη)/.test(await p.evaluate(() => window.__said.join(' '))), name + ': the introduction is spoken');
       ok(await p.locator('.kg-chip').count() === 3 && await p.locator('.kg-in input').count() === 1, name + ': the first question has three choices to press');
-      await p.locator('.kg-chip').nth(0).click(); await wait(400);     // a class
+      await p.locator('.kg-chip').nth(greek ? 2 : 0).click(); await wait(400);     // English run: a class. Greek run: one student
       ok(/(school|σχολείο)/.test(await p.locator('.kg-a').last().innerText()), name + ': the second question asks for the school level, not an age');
       await p.locator('.kg-chip').nth(0).click(); await wait(400);     // primary
       await p.locator('.kg-chip').nth(0).click(); await wait(400);     // look around
-      ok(await p.evaluate(() => { const w = JSON.parse(localStorage.getItem('sc.guide.who.v1')); return w.who === 'class' && w.age === 'primary' && w.goal === 'look' && Object.keys(w).length === 3; }), name + ': the three answers are kept in this browser, and nothing else');
+      ok(await p.evaluate(() => { const w = JSON.parse(localStorage.getItem('sc.guide.who.v1')); return w.who === (document.documentElement.lang === 'el' || /lang=el/.test(location.search) ? 'student' : 'class') && w.age === 'primary' && w.goal === 'look' && Object.keys(w).length === 3; }), name + ': the three answers are kept in this browser, and nothing else');
       ok(calls === c0, name + ': the welcome asked the assistant nothing');
       ok(/(show you round|ξεναγήσω)/.test(await p.locator('.kg-a').last().innerText()), name + ': then he offers the tour');
       await p.locator('.kg-chip').first().click(); await wait(1500);   // yes
       const where = () => p.evaluate(() => { const d = document.querySelector('.kg-dot'); if (d.hidden) return 'hidden'; const r = d.getBoundingClientRect(); const h = document.elementFromPoint(r.left + 13, r.top + 13); return h ? (h.closest('.nm-side-a') ? 'nav:' + h.closest('.nm-side-a').dataset.id : h.closest('#burger') ? 'burger' : 'other') : 'none'; });
       let w = await where();
       if (w === 'burger') { await p.click('#burger'); await wait(1200); w = await where(); }
-      ok(w === 'nav:layers', name + ': the tour points at Data layers first (' + w + ')');
+      if (greek) {   // one student, not signed in: the account comes first
+        ok(/(get your account|παίρνεις τον λογαριασμό σου)/.test(await p.locator('.kg-a').last().innerText()), name + ': he says the tour starts with the account');
+        ok(w === 'nav:join', name + ': for one student the tour points at Join or sign in first (' + w + ')');
+        await p.click('a.nm-side-a[data-id="join"]'); await wait(2500);
+        ok(/πρέπει να τον εγκρίνει ένας εκπαιδευτικός/.test(await p.locator('.kg-feed').innerText()), name + ': on arrival he says how to ask for an account and that a teacher must approve it');
+        w = await where();
+        if (w === 'burger') { await p.click('#burger'); await wait(1200); w = await where(); }
+      } else ok(!/account/.test(await p.locator('.kg-feed').innerText()), name + ': a class is not asked to make an account');
+      ok(w === 'nav:layers', name + ': the tour points at Data layers (' + w + ')');
       await p.click('a.nm-side-a[data-id="layers"]'); await wait(2500);
       ok(/(Each card is one source|Κάθε κάρτα είναι μία πηγή)/.test(await p.locator('.kg-feed').innerText()), name + ': on arrival he says where the data comes from');
       w = await where();
