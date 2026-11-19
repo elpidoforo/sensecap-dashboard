@@ -76,6 +76,7 @@ The checks on `#/health` report any extract whose licence, credit line, method o
 | Agricultural drought (`drought`) | European Drought Observatory, © European Commission JRC. CC BY 4.0 for the JRC product; contains modified Copernicus service information. Grid cells sampled by Kleanthis. |
 | Flood scenarios by river reach (`flood`) | Water Development Department, Republic of Cyprus. CC BY 4.0 for the risk maps. River reaches and floodplain polygons intersected by Kleanthis. |
 | Electricity generation by fuel (`power`) | Eurostat, dataset `nrg_cb_pem` (https://doi.org/10.2908/nrg_cb_pem). Free reuse of Eurostat statistics with the source named; Eurostat is not responsible for the reuse. |
+| Ships and ports (`seaarrivals`, `seanational`, `seafreight`; page `#/fieldwork/sea`) | Eurostat, datasets `mar_tf_qm` (https://doi.org/10.2908/mar_tf_qm) and `mar_go_qm_cy` (https://doi.org/10.2908/mar_go_qm_cy), retrieved 2026-11-19. Free reuse of Eurostat statistics with the source named (https://ec.europa.eu/eurostat/help/copyright-notice); Eurostat is not responsible for the reuse. Kleanthis filtered and converted the tables. The approximate port positions on the map were added by Kleanthis and are not Eurostat data. |
 | EV charging points (`ev`) | Department of Electrical and Mechanical Services, Cyprus, via the National Access Point. CC BY 4.0. |
 | Municipal population (`census`) | © Republic of Cyprus, Statistical Service (CYSTAT), Census of Population and Housing 2021. CYSTAT data reuse terms: name the source and identify any processing. |
 

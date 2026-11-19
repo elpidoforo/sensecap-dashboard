@@ -26,7 +26,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     ok(d.flow.passed + d.flow.left === d.flow.readings, 'the readings that passed and those left out add up to the readings taken');
     ok(d.flow.left === d.flow.out.reduce((a, o) => a + o.count, 0), 'the readings left out match the reasons the page lists');
     ok(d.sources.every((s) => s.gates.every((g) => g.n[0] && g.n[1])) && d.note[0] && d.note[1], 'the whole report is bilingual');
-    ok(d.extracts.length === 13 && d.stages.extracts === 13, 'the thirteen frozen extracts behind the investigations are in the report');
+    ok(d.extracts.length === 16 && d.stages.extracts === 16, 'the sixteen frozen extracts behind the investigations are in the report');
     ok(d.extracts.every((x) => x.gates.length === 5 && x.gates.every((g) => g.n[0] && g.n[1] && (!g.note || (g.note[0] && g.note[1])))), 'every extract check is written in both languages');
     ok(d.totals.pass + d.totals.warn + d.totals.fail === d.stages.checks, 'the extracts are counted in the totals, not left out of them');
     const miss = await fetch(BASE + '/api/fieldwork/nosuch');

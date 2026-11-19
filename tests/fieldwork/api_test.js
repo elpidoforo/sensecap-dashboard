@@ -8,7 +8,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { setTimeout: wait } = require('node:timers/promises');
 
-test('serves only the thirteen dated extracts and rejects writes', async () => {
+test('serves only the sixteen dated extracts and rejects writes', async () => {
   const root = path.resolve(__dirname, '../..');
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'athena-fieldwork-'));
   const port = process.env.FIELDWORK_TEST_PORT || '3979';
@@ -25,7 +25,7 @@ test('serves only the thirteen dated extracts and rejects writes', async () => {
       catch { /* The listener is still starting. */ }
       await wait(100);
     }
-    for (const key of ['reservoir','weather','coast','crossings','census','ev','power','flood','drought','aeronet','gases','verifiedno2','arakapas']) {
+    for (const key of ['reservoir','weather','coast','crossings','census','ev','power','flood','drought','aeronet','gases','verifiedno2','arakapas','seaarrivals','seanational','seafreight']) {
       const response = await fetch(base+key);
       assert.equal(response.status, 200);
       const bytes = Buffer.from(await response.arrayBuffer());

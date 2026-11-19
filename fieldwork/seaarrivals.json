@@ -1,0 +1,183 @@
+{
+  "title": "Vessel arrivals at Larnaka and Lemesos by type of vessel, by quarter",
+  "titleEl": "Αφίξεις πλοίων στη Λάρνακα και στη Λεμεσό ανά τύπο πλοίου, ανά τρίμηνο",
+  "datasetId": "mar_tf_qm",
+  "sourceUrl": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/mar_tf_qm?rep_mar=CY_0CYLCA&rep_mar=CY_0CYLMS&unit=NR&tonnage=TOTAL&sinceTimePeriod=2020",
+  "catalogueUrl": "https://doi.org/10.2908/mar_tf_qm",
+  "licenceUrl": "https://ec.europa.eu/eurostat/help/copyright-notice",
+  "licence": "Eurostat statistical data reuse with source acknowledgement",
+  "attribution": "Source: Eurostat, mar_tf_qm, retrieved 2026-11-19. Kleanthis filtered and converted the statistical tables. Eurostat is not responsible for this presentation.",
+  "attributionEl": "Πηγή: Eurostat, mar_tf_qm, ανάκτηση 2026-11-19. Ο Κλεάνθης φιλτράρισε και μετέτρεψε τους στατιστικούς πίνακες. Η Eurostat δεν ευθύνεται για αυτή την παρουσίαση.",
+  "unit": "arrivals",
+  "unitEl": "αφίξεις",
+  "units": [
+    {
+      "code": "NR",
+      "name": "arrivals",
+      "nameEl": "αφίξεις"
+    }
+  ],
+  "frequency": "quarterly",
+  "sourceUpdated": "2026-11-17T23:00:00+01:00",
+  "retrievedAt": "2026-11-19",
+  "sourceSha256": "f7d7841676248dba7896de759366f0ba708f41d16114606d41e1497bb3ac033f",
+  "method": "Quarterly counts of vessels arriving at two reporting ports, all vessel sizes together. Each arrival counts once as a movement, so one ship can be counted many times. The published total already includes every vessel type: never add it to the types. A null value means Eurostat published no figure for that type and quarter. It is not a zero. No value was estimated, filled in or summed by Kleanthis. These are published statistics by quarter. They do not show where ships are right now.",
+  "methodEl": "Τριμηνιαίες καταμετρήσεις αφίξεων πλοίων σε δύο λιμάνια αναφοράς, για όλα τα μεγέθη πλοίων μαζί. Κάθε άφιξη μετρά μία φορά ως κίνηση, άρα το ίδιο πλοίο μπορεί να μετρηθεί πολλές φορές. Το δημοσιευμένο σύνολο περιλαμβάνει ήδη όλους τους τύπους πλοίων: μην το προσθέτεις ποτέ στους τύπους. Η κενή τιμή (null) σημαίνει ότι η Eurostat δεν δημοσίευσε αριθμό για αυτόν τον τύπο και το τρίμηνο. Δεν σημαίνει μηδέν. Ο Κλεάνθης δεν εκτίμησε, δεν συμπλήρωσε και δεν άθροισε καμία τιμή. Αυτά είναι δημοσιευμένα στατιστικά ανά τρίμηνο. Δεν δείχνουν πού βρίσκονται τα πλοία αυτή τη στιγμή.",
+  "notLive": "These are published statistics by quarter. They do not show where ships are right now.",
+  "notLiveEl": "Αυτά είναι δημοσιευμένα στατιστικά ανά τρίμηνο. Δεν δείχνουν πού βρίσκονται τα πλοία αυτή τη στιγμή.",
+  "flagDefinitions": {},
+  "coverage": {
+    "firstPeriod": "2020-Q1",
+    "lastIndexedPeriod": "2026-Q3",
+    "lastObservedPeriod": "2025-Q4",
+    "observedValues": 383,
+    "indexedPeriods": 27,
+    "observedPeriods": 24,
+    "lastObservedByPort": {
+      "CY_0CYLCA": "2025-Q4",
+      "CY_0CYLMS": "2025-Q4"
+    },
+    "lastTotalByPort": {
+      "CY_0CYLCA": "2025-Q4",
+      "CY_0CYLMS": "2025-Q4"
+    }
+  },
+  "periods": [
+    "2020-Q1",
+    "2020-Q2",
+    "2020-Q3",
+    "2020-Q4",
+    "2021-Q1",
+    "2021-Q2",
+    "2021-Q3",
+    "2021-Q4",
+    "2022-Q1",
+    "2022-Q2",
+    "2022-Q3",
+    "2022-Q4",
+    "2023-Q1",
+    "2023-Q2",
+    "2023-Q3",
+    "2023-Q4",
+    "2024-Q1",
+    "2024-Q2",
+    "2024-Q3",
+    "2024-Q4",
+    "2025-Q1",
+    "2025-Q2",
+    "2025-Q3",
+    "2025-Q4",
+    "2026-Q1",
+    "2026-Q2",
+    "2026-Q3"
+  ],
+  "ports": [
+    {
+      "code": "CY_0CYLCA",
+      "name": "Larnaka",
+      "nameEl": "Λάρνακα"
+    },
+    {
+      "code": "CY_0CYLMS",
+      "name": "Lemesos",
+      "nameEl": "Λεμεσός"
+    }
+  ],
+  "vesselTypes": [
+    {
+      "code": "TOTAL",
+      "name": "All vessel types (published total)",
+      "nameEl": "Όλοι οι τύποι πλοίων (δημοσιευμένο σύνολο)"
+    },
+    {
+      "code": "LBK",
+      "name": "Liquid bulk tanker",
+      "nameEl": "Δεξαμενόπλοιο υγρού φορτίου"
+    },
+    {
+      "code": "DBK",
+      "name": "Dry bulk carrier",
+      "nameEl": "Πλοίο ξηρού χύδην φορτίου"
+    },
+    {
+      "code": "ODC_CNT",
+      "name": "Container ship",
+      "nameEl": "Πλοίο εμπορευματοκιβωτίων"
+    },
+    {
+      "code": "ODC_SPE",
+      "name": "Specialised carrier",
+      "nameEl": "Εξειδικευμένο φορτηγό πλοίο"
+    },
+    {
+      "code": "ODC_GEN",
+      "name": "General cargo, non-specialised",
+      "nameEl": "Πλοίο γενικού φορτίου"
+    },
+    {
+      "code": "ODC_DCB",
+      "name": "Dry cargo barge",
+      "nameEl": "Φορτηγίδα ξηρού φορτίου"
+    },
+    {
+      "code": "ODC_PCRU",
+      "name": "Cruise ship",
+      "nameEl": "Κρουαζιερόπλοιο"
+    },
+    {
+      "code": "ODC_PAS_XCR",
+      "name": "Passenger ship (excluding cruise ship)",
+      "nameEl": "Επιβατηγό πλοίο (εκτός κρουαζιερόπλοιων)"
+    },
+    {
+      "code": "MSC_FISH",
+      "name": "Fishing vessel",
+      "nameEl": "Αλιευτικό σκάφος"
+    },
+    {
+      "code": "MSC_OFF",
+      "name": "Offshore activities vessel",
+      "nameEl": "Σκάφος υπεράκτιων δραστηριοτήτων"
+    },
+    {
+      "code": "MSC_TOW",
+      "name": "Tug and pusher craft",
+      "nameEl": "Ρυμουλκό ή ωστικό σκάφος"
+    },
+    {
+      "code": "MSC_OTH",
+      "name": "Other type of vessel (dredger, research vessel, other)",
+      "nameEl": "Άλλος τύπος σκάφους (βυθοκόρος, ερευνητικό σκάφος, άλλο)"
+    },
+    {
+      "code": "UNK",
+      "name": "Unknown",
+      "nameEl": "Άγνωστος τύπος"
+    }
+  ],
+  "series": [
+    {"code":"CY_0CYLCA|TOTAL","port":"CY_0CYLCA","unit":"NR","vessel":"TOTAL","name":"Larnaka · All vessel types (published total)","nameEl":"Λάρνακα · Όλοι οι τύποι πλοίων (δημοσιευμένο σύνολο)","points":[["2020-Q1",113],["2020-Q2",76],["2020-Q3",72],["2020-Q4",119],["2021-Q1",65],["2021-Q2",74],["2021-Q3",69],["2021-Q4",91],["2022-Q1",83],["2022-Q2",84],["2022-Q3",84],["2022-Q4",79],["2023-Q1",72],["2023-Q2",64],["2023-Q3",81],["2023-Q4",93],["2024-Q1",73],["2024-Q2",91],["2024-Q3",93],["2024-Q4",98],["2025-Q1",70],["2025-Q2",81],["2025-Q3",88],["2025-Q4",85],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLCA|LBK","port":"CY_0CYLCA","unit":"NR","vessel":"LBK","name":"Larnaka · Liquid bulk tanker","nameEl":"Λάρνακα · Δεξαμενόπλοιο υγρού φορτίου","points":[["2020-Q1",41],["2020-Q2",17],["2020-Q3",14],["2020-Q4",15],["2021-Q1",15],["2021-Q2",12],["2021-Q3",10],["2021-Q4",15],["2022-Q1",19],["2022-Q2",11],["2022-Q3",10],["2022-Q4",9],["2023-Q1",1],["2023-Q2",1],["2023-Q3",null],["2023-Q4",2],["2024-Q1",1],["2024-Q2",1],["2024-Q3",2],["2024-Q4",1],["2025-Q1",1],["2025-Q2",2],["2025-Q3",null],["2025-Q4",2],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLCA|DBK","port":"CY_0CYLCA","unit":"NR","vessel":"DBK","name":"Larnaka · Dry bulk carrier","nameEl":"Λάρνακα · Πλοίο ξηρού χύδην φορτίου","points":[["2020-Q1",14],["2020-Q2",22],["2020-Q3",25],["2020-Q4",34],["2021-Q1",28],["2021-Q2",27],["2021-Q3",19],["2021-Q4",32],["2022-Q1",22],["2022-Q2",25],["2022-Q3",19],["2022-Q4",25],["2023-Q1",22],["2023-Q2",20],["2023-Q3",24],["2023-Q4",19],["2024-Q1",23],["2024-Q2",26],["2024-Q3",29],["2024-Q4",28],["2025-Q1",26],["2025-Q2",29],["2025-Q3",32],["2025-Q4",36],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLCA|ODC_CNT","port":"CY_0CYLCA","unit":"NR","vessel":"ODC_CNT","name":"Larnaka · Container ship","nameEl":"Λάρνακα · Πλοίο εμπορευματοκιβωτίων","points":[["2020-Q1",null],["2020-Q2",null],["2020-Q3",null],["2020-Q4",null],["2021-Q1",null],["2021-Q2",null],["2021-Q3",1],["2021-Q4",null],["2022-Q1",1],["2022-Q2",6],["2022-Q3",null],["2022-Q4",null],["2023-Q1",null],["2023-Q2",null],["2023-Q3",null],["2023-Q4",1],["2024-Q1",null],["2024-Q2",null],["2024-Q3",null],["2024-Q4",1],["2025-Q1",null],["2025-Q2",null],["2025-Q3",1],["2025-Q4",null],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLCA|ODC_SPE","port":"CY_0CYLCA","unit":"NR","vessel":"ODC_SPE","name":"Larnaka · Specialised carrier","nameEl":"Λάρνακα · Εξειδικευμένο φορτηγό πλοίο","points":[["2020-Q1",null],["2020-Q2",null],["2020-Q3",1],["2020-Q4",1],["2021-Q1",null],["2021-Q2",null],["2021-Q3",null],["2021-Q4",null],["2022-Q1",1],["2022-Q2",null],["2022-Q3",null],["2022-Q4",null],["2023-Q1",null],["2023-Q2",null],["2023-Q3",1],["2023-Q4",null],["2024-Q1",1],["2024-Q2",null],["2024-Q3",null],["2024-Q4",null],["2025-Q1",null],["2025-Q2",null],["2025-Q3",null],["2025-Q4",null],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLCA|ODC_GEN","port":"CY_0CYLCA","unit":"NR","vessel":"ODC_GEN","name":"Larnaka · General cargo, non-specialised","nameEl":"Λάρνακα · Πλοίο γενικού φορτίου","points":[["2020-Q1",39],["2020-Q2",30],["2020-Q3",23],["2020-Q4",38],["2021-Q1",22],["2021-Q2",34],["2021-Q3",36],["2021-Q4",38],["2022-Q1",38],["2022-Q2",33],["2022-Q3",47],["2022-Q4",38],["2023-Q1",45],["2023-Q2",41],["2023-Q3",42],["2023-Q4",59],["2024-Q1",45],["2024-Q2",54],["2024-Q3",34],["2024-Q4",53],["2025-Q1",41],["2025-Q2",35],["2025-Q3",25],["2025-Q4",35],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLCA|ODC_PCRU","port":"CY_0CYLCA","unit":"NR","vessel":"ODC_PCRU","name":"Larnaka · Cruise ship","nameEl":"Λάρνακα · Κρουαζιερόπλοιο","points":[["2020-Q1",8],["2020-Q2",null],["2020-Q3",null],["2020-Q4",null],["2021-Q1",null],["2021-Q2",null],["2021-Q3",null],["2021-Q4",2],["2022-Q1",1],["2022-Q2",5],["2022-Q3",7],["2022-Q4",4],["2023-Q1",2],["2023-Q2",1],["2023-Q3",6],["2023-Q4",5],["2024-Q1",null],["2024-Q2",4],["2024-Q3",10],["2024-Q4",3],["2025-Q1",null],["2025-Q2",7],["2025-Q3",10],["2025-Q4",2],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLCA|ODC_PAS_XCR","port":"CY_0CYLCA","unit":"NR","vessel":"ODC_PAS_XCR","name":"Larnaka · Passenger ship (excluding cruise ship)","nameEl":"Λάρνακα · Επιβατηγό πλοίο (εκτός κρουαζιερόπλοιων)","points":[["2020-Q1",null],["2020-Q2",null],["2020-Q3",1],["2020-Q4",1],["2021-Q1",null],["2021-Q2",1],["2021-Q3",2],["2021-Q4",2],["2022-Q1",null],["2022-Q2",null],["2022-Q3",null],["2022-Q4",1],["2023-Q1",null],["2023-Q2",null],["2023-Q3",8],["2023-Q4",1],["2024-Q1",null],["2024-Q2",1],["2024-Q3",1],["2024-Q4",4],["2025-Q1",null],["2025-Q2",null],["2025-Q3",null],["2025-Q4",1],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLCA|MSC_FISH","port":"CY_0CYLCA","unit":"NR","vessel":"MSC_FISH","name":"Larnaka · Fishing vessel","nameEl":"Λάρνακα · Αλιευτικό σκάφος","points":[["2020-Q1",null],["2020-Q2",null],["2020-Q3",null],["2020-Q4",null],["2021-Q1",null],["2021-Q2",null],["2021-Q3",1],["2021-Q4",null],["2022-Q1",null],["2022-Q2",1],["2022-Q3",null],["2022-Q4",null],["2023-Q1",null],["2023-Q2",null],["2023-Q3",null],["2023-Q4",null],["2024-Q1",null],["2024-Q2",null],["2024-Q3",null],["2024-Q4",2],["2025-Q1",null],["2025-Q2",null],["2025-Q3",1],["2025-Q4",null],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLCA|MSC_OFF","port":"CY_0CYLCA","unit":"NR","vessel":"MSC_OFF","name":"Larnaka · Offshore activities vessel","nameEl":"Λάρνακα · Σκάφος υπεράκτιων δραστηριοτήτων","points":[["2020-Q1",null],["2020-Q2",2],["2020-Q3",3],["2020-Q4",8],["2021-Q1",null],["2021-Q2",null],["2021-Q3",null],["2021-Q4",null],["2022-Q1",null],["2022-Q2",1],["2022-Q3",null],["2022-Q4",null],["2023-Q1",null],["2023-Q2",null],["2023-Q3",null],["2023-Q4",null],["2024-Q1",null],["2024-Q2",1],["2024-Q3",6],["2024-Q4",3],["2025-Q1",null],["2025-Q2",1],["2025-Q3",null],["2025-Q4",5],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLCA|MSC_OTH","port":"CY_0CYLCA","unit":"NR","vessel":"MSC_OTH","name":"Larnaka · Other type of vessel (dredger, research vessel, other)","nameEl":"Λάρνακα · Άλλος τύπος σκάφους (βυθοκόρος, ερευνητικό σκάφος, άλλο)","points":[["2020-Q1",11],["2020-Q2",5],["2020-Q3",5],["2020-Q4",22],["2021-Q1",null],["2021-Q2",null],["2021-Q3",null],["2021-Q4",2],["2022-Q1",1],["2022-Q2",2],["2022-Q3",1],["2022-Q4",2],["2023-Q1",2],["2023-Q2",1],["2023-Q3",null],["2023-Q4",6],["2024-Q1",3],["2024-Q2",4],["2024-Q3",11],["2024-Q4",3],["2025-Q1",2],["2025-Q2",7],["2025-Q3",19],["2025-Q4",4],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLMS|TOTAL","port":"CY_0CYLMS","unit":"NR","vessel":"TOTAL","name":"Lemesos · All vessel types (published total)","nameEl":"Λεμεσός · Όλοι οι τύποι πλοίων (δημοσιευμένο σύνολο)","points":[["2020-Q1",314],["2020-Q2",291],["2020-Q3",301],["2020-Q4",291],["2021-Q1",272],["2021-Q2",292],["2021-Q3",320],["2021-Q4",305],["2022-Q1",304],["2022-Q2",356],["2022-Q3",407],["2022-Q4",403],["2023-Q1",326],["2023-Q2",390],["2023-Q3",362],["2023-Q4",398],["2024-Q1",299],["2024-Q2",322],["2024-Q3",323],["2024-Q4",324],["2025-Q1",315],["2025-Q2",410],["2025-Q3",407],["2025-Q4",363],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLMS|LBK","port":"CY_0CYLMS","unit":"NR","vessel":"LBK","name":"Lemesos · Liquid bulk tanker","nameEl":"Λεμεσός · Δεξαμενόπλοιο υγρού φορτίου","points":[["2020-Q1",23],["2020-Q2",21],["2020-Q3",22],["2020-Q4",15],["2021-Q1",14],["2021-Q2",15],["2021-Q3",16],["2021-Q4",22],["2022-Q1",17],["2022-Q2",18],["2022-Q3",17],["2022-Q4",20],["2023-Q1",17],["2023-Q2",15],["2023-Q3",17],["2023-Q4",16],["2024-Q1",15],["2024-Q2",20],["2024-Q3",16],["2024-Q4",14],["2025-Q1",15],["2025-Q2",20],["2025-Q3",11],["2025-Q4",1],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLMS|DBK","port":"CY_0CYLMS","unit":"NR","vessel":"DBK","name":"Lemesos · Dry bulk carrier","nameEl":"Λεμεσός · Πλοίο ξηρού χύδην φορτίου","points":[["2020-Q1",6],["2020-Q2",9],["2020-Q3",6],["2020-Q4",4],["2021-Q1",4],["2021-Q2",5],["2021-Q3",1],["2021-Q4",3],["2022-Q1",3],["2022-Q2",7],["2022-Q3",5],["2022-Q4",6],["2023-Q1",2],["2023-Q2",null],["2023-Q3",1],["2023-Q4",4],["2024-Q1",5],["2024-Q2",1],["2024-Q3",1],["2024-Q4",3],["2025-Q1",3],["2025-Q2",2],["2025-Q3",5],["2025-Q4",2],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLMS|ODC_CNT","port":"CY_0CYLMS","unit":"NR","vessel":"ODC_CNT","name":"Lemesos · Container ship","nameEl":"Λεμεσός · Πλοίο εμπορευματοκιβωτίων","points":[["2020-Q1",157],["2020-Q2",163],["2020-Q3",166],["2020-Q4",164],["2021-Q1",159],["2021-Q2",167],["2021-Q3",157],["2021-Q4",151],["2022-Q1",131],["2022-Q2",140],["2022-Q3",152],["2022-Q4",169],["2023-Q1",167],["2023-Q2",179],["2023-Q3",187],["2023-Q4",201],["2024-Q1",188],["2024-Q2",199],["2024-Q3",184],["2024-Q4",182],["2025-Q1",169],["2025-Q2",174],["2025-Q3",181],["2025-Q4",180],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLMS|ODC_SPE","port":"CY_0CYLMS","unit":"NR","vessel":"ODC_SPE","name":"Lemesos · Specialised carrier","nameEl":"Λεμεσός · Εξειδικευμένο φορτηγό πλοίο","points":[["2020-Q1",null],["2020-Q2",null],["2020-Q3",null],["2020-Q4",null],["2021-Q1",null],["2021-Q2",null],["2021-Q3",null],["2021-Q4",null],["2022-Q1",null],["2022-Q2",null],["2022-Q3",1],["2022-Q4",null],["2023-Q1",null],["2023-Q2",null],["2023-Q3",null],["2023-Q4",null],["2024-Q1",null],["2024-Q2",null],["2024-Q3",null],["2024-Q4",null],["2025-Q1",null],["2025-Q2",null],["2025-Q3",null],["2025-Q4",null],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLMS|ODC_GEN","port":"CY_0CYLMS","unit":"NR","vessel":"ODC_GEN","name":"Lemesos · General cargo, non-specialised","nameEl":"Λεμεσός · Πλοίο γενικού φορτίου","points":[["2020-Q1",85],["2020-Q2",71],["2020-Q3",84],["2020-Q4",87],["2021-Q1",73],["2021-Q2",78],["2021-Q3",87],["2021-Q4",89],["2022-Q1",84],["2022-Q2",97],["2022-Q3",103],["2022-Q4",98],["2023-Q1",92],["2023-Q2",91],["2023-Q3",80],["2023-Q4",71],["2024-Q1",60],["2024-Q2",62],["2024-Q3",82],["2024-Q4",74],["2025-Q1",75],["2025-Q2",82],["2025-Q3",79],["2025-Q4",76],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLMS|ODC_DCB","port":"CY_0CYLMS","unit":"NR","vessel":"ODC_DCB","name":"Lemesos · Dry cargo barge","nameEl":"Λεμεσός · Φορτηγίδα ξηρού φορτίου","points":[["2020-Q1",null],["2020-Q2",null],["2020-Q3",null],["2020-Q4",null],["2021-Q1",null],["2021-Q2",null],["2021-Q3",null],["2021-Q4",null],["2022-Q1",null],["2022-Q2",null],["2022-Q3",1],["2022-Q4",null],["2023-Q1",null],["2023-Q2",null],["2023-Q3",2],["2023-Q4",null],["2024-Q1",null],["2024-Q2",null],["2024-Q3",null],["2024-Q4",null],["2025-Q1",null],["2025-Q2",1],["2025-Q3",null],["2025-Q4",null],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLMS|ODC_PCRU","port":"CY_0CYLMS","unit":"NR","vessel":"ODC_PCRU","name":"Lemesos · Cruise ship","nameEl":"Λεμεσός · Κρουαζιερόπλοιο","points":[["2020-Q1",17],["2020-Q2",1],["2020-Q3",null],["2020-Q4",null],["2021-Q1",1],["2021-Q2",4],["2021-Q3",30],["2021-Q4",13],["2022-Q1",7],["2022-Q2",34],["2022-Q3",33],["2022-Q4",44],["2023-Q1",18],["2023-Q2",35],["2023-Q3",22],["2023-Q4",27],["2024-Q1",7],["2024-Q2",6],["2024-Q3",8],["2024-Q4",8],["2025-Q1",8],["2025-Q2",32],["2025-Q3",22],["2025-Q4",21],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLMS|ODC_PAS_XCR","port":"CY_0CYLMS","unit":"NR","vessel":"ODC_PAS_XCR","name":"Lemesos · Passenger ship (excluding cruise ship)","nameEl":"Λεμεσός · Επιβατηγό πλοίο (εκτός κρουαζιερόπλοιων)","points":[["2020-Q1",null],["2020-Q2",null],["2020-Q3",2],["2020-Q4",6],["2021-Q1",2],["2021-Q2",8],["2021-Q3",20],["2021-Q4",7],["2022-Q1",5],["2022-Q2",18],["2022-Q3",33],["2022-Q4",20],["2023-Q1",3],["2023-Q2",28],["2023-Q3",23],["2023-Q4",40],["2024-Q1",1],["2024-Q2",18],["2024-Q3",24],["2024-Q4",18],["2025-Q1",2],["2025-Q2",12],["2025-Q3",25],["2025-Q4",6],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLMS|MSC_FISH","port":"CY_0CYLMS","unit":"NR","vessel":"MSC_FISH","name":"Lemesos · Fishing vessel","nameEl":"Λεμεσός · Αλιευτικό σκάφος","points":[["2020-Q1",null],["2020-Q2",null],["2020-Q3",1],["2020-Q4",null],["2021-Q1",null],["2021-Q2",null],["2021-Q3",1],["2021-Q4",null],["2022-Q1",null],["2022-Q2",1],["2022-Q3",null],["2022-Q4",null],["2023-Q1",null],["2023-Q2",1],["2023-Q3",null],["2023-Q4",null],["2024-Q1",null],["2024-Q2",null],["2024-Q3",null],["2024-Q4",null],["2025-Q1",null],["2025-Q2",null],["2025-Q3",1],["2025-Q4",null],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLMS|MSC_OFF","port":"CY_0CYLMS","unit":"NR","vessel":"MSC_OFF","name":"Lemesos · Offshore activities vessel","nameEl":"Λεμεσός · Σκάφος υπεράκτιων δραστηριοτήτων","points":[["2020-Q1",8],["2020-Q2",1],["2020-Q3",2],["2020-Q4",5],["2021-Q1",null],["2021-Q2",null],["2021-Q3",null],["2021-Q4",5],["2022-Q1",22],["2022-Q2",12],["2022-Q3",15],["2022-Q4",17],["2023-Q1",13],["2023-Q2",22],["2023-Q3",16],["2023-Q4",27],["2024-Q1",19],["2024-Q2",5],["2024-Q3",2],["2024-Q4",5],["2025-Q1",11],["2025-Q2",12],["2025-Q3",3],["2025-Q4",8],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}},
+    {"code":"CY_0CYLMS|MSC_OTH","port":"CY_0CYLMS","unit":"NR","vessel":"MSC_OTH","name":"Lemesos · Other type of vessel (dredger, research vessel, other)","nameEl":"Λεμεσός · Άλλος τύπος σκάφους (βυθοκόρος, ερευνητικό σκάφος, άλλο)","points":[["2020-Q1",18],["2020-Q2",25],["2020-Q3",18],["2020-Q4",10],["2021-Q1",19],["2021-Q2",15],["2021-Q3",8],["2021-Q4",15],["2022-Q1",35],["2022-Q2",29],["2022-Q3",47],["2022-Q4",29],["2023-Q1",14],["2023-Q2",19],["2023-Q3",14],["2023-Q4",12],["2024-Q1",4],["2024-Q2",11],["2024-Q3",6],["2024-Q4",20],["2025-Q1",32],["2025-Q2",75],["2025-Q3",80],["2025-Q4",69],["2026-Q1",null],["2026-Q2",null],["2026-Q3",null]],"flags":{}}
+  ]
+}

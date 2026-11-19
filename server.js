@@ -1663,7 +1663,7 @@ const server = http.createServer(async (req, res) => {
     }
     const to = redirectFor(url);
     if (to) { res.writeHead(302, { Location: to, 'Cache-Control': 'no-store' }); return res.end(); }
-    const fieldwork = /^\/api\/fieldwork\/(reservoir|weather|coast|crossings|census|ev|power|flood|drought|aeronet|gases|verifiedno2|arakapas)$/.exec(url.pathname);
+    const fieldwork = /^\/api\/fieldwork\/(reservoir|weather|coast|crossings|census|ev|power|flood|drought|aeronet|gases|verifiedno2|arakapas|seaarrivals|seanational|seafreight)$/.exec(url.pathname);
     if (fieldwork) {
       if (req.method !== 'GET' && req.method !== 'HEAD') {
         res.writeHead(405, { Allow: 'GET, HEAD' });
