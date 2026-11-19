@@ -106,7 +106,7 @@ const post = async (body, cookie) => {
       await p.click('.kg-btn'); await wait(700);
       ok(!(await p.evaluate(() => document.querySelector('.kg-panel').hidden)), name + ': pressing it opens the panel');
       const foot = await p.locator('.kg-f').innerText();
-      ok(/(not a person|όχι άνθρωπος)/.test(foot) && /(no microphone|χωρίς μικρόφωνο)/.test(foot), name + ': it says it is an AI and that there is no microphone');
+      ok(/(not a person|όχι άνθρωπος)/.test(foot) && /(microphone off, nothing is recorded|μικρόφωνο κλειστό, τίποτα δεν ηχογραφείται)/.test(foot), name + ': it says it is an AI and that the microphone is off');
 
       // the model points at the first button of the page, then at a menu link
       const list = await p.evaluate(() => [...document.querySelectorAll('#view button, #view a.nm-btn, #view [role="tab"], #view select, #view summary')].filter((n) => !n.disabled && n.getBoundingClientRect().width > 4).length);
@@ -164,10 +164,10 @@ const post = async (body, cookie) => {
 
       // typed text: a phone number is not sent
       const n0 = calls;
-      await p.fill('.kg-in input', 'call me on 99123456'); await p.click('.kg-in button'); await wait(900);
+      await p.fill('.kg-in input', 'call me on 99123456'); await p.click('.kg-in button:not(.kg-mic)'); await wait(900);
       ok(calls === n0 && /(Not sent|Δεν στάλθηκε)/.test(await p.locator('.kg-note').last().innerText()), name + ': a typed phone number is stopped in the browser');
       reply = greek ? 'Σωστή σκέψη.' : 'Good thinking.';
-      await p.fill('.kg-in input', greek ? 'Νομίζω η Λεμεσός' : 'I think it is Limassol'); await p.click('.kg-in button');
+      await p.fill('.kg-in input', greek ? 'Νομίζω η Λεμεσός' : 'I think it is Limassol'); await p.click('.kg-in button:not(.kg-mic)');
       await p.waitForFunction((n) => document.querySelectorAll('.kg-a').length > n, 1, { timeout: 15000 }).catch(() => {});
       ok(calls === n0 + 1 && /typed an answer or a question/.test(lastSystem), name + ': a plain typed answer is sent, as an answer to the teacher');
 

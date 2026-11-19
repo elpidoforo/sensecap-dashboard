@@ -870,6 +870,52 @@ function createApp(opts = {}) {
     });
   });
 
+  /* ---- the guide's voice, and the microphone for a spoken question (voice.js) ----
+   * Speaking: only the guide's own words are turned into sound. Listening: off until a teacher switches it on (kept in meta,
+   * like the league switch); a recording is passed on once to be turned into words and is not stored or logged here, and the
+   * words go back to the page, where the student sees them and the privacy check runs before anything is sent on. */
+  const voice = opts.voice || null;
+  const listenOn = () => { const r = get("SELECT value FROM meta WHERE key = 'guide_listen'"); return Boolean(r) && r.value === '1'; };
+  const voiceOut = () => ({ speak: Boolean(voice && voice.enabled), listen: Boolean(voice && voice.enabled) && listenOn(), listenSwitch: listenOn() });
+  const voiceLimit = (key, max, windowMs, msg) => { if (askLimiter.wait(key, max, windowMs)) fail(429, msg, 'rate'); };
+  route('GET', /^\/app\/api\/voice$/, 'none', () => voiceOut());
+  route('PUT', /^\/app\/api\/voice\/switch$/, 'staff', ({ user, body }) => {
+    if (typeof body.listen !== 'boolean') fail(400, 'listen must be true or false.', 'listen');
+    run("INSERT OR REPLACE INTO meta(key, value) VALUES ('guide_listen', ?)", body.listen ? '1' : '0');
+    audit(user, 'guide_listen', body.listen ? 'on' : 'off', '');
+    return voiceOut();
+  });
+  route('POST', /^\/app\/api\/voice\/speak$/, 'none', async ({ req, res, body }) => {
+    if (!voice || !voice.enabled) fail(503, 'The voice is not switched on.', 'off');
+    const text = String(body.text == null ? '' : body.text).replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!text) fail(400, 'Nothing to say.');
+    if ([...text].length > 700) fail(413, 'That is too long to say in one go.', 'long');
+    const vh = visitorOf(req, res), ip = clientIp(req), busy = 'The voice has been used a lot today. The words are still on the screen.';
+    voiceLimit('say-v:' + vh, 150, DAY, busy); voiceLimit('say-ip:' + ip, 800, DAY, busy); voiceLimit('say-all', envInt('GUIDE_TTS_DAILY', 4000), DAY, busy);
+    askLimiter.take('say-v:' + vh, 150, DAY); askLimiter.take('say-ip:' + ip, 800, DAY); askLimiter.take('say-all', envInt('GUIDE_TTS_DAILY', 4000), DAY);
+    let a;
+    try { a = await voice.speak(text, body.lang === 'el' ? 'el' : 'en'); }
+    catch (e) { log('Guide voice: ' + voice.clean(e.message)); fail(502, 'The voice is not available just now.', 'voice'); }
+    res.writeHead(200, { 'Content-Type': a.type, 'Content-Length': a.buf.length, 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' });
+    res.end(a.buf);
+    return STREAMED;
+  });
+  route('POST', /^\/app\/api\/voice\/listen$/, 'none', async ({ req, res, body }) => {
+    if (!voice || !voice.enabled || !listenOn()) fail(403, 'The microphone is switched off.', 'off');
+    const b64 = String(body.audio == null ? '' : body.audio);
+    if (b64.length > 1400000) fail(413, 'That recording is too long. Keep it under 20 seconds.', 'long');
+    if (b64.length < 4000 || !/^[A-Za-z0-9+/]+=*$/.test(b64)) fail(400, 'No recording arrived.', 'audio');
+    const head = Buffer.from(b64.slice(0, 64), 'base64');
+    if (head.toString('latin1', 0, 4) !== 'RIFF' || head.toString('latin1', 8, 12) !== 'WAVE') fail(400, 'The recording is not in the expected form.', 'audio');
+    const vh = visitorOf(req, res), ip = clientIp(req), busy = 'The microphone has been used a lot. Type your question instead.';
+    voiceLimit('hear-vm:' + vh, 6, 60000, 'One moment. Try the microphone again in a minute.'); voiceLimit('hear-v:' + vh, 40, DAY, busy); voiceLimit('hear-ip:' + ip, 400, DAY, busy);
+    askLimiter.take('hear-vm:' + vh, 6, 60000); askLimiter.take('hear-v:' + vh, 40, DAY); askLimiter.take('hear-ip:' + ip, 400, DAY);
+    let text;
+    try { text = await voice.transcribe(b64, body.lang === 'el' ? 'el' : 'en'); }
+    catch (e) { log('Guide microphone: ' + voice.clean(e.message)); fail(502, 'The microphone could not be understood just now. Type your question instead.', 'voice'); }
+    return { text: [...text].slice(0, 300).join('') };   // the words go back to the page; nothing of the recording or the words is kept here
+  });
+
   route('GET', /^\/app\/api\/ask\/status$/, 'none', ({ req }) => {
     const L = askLimits(), now = Date.now(), id = visitorCookie(req);
     const out = { enabled: !noBot(), remaining: id ? leftToday(visitorHash(id), L, now) : L.visitorDaily, limit: L.visitorDaily };
@@ -1223,7 +1269,7 @@ function createApp(opts = {}) {
         if (r.auth === 'staff' && !isStaff(user)) fail(403, 'Teachers only.');
         if (r.auth === 'admin' && user.role !== 'admin') fail(403, 'Admins only.');
       }
-      const parsed = await readJson(req, /bot|ask/.test(r.pattern.source) ? 65536 : 32768);
+      const parsed = await readJson(req, /voice.{1,2}listen/.test(r.pattern.source) ? 1500000 : /bot|ask/.test(r.pattern.source) ? 65536 : 32768);   // a short recording is larger than any text
       const body = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
       const params = r.pattern.exec(url.pathname).slice(1);
       const out = await r.handler({ req, res, url, params, body, user });

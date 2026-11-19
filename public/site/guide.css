@@ -122,3 +122,12 @@
 .kg-hello { bottom: 152px; }
 @media (min-width: 641px) { .kg-panel.at-bl { bottom: 152px; } .kg-panel.at-tl, .kg-panel.at-tr { bottom: auto; } }
 @media (max-width: 640px) { .kg-panel { bottom: 136px; } .kg-hello { bottom: 136px; } }
+
+/* hold to talk, the live notice while the microphone is open, and the teacher's switch */
+.kg-in .kg-mic { flex: 0 0 auto; min-width: 44px; min-height: 44px; padding: 0 10px; border-radius: 999px; font-size: 18px; line-height: 1; touch-action: none; user-select: none; -webkit-user-select: none; }
+.kg-in .kg-mic.on { background: #c62828; border-color: #c62828; color: #fff; box-shadow: 0 0 0 4px rgba(198, 40, 40, .28); }
+.kg-live { margin: 6px 0 0; padding: 6px 10px; border-radius: 8px; background: rgba(198, 40, 40, .12); border: 1px solid rgba(198, 40, 40, .5); font-size: 13px; font-weight: 600; }
+.kg-root.hearing .kg-h { box-shadow: inset 0 -3px 0 #c62828; }
+.kg-staff { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0 0; font-size: 12px; opacity: .9; }
+.kg-staff[hidden], .kg-live[hidden], .kg-mic[hidden] { display: none; }
+.kg-staff input { margin-top: 2px; }

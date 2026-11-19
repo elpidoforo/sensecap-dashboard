@@ -1019,7 +1019,7 @@ let history = null, pageStore = null;
 const feeds = createFeeds({
   dataDir: DATA_DIR, log: (m) => console.error(m),
   simulated: { sensecap: DEMO, openmeteo: MOCK, sensorcommunity: MOCK, metar: MOCK, adsbfi: AIRCRAFT_MOCK },
-  secrets: [ID, KEY, PASS, process.env.ANTHROPIC_API_KEY, process.env.ADMIN_SETUP_CODE, process.env.CLASS_LOGIN_PASSWORD, process.env.STUDIO_CLASS_SECRET],
+  secrets: [ID, KEY, PASS, process.env.ANTHROPIC_API_KEY, process.env.OPENROUTER_API_KEY, process.env.ADMIN_SETUP_CODE, process.env.CLASS_LOGIN_PASSWORD, process.env.STUDIO_CLASS_SECRET],
 });
 // SenseCAP by push (Seeed's OpenStream MQTT feed). OFF unless SENSECAP_MQTT=1 plus an organisation id and a TLS port (see
 // sensecap_stream.js); while it is off every call on this object does nothing and the REST polling above is exactly as before.
@@ -1321,7 +1321,8 @@ function startApp() {
   });
   assistant = bot;
   notifier = createNotifier({ log: (m) => console.log(m) });   // an email to the admin when something waits for approval (off until RESEND_API_KEY and NOTIFY_EMAIL are set)
-  appCore = createApp({ dataDir: DATA_DIR, bot, notify: notifier, log: (m) => console.log(m) });
+  const voice = require('./voice').createVoice({ apiKey: process.env.OPENROUTER_API_KEY, log: (m) => console.log(m) });   // Kleanthis's voice and the microphone (off without a key)
+  appCore = createApp({ dataDir: DATA_DIR, bot, voice, notify: notifier, log: (m) => console.log(m) });
   try { gtfs = createGtfs({ dataDir: DATA_DIR, simulated: MOCK, log: (m) => console.error(m) }); gtfs.start(); }   // official bus timetables: the first download runs in the background and can never stop the server from starting
   catch (e) { console.error('GTFS: not started (' + e.message + ')'); gtfs = null; }
   try {   // official air-quality stations (EEA): an hourly download in the background; a failure is one log line and the Layers page says "not available right now"
@@ -1663,7 +1664,7 @@ const APP_CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'uns
 // policy (csp3d.js: three.js is served from /vendor/three-r160/, so nothing is loaded from another host). The map page still keeps
 // no policy of its own because it uses CDN scripts and inline code.
 const { policy3d } = require('./csp3d');
-const SITE_CSP = "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
+const SITE_CSP = "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
 
 // The old pages now live inside the site shell. Opened on their own they send people there. With ?embed=1 the shell (or the
 // student app) gets the page itself, to show in a same-origin frame.

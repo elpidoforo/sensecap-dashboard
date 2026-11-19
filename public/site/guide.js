@@ -5,9 +5,14 @@
      made per step: one answer carries up to four steps, so following them costs one question, not four.
    - Pointing is safe by design: this file sends a list of the things on the screen (menu links, and the buttons of the page),
      the server keeps only steps whose id is in that list, and the light only ever goes to an element this file itself listed.
-   - Voice: the browser's speech synthesis, on this device. Nothing is recorded: there is no microphone here. The student
-     types or presses a ready-made reply. A typed question passes the same privacy check as the classroom notes (TK4.checkText)
-     before it is sent; if that check cannot be loaded, typing is switched off and the buttons still work.
+   - Voice: when the school has a speech service (GET /app/api/voice says so), Kleanthis's own words are sent to it and come
+     back as sound (POST /app/api/voice/speak); nothing a student wrote is ever sent there. Without it, or if it fails, the
+     browser's own voice reads the words. The words are always on the screen too.
+   - Microphone: off until a teacher switches it on. Then a student can hold a button and speak: the recording (20 seconds at
+     most) is sent once to be turned into words, is not kept, and the words are put in the box for the student to read and
+     send. Nothing is sent to Kleanthis until the student presses Send, and the typed-text privacy check runs as always.
+   - A typed question passes the same privacy check as the classroom notes (TK4.checkText) before it is sent; if that check
+     cannot be loaded, typing is switched off and the buttons still work.
    - Same assistant and the same daily limits as the Ask bubble (POST /app/api/ask). An AI, and the panel says so.
    SC.guide.setPage(id, name) is called by the shell on every route; SC.guide.close() by the Ask bubble. */
 (function () {
@@ -63,11 +68,52 @@
 
   /* ---------- the voice (this device only) ---------- */
   const synth = () => (typeof speechSynthesis === 'object' && typeof SpeechSynthesisUtterance === 'function' ? speechSynthesis : null);
-  function hush() { const s = synth(); if (s) { try { s.cancel(); } catch (e) { /* nothing was speaking */ } } talking(false); }
-  function speak(text) {
+  let vs = { speak: false, listen: false, listenSwitch: false }, player = null, sayId = 0;
+  function hush() {
+    sayId++;
+    if (player) { try { player.pause(); } catch (e) { /* already stopped */ } if (player.src) URL.revokeObjectURL(player.src); player = null; }
+    const s = synth(); if (s) { try { s.cancel(); } catch (e) { /* nothing was speaking */ } } talking(false);
+  }
+  // Long answers are said in pieces that end at a sentence, so each request stays short and the first words come sooner.
+  function pieces(text) {
+    const out = []; let cur = '';
+    (String(text).replace(/\s+/g, ' ').trim().match(/[^.!?;·…]+[.!?;·…]*\s*/g) || []).map((x) => x.trim()).filter(Boolean).forEach((sen) => {
+      while ([...sen].length > 600) { out.push([...sen].slice(0, 600).join('')); sen = [...sen].slice(600).join(''); }
+      if (cur && [...(cur + ' ' + sen)].length > 600) { out.push(cur); cur = sen; } else cur = cur ? cur + ' ' + sen : sen;
+    });
+    if (cur) out.push(cur);
+    return out.slice(0, 6);
+  }
+  async function speak(text) {
+    if (!voiceOn || !text) return;
+    hush();
+    if (!vs.speak || typeof Audio !== 'function') return speakHere(text);
+    const mine = sayId, list = pieces(text), lang = SC.lang === 'el' ? 'el' : 'en';
+    const get = (t) => fetch('/app/api/voice/speak', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: t, lang }) })
+      .then((r) => { if (!r.ok) throw new Error('voice ' + r.status); return r.blob(); });
+    let ahead = get(list[0]);
+    for (let i = 0; i < list.length; i++) {
+      let blob;
+      try { blob = await ahead; } catch (e) { if (mine === sayId) speakHere(list.slice(i).join(' '), true); return; }   // the service failed: this device reads the rest
+      if (mine !== sayId) return;
+      ahead = i + 1 < list.length ? get(list[i + 1]) : null; if (ahead) ahead.catch(() => {});
+      const a = new Audio(URL.createObjectURL(blob)); player = a;
+      const ended = await new Promise((done) => {
+        a.onplaying = () => talking(true);
+        a.onended = () => done(true); a.onerror = () => done(false); a.onpause = () => { if (!a.ended) done(false); };
+        a.play().catch(() => done(false));
+      });
+      URL.revokeObjectURL(a.src);
+      if (mine !== sayId) return;
+      player = null;
+      if (!ended) { talking(false); return; }
+    }
+    talking(false);
+  }
+  function speakHere(text, keep) {
     const s = synth();
     if (!s || !voiceOn || !text) return;
-    hush();
+    if (!keep) hush();
     const want = SC.lang === 'el' ? 'el' : 'en';
     let voices = []; try { voices = s.getVoices() || []; } catch (e) { voices = []; }
     const voice = voices.find((v) => String(v.lang || '').toLowerCase().startsWith(want));
@@ -271,6 +317,88 @@
     ask(c.text, 'ask');
   }
 
+  /* ---------- hold to talk (only when a teacher has switched the microphone on) ----------
+   * The recording lives in this page's memory, is turned into a small sound file (16 kHz, one channel), sent once and dropped.
+   * The words come back into the box. The student reads them and presses Send; until then nothing has gone to Kleanthis. */
+  const canHear = () => Boolean(vs.listen && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && typeof MediaRecorder === 'function' && (window.AudioContext || window.webkitAudioContext) && window.OfflineAudioContext);
+  let rec = null;
+  function wavOf(buf) {                 // 16-bit sound file from the samples
+    const d = buf.getChannelData(0), out = new DataView(new ArrayBuffer(44 + d.length * 2));
+    const str = (o, t) => { for (let i = 0; i < t.length; i++) out.setUint8(o + i, t.charCodeAt(i)); };
+    str(0, 'RIFF'); out.setUint32(4, 36 + d.length * 2, true); str(8, 'WAVEfmt '); out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, 1, true);
+    out.setUint32(24, buf.sampleRate, true); out.setUint32(28, buf.sampleRate * 2, true); out.setUint16(32, 2, true); out.setUint16(34, 16, true); str(36, 'data'); out.setUint32(40, d.length * 2, true);
+    for (let i = 0; i < d.length; i++) { const v = Math.max(-1, Math.min(1, d[i])); out.setInt16(44 + i * 2, v < 0 ? v * 32768 : v * 32767, true); }
+    return new Uint8Array(out.buffer);
+  }
+  const b64 = (bytes) => { let t = ''; for (let i = 0; i < bytes.length; i += 32768) t += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768)); return btoa(t); };
+  function micState(on, text) {
+    const m = panel.querySelector('.kg-mic'); if (!m) return;
+    m.classList.toggle('on', !!on); m.setAttribute('aria-pressed', String(!!on));
+    root.classList.toggle('hearing', !!on);
+    const live = panel.querySelector('.kg-live'); live.hidden = !on && !text; live.textContent = text || (on ? T('The microphone is on. Speak, then let go.', 'Το μικρόφωνο είναι ανοιχτό. Μίλα και μετά άφησε το κουμπί.') : '');
+  }
+  async function micDown() {
+    if (rec || busy || !canHear()) return;
+    hush();
+    const mine = rec = { chunks: [], stream: null, mr: null, timer: null, let: false };
+    try { mine.stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } }); }
+    catch (e) { rec = null; micState(false); note(T('The browser did not allow the microphone. You can type instead.', 'Ο περιηγητής δεν επέτρεψε το μικρόφωνο. Μπορείς να γράψεις.')); return; }
+    const end = () => mine.stream.getTracks().forEach((t) => t.stop());
+    if (mine.let || rec !== mine) { end(); if (rec === mine) rec = null; micState(false); return; }   // let go before the microphone opened
+    try { mine.mr = new MediaRecorder(mine.stream); } catch (e) { end(); rec = null; micState(false); return; }
+    const t0 = Date.now();
+    mine.mr.ondataavailable = (e) => { if (e.data && e.data.size) mine.chunks.push(e.data); };
+    mine.mr.onstop = async () => {
+      end(); clearTimeout(mine.timer); rec = null;
+      if (Date.now() - t0 < 500) { micState(false); note(T('Hold the button while you speak.', 'Κράτα το κουμπί πατημένο όσο μιλάς.')); return; }
+      micState(false, T('Turning your words into text…', 'Μετατρέπω τα λόγια σου σε κείμενο…'));
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext, ac = new AC();
+        let heard; try { heard = await ac.decodeAudioData(await new Blob(mine.chunks, { type: mine.mr.mimeType }).arrayBuffer()); } finally { try { ac.close(); } catch (e) { /* closed */ } }
+        mine.chunks.length = 0;
+        const secs = Math.min(20, heard.duration), off = new OfflineAudioContext(1, Math.max(1, Math.ceil(secs * 16000)), 16000), src = off.createBufferSource();
+        src.buffer = heard; src.connect(off.destination); src.start();
+        const audio = b64(wavOf(await off.startRendering()));
+        const r = await fetch('/app/api/voice/listen', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ audio, lang: SC.lang === 'el' ? 'el' : 'en' }) });
+        let b = null; try { b = await r.json(); } catch (e) { /* not JSON */ }
+        micState(false);
+        if (!r.ok) { note((b && b.error) || T('I could not hear that. Try again, or type.', 'Δεν το άκουσα. Δοκίμασε ξανά ή γράψε.')); return; }
+        const words = String((b && b.text) || '').trim();
+        if (!words) { note(T('I heard no words. Try again a little closer.', 'Δεν άκουσα λόγια. Δοκίμασε ξανά πιο κοντά.')); return; }
+        const input = panel.querySelector('.kg-in input');
+        input.value = words.slice(0, 300); input.focus();
+        note(T('Is this what you said? Fix it if you need to, then press Send.', 'Αυτό είπες; Διόρθωσέ το αν χρειάζεται και πάτησε Στείλε.'));
+      } catch (e) { micState(false); note(T('I could not hear that. Try again, or type.', 'Δεν το άκουσα. Δοκίμασε ξανά ή γράψε.')); }
+    };
+    mine.mr.start(); micState(true);
+    mine.timer = setTimeout(micUp, 20000);   // 20 seconds is the longest question
+  }
+  function micUp() { if (!rec) return; rec.let = true; if (rec.mr && rec.mr.state === 'recording') { try { rec.mr.stop(); } catch (e) { /* stopped */ } } }
+  function micDrop() { if (rec) { rec.chunks.length = 0; const mr = rec.mr; rec.let = true; if (mr) mr.onstop = null; if (mr && mr.state === 'recording') { try { mr.stop(); } catch (e) { /* stopped */ } } if (rec.stream) rec.stream.getTracks().forEach((t) => t.stop()); clearTimeout(rec.timer); rec = null; } if (panel) micState(false); }
+
+  // What the school has switched on: the made voice, and the microphone. Asked when the box is built and each time it opens.
+  function voiceDraw() {
+    const mic = panel.querySelector('.kg-mic'); mic.hidden = !canHear();
+    if (!canHear()) micDrop();
+    panel.querySelector('.kg-voice').hidden = !synth() && !vs.speak;
+    panel.querySelector('.kg-f').textContent = T('AI assistant · not a person', 'Βοηθός AI · όχι άνθρωπος') + ' · ' + (vs.listen
+      ? T('the microphone works only while you hold its button; the recording becomes text and is not kept', 'το μικρόφωνο δουλεύει μόνο όσο κρατάς το κουμπί του· η ηχογράφηση γίνεται κείμενο και δεν φυλάσσεται')
+      : T('microphone off, nothing is recorded', 'μικρόφωνο κλειστό, τίποτα δεν ηχογραφείται'));
+    const sw = panel.querySelector('.kg-staff'), staff = Boolean(SC.me && (SC.me.role === 'teacher' || SC.me.role === 'admin'));
+    sw.hidden = !(staff && vs.speak);
+    sw.querySelector('input').checked = !!vs.listenSwitch;
+  }
+  async function voiceCheck() {
+    try { const r = await fetch('/app/api/voice', { credentials: 'same-origin' }); if (r.ok) { const b = await r.json(); vs = { speak: !!b.speak, listen: !!b.listen, listenSwitch: !!b.listenSwitch }; } } catch (e) { /* the browser voice still works */ }
+    if (panel) voiceDraw();
+  }
+  async function micSwitch(e) {
+    const box = e.target, want = box.checked; box.disabled = true;
+    try { const b = await SC.api('/app/api/voice/switch', { method: 'PUT', body: { listen: want } }); vs = { speak: !!b.speak, listen: !!b.listen, listenSwitch: !!b.listenSwitch }; }
+    catch (err) { note(T('The microphone setting was not saved.', 'Η ρύθμιση του μικροφώνου δεν αποθηκεύτηκε.')); }
+    box.disabled = false; voiceDraw();
+  }
+
   async function ask(text, mode) {
     if (busy || !text) return;
     busy = true; hush(); finish('');
@@ -322,7 +450,6 @@
       voiceOn = !voiceOn; store.set('sc.guide.voice', voiceOn ? '1' : '0'); if (!voiceOn) hush();
       voiceBtn.setAttribute('aria-pressed', String(voiceOn)); voiceBtn.textContent = voiceOn ? T('Voice on', 'Φωνή ανοιχτή') : T('Voice off', 'Φωνή κλειστή');
     } }, voiceOn ? T('Voice on', 'Φωνή ανοιχτή') : T('Voice off', 'Φωνή κλειστή'));
-    if (!synth()) voiceBtn.hidden = true;   // a browser with no voice: the text is all there is, and no switch pretends otherwise
     panel = el('div', { class: 'kg-panel', hidden: true, role: 'dialog', 'aria-label': T('Kleanthis guides you through this page', 'Ο Κλεάνθης σε οδηγεί σε αυτή τη σελίδα') },
       el('div', { class: 'kg-h' },
         face(40, 'kg-face-h'),
@@ -341,14 +468,23 @@
         el('div', { class: 'kg-in' },
           el('input', { type: 'text', maxlength: 300, 'aria-label': T('Your answer or question', 'Η απάντηση ή η ερώτησή σου'), placeholder: T('Type your answer or a question…', 'Γράψε την απάντηση ή μια ερώτηση…'),
             onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); typed(); } } }),
-          el('button', { type: 'button', onclick: typed }, T('Send', 'Στείλε')))),
-      el('div', { class: 'kg-f' }, T('AI assistant · not a person · no microphone, nothing is recorded', 'Βοηθός AI · όχι άνθρωπος · χωρίς μικρόφωνο, τίποτα δεν ηχογραφείται')));
+          el('button', { type: 'button', class: 'kg-mic', hidden: true, 'aria-pressed': 'false', 'aria-label': T('Hold to speak your question', 'Κράτα πατημένο για να πεις την ερώτησή σου'), title: T('Hold to talk', 'Κράτα για να μιλήσεις'),
+            onpointerdown: (e) => { e.preventDefault(); try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* no capture: the release is still seen on the window */ } micDown(); },   // captured: the box may grow under the finger
+            onpointerup: micUp, onlostpointercapture: micUp, onpointercancel: micDrop,
+            onkeydown: (e) => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); micDown(); } }, onkeyup: (e) => { if (e.key === ' ' || e.key === 'Enter') micUp(); }, onblur: micUp },
+            el('span', { 'aria-hidden': 'true' }, '🎤')),
+          el('button', { type: 'button', onclick: typed }, T('Send', 'Στείλε'))),
+        el('div', { class: 'kg-live', role: 'status', hidden: true }),
+        el('label', { class: 'kg-staff', hidden: true }, el('input', { type: 'checkbox', onchange: micSwitch }),
+          el('span', null, T('Teacher: let students speak their question (hold-to-talk microphone)', 'Εκπαιδευτικός: οι μαθητές μπορούν να πουν την ερώτησή τους (μικρόφωνο με πατημένο κουμπί)')))),
+      el('div', { class: 'kg-f' }, ''));
     btn = el('button', { type: 'button', class: 'kg-btn', 'aria-expanded': 'false', onclick: () => toggle(!open) },
       face(52, 'kg-face-b'), el('span', null, T('Guide me', 'Οδήγησέ με')));
     dot = el('div', { class: 'kg-dot' + (reduced() ? ' still' : ''), hidden: true, 'aria-hidden': 'true' });
     root = el('div', { class: 'kg-root' }, panel, btn);
     document.body.append(root, dot);
     dock(); panel.querySelector('.kg-h').addEventListener('pointerdown', dragStart);
+    voiceDraw(); voiceCheck();
     helloLater();
     document.addEventListener('click', onClick, true);
     addEventListener('keydown', (e) => {   // Escape closes the guide, unless the student is closing a dialog of the page
@@ -357,7 +493,8 @@
       if (!other) toggle(false);
     });
     addEventListener('scroll', () => { if (at >= 0) place(); }, true);
-    addEventListener('pagehide', hush);
+    addEventListener('pagehide', () => { hush(); micDrop(); });
+    addEventListener('pointerup', micUp); addEventListener('blur', micDrop);
   }
 
   /* ---------- the box floats: drag it by its top bar, or press the corner button; it never has to cover what you are reading ---------- */
@@ -402,7 +539,7 @@
 
   function toggle(want) {
     open = !!want;
-    if (open) hideHello();
+    if (open) { hideHello(); voiceCheck(); } else micDrop();
     panel.hidden = !open;
     btn.setAttribute('aria-expanded', String(open));
     if (open) { if (SC.askBubble && SC.askBubble.close) SC.askBubble.close(); loadKit(); if (!who && !feed().children.length) welcome(); else chips(); setTimeout(() => { const c = panel.querySelector('.kg-chip'); if (c && open) c.focus(); }, 30); }
