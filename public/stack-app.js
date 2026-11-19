@@ -14,8 +14,10 @@
   kept) and they stay a drawing: they never reach layers.js, the brain, a prompt or sources/*.json. Ports are published
   quarterly statistics; no ship is drawn or tracked.
 */
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+// Full paths, not the short name 'three': some tablets and older browsers do not apply the page's import map, and then the
+// short name cannot be found and the whole scene never starts.
+import * as THREE from '/vendor/three-r160/build/three.module.js';
+import { OrbitControls } from '/vendor/three-r160/examples/jsm/controls/OrbitControls.js';
 
 const I = window.ISLAND;
 const ISL = new Path2D(); Object.values(I.districts).forEach((p) => ISL.addPath(new Path2D(p)));

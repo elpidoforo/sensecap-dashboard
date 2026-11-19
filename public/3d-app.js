@@ -1,5 +1,7 @@
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+// Full paths, not the short name 'three': some tablets and older browsers do not apply the page's import map, and then the
+// short name cannot be found and the whole scene never starts.
+import * as THREE from '/vendor/three-r160/build/three.module.js';
+import { OrbitControls } from '/vendor/three-r160/examples/jsm/controls/OrbitControls.js';
 
 window.__embedReady = true;   // the shell frame around this page waits for this
 

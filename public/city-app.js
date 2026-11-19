@@ -7,8 +7,10 @@
   Drag moves the map, right-drag or two fingers turn it, the wheel or a pinch zooms. Nothing here shows a vehicle or a person.
   Test hooks: body[data-view] island | flying | city, body[data-city], body[data-buildings], window.__embedReady.
 */
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+// Full paths, not the short name 'three': some tablets and older browsers do not apply the page's import map, and then the
+// short name cannot be found and the whole scene never starts.
+import * as THREE from '/vendor/three-r160/build/three.module.js';
+import { OrbitControls } from '/vendor/three-r160/examples/jsm/controls/OrbitControls.js';
 
 const SEARCH = typeof location.search === 'string' ? location.search : '';
 const qp = (k) => { const m = new RegExp('[?&]' + k + '=([^&#]*)').exec(SEARCH); if (!m) return ''; try { return decodeURIComponent(m[1]); } catch (e) { return ''; } };

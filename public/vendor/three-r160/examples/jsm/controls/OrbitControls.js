@@ -9,7 +9,7 @@ import {
 	Plane,
 	Ray,
 	MathUtils
-} from 'three';
+} from '../../../build/three.module.js';   // Kleanthis: a path instead of the short name 'three', so the file loads without an import map (the only change to this file)
 
 // OrbitControls performs orbiting, dollying (zooming), and panning.
 // Unlike TrackballControls, it maintains the "up" direction object.up (+Y by default).

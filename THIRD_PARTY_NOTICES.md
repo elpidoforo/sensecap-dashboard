@@ -8,7 +8,7 @@ A student's browser never loads anything from a third-party server.
 
 | What | Where | Source and pin | Licence |
 |---|---|---|---|
-| three.js r160 (`build/three.module.js`, `examples/jsm/controls/OrbitControls.js`), unmodified | `public/vendor/three-r160/` | https://github.com/mrdoob/three.js, tag `r160`, commit `d04539a76736ff500cae883d6a38b3dd8643c548` | MIT, copyright 2010-2023 three.js authors (`LICENSE` next to the files) |
+| three.js r160 (`build/three.module.js`, `examples/jsm/controls/OrbitControls.js`); `three.module.js` unmodified, `OrbitControls.js` with one line changed (its import of `three` is a relative path, so it loads without an import map) | `public/vendor/three-r160/` | https://github.com/mrdoob/three.js, tag `r160`, commit `d04539a76736ff500cae883d6a38b3dd8643c548` | MIT, copyright 2010-2023 three.js authors (`LICENSE` next to the files) |
 | three.js r128 (`three.min.js` and, from `examples/js`: `CopyShader.js`, `EffectComposer.js`, `RenderPass.js`, `ShaderPass.js`, `LuminosityHighPassShader.js`, `UnrealBloomPass.js`), unmodified | `public/vendor/three-r128/` | https://github.com/mrdoob/three.js, tag `r128` | MIT (`LICENSE` in that folder) |
 | QR Code generator library (Project Nayuki), `qrcodegen.ts` with the TypeScript types stripped by `node:module` `stripTypeScriptTypes`; no other change | `public/vendor/qrcodegen/` | https://github.com/nayuki/QR-Code-generator, commit `bcfe1b018cec5f1f91b5705eca5bb4cdd34e9f8d` | MIT (`LICENSE` next to the file) |
 | hyparquet 1.33.0 (Parquet reader), `src/*.js` unchanged, `package.json` marks `"type":"module"` | `vendor/hyparquet/` | https://github.com/hyparam/hyparquet, v1.33.0, commit `8f4096afaa8da5d0bbd76a0225b44c71ac4fcd83` | MIT (`LICENSE` next to the files) |
