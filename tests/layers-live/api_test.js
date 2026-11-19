@@ -3,7 +3,7 @@
    Run: node tests/layers-live/api_test.js   (no network; port 3966; takes about 25 s because it waits for the log to grow) */
 const os = require('os'), fs = require('fs'), path = require('path');
 const { spawn } = require('child_process');
-const PORT = 3966, BASE = `http://127.0.0.1:${PORT}`;
+const PORT = Number(process.env.LAYERS_LIVE_TEST_PORT) || 3966, BASE = `http://127.0.0.1:${PORT}`;
 let passed = 0, failed = 0;
 const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + m); } };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
