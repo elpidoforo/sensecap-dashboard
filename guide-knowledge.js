@@ -58,11 +58,12 @@ function createGuideKnowledge({ root, log = () => {} }) {
       const P = proj, both = (x) => L(x.name, lang) + ': ' + L(x.does, lang);
       return [
         'Name: ' + L(P.name, lang) + '. ' + L(P.platform, lang),
-        'Mission: ' + L(P.mission.title, lang) + '. ' + L(P.mission.tag, lang) + ' ' + L(P.mission.what, lang) + ' ' + L(P.mission.why, lang) + ' Motto: ' + L(P.mission.motto, lang),
+        'Mission: ' + L(P.mission.title, lang) + '. ' + L(P.mission.tag, lang) + ' ' + L(P.mission.what, lang) + ' ' + L(P.mission.why, lang) + ' ' + L(P.mission.created, lang) + ' ' + L(P.mission.vision, lang) + ' ' + L(P.mission.promise, lang) + ' Motto: ' + L(P.mission.motto, lang),
         'Schools: ' + P.schools.map((s) => L(s.name, lang) + ' (' + L(s.city, lang) + ')').join('; ') + '.',
         'People: ' + P.people.map((p) => L(p, lang)).join(' '),
         'The five roles in a team:\n' + P.roles.map((r) => '- ' + both(r)).join('\n'),
-        'The four steps:\n' + P.steps.map((s, i) => (i + 1) + '. ' + both(s)).join('\n'),
+        'The five steps of the work:\n' + P.steps.map((s, i) => (i + 1) + '. ' + both(s)).join('\n'),
+        'What students learn: ' + (P.learn || []).map(both).join(' '),
         'Using AI: ' + L(P.responsible.motto, lang) + ' ' + P.responsible.rules.map(both).join(' '),
         'Where it leads:\n' + P.goals.map((g) => '- ' + both(g)).join('\n'),
         'Start: ' + L(P.launch.when, lang) + ' ' + P.launch.steps.map((s, i) => (i + 1) + ') ' + L(s, lang)).join(', ') + '.',

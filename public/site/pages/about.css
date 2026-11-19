@@ -29,14 +29,15 @@
 .ab-roles span, .ab-rules span, .ab-goals span, .ab-steps span { font-size: 14.5px; line-height: 1.5; color: var(--nm-text); }
 
 /* the four steps are a real sequence, so they are numbered */
-.ab-steps { counter-reset: ab; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.ab-steps { counter-reset: ab; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
 .ab-steps li { counter-increment: ab; display: flex; flex-direction: column; gap: 8px; padding: 16px 16px 18px; border-radius: 14px; background: var(--nm-well); border: 1px solid var(--nm-edge); min-width: 0; }
 .ab-steps li::before { content: counter(ab); display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; font: 700 15px/1 var(--nm-font-display); color: #0b1a2e; background: #8FE3F7; }
 .ab-steps li:last-child::before { background: #F2B24C; }
 
 .ab-rules, .ab-goals { display: grid; gap: 12px; }
 .ab-rules { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.ab-goals { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ab-goals, .ab-learn { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ab-vision { margin-top: 6px; }
 .ab-rules li, .ab-goals li { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-left: 3px solid #8FE3F7; background: var(--nm-well); border-radius: 0 14px 14px 0; min-width: 0; }
 
 .ab-launch { counter-reset: abl; display: flex; flex-wrap: wrap; gap: 8px 10px; }
@@ -46,5 +47,5 @@
 .ab-act { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 0; }
 .ab-src { margin: 14px 0 0; font-size: 13px; line-height: 1.5; color: var(--nm-muted); max-width: 80ch; }
 
-@media (max-width: 1100px) { .ab-roles { grid-template-columns: repeat(3, minmax(0, 1fr)); } .ab-steps, .ab-rules, .ab-schools { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ab-goals { grid-template-columns: 1fr; } }
-@media (max-width: 640px) { .ab-sec, .ab-hero { padding: 18px 16px; } .ab-roles, .ab-steps, .ab-rules, .ab-schools { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) { .ab-roles, .ab-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); } .ab-learn { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ab-rules, .ab-schools { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ab-goals { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .ab-sec, .ab-hero { padding: 18px 16px; } .ab-roles, .ab-steps, .ab-rules, .ab-learn, .ab-schools { grid-template-columns: 1fr; } }

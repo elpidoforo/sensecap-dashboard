@@ -1,5 +1,5 @@
 /*
-  About the project: the mission, who takes part, the five student roles, the four steps, the rules for using AI and where the
+  About the project: the mission, who takes part, the five student roles, the five steps, the rules for using AI and where the
   work leads. Route: #/about.
   Nothing is written here: every sentence comes from /site/project.js (SC.PROJECT), the same file the server gives to Kleanthis,
   so the page and the assistant say the same thing. No data is fetched and there are no numbers that could go stale.
@@ -35,8 +35,8 @@
       root.append(SC.head({
         title: T('About the project', 'Σχετικά με το έργο'),
         lede: T('What Smart Cities is, who takes part, what you do in it and why it matters.', 'Τι είναι οι Έξυπνες Πόλεις, ποιοι συμμετέχουν, τι κάνεις εσύ και γιατί έχει σημασία.'),
-        help: ['This page is the project in words: the mission, the four schools, the five roles in a team, the four steps from measuring to explaining, and the rules for using AI. Kleanthis, the guide, knows the same text, so you can ask him about any of it.',
-          'Αυτή η σελίδα είναι το έργο με λόγια: η αποστολή, τα τέσσερα σχολεία, οι πέντε ρόλοι μιας ομάδας, τα τέσσερα βήματα από τη μέτρηση ως την εξήγηση και οι κανόνες για τη χρήση της τεχνητής νοημοσύνης. Ο Κλεάνθης, ο οδηγός, γνωρίζει το ίδιο κείμενο, οπότε μπορείς να τον ρωτήσεις για οτιδήποτε από αυτά.'],
+        help: ['This page is the project in words: the mission, the four schools, the five roles in a team, the five steps from placing a sensor to presenting evidence, and the rules for using AI. Kleanthis, the guide, knows the same text, so you can ask him about any of it.',
+          'Αυτή η σελίδα είναι το έργο με λόγια: η αποστολή, τα τέσσερα σχολεία, οι πέντε ρόλοι μιας ομάδας, τα πέντε βήματα από την τοποθέτηση ενός αισθητήρα ως την παρουσίαση των στοιχείων και οι κανόνες για τη χρήση της τεχνητής νοημοσύνης. Ο Κλεάνθης, ο οδηγός, γνωρίζει το ίδιο κείμενο, οπότε μπορείς να τον ρωτήσεις για οτιδήποτε από αυτά.'],
       }));
       if (!(await load())) {
         root.append(h('div', { class: 'nm-card ab-sec', role: 'alert' }, h('p', null, T('The project text could not be loaded. Check your connection and open the page again.', 'Το κείμενο του έργου δεν φορτώθηκε. Έλεγξε τη σύνδεσή σου και άνοιξε ξανά τη σελίδα.'))));
@@ -50,6 +50,7 @@
         h('p', { class: 'ab-tag' }, L(M.tag)),
         h('p', { class: 'ab-what' }, L(M.what)),
         h('p', { class: 'ab-what' }, L(M.why)),
+        h('ul', { class: 'ab-list ab-vision' }, [M.created, M.vision, M.promise].map((p) => h('li', null, L(p)))),
         h('p', { class: 'ab-motto' }, L(M.motto))));
 
       root.append(section('who', T('Four schools, one network', 'Τέσσερα σχολεία, ένα δίκτυο'), null, h('div', null,
@@ -63,12 +64,15 @@
           h('span', { class: 'nm-icon-tile ab-ic' }, SC.icon(r.icon, 22)), h('b', null, L(r.name)), h('span', null, L(r.does)))))));
 
       root.append(section('steps', T('From a bus ride to an idea for the city', 'Από μια διαδρομή λεωφορείου σε μια ιδέα για την πόλη'),
-        T('The four steps, in order. Each one has tools on this site.', 'Τα τέσσερα βήματα, με τη σειρά. Το καθένα έχει εργαλεία σε αυτόν τον ιστότοπο.'),
+        T('The five steps, in order. Each one has tools on this site.', 'Τα πέντε βήματα, με τη σειρά. Το καθένα έχει εργαλεία σε αυτόν τον ιστότοπο.'),
         h('div', null,
           h('ol', { class: 'ab-steps' }, P.steps.map((s) => h('li', null, h('b', null, L(s.name)), h('span', null, L(s.does))))),
           h('p', { class: 'ab-act' },
             go('layers', T('See the data', 'Δες τα δεδομένα')), go('explore', T('Analyse it', 'Ανάλυσέ τα')),
             go('forecast', T('Test a prediction', 'Έλεγξε μια πρόβλεψη')), go('start', T('Start a project', 'Ξεκίνα ένα έργο'))))));
+
+      root.append(section('learn', T('What you learn', 'Τι μαθαίνεις'), null,
+        h('ul', { class: 'ab-rules ab-learn' }, P.learn.map((r) => h('li', null, h('b', null, L(r.name)), h('span', null, L(r.does)))))));
 
       root.append(section('ai', T('How we use AI', 'Πώς χρησιμοποιούμε την τεχνητή νοημοσύνη'), L(P.responsible.motto),
         h('ul', { class: 'ab-rules' }, P.responsible.rules.map((r) => h('li', null, h('b', null, L(r.name)), h('span', null, L(r.does)))))));

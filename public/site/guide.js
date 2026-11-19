@@ -235,8 +235,9 @@
   ];
   function welcome() {
     hush(); finish('');
-    const hello = T('Hello, my name is Kleanthis. I am the AI assistant of this site, not a person. I am here to teach you, to help you find your way around, and to give you missions. I show you where to press with a red light. First, three quick questions, so that I can adapt to you.',
-      'Γεια σου, με λένε Κλεάνθη. Είμαι ο βοηθός τεχνητής νοημοσύνης αυτού του ιστότοπου, όχι άνθρωπος. Είμαι εδώ για να σε διδάξω, να σε βοηθήσω να βρεις τον δρόμο σου και να σου δώσω αποστολές. Σου δείχνω πού να πατήσεις με ένα κόκκινο φως. Πρώτα, τρεις σύντομες ερωτήσεις, για να προσαρμοστώ σε σένα.');
+    // About thirty seconds when spoken: who he is, why the platform was made, the vision, the mission. The words are the project's own (site/project.js).
+    const hello = T('Hello, my name is Kleanthis. I am the AI assistant of this site, not a person. This platform was created so that students in four cities of Cyprus can measure their own city, with sensors on buses and satellites above. Our vision: a smarter, more sustainable Cyprus that starts in school. Your mission: explore the data, ask questions, and explain what you find. I give you missions and point with a red light. First, three quick questions, so that I can adapt to you.',
+      'Γεια σου, με λένε Κλεάνθη. Είμαι ο βοηθός τεχνητής νοημοσύνης αυτού του ιστότοπου, όχι άνθρωπος. Η πλατφόρμα δημιουργήθηκε για να μετρούν οι μαθητές σε τέσσερις πόλεις της Κύπρου τη δική τους πόλη, με αισθητήρες σε λεωφορεία και δορυφόρους από ψηλά. Το όραμά μας: μια πιο έξυπνη και βιώσιμη Κύπρος που ξεκινά από το σχολείο. Η αποστολή σου: εξερεύνησε τα δεδομένα, κάνε ερωτήσεις και εξήγησε τι βρήκες. Σου δίνω αποστολές και σου δείχνω με ένα κόκκινο φως. Πρώτα, τρεις σύντομες ερωτήσεις, για να προσαρμοστώ σε σένα.');
     const box = el('div', { class: 'kg-a' }, el('p', null, hello)); say(box);
     who = { who: null, age: null, goal: null };
     askWho(0, hello);

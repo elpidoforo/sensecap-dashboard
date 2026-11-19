@@ -231,7 +231,7 @@
   ];
   // What each page holds, from the menu map. Shown on the calm "coming soon" page of an entry whose file is not there yet.
   const DESC = {
-    about: ['The mission, the four schools, the five roles in a team, the four steps and the rules for using AI.', 'Η αποστολή, τα τέσσερα σχολεία, οι πέντε ρόλοι μιας ομάδας, τα τέσσερα βήματα και οι κανόνες για τη χρήση της τεχνητής νοημοσύνης.'],
+    about: ['The mission, the four schools, the five roles in a team, the five steps and the rules for using AI.', 'Η αποστολή, τα τέσσερα σχολεία, οι πέντε ρόλοι μιας ομάδας, τα πέντε βήματα και οι κανόνες για τη χρήση της τεχνητής νοημοσύνης.'],
     aircraft: ['Where aeroplanes around Cyprus are right now, as a whole picture: rounded places, no flight names, and gaps where no receiver listens.', 'Πού βρίσκονται τώρα τα αεροπλάνα γύρω από την Κύπρο, ως συνολική εικόνα: στρογγυλεμένες θέσεις, χωρίς ονόματα πτήσεων και με κενά όπου δεν ακούει κανένας δέκτης.'],
     lessonbuilder: ['Turn a question into a field lesson: the class measures something outside, then checks it against what the platform holds. Three pages to print.', 'Κάνε μια ερώτηση μάθημα πεδίου: η τάξη μετρά κάτι έξω και μετά το ελέγχει με όσα κρατά η πλατφόρμα. Τρεις σελίδες για εκτύπωση.'],
     fieldwork: ['Compare local reference datasets and download the values behind each chart.', 'Σύγκρινε τοπικά δεδομένα αναφοράς και κατέβασε τις τιμές κάθε διαγράμματος.'],

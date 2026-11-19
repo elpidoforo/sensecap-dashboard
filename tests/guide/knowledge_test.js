@@ -17,8 +17,8 @@ const NEW = ['approvals', 'ask', 'askmap', 'beforeafter', 'brief', 'bubbles', 'c
   'lessonbuilder', 'lessons', 'methods', 'notebook', 'opsmap', 'radar', 'school360', 'settings', 'timemachine', 'vent', 'versus', 'watch', 'workshop'];
 const BEFORE = ['home', 'board', 'city3d', 'alerts', 'layers', 'weather', 'explore', 'library', 'join', 'schools', 'districts', 'guides', 'council', 'mirror',
   'whatif', 'reports', 'map', 'vehicles', 'desk', 'projects', 'start', 'stack', 'health', 'fieldwork', 'city', 'research', 'archive', 'feeds', 'helpers',
-  'warnings', 'submitted', 'studio'];
-const BEFORE_COUNT = 33;
+  'warnings', 'submitted', 'studio', 'about'];
+const BEFORE_COUNT = 34;   // 33, and the page "About the project" (explain/about.js)
 const GREEK = /[Ͱ-Ͽἀ-῿]/;
 const LEAD_MAX = 220, LINE_MAX = 240, HEAD_MAX = 40;
 
@@ -90,6 +90,42 @@ const groupIds = g ? (g[1].match(/([a-z0-9]+)\s*:/g) || []).map((x) => x.replace
 ok(groupIds.length >= 30, 'the GROUP map was read (' + groupIds.length + ' ids)');
 NEW.forEach((id) => ok(!groupIds.includes(id), 'not in the GROUP map: ' + id));
 ok(g && !/['"]more['"]/.test(g[1]), 'no page loads more.js in the browser');
+
+/* ---------- the project's knowledge base (public/site/project.js), which the page "About the project" and the assistant share ---------- */
+{
+  const SCp = {};
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'public', 'site', 'project.js'), 'utf8'), vm.createContext({ window: { SC: SCp }, SC: SCp }), { timeout: 500 });
+  const P = SCp.PROJECT;
+  ok(P && P.mission && P.mission.created && P.mission.vision && P.schools.length === 4 && P.roles.length === 5 && P.steps.length === 5 && P.learn.length === 6 && P.responsible.rules.length === 4 && P.launch.steps.length === 4, 'project: mission and vision, four schools, five roles, five steps, six things learned, four rules for AI, four launch steps');
+  const walk = (v, where) => {
+    if (Array.isArray(v) && v.length === 2 && typeof v[0] === 'string' && typeof v[1] === 'string') {
+      ok(v[0].trim().length > 1 && v[1].trim().length > 1, 'project ' + where + ': neither language is empty');
+      ok(GREEK.test(v[1]) || /^(International School of Paphos|STEAM)$/.test(v[1]), 'project ' + where + ': the Greek has Greek letters');
+      ok(!GREEK.test(v[0]), 'project ' + where + ': the English has no Greek letters');
+      ok(!/[<>]/.test(v[0] + v[1]), 'project ' + where + ': no markup');
+      ok(!/\d{2,}|\d[.,]\d|%/.test(v[0] + v[1]), 'project ' + where + ': no figures (the numbers drawn on the slides are examples, not results)');
+      return;
+    }
+    if (Array.isArray(v)) return v.forEach((x, i) => walk(x, where + '[' + i + ']'));
+    if (v && typeof v === 'object') return Object.keys(v).forEach((k) => { if (k !== 'icon') walk(v[k], where + '.' + k); });
+  };
+  walk(P, 'P');
+  const k2 = createGuideKnowledge({ root: ROOT });
+  const en = k2.project('en'), el = k2.project('el');
+  ok(/City Storyteller/.test(en) && /AI informs\. People decide\./.test(en) && /International School of Paphos/.test(en) && /Kleanthis/.test(en), 'project: the assistant is given the roles, the rule for AI, the schools and its own name');
+  ok(/Why the platform was created/.test(en) && /The vision:/.test(en) && /Present evidence/.test(en), 'project: and why the platform was created, the vision and the five steps');
+  ok(/Αφηγητής της πόλης/.test(el) && /Κλεάνθης/.test(el) && /Το όραμα/.test(el), 'project: and the same in Greek');
+  ok(en.length < 7000 && el.length < 8000, 'project: short enough to give with every question (' + en.length + ', ' + el.length + ')');
+  ok(/nav:about = About the project/.test(k2.map('en')), 'project: the page is on the guide\'s map of the site');
+  const pageSrc = fs.readFileSync(path.join(ROOT, 'public', 'site', 'pages', 'about.js'), 'utf8');
+  ok(!/innerHTML|insertAdjacentHTML/.test(pageSrc), 'project: the page never puts text in as markup');
+  // the spoken welcome: why, vision, mission, in about thirty seconds
+  const gsrc = fs.readFileSync(path.join(ROOT, 'public', 'site', 'guide.js'), 'utf8');
+  const m = /const hello = T\('((?:[^'\\]|\\.)*)',\s*'((?:[^'\\]|\\.)*)'\);/.exec(gsrc);
+  ok(m && /was created so that/.test(m[1]) && /Our vision:/.test(m[1]) && /Your mission:/.test(m[1]), 'welcome: he first says why the platform was created, the vision and the mission');
+  ok(m && /δημιουργήθηκε/.test(m[2]) && /Το όραμά μας/.test(m[2]) && /Η αποστολή σου/.test(m[2]), 'welcome: and the same in Greek');
+  ok(m && m[1].split(/\s+/).length <= 85 && m[2].split(/\s+/).length <= 85, 'welcome: short enough to say in about thirty seconds (' + (m && m[1].split(/\s+/).length) + ' and ' + (m && m[2].split(/\s+/).length) + ' words)');
+}
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

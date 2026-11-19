@@ -49,6 +49,7 @@ const post = async (body, cookie) => {
   ok(r.ans && !/STEP:/.test(r.ans.text) && /Which city is warmest\?/.test(r.ans.text), 'guide: the STEP lines are cut out of the words that are shown and spoken');
   ok(r.ans && JSON.stringify(r.ans.steps.map((s) => s.id)) === '["el:1","nav:layers"]', 'guide: a step to something not on the page is dropped, and nothing follows a move to another page (' + JSON.stringify(r.ans && r.ans.steps) + ')');
   ok(/GUIDE MODE/.test(lastSystem) && /nav:layers = Data layers/.test(lastSystem) && /el:1 = Temperature/.test(lastSystem), 'guide: the assistant is told what it may point at');
+  ok(/ABOUT THE PROJECT/.test(lastSystem) && /City Storyteller/.test(lastSystem) && /do not add dates, numbers/.test(lastSystem), 'guide: the assistant is given the project\'s own text, and told not to add to it');
   ok(/^el:2 = Compare b cities[^<>]*$/m.test(lastSystem), 'guide: labels are cut to plain words before the assistant sees them');
   ok(!/javascript:|bad id|duplicate/.test(lastSystem), 'guide: an id of the wrong shape, an empty label and a repeated id never reach the assistant');
   ok(/Answer in English/.test(lastSystem) && /not the final answer/.test(lastSystem), 'guide: it is asked to teach (next step, not the answer), in the language of the page');
@@ -57,6 +58,7 @@ const post = async (body, cookie) => {
   reply = 'Only words.';
   r = await post({ question: 'Hello there' });
   ok(r.ans && r.ans.steps === undefined && !/GUIDE MODE/.test(lastSystem), 'guide: a plain question (the Ask bubble) is exactly as before: no guide text, no steps');
+  ok(/ABOUT THE PROJECT/.test(lastSystem) && /Sensor Engineer/.test(lastSystem), 'ask: the Ask bubble knows the project too');
   r = await post({ question: 'x y z', guide: { page: 'home', targets: [] } });
   ok(r.ans && r.ans.steps === undefined && !/GUIDE MODE/.test(lastSystem), 'guide: with nothing to point at there is no guide mode');
   r = await post({ question: 'Explain', guide: { page: 'home', name: 'Today', lang: 'en', mode: 'explain', targets, who: 'class', age: 'primary', goal: 'look' } });

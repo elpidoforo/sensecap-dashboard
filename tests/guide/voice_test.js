@@ -15,7 +15,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // the pretend speech service: remembers what it was asked, answers with a short tone or with words
 const seen = { speech: [], hear: [], auth: [] };
-let speechStatus = 200, heardText = 'Which city is the warmest today?';
+let speechStatus = 200, refuseVoice = '', heardText = 'Which city is the warmest today?';
 const tone = (secs) => { const b = Buffer.alloc(Math.floor(24000 * secs) * 2); for (let i = 0; i < b.length / 2; i++) b.writeInt16LE(Math.round(Math.sin(i / 12) * 6000), i * 2); return b; };
 const fake = http.createServer((req, res) => {
   const parts = []; req.on('data', (d) => parts.push(d));
@@ -24,6 +24,7 @@ const fake = http.createServer((req, res) => {
     seen.auth.push(req.headers.authorization || '');
     if (req.url === '/api/v1/audio/speech') {
       seen.speech.push(j);
+      if (refuseVoice && j.voice === refuseVoice) { res.writeHead(400, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: { message: 'unknown voice' } })); }
       if (speechStatus !== 200) { res.writeHead(speechStatus, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: { message: 'no, and your key was ' + KEY } })); }
       res.writeHead(200, { 'content-type': 'audio/pcm;rate=24000' }); return res.end(tone(0.4));
     }
@@ -85,7 +86,7 @@ const up = async (base) => { for (let i = 0; i < 80; i++) { try { const r = awai
   r = await vis.post('/app/api/voice/speak', { text: 'Hello, my name is Kleanthis.', lang: 'en' });
   ok(r.status === 200 && /audio\/wav/.test(r.type) && r.buf.toString('latin1', 0, 4) === 'RIFF' && r.buf.length > 5000, 'speak: a sound file comes back (' + r.status + ' ' + r.type + ' ' + r.buf.length + ')');
   const sent = seen.speech[0] || {};
-  ok(sent.input === 'Hello, my name is Kleanthis.' && sent.response_format === 'pcm' && typeof sent.voice === 'string' && /teacher/.test(sent.instructions || ''), 'speak: the service gets the words, a voice and the way to say them');
+  ok(sent.input === 'Hello, my name is Kleanthis.' && sent.response_format === 'pcm' && sent.voice === 'Charon' && /teacher/.test(sent.instructions || '') && /about sixty/.test(sent.instructions || ''), 'speak: the service gets the words, a voice and the way to say them');
   ok(seen.auth[0] === 'Bearer ' + KEY, 'speak: the key goes to the service in the header');
   await vis.post('/app/api/voice/speak', { text: 'Hello, my name is Kleanthis.', lang: 'en' });
   ok(seen.speech.length === 1, 'speak: the same words a second time cost nothing (kept in memory)');
@@ -95,6 +96,11 @@ const up = async (base) => { for (let i = 0; i < 80; i++) { try { const r = awai
   ok(r.status === 413, 'speak: more than 700 letters is refused (' + r.status + ')');
   r = await vis.post('/app/api/voice/speak', { text: '   ', lang: 'en' });
   ok(r.status === 400, 'speak: nothing to say is refused (' + r.status + ')');
+  refuseVoice = 'Charon';
+  const n0 = seen.speech.length;
+  r = await vis.post('/app/api/voice/speak', { text: 'A line for a voice the service does not know.', lang: 'en' });
+  ok(r.status === 200 && seen.speech.length === n0 + 2 && seen.speech[n0 + 1].voice === 'Puck', 'speak: if the service refuses the chosen voice, the known voice says the line instead of silence (' + r.status + ')');
+  refuseVoice = '';
   speechStatus = 500;
   r = await vis.post('/app/api/voice/speak', { text: 'A line the service refuses.', lang: 'en' });
   ok(r.status === 502 && !r.buf.toString('utf8').includes(KEY), 'speak: a failing service gives a plain message without the key (' + r.status + ')');
