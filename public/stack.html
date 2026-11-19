@@ -56,8 +56,8 @@ html.on-site,html.on-site body{background:transparent}
 .lay .nm{flex:1;min-width:0}
 .lay .nm b{display:block;font:700 10.5px/1.3 var(--sans)}
 .lay .nm small{display:block;font:600 8.5px/1.35 var(--mono);color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lay .val{font:700 10px/1 var(--mono);white-space:nowrap;text-align:right}
-.lay .val em{font-style:normal;display:block;margin-top:3px;font-size:8px;color:var(--faint)}
+.lay .val{font:700 10px/1 var(--mono);white-space:nowrap;text-align:right;flex:0 0 auto;max-width:96px}
+.lay .val em{font-style:normal;display:block;margin-top:3px;font-size:8px;line-height:1.25;color:var(--faint);white-space:normal}
 .lay .st{width:6px;height:6px;border-radius:50%;flex:0 0 auto}
 .lay{position:relative;overflow:hidden}
 .lay .go{position:absolute;left:0;bottom:0;height:2px;width:0;background:var(--c);opacity:.5;transition:width .9s linear}
@@ -103,6 +103,13 @@ html.on-site,html.on-site body{background:transparent}
 .lg-state.model{border-color:rgba(127,179,255,.45);background:rgba(127,179,255,.07)} .lg-state.model b{color:#a9c8ff}
 .lg-state.published{border-color:rgba(255,184,107,.4);background:rgba(255,184,107,.06)} .lg-state.published b{color:#ffc98e}
 .lg-state.demo{border-style:dashed;border-color:rgba(242,165,107,.6);background:rgba(224,127,63,.1)} .lg-state.demo b{color:#F2A56B}
+.legend p.lg-honest{margin-top:8px;padding:6px 9px;border-left:3px solid var(--c);border-radius:0 8px 8px 0;background:rgba(255,255,255,.05);color:var(--ink);font:700 11.5px/1.4 var(--sans)}
+.lg-modes{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.lg-modes button{min-height:32px;padding:0 10px;border-radius:8px;cursor:pointer;color:var(--ink);background:rgba(120,190,240,.1);border:1px solid var(--edge);font:700 10.5px/1.2 var(--sans)}
+.lg-modes button:hover{background:rgba(120,190,240,.22)}
+.lg-modes button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.lg-modes button[aria-pressed="true"]{background:var(--c);border-color:var(--c);color:#06131f}
+.lg-state.scheduled,.lg-state.delayed{border-color:rgba(255,184,107,.4);background:rgba(255,184,107,.06)} .lg-state.scheduled b,.lg-state.delayed b{color:#ffc98e}
 .lg-link{display:inline-block;margin-top:4px;color:var(--old);font-weight:700}
 .lg-link:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .legend p.lg-demo{color:#F2A56B}
@@ -175,13 +182,14 @@ html.on-site,html.on-site body{background:transparent}
   </div>
 
   <div class="foot">
-    <p class="note" data-el="ΣΥΡΕ ΓΙΑ ΠΕΡΙΣΤΡΟΦΗ · ΚΥΛΗΣΗ Ή ΤΣΙΜΠΗΜΑ ΓΙΑ ΖΟΥΜ · ΤΑ "ΠΕΡΙΟΧΗ" ΚΑΙ "ΚΥΠΡΟΣ" ΜΕΤΑΚΙΝΟΥΝ ΤΗ ΘΕΑ · ΠΑΤΑ ΕΝΑ ΣΤΡΩΜΑ ΓΙΑ ΝΑ ΤΟ ΚΡΥΨΕΙΣ · Ο ΔΑΚΤΥΛΙΟΣ ΣΕ ΚΑΘΕ ΣΧΟΛΕΙΟ ΔΕΙΧΝΕΙ ΠΟΣΟ ΠΑΛΙΑ ΕΙΝΑΙ Η ΜΕΤΡΗΣΗ ΤΩΝ ΔΙΚΩΝ ΤΟΥ ΑΙΣΘΗΤΗΡΩΝ · ΔΥΟ ΚΟΥΚΙΔΕΣ ΣΕ ΜΠΑΡΑ: ΔΥΟ ΠΗΓΕΣ ΔΕΝ ΣΥΜΦΩΝΟΥΝ ΚΑΙ ΤΟ ΚΕΝΟ ΕΙΝΑΙ Η ΔΙΑΦΟΡΑ ΤΟΥΣ, ΟΧΙ ΘΕΣΗ">DRAG TO TURN · SCROLL OR PINCH TO ZOOM · "REGION" AND "CYPRUS" MOVE THE VIEW · TAP A LAYER TO HIDE IT · THE RING AT EACH SCHOOL SHOWS HOW OLD ITS OWN SENSOR READING IS · TWO DOTS ON A BAR: TWO SOURCES DISAGREE AND THE GAP IS THE SIZE OF THAT DISAGREEMENT, NOT A PLACE</p>
+    <p class="note" data-el="ΣΥΡΕ ΓΙΑ ΠΕΡΙΣΤΡΟΦΗ · ΚΥΛΗΣΗ Ή ΤΣΙΜΠΗΜΑ ΓΙΑ ΖΟΥΜ · ΤΑ "ΠΕΡΙΟΧΗ" ΚΑΙ "ΚΥΠΡΟΣ" ΜΕΤΑΚΙΝΟΥΝ ΤΗ ΘΕΑ · ΠΑΤΑ ΕΝΑ ΣΤΡΩΜΑ ΓΙΑ ΝΑ ΤΟ ΑΝΑΨΕΙΣ Ή ΝΑ ΤΟ ΚΡΥΨΕΙΣ · Ο ΔΑΚΤΥΛΙΟΣ ΣΕ ΚΑΘΕ ΣΧΟΛΕΙΟ ΔΕΙΧΝΕΙ ΠΟΣΟ ΠΑΛΙΑ ΕΙΝΑΙ Η ΜΕΤΡΗΣΗ ΤΩΝ ΔΙΚΩΝ ΤΟΥ ΑΙΣΘΗΤΗΡΩΝ · ΔΥΟ ΚΟΥΚΙΔΕΣ ΣΕ ΜΠΑΡΑ: ΔΥΟ ΠΗΓΕΣ ΔΕΝ ΣΥΜΦΩΝΟΥΝ ΚΑΙ ΤΟ ΚΕΝΟ ΕΙΝΑΙ Η ΔΙΑΦΟΡΑ ΤΟΥΣ, ΟΧΙ ΘΕΣΗ">DRAG TO TURN · SCROLL OR PINCH TO ZOOM · "REGION" AND "CYPRUS" MOVE THE VIEW · TAP A LAYER TO SWITCH IT ON OR OFF · THE RING AT EACH SCHOOL SHOWS HOW OLD ITS OWN SENSOR READING IS · TWO DOTS ON A BAR: TWO SOURCES DISAGREE AND THE GAP IS THE SIZE OF THAT DISAGREEMENT, NOT A PLACE</p>
     <div class="glass tools">
       <button type="button" class="view" id="view-region" aria-pressed="true" data-el="ΠΕΡΙΟΧΗ" title="Show the whole region around Cyprus" data-tel="Δείξε όλη την περιοχή γύρω από την Κύπρο">REGION</button>
       <button type="button" class="view" id="view-cyprus" aria-pressed="false" data-el="ΚΥΠΡΟΣ" title="Fly in to Cyprus" data-tel="Πέτα κοντά στην Κύπρο">CYPRUS</button>
       <span class="sep" aria-hidden="true"></span>
       <button type="button" id="tour" aria-pressed="true" data-el="ΞΕΝΑΓΗΣΗ">TOUR</button>
-      <button type="button" id="all" aria-pressed="true" data-el="ΟΛΑ">ALL</button>
+      <button type="button" id="opening" aria-pressed="true" data-el="ΒΑΣΙΚΑ" title="Show the opening set of sheets" data-tel="Δείξε τα βασικά φύλλα, όπως στην αρχή">MAIN SET</button>
+      <button type="button" id="all" aria-pressed="false" data-el="ΟΛΑ" title="Switch on every sheet at once" data-tel="Άναψε όλα τα φύλλα μαζί">ALL</button>
       <button type="button" id="measured" aria-pressed="false" data-el="ΜΟΝΟ ΜΕΤΡΗΜΕΝΑ">MEASURED ONLY</button>
       <button type="button" data-band="SPACE" data-el="ΔΙΑΣΤΗΜΑ">SPACE</button>
       <button type="button" data-band="AIR" data-el="ΑΕΡΑΣ">AIR</button>
@@ -189,10 +197,10 @@ html.on-site,html.on-site body{background:transparent}
       <button type="button" data-band="CITY" data-el="ΠΟΛΗ">CITY</button>
       <button type="button" data-band="WATER" data-el="ΝΕΡΟ">WATER</button>
     </div>
-    <p class="note" style="text-align:right" data-el="ΚΑΘΕ ΣΤΡΩΜΑ ΔΕΙΧΝΕΙ ΤΗΝ ΠΗΓΗ ΤΟΥ ΚΑΙ ΤΗΝ ΗΛΙΚΙΑ ΤΗΣ ΜΕΤΡΗΣΗΣ · ΤΑ ΥΠΟΛΟΙΠΑ ΛΕΝΕ «ΣΧΕΔΙΑΣΜΕΝΟ»">EACH LAYER SHOWS ITS SOURCE AND THE AGE OF ITS READING · THE REST SAY “DRAWN”</p>
+    <p class="note" style="text-align:right" data-el="ΚΑΘΕ ΣΤΡΩΜΑ ΔΕΙΧΝΕΙ ΤΗΝ ΠΗΓΗ ΤΟΥ ΚΑΙ ΠΟΣΟ ΠΑΛΙΑ ΕΙΝΑΙ ΤΑ ΔΕΔΟΜΕΝΑ ΤΟΥ · ΟΣΑ ΔΕΝ ΕΧΟΥΝ ΔΕΔΟΜΕΝΑ ΤΟ ΛΕΝΕ">EACH LAYER SHOWS ITS SOURCE AND HOW OLD ITS DATA IS · THE ONES WITH NO DATA SAY SO</p>
   </div>
 </div>
-<div class="hint" id="hint" data-el="Η ΞΕΝΑΓΗΣΗ ΤΡΕΧΕΙ · ΣΥΡΕ ΓΙΑ ΝΑ ΑΝΑΛΑΒΕΙΣ">TOUR RUNNING · DRAG TO TAKE OVER</div>
+<div class="hint" id="hint" data-el="Η ΞΕΝΑΓΗΣΗ ΔΕΙΧΝΕΙ ΚΑΘΕ ΦΥΛΛΟ ΜΕ ΤΗ ΣΕΙΡΑ · ΣΥΡΕ Ή ΠΑΤΑ ΚΑΤΙ ΓΙΑ ΝΑ ΑΝΑΛΑΒΕΙΣ">THE TOUR SHOWS EVERY SHEET IN TURN · DRAG OR PRESS ANYTHING TO TAKE OVER</div>
 <script src="/site/island.js"></script>
 <script src="/stack-guard.js"></script>
 <script type="importmap">

@@ -1,7 +1,8 @@
 'use strict';
 /* The data stack in 3D (#/stack and /stack.html): the page is served under the import-map policy, the 3D view starts,
    every layer is listed with its source, the buttons hide and show layers, and the whole thing speaks Greek.
-   The newer sheets and the wider region have their own files beside this one: region_test.js, sea_air_test.js, feeds_test.js.
+   The wider region, the sea and the air have their own file beside this one (sea_air_test.js), and so have the sheets fed by
+   /api/stack (sheets_test.js). This file switches every sheet on first ("ALL"), so it checks the whole list at once.
    The key: every layer has a caption, a scale with units, a line on what its motion means and a line on its source, in both
    languages; the painted sheets draw only what the feed holds; reduced motion gets a still picture; no data says so.
    Real server in demo mode, real browser.
@@ -14,7 +15,7 @@ let pass = 0, fail = 0;
 const ok = (c, name) => { if (c) pass++; else { fail++; console.log('FAIL: ' + name); } };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const GL = ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'];
-const N = 15;   // the sheets of the stack: seabed, waves, ships, water, island, city, heat, veg, air, wind, rain, haze, aircraft, cloud, sat
+const N = 30;   // the sheets of the stack, from the seabed up to the satellite picture
 
 (async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'stk-'));
@@ -50,6 +51,15 @@ const N = 15;   // the sheets of the stack: seabed, waves, ships, water, island,
       for (let i = 0; i < 80 && !ready; i++) { ready = await frame.evaluate(() => !!window.__embedReady).catch(() => false); if (!ready) await wait(250); }
       ok(ready, name + ': the 3D view started');
       ok(await frame.locator('.lay').count() === N, name + ': every layer is listed');
+      // the page opens on a smaller set, with the tour running; here the tour is stopped and every sheet is switched on
+      const opening = await frame.evaluate(() => ({ on: window.__sheets().on, def: window.__sheets().opening, built: window.__sheets().built, main: document.getElementById('opening').getAttribute('aria-pressed'), tour: window.__sheets().tour }));
+      ok(opening.on.length === opening.def.length && opening.on.length >= 8 && opening.on.length < N && opening.main === 'true', name + ': the page opens on a set of ' + opening.on.length + ' sheets, not on all ' + N);
+      ok(opening.built.every((id) => opening.on.includes(id)), name + ': and only those sheets have been made');
+      ok(opening.tour === true, name + ': the tour starts by itself');
+      await frame.evaluate(() => document.getElementById('all').click());
+      ok(await frame.evaluate(() => window.__sheets().tour === false && document.getElementById('hint').hidden), name + ': pressing anything stops the tour');
+      for (let i = 0; i < 80; i++) { if (await frame.evaluate(() => window.__sheets().loaded.length >= 22 && window.__stack().answers.length >= 21)) break; await wait(300); }
+      ok(await frame.evaluate(() => window.__sheets().on.length) === N, name + ': "ALL" switches every sheet on');
       const srcs = await frame.locator('.lay small').allTextContents();
       ok(srcs.length === N && srcs.every((s) => s.trim().length > 3), name + ': every layer says where it comes from');
       // the list is in bands that fold; on a phone they start folded so the scene is not hidden behind the list
@@ -63,13 +73,13 @@ const N = 15;   // the sheets of the stack: seabed, waves, ships, water, island,
       // the sheets that are fed by real readings, and the ones that say they are not
       for (let i = 0; i < 60; i++) { if (await frame.evaluate(() => /min ago|just now|πριν|μόλις/.test(document.querySelector('.rail').innerText))) break; await wait(300); }
       const vals = await frame.locator('.lay .val').allTextContents();
-      const measured = vals.filter((v) => /ago|now|πριν|μόλις/.test(v));
+      const measured = vals.filter((v) => /min ago|h ago|just now|πριν|μόλις/.test(v));
       const drawn = vals.filter((v) => /drawn|σχεδιασμένο/.test(v));
-      const other = vals.filter((v) => /published|δημοσιευμένα|DEMO|ΕΠΙΔΕΙΞΗ|no depth data|χωρίς δεδομένα βάθους/.test(v) && !/ago|now|πριν|μόλις|drawn|σχεδιασμένο/.test(v));
+      const other = vals.filter((v) => /published|δημοσιευμένα|DEMO|ΕΠΙΔΕΙΞΗ|ΔΟΚΙΜΗ|no depth grid|χωρίς πλέγμα βάθους|timetable|δρομολόγιο|delayed|καθυστέρηση|no data now|χωρίς δεδομένα τώρα/.test(v) && !/min ago|h ago|just now|πριν|μόλις|drawn|σχεδιασμένο/.test(v));
       ok(measured.length >= 3, name + ': the measured sheets show a real reading with its age (' + measured.length + ')');
-      ok(drawn.length >= 3, name + ': the sheets with no feed say they are drawn (' + drawn.length + ')');
-      ok(other.length === 3, name + ': the ports say "published", the demo aeroplanes say "demo" and the seabed says it has no depth data (' + other.join(' | ') + ')');
-      ok(measured.length + drawn.length + other.length === N, name + ': every layer says which of these it is');
+      ok(drawn.length >= 2, name + ': the sheets with no feed say they are drawn (' + drawn.length + ')');
+      ok(other.length >= 18, name + ': the other sheets say what they are: published, a timetable, delayed, demo, or no data now (' + other.length + ')');
+      ok(measured.length + drawn.length + other.length === N, name + ': every layer says which of these it is (' + vals.filter((v) => !measured.includes(v) && !drawn.includes(v) && !other.includes(v)).join(' | ') + ')');
       ok(measured.every((v) => /[0-9]/.test(v)), name + ': a measured sheet shows a number');
       const rail = await frame.evaluate(() => document.querySelector('.rail').innerText);
       ok(/sensecap|cydom|openmeteo|metar/.test(rail), name + ': the rail names the source each reading came from');
@@ -155,18 +165,19 @@ const N = 15;   // the sheets of the stack: seabed, waves, ships, water, island,
       }
       const by = (id) => seen.find((x) => x.id === id) || {};
       ok(new Set(seen.map((x) => x.id)).size === N && seen.every((x) => x.alone === 1), name + ': the key steps through all ' + N + ' layers, one at a time');
-      ok(seen[0].id === 'seabed' && seen[N - 1].id === 'sat' && /1 \/ 15/.test(seen[0].all) && /15 \/ 15/.test(seen[N - 1].all), name + ': from the seabed up to the satellite, counting as it goes');
+      ok(seen[0].id === 'seabed' && seen[N - 1].id === 'sat' && seen[0].all.includes('1 / ' + N) && seen[N - 1].all.includes(N + ' / ' + N), name + ': from the seabed up to the satellite, counting as it goes');
       ok(await frame.evaluate(() => document.getElementById('legend').contains(document.activeElement)), name + ': and the keyboard stays inside the key while it steps');
       ok(seen.every((x) => x.cap.length > 30 && x.move.length > 20 && x.src.length > 15), name + ': every layer has a caption, a line on motion and a line on its source');
+      ok(seen.filter((x) => x.state !== 'none').every((x) => x.id === 'sat' || x.id === 'ships' || x.id === 'aircraft' || x.scale.length > 8), name + ': every sheet with data shows a scale or says what a mark stands for, with its unit (' + seen.filter((x) => x.state !== 'none' && !x.scale).map((x) => x.id).join(', ') + ')');
       const greek = /[α-ωά-ώ]/, latinWords = /\b(the|and|from|with|where)\b/i;
       ok(seen.every((x) => (el ? greek.test(x.cap) && greek.test(x.move) && greek.test(x.src) && !latinWords.test(x.cap + x.move) : !greek.test(x.all))), name + ': the key speaks ' + (el ? 'Greek' : 'English') + ' throughout');
       const units = { wind: 'm/s', rain: 'mm', cloud: '%', air: 'µg/m³', waves: '°C', island: '°C' };
       ok(Object.keys(units).every((id) => by(id).scale.includes(units[id]) && /[0-9]/.test(by(id).scale)), name + ': every fed layer shows a colour scale with numbers and its unit');
       ok(['wind', 'rain', 'cloud', 'air', 'waves'].every((id) => by(id).state === 'model' && /(MODEL|ΜΟΝΤΕΛΟ)/.test(by(id).src)), name + ': a sheet painted from a model says it is a model, not a measurement');
       ok(by('ships').state === 'published' && /(PUBLISHED|ΔΗΜΟΣΙΕΥΜΕΝΑ)/.test(by('ships').src) && by('aircraft').state === 'demo' && /(DEMO|ΕΠΙΔΕΙΞΗΣ)/.test(by('aircraft').src), name + ': published figures say "published", made-up test points say "demo"');
-      ok(by('seabed').state === 'none' && by('seabed').scale === '' && !/EMODnet/i.test(by('seabed').all), name + ': with no depth file the seabed claims no source and shows no scale');
+      ok(by('seabed').state === 'published' && /(No depth grid has been loaded|Δεν έχει φορτωθεί πλέγμα βάθους)/.test(by('seabed').src) && /(three coloured lines|τρεις χρωματιστές γραμμές)/.test(by('seabed').src), name + ': with no depth file the seabed says the floor is not drawn and that only the three profile lines are depths');
       ok(by('island').state === 'measured' && /[0-9]/.test(by('island').src), name + ': the stations sheet says it is measured, and by how many stations');
-      ok(['water', 'city', 'heat', 'veg', 'haze'].every((id) => by(id).state === 'none' && by(id).scale === '' && /(NO LIVE DATA|ΧΩΡΙΣ ΖΩΝΤΑΝΑ ΔΕΔΟΜΕΝΑ)/.test(by(id).src)), name + ': a sheet with no feed says "no live data", shows no scale and claims no motion');
+      ok(['heat', 'veg'].every((id) => by(id).state === 'none' && by(id).scale === '' && /(NO LIVE DATA|ΧΩΡΙΣ ΖΩΝΤΑΝΑ ΔΕΔΟΜΕΝΑ)/.test(by(id).src)), name + ': a sheet with no feed says "no live data", shows no scale and claims no motion');
       ok(/(lines travel|γραμμές ταξιδεύουν)/.test(by('wind').move) && /(only inside|μόνο μέσα)/.test(by('rain').move), name + ': the key says what the motion of wind and rain means');
       if (phone) {
         const box = await frame.evaluate(() => { const r = document.getElementById('legend').getBoundingClientRect(); return { top: r.top / innerHeight, bottom: r.bottom / innerHeight }; });

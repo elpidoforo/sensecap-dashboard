@@ -122,9 +122,17 @@ const SCALE = {
   cloud: { min: 0, max: 100, unit: '%', top: true, st: [[0, 30, 40, 55], [1, 236, 244, 255]] },
   rain: { min: 0, max: 5, unit: 'mm', st: [[0, 40, 70, 130], [1, 130, 190, 255]] },
   depth: { min: 0, max: 3000, unit: 'm', ends: [['shallow', 'ρηχά'], ['deep', 'βαθιά']], st: [[0, 168, 232, 236], [.07, 92, 190, 222], [.3, 44, 118, 190], [.65, 26, 62, 138], [1, 12, 22, 74]] },
+  age: { min: 36, max: 44, unit: 'years', unitEl: 'έτη', ends: [['younger', 'νεότεροι'], ['older', 'μεγαλύτεροι']], st: [[0, 110, 205, 190], [.5, 235, 225, 150], [1, 235, 130, 150]] },
+  qdepth: { min: 0, max: 70, unit: 'km', ends: [['shallow', 'ρηχά'], ['deep', 'βαθιά']], st: [[0, 255, 214, 120], [.4, 240, 130, 90], [1, 150, 80, 190]] },
+  built: { min: 0, max: 100, unit: '%', top: true, st: [[0, 24, 30, 48], [.35, 110, 96, 170], [.7, 196, 184, 255], [1, 255, 250, 235]] },
+  no2: { min: 0, max: 80, unit: 'µg/m³', st: [[0, 40, 60, 110], [.4, 120, 150, 235], [.75, 240, 170, 120], [1, 255, 90, 80]] },
+  o3: { min: 0, max: 160, unit: 'µg/m³', st: [[0, 40, 60, 110], [.4, 100, 190, 200], [.75, 235, 220, 130], [1, 255, 120, 80]] },
+  aod: { min: 0, max: 0.6, unit: '', top: false, st: [[0, 60, 70, 100], [.5, 255, 215, 168], [1, 255, 150, 90]] },
 };
 const SCALE_NAME = { sst: ['Sea-surface temperature', 'Θερμοκρασία επιφάνειας θάλασσας'], temp: ['Air temperature', 'Θερμοκρασία αέρα'], pm25: ['Fine particles PM2.5', 'Λεπτά σωματίδια PM2.5'],
-  wind: ['Wind speed', 'Ταχύτητα ανέμου'], rain: ['Rain in the hour', 'Βροχή μέσα στην ώρα'], cloud: ['Cloud cover', 'Νεφοκάλυψη'], depth: ['Depth of the sea floor', 'Βάθος του βυθού'] };
+  wind: ['Wind speed', 'Ταχύτητα ανέμου'], rain: ['Rain in the hour', 'Βροχή μέσα στην ώρα'], cloud: ['Cloud cover', 'Νεφοκάλυψη'], depth: ['Depth of the sea floor', 'Βάθος του βυθού'],
+  age: ['Mean age of residents', 'Μέση ηλικία κατοίκων'], qdepth: ['Depth of the earthquake', 'Βάθος του σεισμού'], built: ['Ground under a building', 'Έδαφος κάτω από κτίριο'],
+  no2: ['Nitrogen dioxide in the hour', 'Διοξείδιο του αζώτου την ώρα'], o3: ['Ozone in the hour', 'Όζον την ώρα'], aod: ['Aerosol optical depth at 500 nm, daily mean', 'Οπτικό βάθος αερολυμάτων στα 500 nm, ημερήσιος μέσος'] };
 const colOf = (sc, v) => ramp(clamp01((v - sc.min) / (sc.max - sc.min)), sc.st).map(Math.round);
 const rgb = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a == null ? 1 : a})`;
 const cssScale = (sc) => 'linear-gradient(90deg,' + sc.st.map((s) => `rgb(${s[1]},${s[2]},${s[3]}) ${Math.round(s[0] * 100)}%`).join(',') + ')';
@@ -424,16 +432,30 @@ function buildDepth() {
     img.data[o] = Math.min(255, col[0] * lam); img.data[o + 1] = Math.min(255, col[1] * lam); img.data[o + 2] = Math.min(255, col[2] * lam); img.data[o + 3] = 250; }
   x.putImageData(img, x0, y0);
 }
-const NO_DEPTH = () => T('NO DEPTH DATA LOADED YET · THE SEA FLOOR IS NOT DRAWN', 'ΔΕΝ ΕΧΟΥΝ ΦΟΡΤΩΘΕΙ ΑΚΟΜΗ ΔΕΔΟΜΕΝΑ ΒΑΘΟΥΣ · Ο ΒΥΘΟΣ ΔΕΝ ΣΧΕΔΙΑΖΕΤΑΙ');
+const NO_DEPTH = () => (profiles() ? T('NO DEPTH GRID LOADED YET · ONLY THE THREE COLOURED LINES ARE DEPTHS', 'ΔΕΝ ΕΧΕΙ ΦΟΡΤΩΘΕΙ ΑΚΟΜΗ ΠΛΕΓΜΑ ΒΑΘΟΥΣ · ΜΟΝΟ ΟΙ ΤΡΕΙΣ ΧΡΩΜΑΤΙΣΤΕΣ ΓΡΑΜΜΕΣ ΕΙΝΑΙ ΒΑΘΗ')
+  : T('NO DEPTH DATA LOADED YET · THE SEA FLOOR IS NOT DRAWN', 'ΔΕΝ ΕΧΟΥΝ ΦΟΡΤΩΘΕΙ ΑΚΟΜΗ ΔΕΔΟΜΕΝΑ ΒΑΘΟΥΣ · Ο ΒΥΘΟΣ ΔΕΝ ΣΧΕΔΙΑΖΕΤΑΙ'));
+// Three real profiles already exist (the coast investigation cut them through the EMODnet model): 13 points along a line
+// off three cities. They are drawn as they are, a dot per point coloured by its depth, hollow where the value was interpolated.
+const profiles = () => (has('seabed-profiles') && (pd('seabed-profiles').features || []).length ? pd('seabed-profiles') : null);
+function profileLines(c) { const p = profiles(); if (!p) return;
+  p.features.forEach((f) => { const pts = (f.points || []).filter((q) => ok2(q) && typeof q.elevation === 'number'); if (pts.length < 2) return;
+    c.strokeStyle = 'rgba(2,6,12,.9)'; c.lineWidth = 4 * U; c.lineCap = 'round'; c.beginPath(); pts.forEach((q, i) => { const [x, y] = pxOf(q.lng, q.lat); if (i) c.lineTo(x, y); else c.moveTo(x, y); }); c.stroke();
+    pts.forEach((q) => { const [x, y] = pxOf(q.lng, q.lat), col = rgb(colOf(SCALE.depth, Math.max(0, -q.elevation)));
+      if (q.interpolated) disc(c, x, y, 1.5 * U, 'rgba(4,10,18,.95)', col, .9 * U); else disc(c, x, y, 1.8 * U, col, '#ffffff', .6 * U); });
+    const e = pts[pts.length - 1], [x, y] = pxOf(e.lng, e.lat); tinyText(c, f.name + ' · ' + nf(Math.round(Math.max(0, -e.elevation))) + ' m ' + T('deep, ', 'βάθος, ') + e.km + ' km ' + T('out', 'ανοιχτά'), x + 5 * U, y + 3 * U, 8.5 * U); });
+}
 function seabedPaint(c) {
   c.globalCompositeOperation = 'source-over'; c.clearRect(0, 0, LW, LH);
   c.fillStyle = 'rgba(5,13,24,.95)'; c.fillRect(0, 0, LW, LH);
   if (seabed) c.drawImage(depthC, 0, 0);
   landFill(c, '#0b1826'); coast(c); regionLabels(c);
-  if (!seabed) { hatch(c, '#2f7fb8'); pill(c, NO_DEPTH(), '#8fd0f5', IY1 + 40 * U); }
+  if (!seabed) hatch(c, '#2f7fb8');
+  profileLines(c);
+  if (!seabed) pill(c, NO_DEPTH(), '#8fd0f5', IY1 + 40 * U);
   else if (seabed.meta.testOnly) pill(c, T('TEST FIXTURE · NOT REAL DEPTHS', 'ΔΟΚΙΜΑΣΤΙΚΟ ΑΡΧΕΙΟ · ΟΧΙ ΠΡΑΓΜΑΤΙΚΑ ΒΑΘΗ'), '#F2A56B', IY1 + 40 * U);
 }
 async function loadSeabed() {
+  await askStack('seabed-profiles');
   const r = await fetch('/api/fieldwork/seabedgrid', { headers: { accept: 'application/json' } });
   if (!r.ok) { seabed = null; return; }                               // no file yet: the sheet says so
   const j = await r.json(), g = j && j.grid, e = j && j.elevation;
@@ -547,7 +569,7 @@ function shipsPaint(c, t, anim) {
 /* ---- aeroplanes: an anonymous arrow per aircraft, lifted by its height (the 3D marks are built further down) ---- */
 // GET /api/aircraft gives points { id, lat, lng, altFt, onGround, gs, track, phase }: no callsign, no hex id, places
 // rounded, nothing kept. This sheet only draws them. They are never added to layers.js, the brain or a prompt.
-const AC = { every: 20000, oldMs: 90000, ftStep: 10000, yStep: 17, driftMaxS: 25 };   // 10,000 ft lifts an arrow 17 units: 45,000 ft is still under the next sheet
+const AC = { every: 20000, oldMs: 90000, ftStep: 10000, yStep: 11, driftMaxS: 25 };   // 10,000 ft lifts an arrow 11 units: 45,000 ft is still under the next sheet
 const AC_PHASE = {                                                    // the same words as the Aeroplanes page (pages/aircraft.js)
   high: ['High: likely passing over', 'Ψηλά: μάλλον περνά από πάνω'], low: ['Low: likely arriving or departing', 'Χαμηλά: μάλλον φτάνει ή φεύγει'],
   ground: ['On the ground', 'Στο έδαφος'], unknown: ['Height not reported', 'Χωρίς αναφορά ύψους'] };
@@ -582,9 +604,467 @@ async function loadAircraft() {
   buildPlanes();
 }
 
+
+/* ---- sheets fed by GET /api/stack/<id> (the contract is docs/STACK-DATA.md) ---- */
+// The server builds one map-ready answer per dataset. A sheet names the answers it needs (stack: 'id' or ['id', 'id']) and
+// gives one draw function; everything else is done here, the same way for every such sheet:
+//   - the answer is fetched only when the sheet is first switched on, and again no sooner than its own refreshSeconds;
+//   - `honesty` is shown in the key word for word, `attribution` beside the source, `reason` when there is no data;
+//   - `demo: true` puts "demo data" on the sheet and in the key; `available: false` leaves the sheet empty, with the reason;
+//   - only a live, delayed or scheduled answer may keep moving. Anything else may reveal itself once and must then stand still.
+const SD = {}, SDat = {};                                              // answer id -> the answer as it arrived; and when it was asked for
+const pd = (id) => (SD[id] && !SD[id].failed ? SD[id] : null);
+const has = (id) => { const p = pd(id); return !!p && p.available !== false; };
+const idsOf = (l) => [].concat(l.stack);
+async function askStack(id) {
+  const old = pd(id), pace = old && typeof old.refreshSeconds === 'number' && old.refreshSeconds > 0 ? old.refreshSeconds * 1000 : 0;
+  if (old && (!pace || Date.now() - SDat[id] < pace - 500)) return;   // it never changes, or it is not due yet: never ask more often than the answer says
+  try { const r = await fetch('/api/stack/' + id, { headers: { accept: 'application/json' } }); if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json(); if (!j || j.id !== id) throw new Error('not the answer asked for'); SD[id] = j; SDat[id] = Date.now(); window.__stackAsks = (window.__stackAsks || 0) + 1; }
+  catch (e) { if (!old) SD[id] = { failed: true }; console.warn('The stack answer "' + id + '" could not be read: ' + String((e && e.message) || e)); }
+}
+async function loadStack(l) {
+  await Promise.all(idsOf(l).map(askStack));
+  const secs = idsOf(l).map((id) => pd(id) && pd(id).refreshSeconds).filter((v) => typeof v === 'number' && v > 0);
+  l.every = secs.length ? Math.max(30, Math.min(...secs)) * 1000 : 0;
+  l.base = null; if (l.ready) l.ready(...idsOf(l).map((id) => (has(id) ? pd(id) : null)));
+  l.asked = true;
+}
+// A reveal: the marks of a sheet appear once, in a stated order, when it is opened; then nothing moves. Returns 0..1.
+function rev(l, t, anim) { if (!anim) { l.revealDone = true; return 1; } if (l.revealFrom == null) l.revealFrom = t;
+  const k = clamp01((t - l.revealFrom) / (l.reveal || 2)); if (k >= 1) l.revealDone = true; return k; }
+const restartReveal = (l) => { l.revealFrom = null; l.revealDone = false; };
+const stepIn = (k, i, n) => clamp01(k * n - i);                         // mark i of n in a reveal: 0 before its turn, 1 after
+const KIND_RANK = ['scheduled', 'delayed', 'measured', 'published'];
+const KIND_OF = { live: 'measured', delayed: 'delayed', scheduled: 'scheduled' };
+const DEMO_SHEET = () => T('DEMO DATA · MADE-UP VALUES', 'ΔΟΚΙΜΑΣΤΙΚΑ ΔΕΔΟΜΕΝΑ · ΦΤΙΑΧΤΕΣ ΤΙΜΕΣ');
+const NO_STACK = () => T('NO DATA FOR THIS SHEET RIGHT NOW · THE KEY SAYS WHY', 'ΧΩΡΙΣ ΔΕΔΟΜΕΝΑ ΓΙΑ ΑΥΤΟ ΤΟ ΦΥΛΛΟ ΤΩΡΑ · ΤΟ ΥΠΟΜΝΗΜΑ ΛΕΕΙ ΓΙΑΤΙ');
+const dayText = (iso) => { const d = new Date(iso); return isNaN(d) ? String(iso || '') : d.toLocaleDateString(EL ? 'el-GR' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }); };
+const whenOf = (p) => (p.period ? T('period: ', 'περίοδος: ') + p.period : p.updated ? T('newest value: ', 'νεότερη τιμή: ') + ageText((Date.now() - Date.parse(p.updated)) / 60000) : '');
+function stackState(l) {
+  const ps = idsOf(l).map(pd);
+  if (!ps.some(Boolean)) return none(l.asked ? T('The data of this sheet could not be read, so nothing is drawn on it.', 'Τα δεδομένα αυτού του φύλλου δεν διαβάστηκαν, άρα δεν σχεδιάζεται τίποτα πάνω του.') : T('Not asked for yet: the data is fetched when the sheet is first switched on.', 'Δεν ζητήθηκαν ακόμη: τα δεδομένα φορτώνονται όταν ανάψεις το φύλλο για πρώτη φορά.'));
+  const got = ps.filter((p) => p && p.available !== false);
+  if (!got.length) return none(ps.filter(Boolean).map((p) => TT(p.reason)).join(' '));
+  const demo = got.some((p) => p.demo === true), kinds = got.map((p) => KIND_OF[p.kind] || 'published');
+  const text = (demo ? T('Demo data: the values on this sheet are made up by the test mode, not real. ', 'Δοκιμαστικά δεδομένα: οι τιμές σε αυτό το φύλλο είναι φτιαχτές από τη δοκιμαστική λειτουργία, όχι πραγματικές. ') : '')
+    + got.map((p) => T(p.attribution, p.attributionEl || p.attribution) + (whenOf(p) ? ' · ' + whenOf(p) : '')).join(' · ');
+  return { kind: demo ? 'demo' : KIND_RANK.find((k) => kinds.includes(k)), text };
+}
+const KIND_CARD = { measured: ['measured', 'μετρημένο'], scheduled: ['timetable', 'δρομολόγιο'], delayed: ['delayed', 'με καθυστέρηση'], published: ['published', 'δημοσιευμένα'], demo: ['DEMO · not real', 'ΔΟΚΙΜΗ · όχι πραγματικά'] };
+function stackCard(l) { const st = stackState(l);
+  if (st.kind === 'none') return { b: '—', em: l.asked ? T('no data now', 'χωρίς δεδομένα τώρα') : T('switch on to load', 'άναψέ το για φόρτωση'), cls: 'year' };
+  const n = l.count ? l.count(...idsOf(l).map((id) => (has(id) ? pd(id) : null))) : null;
+  return { b: n == null ? '✓' : nf(n), em: (l.countWord ? TT(l.countWord) + ' · ' : '') + TT(KIND_CARD[st.kind]), cls: st.kind === 'measured' ? 'live' : 'year' }; }
+// what every /api/stack sheet does before and after its own drawing
+function paintStack(l) { return (c, t, anim, dt) => {
+  c.globalCompositeOperation = 'source-over'; c.clearRect(0, 0, LW, LH);
+  coast(c); if (withNames(l.id)) regionLabels(c);
+  const ids = idsOf(l), ps = ids.map(pd);
+  if (!ps.some(Boolean)) { pill(c, l.asked ? T('THE DATA OF THIS SHEET COULD NOT BE READ', 'ΤΑ ΔΕΔΟΜΕΝΑ ΑΥΤΟΥ ΤΟΥ ΦΥΛΛΟΥ ΔΕΝ ΔΙΑΒΑΣΤΗΚΑΝ') : T('LOADING…', 'ΦΟΡΤΩΝΕΙ…'), l.c); l.revealDone = true; return; }
+  if (!ids.some(has)) { hatch(c, l.c); pill(c, NO_STACK(), l.c); l.revealDone = true; return; }
+  l.draw(c, t, anim, l, ...ids.map((id) => (has(id) ? pd(id) : null)));
+  if (ps.some((p) => p && p.available !== false && p.demo === true)) pill(c, DEMO_SHEET(), '#F2A56B', IY0 - 42 * U);
+}; }
+// A picture that does not change between two answers is drawn once and kept, so a moving sheet only redraws what moves.
+function cached(l, c, fn) { const cv = c.canvas;
+  if (!l.base || l.base.width !== cv.width || l.base.height !== cv.height) { l.base = document.createElement('canvas'); l.base.width = cv.width; l.base.height = cv.height;
+    const b = l.base.getContext('2d'); b.setTransform(c.getTransform()); fn(b); }
+  c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(l.base, 0, 0); c.restore(); }
+const ok2 = (f) => f && typeof f.lat === 'number' && typeof f.lng === 'number' && isFinite(f.lat) && isFinite(f.lng);
+const mono = (px, w) => `${w || 700} ${(px * U).toFixed(1)}px ui-monospace, Menlo, monospace`;
+const disc = (c, x, y, r, fill, stroke, lw) => { c.beginPath(); c.arc(x, y, r, 0, 7); if (fill) { c.fillStyle = fill; c.fill(); } if (stroke) { c.strokeStyle = stroke; c.lineWidth = lw || 1; c.stroke(); } };
+const areaR = (v, ref, rRef) => Math.sqrt(Math.max(0, v) / ref) * rRef * U;   // a circle whose AREA grows with the value
+// A small panel of figures in the open water south of Cyprus, for the sheets that replay a past period: one row per place,
+// one box per step of time, so the whole period can be read at once (and with reduced motion that is the whole picture).
+const PANEL_AT = () => pxOf(32.3, 34.33);
+function stripPanel(c, colour, title, rows, opt) {
+  const [bx, by] = PANEL_AT(), n = rows.length ? rows[0].cells.length : 0, nameW = (opt.nameW || 118) * U, bw = (opt.boxW || 5) * U, rowH = 12 * U;
+  const pw = nameW + n * bw + 22 * U, ph = (30 + rows.length * 12 + (opt.foot ? 14 : 0)) * U;
+  c.fillStyle = 'rgba(4,10,18,.88)'; c.strokeStyle = colour; c.lineWidth = 1; c.beginPath();
+  if (c.roundRect) c.roundRect(bx - 8 * U, by - 8 * U, pw, ph, 7 * U); else c.rect(bx - 8 * U, by - 8 * U, pw, ph); c.fill(); c.stroke();
+  c.textAlign = 'left'; c.textBaseline = 'middle'; c.font = mono(8.5, 800); c.fillStyle = colour; c.fillText(title, bx, by + 4 * U, pw - 16 * U);
+  rows.forEach((row, ri) => { const y = by + (20 + ri * 12) * U;
+    c.font = mono(8, 700); c.fillStyle = '#eaf2fb'; c.fillText(row.name, bx, y, nameW - 6 * U);
+    row.cells.forEach((col, i) => { const x = bx + nameW + i * bw;
+      if (col) { c.fillStyle = col; c.fillRect(x, y - 4 * U, bw - .6 * U, 8 * U); } else { c.strokeStyle = 'rgba(160,180,205,.45)'; c.lineWidth = .6; c.strokeRect(x + .3, y - 4 * U + .3, bw - 1.2 * U, 8 * U - .6); } }); });
+  if (opt.cursor != null) { const x = bx + nameW + opt.cursor * bw; c.strokeStyle = '#ffffff'; c.lineWidth = 1.2; c.strokeRect(x - .6, by + 13 * U, bw + .4, rows.length * rowH + 2 * U); }
+  if (opt.foot) { c.font = mono(7.5, 700); c.fillStyle = '#8fa9c4'; c.fillText(opt.foot, bx, by + (22 + rows.length * 12) * U + 4 * U, pw - 16 * U); }
+}
+// the big line of words that a replay must always carry: what moment of the past is on show
+function replayClock(c, colour, text) { c.save(); c.font = mono(11, 800); c.textAlign = 'center'; c.textBaseline = 'middle';
+  const w = c.measureText(text).width + 18 * U, x = ICX, y = IY0 - 8 * U; c.fillStyle = 'rgba(4,10,18,.9)'; c.strokeStyle = colour; c.lineWidth = 1;
+  c.beginPath(); if (c.roundRect) c.roundRect(x - w / 2, y - 9 * U, w, 18 * U, 6 * U); else c.rect(x - w / 2, y - 9 * U, w, 18 * U); c.fill(); c.stroke();
+  c.fillStyle = colour; c.fillText(text, x, y + .5); c.restore(); }
+// a reference mark drawn on the sheet itself, so a size can be read without the key
+function refNote(c, x, y, text) { c.save(); c.font = mono(8, 700); c.textAlign = 'left'; c.textBaseline = 'middle'; c.lineWidth = 2.2; c.strokeStyle = 'rgba(2,6,12,.9)'; c.strokeText(text, x, y); c.fillStyle = '#cfe0f0'; c.fillText(text, x, y); c.restore(); }
+
+/* ---- residents and their age: the census of 1 October 2021. Nothing here moves after the sheet has opened. ---- */
+const levelOf = (l, p) => (l.mode === 'districts' ? p.districts : p.features).filter(ok2);
+const POP_REF = [25000, 50000, 100000];
+function drawPopulation(c, t, anim, l, p) {
+  const list = levelOf(l, p).filter((f) => typeof f.residents === 'number').slice().sort((a, b) => a.residents - b.residents), k = rev(l, t, anim);   // the order of the reveal only
+  list.forEach((f, i) => { const a = stepIn(k, i, list.length); if (a <= 0) return; const [x, y] = pxOf(f.lng, f.lat), r = areaR(f.residents, 100000, 15);
+    c.globalAlpha = a; disc(c, x, y, r, 'rgba(196,184,255,.32)', '#C4B8FF', 1.4 * U); disc(c, x, y, 1.6 * U, '#ffffff');
+    tinyText(c, TT(f.name) + ' · ' + nf(f.residents), x + r * .72 + 3 * U, y - r * .72 - 2 * U, 9 * U); c.globalAlpha = 1; });
+  const [lx, ly] = ipx(-.1, 1.08);                                      // the three reference circles, in the sea below the island
+  POP_REF.forEach((v, i) => { const r = areaR(v, 100000, 15), x = lx + (i * 78 + 10) * U; disc(c, x, ly, r, null, 'rgba(196,184,255,.85)', 1 * U); refNote(c, x + r + 3 * U, ly, nf(v)); });
+  refNote(c, lx, ly + 22 * U, T('circle area = residents on 1 October 2021', 'εμβαδόν κύκλου = κάτοικοι την 1η Οκτωβρίου 2021'));
+}
+const AGE_PART = ['#7fd6c2', '#b9c2d6', '#f09aa8'];                     // under 15, 15 to 64, 65 and over
+function drawAge(c, t, anim, l, p) {
+  const list = levelOf(l, p).slice().sort((a, b) => (a.meanAge == null ? 1e9 : a.meanAge) - (b.meanAge == null ? 1e9 : b.meanAge)), k = rev(l, t, anim);
+  list.forEach((f, i) => { const a = stepIn(k, i, list.length); if (a <= 0) return; const [x, y] = pxOf(f.lng, f.lat);
+    c.globalAlpha = a;
+    if (f.meanAge == null) { disc(c, x, y, 7 * U, null, '#b9c2d6', 1.3 * U); tinyText(c, TT(f.name) + ' · ' + T('too few residents', 'πολύ λίγοι κάτοικοι'), x + 10 * U, y - 6 * U, 9 * U); c.globalAlpha = 1; return; }
+    disc(c, x, y, 7 * U, rgb(colOf(SCALE.age, f.meanAge)), 'rgba(2,6,12,.95)', 1.2 * U);
+    tinyText(c, TT(f.name) + ' · ' + fmt(f.meanAge) + ' ' + T('y', 'έτη'), x + 10 * U, y - 6 * U, 9 * U);
+    const parts = [f.under15Percent, f.age15to64Percent, f.age65plusPercent];
+    if (parts.every((v) => typeof v === 'number')) { let bx = x + 10 * U; const w = 48 * U;
+      parts.forEach((v, j) => { c.fillStyle = AGE_PART[j]; c.fillRect(bx, y + 2 * U, w * v / 100, 5 * U); bx += w * v / 100; });
+      tinyText(c, Math.round(parts[0]) + ' · ' + Math.round(parts[1]) + ' · ' + Math.round(parts[2]) + ' %', x + 10 * U + w + 4 * U, y + 7 * U, 8 * U); }
+    c.globalAlpha = 1; });
+  const [lx, ly] = ipx(-.1, 1.1); [['under 15', 'κάτω των 15'], ['15 to 64', '15 έως 64'], ['65 and over', '65 και άνω']].forEach((w, j) => { c.fillStyle = AGE_PART[j]; c.fillRect(lx + j * 86 * U, ly - 3 * U, 9 * U, 6 * U); refNote(c, lx + j * 86 * U + 12 * U, ly, TT(w)); });
+}
+
+/* ---- built-up ground: four boxes of 1.8 km, at their true size. They are tiny on this map, so the key offers to fly in. ---- */
+const bPatch = {};                                                     // city key -> { cv, tex, mesh, order }
+function readyBuildings(p) {
+  const s = sheetOf.buildings; Object.keys(bPatch).forEach((k) => { s.group.remove(bPatch[k].mesh); bPatch[k].mesh.geometry.dispose(); bPatch[k].tex.dispose(); bPatch[k].mesh.material.dispose(); delete bPatch[k]; });
+  if (!p) return;
+  (p.features || []).forEach((f) => { const b = f.box; if (!f.available || !b || !Array.isArray(f.share) || f.share.length !== f.cols * f.rows) return;
+    const cv = document.createElement('canvas'); cv.width = f.cols * 8; cv.height = f.rows * 8;
+    const tex = new THREE.CanvasTexture(cv); tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.LinearFilter;
+    const a = p3(b.west, b.north, 0), z = p3(b.east, b.south, 0);
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(z.x - a.x, z.z - a.z), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+    mesh.rotation.x = -Math.PI / 2; mesh.position.set((a.x + z.x) / 2, s.y + .35, (a.z + z.z) / 2); s.group.add(mesh);
+    bPatch[f.key] = { cv, tex, mesh, order: f.share.map((v, i) => i).sort((i, j) => f.share[i] - f.share[j]) }; });
+}
+function drawBuildings(c, t, anim, l, p) {
+  const k = rev(l, t, anim);
+  (p.features || []).forEach((f) => { const q = bPatch[f.key], ce = f.centre; if (!ce) return; const [x, y] = pxOf(ce.lng, ce.lat);
+    disc(c, x, y, 9 * U, null, 'rgba(196,184,255,.9)', 1.2 * U);        // a ring to find the box by; the box itself is the small square inside it, at true size
+    tinyText(c, TT(f.name) + (q ? ' · ' + fmt(f.coveredPercent) + ' % ' + T('of the box built on', 'του τετραγώνου χτισμένο') : ' · ' + T('no data', 'χωρίς δεδομένα')), x + 12 * U, y - 6 * U, 9 * U);
+    if (!q) return;
+    const g = q.cv.getContext('2d'), n = q.order.length; g.clearRect(0, 0, q.cv.width, q.cv.height);
+    q.order.forEach((ci, oi) => { const a = stepIn(k, oi, n) > 0 ? 1 : 0; if (!a) return;     // cells appear from the emptiest to the fullest, then stand
+      const col = colOf(SCALE.built, f.share[ci]); g.fillStyle = rgb(col, .96); g.fillRect((ci % f.cols) * 8, (f.rows - 1 - Math.floor(ci / f.cols)) * 8, 7.4, 7.4); });
+    q.tex.needsUpdate = true; });
+  const [lx, ly] = ipx(-.1, 1.08); refNote(c, lx, ly, T('each ring holds one box of 1.8 km, drawn at its true size · use "fly to" in the key', 'κάθε δαχτυλίδι έχει ένα τετράγωνο 1,8 km στο πραγματικό του μέγεθος · πάτα "πέτα σε" στο υπόμνημα'));
+}
+
+/* ---- buses: the lines and stops of the timetable files, and where each bus should be by the timetable. Nobody saw these buses. ---- */
+function alongPath(path, s) {                                           // path = [[seconds from `at`, lat, lng], ...]
+  if (!Array.isArray(path) || !path.length || s > path[path.length - 1][0]) return null;   // past its last point: it is not drawn until the next answer
+  if (s <= path[0][0]) return [path[0][1], path[0][2]];
+  for (let i = 1; i < path.length; i++) if (s <= path[i][0]) { const a = path[i - 1], b = path[i], f = b[0] === a[0] ? 1 : (s - a[0]) / (b[0] - a[0]); return [a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]; }
+  return null;
+}
+let busMarks = [];
+function drawBuses(c, t, anim, l, net, now) {
+  cached(l, c, (b) => { if (!net) return;
+    b.lineJoin = 'round'; b.lineCap = 'round';
+    (net.lines || []).forEach((ln) => { const a = ln.line; if (!Array.isArray(a) || a.length < 4) return;
+      b.beginPath(); for (let i = 0; i + 1 < a.length; i += 2) { const [x, y] = pxOf(a[i + 1], a[i]); if (i) b.lineTo(x, y); else b.moveTo(x, y); }
+      b.setLineDash(ln.drawn === 'stops' ? [3 * U, 2.5 * U] : []); b.strokeStyle = 'rgba(160,214,180,.8)'; b.lineWidth = .9 * U; b.stroke(); });
+    b.setLineDash([]); const sp = (net.stops && net.stops.points) || []; b.fillStyle = 'rgba(226,246,232,.9)';
+    for (let i = 0; i + 1 < sp.length; i += 2) { const [x, y] = pxOf(sp[i + 1], sp[i]); b.fillRect(x - .7 * U, y - .7 * U, 1.4 * U, 1.4 * U); } });
+  busMarks = [];
+  if (now) { const s = (Date.now() - Date.parse(now.at)) / 1000, h = 2.6 * U;
+    (now.trips || []).forEach((tr) => { const at = alongPath(tr.path, s); if (!at) return; const [x, y] = pxOf(at[1], at[0]); busMarks.push([at[0], at[1]]);
+      c.fillStyle = 'rgba(4,10,18,.85)'; c.fillRect(x - h, y - h, 2 * h, 2 * h); c.strokeStyle = '#ffffff'; c.lineWidth = 1.1 * U; c.strokeRect(x - h, y - h, 2 * h, 2 * h); });   // hollow: a planned place, not a seen one
+    replayClock(c, '#a0d6b4', T('TIMETABLE · ', 'ΔΡΟΜΟΛΟΓΙΟ · ') + TT(now.dayType).toUpperCase() + ' ' + now.cyprusTime + ' · ' + T(busMarks.length + ' planned buses drawn', busMarks.length + ' προγραμματισμένα λεωφορεία')); }
+  else replayClock(c, '#a0d6b4', T('LINES AND STOPS ONLY · NO TIMETABLE FOR THIS MINUTE', 'ΜΟΝΟ ΓΡΑΜΜΕΣ ΚΑΙ ΣΤΑΣΕΙΣ · ΧΩΡΙΣ ΔΡΟΜΟΛΟΓΙΟ ΓΙΑ ΑΥΤΟ ΤΟ ΛΕΠΤΟ'));
+}
+
+/* ---- our own sensor vehicles: a replay of where they were at least two hours ago, on the 1 km grid the server rounds to ---- */
+// Nothing here is finer than the answer: a mark sits exactly on a grid point of the trail and jumps from one to the next
+// (it is never eased to a place in between), and no line is drawn from point to point, so a silence is simply a gap.
+const VEH = { loopS: 80, gapS: 45 * 60, tailS: 3 * 3600 };
+let vehMarks = [], vehClock = null;
+function drawVehicles(c, t, anim, l, p) {
+  const vs = (p.vehicles || []).filter((v) => Array.isArray(v.trail) && v.trail.length), g = p.gridDegrees || .01;
+  vehMarks = []; if (!vs.length) { pill(c, T('NO VEHICLE HAS A TRAIL OLD ENOUGH TO SHOW', 'ΚΑΝΕΝΑ ΟΧΗΜΑ ΔΕΝ ΕΧΕΙ ΔΙΑΔΡΟΜΗ ΑΡΚΕΤΑ ΠΑΛΙΑ ΓΙΑ ΝΑ ΦΑΝΕΙ'), l.c); return; }
+  const t0 = Math.min(...vs.map((v) => v.trail[0][0])), t1 = Math.max(...vs.map((v) => v.trail[v.trail.length - 1][0]));
+  const now = anim ? t0 + ((t % VEH.loopS) / VEH.loopS) * (t1 - t0) : t1;   // the moment of the past that is on show
+  const [ax, ay] = pxOf(33, 35), [bx2, by2] = pxOf(33 + g, 35 + g), hw = Math.max(1.4 * U, (bx2 - ax) / 2), hh = Math.max(1.4 * U, (ay - by2) / 2);
+  const clockOf = (s) => new Date(s * 1000).toLocaleString(EL ? 'el-GR' : 'en-GB', { timeZone: 'Asia/Nicosia', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
+  vs.forEach((v) => { let last = null;
+    v.trail.forEach((q) => { if (q[0] > now) return; last = q; const age = now - q[0]; if (anim && age > VEH.tailS) return;
+      const [x, y] = pxOf(q[2], q[1]); c.fillStyle = `rgba(255,214,150,${(anim ? .1 + .28 * (1 - age / VEH.tailS) : .2).toFixed(3)})`; c.fillRect(x - hw, y - hh, 2 * hw, 2 * hh); });
+    if (!last || now - last[0] > VEH.gapS) return;                      // silent for more than 45 minutes: no mark, until it speaks again
+    const [x, y] = pxOf(last[2], last[1]); vehMarks.push({ n: v.n, type: v.type, lat: last[1], lng: last[2], at: last[0] });
+    if (v.type === 'bus') { c.fillStyle = '#ffd696'; c.fillRect(x - hw, y - hh, 2 * hw, 2 * hh); c.strokeStyle = 'rgba(2,6,12,.95)'; c.lineWidth = .8 * U; c.strokeRect(x - hw, y - hh, 2 * hw, 2 * hh); }
+    else { c.fillStyle = 'rgba(4,10,18,.8)'; c.fillRect(x - hw, y - hh, 2 * hw, 2 * hh); c.strokeStyle = '#ffd696'; c.lineWidth = 1.1 * U; c.strokeRect(x - hw, y - hh, 2 * hw, 2 * hh); } });
+  vehClock = now;
+  replayClock(c, '#ffd696', (anim ? T('REPLAY · ', 'ΕΠΑΝΑΛΗΨΗ · ') + clockOf(now) : T('STILL · UP TO ', 'ΑΚΙΝΗΤΟ · ΕΩΣ ') + clockOf(t1)) + T(' · AT LEAST ' + p.delayMinutes + ' MIN AGO', ' · ΤΟΥΛΑΧΙΣΤΟΝ ' + p.delayMinutes + ' ΛΕΠΤΑ ΠΡΙΝ'));
+  const [lx, ly] = ipx(-.1, 1.08); c.fillStyle = '#ffd696'; c.fillRect(lx, ly - hh, 2 * hw, 2 * hh); refNote(c, lx + 2 * hw + 4 * U, ly, T('one square = about ' + (p.gridKm || 1) + ' km · filled: bus · hollow: car', 'ένα τετράγωνο = περίπου ' + (p.gridKm || 1) + ' km · γεμάτο: λεωφορείο · κενό: αυτοκίνητο'));
+}
+
+/* ---- earthquakes: a catalogue of past events. Each ripples once, in date order, when the sheet opens; then they stand. ---- */
+const quakeR = (m) => (4 + Math.max(0, m - 4.5) * 13) * U;
+function drawQuakes(c, t, anim, l, p) {
+  const list = (p.features || []).filter(ok2), n = list.length, k = rev(l, t, anim);
+  list.forEach((f, i) => { const a = k * n - i; if (a <= 0) return; const [x, y] = pxOf(f.lng, f.lat), r = quakeR(f.magnitude), col = colOf(SCALE.qdepth, f.depthKm);
+    if (a < 1.6 && k < 1) { c.strokeStyle = rgb(col, (.9 * (1 - a / 1.6)).toFixed(3)); c.lineWidth = 1.6 * U; c.beginPath(); c.arc(x, y, r * (.3 + a * 1.5), 0, 7); c.stroke(); }   // its one ripple
+    disc(c, x, y, r, rgb(col, .16), rgb(col, .95), 1.3 * U); disc(c, x, y, 1.7 * U, rgb(col), 'rgba(2,6,12,.9)', .6 * U);
+    if (withNames(l.id) || n <= 20) tinyText(c, 'M' + f.magnitude + ' ' + (f.magnitudeType || '') + ' · ' + String(f.time).slice(0, 10), x + r + 2 * U, y + (i % 2 ? 9 : -5) * U, 7.5 * U); });
+  const [lx, ly] = pxOf(32.02, 34.08); [4.5, 5, 5.5].forEach((m, i) => { const x = lx + i * 62 * U + 12 * U; disc(c, x, ly, quakeR(m), null, 'rgba(255,214,120,.9)', 1 * U); refNote(c, x + quakeR(m) + 3 * U, ly, 'M' + m); });
+}
+
+/* ---- fire: heat seen from space in the last 24 hours, and burnt land mapped in the last 30 days ---- */
+function drawHotspots(c, t, anim, l, p) {
+  const list = (p.features || []).filter(ok2), now = Date.now(); l.live = list.length > 0;
+  if (!list.length) { pill(c, T('NO HOTSPOT SEEN IN THE LAST 24 HOURS · THAT IS NOT PROOF OF NO FIRE', 'ΚΑΜΙΑ ΘΕΡΜΗ ΚΗΛΙΔΑ ΤΙΣ ΤΕΛΕΥΤΑΙΕΣ 24 ΩΡΕΣ · ΑΥΤΟ ΔΕΝ ΑΠΟΔΕΙΚΝΥΕΙ ΟΤΙ ΔΕΝ ΥΠΑΡΧΕΙ ΦΩΤΙΑ'), l.c); return; }
+  list.forEach((f, i) => { const [x, y] = pxOf(f.lng, f.lat), ageH = f.seen ? (now - Date.parse(f.seen)) / 3600000 : 24, fresh = clamp01(1 - ageH / 24);
+    const glow = anim ? .75 + .25 * Math.sin(t * 1.2 + i) : 1;         // a slow glow, brighter for a newer sighting; it does not spread
+    disc(c, x, y, 6 * U, `rgba(255,120,60,${(.12 + .3 * fresh * glow).toFixed(3)})`); disc(c, x, y, 2.4 * U, `rgba(255,${Math.round(150 + 80 * fresh)},90,${(.45 + .55 * fresh).toFixed(3)})`, 'rgba(2,6,12,.9)', .6 * U);
+    if (f.seen) tinyText(c, ageText(ageH * 60), x + 5 * U, y - 4 * U, 7.5 * U); });
+}
+function drawBurnt(c, t, anim, l, p) {
+  const list = (p.features || []).filter(ok2); rev(l, t, false);
+  if (!list.length) { pill(c, T('NO BURNT AREA MAPPED IN THE LAST 30 DAYS', 'ΚΑΜΙΑ ΚΑΜΕΝΗ ΕΚΤΑΣΗ ΔΕΝ ΧΑΡΤΟΓΡΑΦΗΘΗΚΕ ΤΙΣ ΤΕΛΕΥΤΑΙΕΣ 30 ΗΜΕΡΕΣ'), l.c); return; }
+  list.forEach((f) => { const [x, y] = pxOf(f.lng, f.lat), r = areaR(f.hectares || 0, 1000, 9);
+    disc(c, x, y, Math.max(2 * U, r), 'rgba(170,110,80,.4)', '#d8a27c', 1.2 * U); tinyText(c, nf(Math.round(f.hectares || 0)) + ' ha', x + Math.max(2 * U, r) + 3 * U, y + 3 * U, 8 * U); });
+  const [lx, ly] = ipx(-.1, 1.08); disc(c, lx + 10 * U, ly, areaR(1000, 1000, 9), null, '#d8a27c', 1 * U); refNote(c, lx + 24 * U, ly, T('1,000 ha · the circle is not the shape of the burn', '1.000 ha · ο κύκλος δεν είναι το σχήμα της καμένης έκτασης'));
+}
+
+/* ---- stations: official air quality (one value an hour), and the weather stations and airports (wind that blows) ---- */
+const hhmm = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString(EL ? 'el-GR' : 'en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Nicosia' }); };
+const BAR_PX = 34;                                                     // sheet pixels of the reference bar
+function barAt(c, x, y, v, ref, colour) { const h = Math.min(2.2, v / ref) * BAR_PX * U; c.fillStyle = colour; c.fillRect(x - 2.2 * U, y - h, 4.4 * U, Math.max(1, h)); c.strokeStyle = 'rgba(2,6,12,.9)'; c.lineWidth = .6 * U; c.strokeRect(x - 2.2 * U, y - h, 4.4 * U, Math.max(1, h)); disc(c, x, y, 1.6 * U, '#ffffff', 'rgba(2,6,12,.9)', .5 * U); return h; }
+function refBar(c, text, colour) { const [lx, ly] = ipx(-.1, 1.12); c.fillStyle = colour; c.fillRect(lx, ly - BAR_PX * U, 4.4 * U, BAR_PX * U); refNote(c, lx + 9 * U, ly - BAR_PX * U / 2, text); }
+function drawAirStations(c, t, anim, l, p) {
+  const key = l.mode === 'pm10' ? 'pm10' : 'pm25', ref = key === 'pm10' ? 100 : 50, list = (p.features || []).filter(ok2); rev(l, t, false);
+  if (!list.length) { pill(c, T('NO STATION HAS REPORTED YET', 'ΚΑΝΕΝΑΣ ΣΤΑΘΜΟΣ ΔΕΝ ΕΧΕΙ ΑΝΑΦΕΡΕΙ ΑΚΟΜΗ'), l.c); return; }
+  list.forEach((f) => { const [x, y] = pxOf(f.lng, f.lat), v = f[key];
+    if (typeof v !== 'number') { disc(c, x, y, 2.4 * U, null, '#e3c8ff', 1 * U); return; }       // no value for this hour: a hollow dot, not a zero
+    const h = barAt(c, x, y, v, ref, '#e3c8ff'); tinyText(c, fmt(v) + (f[key + 'HourEnds'] ? ' · ' + T('hour to ', 'ώρα έως ') + hhmm(f[key + 'HourEnds']) : ''), x + 5 * U, y - h + 3 * U, 7.5 * U); });
+  refBar(c, ref + ' µg/m³ ' + (key === 'pm10' ? 'PM10' : 'PM2.5') + T(', mean of one hour', ', μέσος όρος μίας ώρας'), '#e3c8ff');
+}
+function windMark(c, x, y, f, t, anim, i) {                             // an arrow that points downwind; while it may move, dashes run along it at a pace that grows with the wind
+  if (typeof f.wind !== 'number' || typeof f.windFrom !== 'number' || f.wind <= 0) return;
+  const to = ((f.windFrom + 180) % 360) * Math.PI / 180, ang = Math.atan2(-Math.cos(to), Math.sin(to)), len = (8 + Math.min(15, f.wind) * 1.8) * U;
+  arrow(c, x, y, ang, len, 'rgba(180,235,255,.95)', 1.5 * U);
+  if (anim) { const ph = (t * f.wind * .12 + i * .37) % 1; disc(c, x + Math.cos(ang) * len * ph, y + Math.sin(ang) * len * ph, 1.5 * U, '#ffffff'); }
+}
+function drawMet(c, t, anim, l, met, air) {
+  const st = met ? (met.features || []).filter(ok2) : [], ap = air ? (air.features || []).filter(ok2) : [];
+  l.live = st.concat(ap).some((f) => typeof f.wind === 'number' && f.wind > 0);
+  if (!st.length && !ap.length) { pill(c, T('NO STATION HAS REPORTED YET', 'ΚΑΝΕΝΑΣ ΣΤΑΘΜΟΣ ΔΕΝ ΕΧΕΙ ΑΝΑΦΕΡΕΙ ΑΚΟΜΗ'), l.c); return; }
+  st.forEach((f, i) => { const [x, y] = pxOf(f.lng, f.lat); windMark(c, x, y, f, t, anim, i);
+    disc(c, x, y, 3.2 * U, typeof f.temp === 'number' ? rgb(colOf(SCALE.temp, f.temp)) : 'rgba(4,10,18,.9)', typeof f.temp === 'number' ? 'rgba(2,6,12,.95)' : '#b4ebff', 1 * U);
+    if (withNames(l.id) || st.length <= 12) tinyText(c, (typeof f.temp === 'number' ? fmt(f.temp) + '°' : '') + (typeof f.wind === 'number' ? ' ' + fmt(f.wind) + ' m/s' : '') + (f.rain10min ? ' ' + fmt(f.rain10min) + ' mm' : ''), x + 5 * U, y + 9 * U, 7.5 * U); });
+  ap.forEach((f, i) => { const [x, y] = pxOf(f.lng, f.lat), r = 4.2 * U; windMark(c, x, y, f, t, anim, i + 5);
+    c.beginPath(); c.moveTo(x, y - r); c.lineTo(x + r, y); c.lineTo(x, y + r); c.lineTo(x - r, y); c.closePath();     // an airport is a diamond
+    c.fillStyle = typeof f.temp === 'number' ? rgb(colOf(SCALE.temp, f.temp)) : 'rgba(4,10,18,.9)'; c.fill(); c.strokeStyle = '#F7C46B'; c.lineWidth = 1.2 * U; c.stroke();
+    tinyText(c, (typeof f.temp === 'number' ? fmt(f.temp) + '°' : '') + (typeof f.wind === 'number' ? ' ' + fmt(f.wind) + ' m/s' : '') + (f.time ? ' · ' + hhmm(f.time) : ''), x + 6 * U, y - 6 * U, 7.5 * U); });
+}
+
+/* ---- inventories and published labels: dots that appear once and stand ---- */
+function drawEv(c, t, anim, l, p) { const a = rev(l, t, anim); c.globalAlpha = a;
+  (p.features || []).filter(ok2).forEach((f) => { const [x, y] = pxOf(f.lng, f.lat), r = (1.2 + Math.sqrt(Math.max(1, f.connectors || 1)) * .9) * U;
+    if (f.current === 'DC') { c.fillStyle = '#ffe27a'; c.fillRect(x - r, y - r, 2 * r, 2 * r); c.strokeStyle = 'rgba(2,6,12,.9)'; c.lineWidth = .5 * U; c.strokeRect(x - r, y - r, 2 * r, 2 * r); }
+    else disc(c, x, y, r, '#8de4c0', 'rgba(2,6,12,.9)', .5 * U); });
+  c.globalAlpha = 1; const [lx, ly] = ipx(-.1, 1.08); disc(c, lx + 3 * U, ly, 2.4 * U, '#8de4c0'); refNote(c, lx + 9 * U, ly, 'AC'); c.fillStyle = '#ffe27a'; c.fillRect(lx + 34 * U, ly - 2.4 * U, 4.8 * U, 4.8 * U); refNote(c, lx + 43 * U, ly, 'DC · ' + T('bigger = more connectors', 'μεγαλύτερο = περισσότερα βύσματα')); }
+function drawCrossings(c, t, anim, l, p) { const a = rev(l, t, anim); c.globalAlpha = a;
+  (p.features || []).filter(ok2).forEach((f) => { const [x, y] = pxOf(f.lng, f.lat); disc(c, x, y, 1.5 * U, '#ffb3d1', 'rgba(2,6,12,.85)', .4 * U); }); c.globalAlpha = 1; }
+const BATH_COL = ['#7fe0ff', '#9be29b', '#ffe08a', '#ff9a8a', '#c9c9d6'];
+function drawBathing(c, t, anim, l, p) { const a = rev(l, t, anim), labels = ((p.counts && p.counts.labels) || []).map((x) => x.label); c.globalAlpha = a;
+  (p.features || []).filter(ok2).forEach((f) => { const [x, y] = pxOf(f.lng, f.lat), i = labels.indexOf(f.label); disc(c, x, y, 2.1 * U, BATH_COL[i < 0 ? 4 : Math.min(i, 4)], 'rgba(2,6,12,.9)', .5 * U); });
+  c.globalAlpha = 1; const [lx, ly] = ipx(-.1, 1.08);
+  ((p.counts && p.counts.labels) || []).slice(0, 5).forEach((x, i) => { disc(c, lx + 3 * U, ly + i * 11 * U, 2.4 * U, BATH_COL[Math.min(i, 4)]); refNote(c, lx + 9 * U, ly + i * 11 * U, String(x.label) + ' · ' + nf(x.sites) + ' ' + T('sites', 'σημεία') + ' · ' + T('season ', 'περίοδος ') + p.period); }); }
+function drawFlood(c, t, anim, l, p) { const a = rev(l, t, anim), mode = l.mode || 'q100'; c.globalAlpha = a; c.lineJoin = 'round'; c.lineCap = 'round';
+  (p.features || []).forEach((f) => { const n = f.polygons && typeof f.polygons[mode] === 'number' ? f.polygons[mode] : null;
+    (f.lines || []).forEach((ln) => { c.beginPath(); for (let i = 0; i + 1 < ln.length; i += 2) { const [x, y] = pxOf(ln[i + 1], ln[i]); if (i) c.lineTo(x, y); else c.moveTo(x, y); }
+      c.setLineDash(n ? [] : [2 * U, 2 * U]); c.strokeStyle = n ? 'rgba(110,200,255,.95)' : 'rgba(150,170,190,.7)'; c.lineWidth = (n ? .9 + Math.sqrt(n) * .75 : .7) * U; c.stroke(); });
+    if (withNames(l.id) && f.lines && f.lines[0] && f.lines[0].length > 1) { c.setLineDash([]); const [x, y] = pxOf(f.lines[0][1], f.lines[0][0]); tinyText(c, f.name + ' · ' + (n == null ? '–' : n), x + 3 * U, y - 3 * U, 7 * U); } });
+  c.setLineDash([]); c.globalAlpha = 1; const [lx, ly] = ipx(-.1, 1.08);
+  [1, 5, 13].forEach((n, i) => { c.strokeStyle = 'rgba(110,200,255,.95)'; c.lineWidth = (.9 + Math.sqrt(n) * .75) * U; c.beginPath(); c.moveTo(lx + i * 64 * U, ly); c.lineTo(lx + i * 64 * U + 22 * U, ly); c.stroke(); refNote(c, lx + i * 64 * U + 26 * U, ly, String(n)); });
+  refNote(c, lx, ly + 12 * U, T('line weight = modelled flood areas touching the reach · dashed grey = none', 'πάχος γραμμής = περιοχές πλημμύρας από μοντέλο που αγγίζουν το τμήμα · διακεκομμένο γκρι = καμία')); }
+function drawPermits(c, t, anim, l, p) { const a = rev(l, t, anim), list = (p.features || []).filter(ok2); c.globalAlpha = a;
+  list.forEach((f) => { const [x, y] = pxOf(f.lng, f.lat), v = f.total && f.total.permits;
+    if (typeof v !== 'number') { disc(c, x, y, 2.4 * U, null, '#ffcf9e', 1 * U); tinyText(c, TT(f.name) + ' · ' + T('not applicable', 'δεν εφαρμόζεται'), x + 6 * U, y + 3 * U, 8 * U); return; }
+    const h = barAt(c, x, y, v, 200, '#ffcf9e'); tinyText(c, TT(f.name) + ' · ' + nf(v), x + 5 * U, y - h + 3 * U, 8 * U); });
+  c.globalAlpha = 1; refBar(c, T('200 permits in the month (' + p.period + ')', '200 άδειες μέσα στον μήνα (' + p.period + ')'), '#ffcf9e'); }
+
+/* ---- replays of a past period: a drought year, one day of air pollution, one month of haze. The date is always on the sheet. ---- */
+const DR_COL = ['#3b6a8f', '#f3d36b', '#f09a4a', '#e2533f', '#7fd08a', '#9bd6c9', '#b6e08f'];   // one colour per class label; the number is a name, not a height
+function drawDrought(c, t, anim, l, p) {
+  const fs = (p.features || []).filter(ok2), n = (p.periods || []).length, at = anim && n ? Math.floor(t / 1.1) % n : null; if (!anim) l.revealDone = true;
+  fs.forEach((f) => { const h = (f.cellDegrees || 1 / 24) / 2, [x0, y0] = pxOf(f.lng - h, f.lat + h), [x1, y1] = pxOf(f.lng + h, f.lat - h), k = at == null ? null : f.classes[at];
+    if (k != null && DR_COL[k]) { c.fillStyle = DR_COL[k]; c.fillRect(x0, y0, x1 - x0, y1 - y0); }
+    c.strokeStyle = '#ffffff'; c.lineWidth = .8 * U; c.strokeRect(x0, y0, x1 - x0, y1 - y0); tinyText(c, TT(f.name), x1 + 3 * U, y0 + 6 * U, 8 * U); });
+  stripPanel(c, l.c, T('DROUGHT CLASS · 2022 · ONE BOX = TEN DAYS', 'ΚΑΤΗΓΟΡΙΑ ΞΗΡΑΣΙΑΣ · 2022 · ΕΝΑ ΚΟΥΤΙ = ΔΕΚΑ ΗΜΕΡΕΣ'), fs.map((f) => ({ name: TT(f.name), cells: f.classes.map((k) => DR_COL[k] || null) })), { cursor: at, boxW: 5.2, foot: T('JAN → DEC 2022 · an empty box = no value', 'ΙΑΝ → ΔΕΚ 2022 · άδειο κουτί = χωρίς τιμή') });
+  const [lx, ly] = pxOf(32.3, 34.48); Object.keys(p.classes || {}).forEach((k, i) => { c.fillStyle = DR_COL[k] || '#888'; c.fillRect(lx + (i % 4) * 96 * U, ly + Math.floor(i / 4) * 11 * U - 3 * U, 7 * U, 6 * U); refNote(c, lx + (i % 4) * 96 * U + 10 * U, ly + Math.floor(i / 4) * 11 * U, TT(p.classes[k])); });
+  replayClock(c, l.c, at == null ? T('2022 · THE WHOLE YEAR IS IN THE PANEL BELOW', '2022 · ΟΛΗ Η ΧΡΟΝΙΑ ΕΙΝΑΙ ΣΤΟΝ ΠΙΝΑΚΑ ΠΙΟ ΚΑΤΩ') : T('REPLAY OF 2022 · ', 'ΕΠΑΝΑΛΗΨΗ ΤΟΥ 2022 · ') + p.periods[at] + ' → ' + ((p.periodEnds || [])[at] || ''));
+}
+function drawAirDay(c, t, anim, l, p) {
+  const key = l.mode === 'o3' ? 'o3' : 'no2', sc = SCALE[key], fs = (p.features || []).filter(ok2), n = (p.hours || []).length, at = anim && n ? Math.floor(t / 1.2) % n : null; if (!anim) l.revealDone = true;
+  fs.forEach((f, i) => { const [x, y] = pxOf(f.lng, f.lat), v = at == null ? null : f[key][at];
+    if (typeof v === 'number') barAt(c, x, y, v, sc.max / 2, rgb(colOf(sc, v))); else disc(c, x, y, 2 * U, null, '#d8c8ff', .9 * U);
+    tinyText(c, String(i + 1), x + 4 * U, y + 8 * U, 7 * U); });
+  stripPanel(c, l.c, (key === 'o3' ? 'O3' : 'NO2') + T(' · µg/m³ · 15 MAY 2024 · ONE BOX = ONE HOUR', ' · µg/m³ · 15 ΜΑΪΟΥ 2024 · ΕΝΑ ΚΟΥΤΙ = ΜΙΑ ΩΡΑ'), fs.map((f, i) => ({ name: (i + 1) + ' ' + TT(f.name), cells: f[key].map((v) => (typeof v === 'number' ? rgb(colOf(sc, v)) : null)) })), { cursor: at, boxW: 6.5, nameW: 150, foot: T('00:00 → 23:00 · an empty box = no value that hour', '00:00 → 23:00 · άδειο κουτί = χωρίς τιμή εκείνη την ώρα') });
+  replayClock(c, l.c, at == null ? T('15 MAY 2024 · THE WHOLE DAY IS IN THE PANEL BELOW', '15 ΜΑΪΟΥ 2024 · ΟΛΗ Η ΜΕΡΑ ΕΙΝΑΙ ΣΤΟΝ ΠΙΝΑΚΑ ΠΙΟ ΚΑΤΩ') : T('REPLAY OF 15 MAY 2024 · ', 'ΕΠΑΝΑΛΗΨΗ ΤΗΣ 15ης ΜΑΪΟΥ 2024 · ') + String(p.hours[at]).slice(11, 16));
+}
+function drawAerosol(c, t, anim, l, p) {
+  const fs = (p.features || []).filter(ok2), days = (fs[0] && fs[0].days) || [], withValue = days.map((d, i) => i).filter((i) => fs.some((f) => typeof f.aod[i] === 'number'));
+  const at = anim && withValue.length ? withValue[Math.floor(t / 1.1) % withValue.length] : null; if (!anim) l.revealDone = true;     // a day with no value at either site is skipped, not filled
+  fs.forEach((f) => { const [x, y] = pxOf(f.lng, f.lat), v = at == null ? null : f.aod[at];
+    if (typeof v === 'number') { disc(c, x, y, areaR(v, .3, 11), rgb(colOf(SCALE.aod, v), .5), rgb(colOf(SCALE.aod, v)), 1.2 * U); tinyText(c, TT(f.name) + ' · AOD ' + v.toFixed(2), x + 13 * U, y - 5 * U, 8 * U); }
+    else { disc(c, x, y, 3 * U, null, '#ffd7a8', 1 * U); tinyText(c, TT(f.name) + (at == null ? '' : ' · ' + T('no value this day', 'χωρίς τιμή αυτή τη μέρα')), x + 6 * U, y - 5 * U, 8 * U); } });
+  stripPanel(c, l.c, T('AEROSOL OPTICAL DEPTH · JULY 2022 · ONE BOX = ONE DAY', 'ΟΠΤΙΚΟ ΒΑΘΟΣ ΑΕΡΟΛΥΜΑΤΩΝ · ΙΟΥΛΙΟΣ 2022 · ΕΝΑ ΚΟΥΤΙ = ΜΙΑ ΜΕΡΑ'), fs.map((f) => ({ name: TT(f.name), cells: f.aod.map((v) => (typeof v === 'number' ? rgb(colOf(SCALE.aod, v)) : null)) })), { cursor: at, boxW: 6, nameW: 124, foot: T('1 → 31 JULY 2022 · an empty box = no value that day', '1 → 31 ΙΟΥΛΙΟΥ 2022 · άδειο κουτί = χωρίς τιμή εκείνη τη μέρα') });
+  replayClock(c, l.c, at == null ? T('JULY 2022 · THE WHOLE MONTH IS IN THE PANEL BELOW', 'ΙΟΥΛΙΟΣ 2022 · ΟΛΟΣ Ο ΜΗΝΑΣ ΕΙΝΑΙ ΣΤΟΝ ΠΙΝΑΚΑ ΠΙΟ ΚΑΤΩ') : T('REPLAY OF JULY 2022 · ', 'ΕΠΑΝΑΛΗΨΗ ΤΟΥ ΙΟΥΛΙΟΥ 2022 · ') + dayText(days[at]));
+}
+// what the tests read about these sheets
+window.__stack = () => ({ answers: Object.keys(SD).filter((id) => pd(id)).map((id) => ({ id, available: pd(id).available !== false, demo: pd(id).demo === true, kind: pd(id).kind })), asked: Object.assign({}, SDat),
+  buses: busMarks.slice(), vehicles: { marks: vehMarks.slice(), clock: vehClock }, patches: Object.keys(bPatch).map((k) => ({ key: k, w: bPatch[k].mesh.geometry.parameters.width, h: bPatch[k].mesh.geometry.parameters.height })) });
+
+/* The sheets fed by /api/stack. Each is one object here and one draw function above; see the contract at the top of LAYERS. */
+const LEVELS = [{ id: 'municipalities', name: ['Four municipalities', 'Τέσσερις δήμοι'] }, { id: 'districts', name: ['Five districts', 'Πέντε επαρχίες'] }];
+const CENSUS_NEVER = ['Nothing moves. When the sheet opens the marks appear one after another, then they stand still: a census is one day in 2021, not something changing now.', 'Τίποτα δεν κινείται. Όταν ανοίγει το φύλλο τα σημάδια εμφανίζονται το ένα μετά το άλλο και μετά μένουν ακίνητα: η απογραφή είναι μία μέρα του 2021, όχι κάτι που αλλάζει τώρα.'];
+const ONCE_NEVER = ['Nothing moves. The marks appear once when the sheet opens and then stand still: this is a published list, not something happening now.', 'Τίποτα δεν κινείται. Τα σημάδια εμφανίζονται μία φορά όταν ανοίγει το φύλλο και μετά μένουν ακίνητα: είναι δημοσιευμένος κατάλογος, όχι κάτι που συμβαίνει τώρα.'];
+const PLACE_MARK = ['The circles stand at the centre of the main town, not over the whole area they count.', 'Οι κύκλοι στέκονται στο κέντρο της κύριας πόλης, όχι πάνω σε όλη την περιοχή που μετρούν.'];
+const STACK_SHEETS = {
+  bathing: { id: 'bathing', band: 'WATER', c: '#7fe0ff', stack: 'bathing-water', win: 'island', res: 2, moves: 'reveal', reveal: 1.2, name: ['Bathing water quality', 'Ποιότητα νερών κολύμβησης'], src: ['EEA · label of the 2025 season', 'ΕΟΠ · ετικέτα της περιόδου 2025'],
+    height: ['THE SHORE', 'Η ΑΚΤΗ'], draw: drawBathing, count: (p) => p && p.counts && p.counts.sites, countWord: ['sites', 'σημεία'],
+    info: { cap: ['The quality label each bathing site got for the 2025 season.', 'Η ετικέτα ποιότητας που πήρε κάθε σημείο κολύμβησης για την περίοδο 2025.'],
+      unit: ['Dot colour = the label reported for the season (a label, not a number)', 'Χρώμα κουκκίδας = η ετικέτα που δηλώθηκε για την περίοδο (ετικέτα, όχι αριθμός)'], never: ONCE_NEVER,
+      marks: () => { const p = pd('bathing-water'), ls = (p && p.counts && p.counts.labels) || []; return [[ls.map((x) => x.label + ': ' + x.sites + ' sites').join(' · ') + '. The list on the sheet shows every label that was reported.', ls.map((x) => x.label + ': ' + x.sites + ' σημεία').join(' · ') + '. Η λίστα πάνω στο φύλλο δείχνει κάθε ετικέτα που δηλώθηκε.'],
+        ['A label sums up samples of a whole season. It is not a score and it does not say the water is safe today.', 'Η ετικέτα συνοψίζει δείγματα μιας ολόκληρης περιόδου. Δεν είναι βαθμός και δεν λέει ότι το νερό είναι ασφαλές σήμερα.']]; } } },
+  flood: { id: 'flood', band: 'WATER', c: '#6ec8ff', stack: 'flood-reaches', win: 'island', res: 2, moves: 'reveal', reveal: 1.2, name: ['River reaches with flood scenarios', 'Τμήματα ποταμών με σενάρια πλημμύρας'], src: ['Water Development Department · modelled scenarios', 'Τμήμα Αναπτύξεως Υδάτων · σενάρια από μοντέλο'],
+    height: ['RIVER BEDS', 'ΚΟΙΤΕΣ ΠΟΤΑΜΩΝ'], draw: drawFlood, count: (p) => p && p.features.length, countWord: ['reaches', 'τμήματα'],
+    modes: () => ((pd('flood-reaches') || {}).scenarios || []).map((s) => ({ id: s.id, name: s.name })), mode: 'q100',
+    info: { cap: ['River reaches the state has designated, and how many modelled flood areas touch each.', 'Τμήματα ποταμών που έχει ορίσει το κράτος, και πόσες περιοχές πλημμύρας από μοντέλο αγγίζουν το καθένα.'],
+      unit: ['Line weight = number of flood-scenario polygons that touch the reach (a count)', 'Πάχος γραμμής = αριθμός πολυγώνων σεναρίου πλημμύρας που αγγίζουν το τμήμα (πλήθος)'],
+      never: ['Nothing moves, on purpose: moving water would say a river is flooding. The lines appear once and stand still.', 'Τίποτα δεν κινείται, επίτηδες: νερό που κινείται θα έλεγε ότι ένας ποταμός πλημμυρίζει. Οι γραμμές εμφανίζονται μία φορά και μένουν ακίνητες.'],
+      marks: [['One scenario is shown at a time: choose it with the buttons below. The count is not flooded area and not damage.', 'Φαίνεται ένα σενάριο κάθε φορά: διάλεξέ το με τα κουμπιά πιο κάτω. Το πλήθος δεν είναι πλημμυρισμένη έκταση ούτε ζημιά.'],
+        ['A dashed grey line is a reach that no polygon of this scenario touches. Reservoirs are not drawn: their places are not in our files.', 'Μια διακεκομμένη γκρίζα γραμμή είναι τμήμα που δεν το αγγίζει κανένα πολύγωνο αυτού του σεναρίου. Τα φράγματα δεν σχεδιάζονται: οι θέσεις τους δεν υπάρχουν στα αρχεία μας.']] } },
+  quakes: { id: 'quakes', band: 'GROUND', c: '#ffd678', stack: 'earthquakes', win: 'wide', res: 2, moves: 'reveal', reveal: 9, def: true, name: ['Earthquakes since 2015', 'Σεισμοί από το 2015'], src: ['USGS catalogue · past events', 'Κατάλογος USGS · παλιά γεγονότα'],
+    height: ['UNDER THE GROUND', 'ΚΑΤΩ ΑΠΟ ΤΟ ΕΔΑΦΟΣ'], draw: drawQuakes, count: (p) => p && p.features.length, countWord: ['events', 'σεισμοί'],
+    lines: () => (has('earthquakes') ? pd('earthquakes').features.map((f) => [String(f.time).slice(0, 10) + ' UTC', 'M' + f.magnitude + ' ' + (f.magnitudeType || '') + ' · ' + f.depthKm + ' km · ' + f.place, 'USGS']) : []),
+    info: { scale: 'qdepth', cap: ['Earthquakes of magnitude 4.5 and above around Cyprus since 2015.', 'Σεισμοί μεγέθους 4,5 και πάνω γύρω από την Κύπρο από το 2015.'],
+      unit: ['Ring size = magnitude (4.5 to 5.3 here; the type, mb or mww, is written beside each)', 'Μέγεθος δαχτυλιδιού = μέγεθος σεισμού (εδώ 4,5 έως 5,3· ο τύπος, mb ή mww, γράφεται δίπλα)'],
+      move: ['When the sheet opens, each earthquake ripples once, in the order of its date. After that the rings stand still: this is a list of past events, and nothing here is shaking now.', 'Όταν ανοίγει το φύλλο, κάθε σεισμός κάνει έναν κυματισμό, με τη σειρά της ημερομηνίας του. Μετά τα δαχτυλίδια μένουν ακίνητα: είναι κατάλογος παλιών γεγονότων, και τίποτα εδώ δεν σείεται τώρα.'],
+      rest: ['Nothing moves: every earthquake of the list stands as a ring. This is a list of past events.', 'Τίποτα δεν κινείται: κάθε σεισμός του καταλόγου στέκεται ως δαχτυλίδι. Είναι κατάλογος παλιών γεγονότων.'],
+      marks: [['The colour is how deep under the ground the earthquake was, in km. Five events of 12 and 13 November 2025 lie close together and overlap.', 'Το χρώμα δείχνει πόσο βαθιά κάτω από το έδαφος έγινε ο σεισμός, σε km. Πέντε γεγονότα της 12ης και 13ης Νοεμβρίου 2025 είναι κοντά το ένα στο άλλο και επικαλύπτονται.'],
+        ['Only the box 34 to 36 N, 32 to 35 E was searched. Outside it the sheet is empty, which does not mean no earthquake happened there.', 'Η αναζήτηση έγινε μόνο στο πλαίσιο 34 έως 36 Β, 32 έως 35 Α. Έξω από αυτό το φύλλο είναι άδειο, κάτι που δεν σημαίνει ότι εκεί δεν έγινε σεισμός.']] } },
+  drought: { id: 'drought', band: 'GROUND', c: '#f3d36b', stack: 'drought', win: 'panel', res: 2, moves: 'always', beat: 6, name: ['Farm drought in 2022', 'Γεωργική ξηρασία το 2022'], src: ['European Drought Observatory · 2022', 'Ευρωπαϊκό Παρατηρητήριο Ξηρασίας · 2022'],
+    height: ['FARMLAND', 'ΚΑΛΛΙΕΡΓΕΙΕΣ'], draw: drawDrought, count: (p) => p && p.features.length, countWord: ['grid cells', 'κελιά'],
+    info: { cap: ['The drought class of four grid cells through 2022.', 'Η κατηγορία ξηρασίας σε τέσσερα κελιά πλέγματος μέσα στο 2022.'],
+      unit: ['Colour = the class label of a ten-day period (seven labels, listed on the sheet; a label, not an amount)', 'Χρώμα = η ετικέτα κατηγορίας ενός δεκαημέρου (επτά ετικέτες, γραμμένες στο φύλλο· ετικέτα, όχι ποσότητα)'],
+      move: ['This is a replay of a past year: the squares step through the 36 ten-day periods of 2022 and the white frame in the panel shows which one is on. The date is always written on the sheet.', 'Αυτό είναι επανάληψη μιας περασμένης χρονιάς: τα τετράγωνα περνούν από τα 36 δεκαήμερα του 2022 και το λευκό πλαίσιο στον πίνακα δείχνει ποιο φαίνεται. Η ημερομηνία γράφεται πάντα πάνω στο φύλλο.'],
+      rest: ['Nothing moves: the panel shows all 36 ten-day periods of 2022 side by side, one row for each grid cell.', 'Τίποτα δεν κινείται: ο πίνακας δείχνει και τα 36 δεκαήμερα του 2022 δίπλα δίπλα, μία γραμμή για κάθε κελί.'],
+      marks: () => { const p = pd('drought'); return [['Each square on the map is one grid cell at its true size, about 4 km. Four cells are not the whole island.', 'Κάθε τετράγωνο στον χάρτη είναι ένα κελί του πλέγματος στο πραγματικό του μέγεθος, περίπου 4 km. Τέσσερα κελιά δεν είναι όλο το νησί.']].concat(p && p.classesAreNotAScale ? [p.classesAreNotAScale] : []); } } },
+  burnt: { id: 'burnt', band: 'GROUND', c: '#d8a27c', stack: 'burnt-areas', win: 'island', res: 2, name: ['Burnt areas mapped from space', 'Καμένες εκτάσεις χαρτογραφημένες από δορυφόρο'], src: ['EFFIS · last 30 days', 'EFFIS · τελευταίες 30 ημέρες'],
+    height: ['THE LAND', 'Η ΓΗ'], draw: drawBurnt, count: (p) => p && p.features.length, countWord: ['perimeters', 'περίμετροι'],
+    info: { cap: ['Burnt land mapped from satellite pictures in the last 30 days.', 'Καμένη γη που χαρτογραφήθηκε από δορυφορικές εικόνες τις τελευταίες 30 ημέρες.'],
+      unit: ['Circle area = burnt hectares (ha) of one mapped perimeter', 'Εμβαδόν κύκλου = καμένα εκτάρια (ha) μιας χαρτογραφημένης περιμέτρου'],
+      never: ['Nothing moves here: a mapped burnt area is drawn once and stands still.', 'Εδώ δεν κινείται τίποτα: μια χαρτογραφημένη καμένη έκταση σχεδιάζεται μία φορά και μένει ακίνητη.'],
+      marks: [['The circle stands at the middle of the mapped perimeter. It is not the shape of the burn.', 'Ο κύκλος στέκεται στη μέση της χαρτογραφημένης περιμέτρου. Δεν είναι το σχήμα της καμένης έκτασης.'],
+        ['An empty sheet means nothing was mapped, not that nothing burned: small fires are not mapped.', 'Ένα άδειο φύλλο σημαίνει ότι δεν χαρτογραφήθηκε κάτι, όχι ότι δεν κάηκε τίποτα: οι μικρές φωτιές δεν χαρτογραφούνται.']] } },
+  hotspots: { id: 'hotspots', band: 'GROUND', c: '#ff9a5a', stack: 'fire-hotspots', win: 'island', res: 2, moves: (l) => !!l.live, beat: 6, name: ['Fire hotspots from space', 'Θερμές κηλίδες φωτιάς από δορυφόρο'], src: ['NASA FIRMS · last 24 hours', 'NASA FIRMS · τελευταίες 24 ώρες'],
+    height: ['THE LAND', 'Η ΓΗ'], draw: drawHotspots, count: (p) => p && p.features.length, countWord: ['seen', 'εντοπίστηκαν'],
+    info: { cap: ['Places where satellites saw heat in the last 24 hours.', 'Σημεία όπου δορυφόροι είδαν θερμότητα τις τελευταίες 24 ώρες.'],
+      unit: ['Dot = one place where a satellite saw heat; brightness = how recently (hours)', 'Κουκκίδα = ένα σημείο όπου δορυφόρος είδε θερμότητα· φωτεινότητα = πόσο πρόσφατα (ώρες)'],
+      move: ['Each dot glows slowly, brighter when the sighting is newer and dim near 24 hours. The glow does not spread and is not a flame.', 'Κάθε κουκκίδα λάμπει αργά, πιο φωτεινά όταν ο εντοπισμός είναι πιο πρόσφατος και αχνά κοντά στις 24 ώρες. Η λάμψη δεν απλώνεται και δεν είναι φλόγα.'],
+      rest: ['Nothing moves: a brighter dot is a newer sighting, and its age is written beside it.', 'Τίποτα δεν κινείται: πιο φωτεινή κουκκίδα σημαίνει πιο πρόσφατος εντοπισμός, και η ηλικία του γράφεται δίπλα.'],
+      marks: [['If you see smoke or fire, call 112.', 'Αν δεις καπνό ή φωτιά, κάλεσε το 112.'],
+        ['One dot stands for a square of ground 375 m to 1 km wide. An empty sheet means none was seen, not that there is no fire: clouds and the hours between passes hide things.', 'Μια κουκκίδα αντιστοιχεί σε ένα τετράγωνο εδάφους πλάτους 375 m έως 1 km. Ένα άδειο φύλλο σημαίνει ότι δεν εντοπίστηκε καμία, όχι ότι δεν υπάρχει φωτιά: τα σύννεφα και οι ώρες ανάμεσα στα περάσματα κρύβουν πράγματα.']] } },
+  crossings: { id: 'crossings', band: 'CITY', c: '#ffb3d1', stack: 'crossings', win: 'island', res: 2, moves: 'reveal', reveal: 1.2, name: ['Pedestrian crossings with signals', 'Διαβάσεις πεζών με φωτεινό σηματοδότη'], src: ['Public Works Department · inventory', 'Τμήμα Δημοσίων Έργων · κατάλογος'],
+    height: ['STREET LEVEL', 'ΣΤΑΘΜΗ ΔΡΟΜΟΥ'], draw: drawCrossings, count: (p) => p && p.features.length, countWord: ['crossings', 'διαβάσεις'],
+    info: { cap: ['Signal-controlled pedestrian crossings in the published inventory.', 'Διαβάσεις πεζών με σηματοδότη στον δημοσιευμένο κατάλογο.'],
+      unit: ['Dot = one signal-controlled crossing in the inventory (a count of crossings)', 'Κουκκίδα = μία διάβαση με σηματοδότη στον κατάλογο (πλήθος διαβάσεων)'], never: ONCE_NEVER,
+      marks: [['Crossings without a signal are not in this list, so an empty street here is not a street without crossings.', 'Οι διαβάσεις χωρίς σηματοδότη δεν είναι σε αυτόν τον κατάλογο, άρα ένας άδειος δρόμος εδώ δεν είναι δρόμος χωρίς διαβάσεις.']] } },
+  ev: { id: 'ev', band: 'CITY', c: '#8de4c0', stack: 'ev-charging', win: 'island', res: 2, moves: 'reveal', reveal: 1.2, name: ['EV charging points', 'Σημεία φόρτισης ηλεκτρικών οχημάτων'], src: ['National inventory · via CyNAP', 'Εθνικός κατάλογος · μέσω CyNAP'],
+    height: ['STREET LEVEL', 'ΣΤΑΘΜΗ ΔΡΟΜΟΥ'], draw: drawEv, count: (p) => p && p.counts && p.counts.records, countWord: ['records', 'εγγραφές'],
+    info: { cap: ['Public charging points in the national inventory.', 'Δημόσια σημεία φόρτισης στον εθνικό κατάλογο.'],
+      unit: ['Mark = one charging point; round is AC, square is DC; a bigger mark has more connectors (count)', 'Σημάδι = ένα σημείο φόρτισης· στρογγυλό είναι AC, τετράγωνο είναι DC· μεγαλύτερο σημάδι έχει περισσότερα βύσματα (πλήθος)'], never: ONCE_NEVER,
+      marks: () => { const p = pd('ev-charging'), n = p && p.counts; return n ? [[n.records + ' records stand at ' + n.places + ' different places, so several marks can lie on top of each other.', n.records + ' εγγραφές βρίσκονται σε ' + n.places + ' διαφορετικά σημεία, άρα πολλά σημάδια μπορεί να πέφτουν το ένα πάνω στο άλλο.']] : []; } } },
+  buildings: { id: 'buildings', band: 'CITY', c: '#C4B8FF', stack: 'buildings', win: 'island', res: 2, moves: 'reveal', reveal: 3, name: ['Built-up ground', 'Δομημένο έδαφος'], src: ['© OpenStreetMap contributors · four city centres', '© Συντελεστές του OpenStreetMap · τέσσερα κέντρα πόλεων'],
+    height: ['ROOFTOPS', 'ΣΤΕΓΕΣ'], draw: drawBuildings, ready: readyBuildings, count: (p) => p && p.features.filter((f) => f.available).length, countWord: ['city boxes', 'τετράγωνα πόλεων'],
+    spots: () => (has('buildings') ? pd('buildings').features.filter((f) => f.centre && bPatch[f.key]).map((f) => ({ name: f.name, lng: f.centre.lng, lat: f.centre.lat, span: .024 })) : []),
+    lines: () => (has('buildings') ? pd('buildings').features.map((f) => [TT(f.name), f.available ? fmt(f.coveredPercent) + ' % ' + T('of the box', 'του τετραγώνου') + ' · ' + nf(f.buildings) + ' ' + T('buildings', 'κτίρια') : T('no data', 'χωρίς δεδομένα'), 'OpenStreetMap']) : []),
+    info: { scale: 'built', cap: ['How much of each 100 m square is covered by buildings, in four city centres.', 'Πόσο από κάθε τετράγωνο 100 m καλύπτεται από κτίρια, σε τέσσερα κέντρα πόλεων.'],
+      never: ['Nothing moves. When the sheet opens, the squares appear from the emptiest to the fullest and then stand still.', 'Τίποτα δεν κινείται. Όταν ανοίγει το φύλλο, τα τετράγωνα εμφανίζονται από το πιο άδειο ως το πιο γεμάτο και μετά μένουν ακίνητα.'],
+      marks: [['Each box is 1.8 km wide and is drawn at its true size, so from far away it is only a speck inside its ring. Use the "fly to" buttons below to go close.', 'Κάθε τετράγωνο έχει πλάτος 1,8 km και σχεδιάζεται στο πραγματικό του μέγεθος, άρα από μακριά είναι μόνο μια κουκκίδα μέσα στο δαχτυλίδι της. Πάτα τα κουμπιά "πέτα σε" πιο κάτω για να πας κοντά.'],
+        ['Outside the four boxes nothing is drawn. That does not mean there are no buildings there: only these boxes were read.', 'Έξω από τα τέσσερα τετράγωνα δεν σχεδιάζεται τίποτα. Αυτό δεν σημαίνει ότι εκεί δεν υπάρχουν κτίρια: διαβάστηκαν μόνο αυτά τα τετράγωνα.'],
+        ['The map is made by volunteers, so a building that nobody has drawn yet is missing.', 'Ο χάρτης φτιάχνεται από εθελοντές, άρα ένα κτίριο που κανείς δεν έχει σχεδιάσει ακόμη λείπει.']] } },
+  permits: { id: 'permits', band: 'CITY', c: '#ffcf9e', stack: 'permits', win: 'island', res: 2, moves: 'reveal', reveal: 1.2, name: ['Building permits', 'Άδειες οικοδομής'], src: ['CYSTAT · monthly statistic', 'CYSTAT · μηνιαίο στατιστικό'],
+    height: ['TOWN HALLS', 'ΔΗΜΑΡΧΕΙΑ'], draw: drawPermits, count: (p) => p && p.reportingTotal && p.reportingTotal.permits, countWord: ['permits', 'άδειες'],
+    lines: () => (has('permits') ? pd('permits').features.map((f) => [TT(f.name), ['urban', 'rural'].map((k) => T(k, k === 'urban' ? 'αστικές' : 'αγροτικές') + ' ' + (f[k] && typeof f[k].permits === 'number' ? nf(f[k].permits) : T('n/a', 'δ/ε'))).join(' · '), 'CYSTAT']) : []),
+    info: { cap: ['Building permits authorised in July 2026, by district.', 'Άδειες οικοδομής που εγκρίθηκαν τον Ιούλιο 2026, ανά επαρχία.'],
+      unit: ['Bar height = permits authorised in the month (permits); the bar at the corner shows 200', 'Ύψος μπάρας = άδειες που εγκρίθηκαν μέσα στον μήνα (άδειες)· η μπάρα στη γωνία δείχνει 200'], never: ONCE_NEVER,
+      marks: () => { const p = pd('permits'); return [['Each bar stands at the main town of its district and counts the whole district. A taller bar is more permits, not a better or a worse place.', 'Κάθε μπάρα στέκεται στην κύρια πόλη της επαρχίας της και μετρά όλη την επαρχία. Πιο ψηλή μπάρα σημαίνει περισσότερες άδειες, όχι καλύτερο ή χειρότερο μέρος.'],
+        ['The statistics cover the government-controlled part of each district. Put this sheet on its own to see urban and rural permits.', 'Τα στατιστικά καλύπτουν το μέρος κάθε επαρχίας που ελέγχει η κυβέρνηση. Βάλε το φύλλο μόνο του για να δεις αστικές και αγροτικές άδειες.']].concat(p && p.annotation && p.annotation.text ? [p.annotation.text] : []); } } },
+  population: { id: 'population', band: 'CITY', c: '#C4B8FF', stack: 'population', win: 'island', res: 2, moves: 'reveal', reveal: 3, def: true, name: ['Residents', 'Κάτοικοι'], src: ['CYSTAT · census of 1 October 2021', 'CYSTAT · απογραφή 1ης Οκτωβρίου 2021'],
+    height: ['WHERE PEOPLE LIVE', 'ΕΚΕΙ ΠΟΥ ΖΕΙ Ο ΚΟΣΜΟΣ'], draw: drawPopulation, modes: () => LEVELS, mode: 'municipalities', count: (p) => p && p.total && p.total.residents, countWord: ['residents, 2021', 'κάτοικοι, 2021'],
+    lines: () => (has('population') ? pd('population').features.map((f) => [TT(f.name), nf(f.residents) + (f.recast2024 && !f.recast2024.sameAs2021 ? ' · ' + T('2021 residents in the 2024 boundaries: ', 'κάτοικοι του 2021 στα όρια του 2024: ') + nf(f.recast2024.residents) : ''), 'CYSTAT 2021']) : []),
+    info: { cap: ['Residents counted in the 2021 census, by municipality as it was on census day.', 'Κάτοικοι που μετρήθηκαν στην απογραφή του 2021, ανά δήμο όπως ήταν την ημέρα της απογραφής.'],
+      unit: ['Circle area = residents on 1 October 2021 (three reference circles on the sheet: 25,000 · 50,000 · 100,000)', 'Εμβαδόν κύκλου = κάτοικοι την 1η Οκτωβρίου 2021 (τρεις κύκλοι αναφοράς στο φύλλο: 25.000 · 50.000 · 100.000)'], never: CENSUS_NEVER,
+      marks: () => { const p = pd('population'); if (!p) return []; return [PLACE_MARK,
+        ['One level is shown at a time, municipalities or districts. A district holds its municipalities, so the two are never added.', 'Φαίνεται ένα επίπεδο κάθε φορά, δήμοι ή επαρχίες. Μια επαρχία περιέχει τους δήμους της, άρα τα δύο δεν προστίθενται ποτέ.'],
+        [(p.unplaced ? p.unplaced.count : 0) + ' more places have no position yet, so they are not drawn. Their numbers are real.', (p.unplaced ? p.unplaced.count : 0) + ' ακόμη τόποι δεν έχουν θέση, άρα δεν σχεδιάζονται. Οι αριθμοί τους είναι πραγματικοί.']]
+        .concat(p.density && p.density.reason ? [p.density.reason] : []).concat(p.coverage ? [p.coverage] : []); } } },
+  age: { id: 'age', band: 'CITY', c: '#f09aa8', stack: 'age', win: 'island', res: 2, moves: 'reveal', reveal: 3, name: ['Age of residents', 'Ηλικία κατοίκων'], src: ['CYSTAT · census of 1 October 2021', 'CYSTAT · απογραφή 1ης Οκτωβρίου 2021'],
+    height: ['WHERE PEOPLE LIVE', 'ΕΚΕΙ ΠΟΥ ΖΕΙ Ο ΚΟΣΜΟΣ'], draw: drawAge, modes: () => LEVELS, mode: 'municipalities', count: (p) => p && p.total && p.total.meanAge, countWord: ['mean age, 2021', 'μέση ηλικία, 2021'],
+    info: { scale: 'age', cap: ['Mean age and age groups of residents in the 2021 census.', 'Μέση ηλικία και ηλικιακές ομάδες των κατοίκων στην απογραφή του 2021.'], never: CENSUS_NEVER,
+      marks: () => { const p = pd('age'); return [['The bar beside each place splits its residents into three groups, in % of residents: under 15, 15 to 64, 65 and over.', 'Η μπάρα δίπλα σε κάθε τόπο χωρίζει τους κατοίκους του σε τρεις ομάδες, σε % των κατοίκων: κάτω των 15, 15 έως 64, 65 και άνω.'], PLACE_MARK,
+        ['A different mean age is a fact about who lived there in 2021. It does not make a place better or worse.', 'Μια διαφορετική μέση ηλικία είναι στοιχείο για το ποιοι ζούσαν εκεί το 2021. Δεν κάνει έναν τόπο καλύτερο ή χειρότερο.'],
+        ['A place with fewer than ' + ((p && p.ageFloor) || 50) + ' residents is drawn hollow, with no age figures.', 'Ένας τόπος με λιγότερους από ' + ((p && p.ageFloor) || 50) + ' κατοίκους σχεδιάζεται κενός, χωρίς στοιχεία ηλικίας.']]; } } },
+  buses: { id: 'buses', band: 'CITY', c: '#a0d6b4', stack: ['bus-network', 'bus-now'], win: 'island', res: 2, moves: () => has('bus-now') && (pd('bus-now').trips || []).length > 0, beat: 4, def: true, name: ['Buses by the timetable', 'Λεωφορεία σύμφωνα με το δρομολόγιο'], src: ['Official timetable files · not observed', 'Επίσημα αρχεία δρομολογίων · όχι παρατήρηση'],
+    height: ['THE ROADS', 'ΟΙ ΔΡΟΜΟΙ'], draw: drawBuses, count: (net, now) => (now ? now.counts && now.counts.running : net ? net.counts && net.counts.lines : null), countWord: ['planned / lines', 'προγραμματισμένα / γραμμές'],
+    lines: () => { const now = has('bus-now') ? pd('bus-now') : null, net = has('bus-network') ? pd('bus-network') : null, out = [];
+      if (net) out.push([T('lines · stops', 'γραμμές · στάσεις'), nf(net.counts.lines) + ' · ' + nf(net.counts.stops), T('timetable files', 'αρχεία δρομολογίων')]);
+      if (now) out.push([TT(now.dayType) + ' ' + now.cyprusTime, T(now.counts.running + ' planned on the road · ' + now.counts.shown + ' drawn', now.counts.running + ' προγραμματισμένα στον δρόμο · ' + now.counts.shown + ' σχεδιασμένα'), T('timetable', 'δρομολόγιο')]); return out; },
+    info: { cap: ['The bus lines and stops of the official timetables, and where each bus should be right now if it runs exactly on time.', 'Οι γραμμές και οι στάσεις των επίσημων δρομολογίων, και πού θα έπρεπε να είναι κάθε λεωφορείο τώρα, αν πηγαίνει ακριβώς στην ώρα του.'],
+      unit: ['One hollow square = one planned trip that should be on the road at this minute (a count of trips)', 'Ένα κενό τετράγωνο = ένα προγραμματισμένο δρομολόγιο που θα έπρεπε να είναι στον δρόμο αυτό το λεπτό (πλήθος δρομολογίων)'],
+      move: ['Each square moves along the straight line between two stops at the pace of the timetable, in real time. Nobody observed these buses: a late or cancelled bus looks the same here.', 'Κάθε τετράγωνο κινείται στην ευθεία ανάμεσα σε δύο στάσεις με τον ρυθμό του δρομολογίου, σε πραγματικό χρόνο. Κανείς δεν παρατήρησε αυτά τα λεωφορεία: ένα λεωφορείο που αργεί ή ακυρώθηκε φαίνεται ίδιο εδώ.'],
+      rest: ['Nothing moves: each square stands where the timetable puts its bus at the minute the picture was drawn. Nobody observed these buses.', 'Τίποτα δεν κινείται: κάθε τετράγωνο στέκεται εκεί όπου το δρομολόγιο βάζει το λεωφορείο του το λεπτό που σχεδιάστηκε η εικόνα. Κανείς δεν παρατήρησε αυτά τα λεωφορεία.'],
+      marks: [['Solid line: the route as drawn in the timetable file. Dashed line: straight from stop to stop, not the road. Small dot: a stop.', 'Συνεχής γραμμή: η διαδρομή όπως είναι σχεδιασμένη στο αρχείο δρομολογίων. Διακεκομμένη γραμμή: ευθεία από στάση σε στάση, όχι ο δρόμος. Μικρή κουκκίδα: μια στάση.'],
+        ['Public holidays and cancelled trips are not taken into account. No trail is drawn behind a bus, because a trail would say it was seen there.', 'Οι αργίες και τα ακυρωμένα δρομολόγια δεν λαμβάνονται υπόψη. Πίσω από ένα λεωφορείο δεν σχεδιάζεται ίχνος, γιατί ένα ίχνος θα έλεγε ότι το είδαν εκεί.']] } },
+  vehicles: { id: 'vehicles', band: 'CITY', c: '#ffd696', stack: 'own-vehicles', win: 'island', res: 2, moves: 'always', beat: 4, name: ['Our sensor vehicles', 'Τα οχήματα με τους αισθητήρες μας'], src: ['Our own sensors · delayed and rounded', 'Οι δικοί μας αισθητήρες · με καθυστέρηση και στρογγύλεμα'],
+    height: ['THE ROADS', 'ΟΙ ΔΡΟΜΟΙ'], draw: drawVehicles, count: (p) => p && p.counts && p.counts.withTrail, countWord: ['with a trail', 'με διαδρομή'],
+    info: { cap: ['Where our sensor vehicles were, at least two hours ago, to the nearest kilometre.', 'Πού ήταν τα οχήματα με τους αισθητήρες μας, τουλάχιστον δύο ώρες πριν, με ακρίβεια ενός χιλιομέτρου.'],
+      unit: ['One square = about 1 km (the grid the positions are rounded to); the clock on the sheet = the time being replayed', 'Ένα τετράγωνο = περίπου 1 km (το πλέγμα στο οποίο στρογγυλεύονται οι θέσεις)· το ρολόι στο φύλλο = η ώρα που ξαναπαίζεται'],
+      move: () => { const p = pd('own-vehicles') || {}; return ['A replay, faster than real time: each mark jumps from one grid square to the next in the order of the trail, and the clock on the sheet shows the moment being replayed. That moment is always at least ' + (p.delayMinutes || 120) + ' minutes ago; the replay never reaches now.', 'Μια επανάληψη, πιο γρήγορη από τον πραγματικό χρόνο: κάθε σημάδι πηδά από το ένα τετράγωνο του πλέγματος στο επόμενο με τη σειρά της διαδρομής, και το ρολόι στο φύλλο δείχνει τη στιγμή που ξαναπαίζεται. Η στιγμή αυτή είναι πάντα τουλάχιστον ' + (p.delayMinutes || 120) + ' λεπτά πριν· η επανάληψη δεν φτάνει ποτέ στο τώρα.']; },
+      rest: ['Nothing moves: the faint squares are everywhere a vehicle was in the window, and a bright square is its last place that may be shown.', 'Τίποτα δεν κινείται: τα αχνά τετράγωνα είναι όλα τα σημεία όπου βρέθηκε ένα όχημα μέσα στο χρονικό παράθυρο, και ένα φωτεινό τετράγωνο είναι η τελευταία του θέση που επιτρέπεται να φανεί.'],
+      marks: [['No name, no school and no number plate is shown, and no line joins the squares. A vehicle that was silent for more than 45 minutes disappears until it reports again.', 'Δεν φαίνεται όνομα, σχολείο ή πινακίδα, και καμία γραμμή δεν ενώνει τα τετράγωνα. Ένα όχημα που έμεινε σιωπηλό πάνω από 45 λεπτά εξαφανίζεται μέχρι να ξαναστείλει.'],
+        ['Faint squares are where a vehicle was in the three hours before the moment on the clock.', 'Τα αχνά τετράγωνα είναι εκεί όπου βρέθηκε ένα όχημα τις τρεις ώρες πριν από τη στιγμή του ρολογιού.']] } },
+  airq: { id: 'airq', band: 'AIR', c: '#e3c8ff', stack: 'air-stations', win: 'island', res: 2, name: ['Official air-quality stations', 'Επίσημοι σταθμοί ποιότητας αέρα'], src: ['EEA · hourly, not yet verified', 'ΕΟΠ · ωριαία, χωρίς επαλήθευση ακόμη'],
+    height: ['STATION INLETS · OUTDOORS', 'ΣΤΟΜΙΑ ΣΤΑΘΜΩΝ · ΕΞΩ'], draw: drawAirStations, modes: () => [{ id: 'pm25', name: ['PM2.5', 'PM2.5'] }, { id: 'pm10', name: ['PM10', 'PM10'] }], mode: 'pm25', count: (p) => p && p.features.length, countWord: ['stations', 'σταθμοί'],
+    info: { cap: ['The newest hour of dust in the air at the official stations.', 'Η πιο πρόσφατη ώρα σκόνης στον αέρα στους επίσημους σταθμούς.'],
+      unit: ['Bar height = µg/m³ of PM2.5 or PM10, the mean of one hour; the bar at the corner shows the reference', 'Ύψος μπάρας = µg/m³ PM2.5 ή PM10, μέσος όρος μίας ώρας· η μπάρα στη γωνία δείχνει την αναφορά'],
+      never: ['Nothing moves: each station gives one value an hour, and the bar stands until the next hour arrives.', 'Τίποτα δεν κινείται: κάθε σταθμός δίνει μία τιμή την ώρα, και η μπάρα μένει ως έχει μέχρι να έρθει η επόμενη ώρα.'],
+      marks: [['Beside each bar: the value and the end of the hour it stands for. A hollow dot is a station with no value for that hour, not a zero.', 'Δίπλα σε κάθε μπάρα: η τιμή και το τέλος της ώρας που αντιπροσωπεύει. Μια κενή κουκκίδα είναι σταθμός χωρίς τιμή για εκείνη την ώρα, όχι μηδέν.'],
+        ['These are outdoor stations. They are never to be held against the readings inside a classroom.', 'Αυτοί είναι εξωτερικοί σταθμοί. Δεν συγκρίνονται ποτέ με τις μετρήσεις μέσα σε μια τάξη.']] } },
+  airday: { id: 'airday', band: 'AIR', c: '#b9a8ff', stack: 'air-day', win: 'panel', res: 2, moves: 'always', beat: 6, name: ['One day of air pollution, hour by hour', 'Μία μέρα ατμοσφαιρικής ρύπανσης, ώρα με την ώρα'], src: ['Dept. of Labour Inspection · 15 May 2024', 'Τμήμα Επιθεώρησης Εργασίας · 15 Μαΐου 2024'],
+    height: ['STATION INLETS · OUTDOORS', 'ΣΤΟΜΙΑ ΣΤΑΘΜΩΝ · ΕΞΩ'], draw: drawAirDay, modes: () => [{ id: 'no2', name: ['NO2', 'NO2'] }, { id: 'o3', name: ['O3 (ozone)', 'O3 (όζον)'] }], mode: 'no2', count: (p) => p && p.features.length, countWord: ['stations', 'σταθμοί'],
+    info: { scale: () => (layerOf('airday').mode === 'o3' ? 'o3' : 'no2'), cap: ['Nitrogen dioxide and ozone at 11 official stations during one day.', 'Διοξείδιο του αζώτου και όζον σε 11 επίσημους σταθμούς μέσα σε μία μέρα.'],
+      move: ['This is a replay of one past day: the bars step through its 24 hours and the white frame in the panel shows which hour is on. The date, 15 May 2024, is always written on the sheet.', 'Αυτό είναι επανάληψη μιας περασμένης μέρας: οι μπάρες περνούν από τις 24 ώρες της και το λευκό πλαίσιο στον πίνακα δείχνει ποια ώρα φαίνεται. Η ημερομηνία, 15 Μαΐου 2024, γράφεται πάντα πάνω στο φύλλο.'],
+      rest: ['Nothing moves: the panel shows all 24 hours of 15 May 2024 side by side, one row for each station.', 'Τίποτα δεν κινείται: ο πίνακας δείχνει και τις 24 ώρες της 15ης Μαΐου 2024 δίπλα δίπλα, μία γραμμή για κάθε σταθμό.'],
+      marks: [['The number beside each station on the map is its row in the panel. One gas is shown at a time: choose it with the buttons below.', 'Ο αριθμός δίπλα σε κάθε σταθμό στον χάρτη είναι η γραμμή του στον πίνακα. Φαίνεται ένα αέριο κάθε φορά: διάλεξέ το με τα κουμπιά πιο κάτω.'],
+        ['A station beside a road and a station in the countryside measure different air. The rows are in the publisher’s order, not ranked.', 'Ένας σταθμός δίπλα σε δρόμο και ένας σταθμός στην ύπαιθρο μετρούν διαφορετικό αέρα. Οι γραμμές είναι με τη σειρά του εκδότη, όχι σε κατάταξη.']] } },
+  met: { id: 'met', band: 'AIR', c: '#b4ebff', stack: ['met-stations', 'airports'], win: 'island', res: 2, moves: (l) => !!l.live, beat: 3, def: true, name: ['Weather stations and airports', 'Μετεωρολογικοί σταθμοί και αεροδρόμια'], src: ['Dept. of Meteorology · airport reports (METAR)', 'Τμήμα Μετεωρολογίας · αναφορές αεροδρομίων (METAR)'],
+    height: ['STATION MASTS', 'ΙΣΤΟΙ ΣΤΑΘΜΩΝ'], draw: drawMet, count: (a, b) => (a ? a.features.length : 0) + (b ? b.features.length : 0), countWord: ['stations', 'σταθμοί'],
+    info: { scale: 'temp', cap: ['The newest readings of the official weather stations, and the newest weather report of each airport.', 'Οι πιο πρόσφατες μετρήσεις των επίσημων μετεωρολογικών σταθμών, και η πιο πρόσφατη μετεωρολογική αναφορά κάθε αεροδρομίου.'],
+      move: ['Each arrow points the way the measured wind blows, and a dot runs along it faster when the wind is stronger. A station that reported no wind has no arrow.', 'Κάθε βέλος δείχνει προς τα πού φυσά ο άνεμος που μετρήθηκε, και μια κουκκίδα τρέχει πάνω του πιο γρήγορα όταν ο άνεμος είναι πιο δυνατός. Ένας σταθμός που δεν έδωσε άνεμο δεν έχει βέλος.'],
+      rest: ['Each arrow points the way the measured wind blows, and a longer arrow is stronger wind. A station that reported no wind has no arrow.', 'Κάθε βέλος δείχνει προς τα πού φυσά ο άνεμος που μετρήθηκε, και πιο μακρύ βέλος σημαίνει πιο δυνατό άνεμο. Ένας σταθμός που δεν έδωσε άνεμο δεν έχει βέλος.'],
+      marks: [['A round dot is a weather station and a diamond is an airport. The dot colour is the air temperature; beside it are °C, the wind in m/s and the rain of the last 10 minutes in mm.', 'Μια στρογγυλή κουκκίδα είναι μετεωρολογικός σταθμός και ένας ρόμβος είναι αεροδρόμιο. Το χρώμα είναι η θερμοκρασία του αέρα· δίπλα γράφονται °C, ο άνεμος σε m/s και η βροχή των τελευταίων 10 λεπτών σε mm.'],
+        ['The airports show weather only. The aeroplanes are on their own sheet.', 'Τα αεροδρόμια δείχνουν μόνο καιρό. Τα αεροπλάνα είναι σε δικό τους φύλλο.']] } },
+  aerosol: { id: 'aerosol', band: 'AIR', c: '#ffd7a8', stack: 'aerosol-sites', win: 'panel', res: 2, moves: 'always', beat: 6, name: ['Haze measured from the ground, July 2022', 'Θολούρα μετρημένη από το έδαφος, Ιούλιος 2022'], src: ['AERONET sun photometers · July 2022', 'Ηλιακά φωτόμετρα AERONET · Ιούλιος 2022'],
+    height: ['THE WHOLE AIR COLUMN', 'ΟΛΗ Η ΣΤΗΛΗ ΑΕΡΑ'], draw: drawAerosol, count: (p) => p && p.features.length, countWord: ['sites', 'σημεία'],
+    info: { scale: 'aod', cap: ['How hazy the sky was above two sites, day by day in July 2022.', 'Πόσο θολός ήταν ο ουρανός πάνω από δύο σημεία, μέρα με τη μέρα τον Ιούλιο 2022.'],
+      move: ['This is a replay of a past month: the circles step through the days of July 2022 and the white frame in the panel shows which day is on. The date is always written on the sheet.', 'Αυτό είναι επανάληψη ενός περασμένου μήνα: οι κύκλοι περνούν από τις ημέρες του Ιουλίου 2022 και το λευκό πλαίσιο στον πίνακα δείχνει ποια μέρα φαίνεται. Η ημερομηνία γράφεται πάντα πάνω στο φύλλο.'],
+      rest: ['Nothing moves: the panel shows every day of July 2022 side by side, one row for each site.', 'Τίποτα δεν κινείται: ο πίνακας δείχνει κάθε μέρα του Ιουλίου 2022 δίπλα δίπλα, μία γραμμή για κάθε σημείο.'],
+      marks: [['A bigger, warmer circle is a hazier sky (the area of the circle grows with the value). The number has no unit.', 'Πιο μεγάλος και πιο θερμός κύκλος σημαίνει πιο θολό ουρανό (το εμβαδόν του κύκλου μεγαλώνει με την τιμή). Ο αριθμός δεν έχει μονάδα.'],
+        ['A sun photometer measures only when it can see the sun. A day without a value is left empty, never filled in.', 'Ένα ηλιακό φωτόμετρο μετρά μόνο όταν βλέπει τον ήλιο. Μια μέρα χωρίς τιμή μένει άδεια, δεν συμπληρώνεται ποτέ.']] } },
+};
+
 /* ---- THE SHEETS, seabed up to space ----
    HOW TO ADD A SHEET: add one object to LAYERS (its place in the list is its height in the stack) and, if it is fed, one
-   paint function. Nothing else needs to know about it: the rail, the key, the ruler, the camera and the tests all read LAYERS.
+   function that draws it. Nothing else needs to know about it: the rail, the key, the tour, the ruler, the camera and the
+   tests all read LAYERS. A sheet costs nothing until it is first switched on: its picture is made then, and its data asked for then.
 
    id, band     a short id; band is one of SPACE / AIR / GROUND / CITY / WATER (the groups of the rail, which fold).
    name, src    [English, Greek]: the sheet's name, and one line naming its source. c is the sheet's own colour.
@@ -593,6 +1073,8 @@ async function loadAircraft() {
                   cap    what the sheet shows, in one plain sentence     scale  a key of SCALE: a colour bar with units (optional)
                   move   what the motion means                           rest   the same for reduced motion (still marks, same information)
                   never  used instead of move/rest when nothing moves    marks  more lines: an array, or a function returning one
+                  unit   for a sheet with no colour bar: what a mark's size stands for, with its unit
+   def: true    the sheet is part of the opening set. The others wait in the rail until they are switched on ("ALL" shows every one).
    A SHEET WITH NO DATA YET: give it make() (its example drawing) and nolive: true. It is faded, striped and stamped
                 "example drawing · no live data yet"; its key shows no scale and claims no motion. Never invent numbers.
    A FED SHEET: give it paint(ctx, t, anim, dt). It repaints its own canvas from what arrived: only what the feed holds,
@@ -600,13 +1082,24 @@ async function loadAircraft() {
                 false for reduced motion. beat: n repaints every n-th frame while animating; without it the sheet is
                 repainted only after touch(id). state() returns { kind, text } for the key's source line, kind being
                 'measured' | 'model' | 'published' | 'demo' | 'none'. card() may return { b, em, cls } for the rail.
+   A SHEET FED BY /api/stack/<id> (docs/STACK-DATA.md): give it stack: 'id' (or ['id', 'id'] when two answers belong on one
+                sheet) and draw(ctx, t, anim, layer, answer, answer2): it is called only with answers that have data (null for
+                one that has none). The loading, the refresh at the answer's own refreshSeconds, the honesty line, the
+                attribution, "demo data" and "no data, and why" are all done for it (paintStack, stackState). Say how it may
+                move: moves: 'reveal' (marks appear once over `reveal` seconds, read with rev(), then it is never repainted),
+                'always' (a replay of a past period, with the date on the sheet) or a function that says whether anything is
+                moving now. No `moves`: it is painted once. modes: () => [{ id, name }] gives the key a row of buttons (one
+                level, one gas, one scenario at a time; layer.mode holds the choice). spots: () => [{ name, lng, lat, span }]
+                gives the key "fly to" buttons. count(answer) and countWord feed the card in the rail.
    HOW LIVE DATA ARRIVES: through /layers/api/live (feed: { vars, own } names the measurements; paintWind() fills the
-                grids), or through the sheet's own load(): an async function that fetches and keeps what it got, run at
-                the start and then every `every` milliseconds while the sheet is shown. After a load the sheet is
-                touched and the rail and the key are brought up to date.
-   WHERE IT DRAWS: by default a sheet's canvas is the whole region. win: 'island' makes it the island's box only (a drawing
-                of Cyprus); win: () => field makes it as large as a model's grid (mkField), refitted when data lands. Paint
-                in sheet pixels (pxOf(lng, lat)) either way: the canvas is shifted for you, and what falls outside is cut off.
+                grids), or through the sheet's own load(): an async function that fetches and keeps what it got, run when
+                the sheet is first switched on and then every `every` milliseconds while it is shown. After a load the
+                sheet is touched and the rail and the key are brought up to date.
+   WHERE IT DRAWS: by default a sheet's canvas is the whole region. win: 'island' makes it the island's box only, 'panel'
+                the island and the open water south of it (room for a panel of figures), 'wide' the sea around Cyprus;
+                win: () => field makes it as large as a model's grid (mkField), refitted when data lands. res: 2 gives the
+                picture twice the detail (for marks inside towns). Paint in sheet pixels (pxOf(lng, lat)) either way: the
+                canvas is shifted and scaled for you, and what falls outside is cut off.
    Options:     solid (an opaque floor), additive (light adds up: the air), lines() rows for the panel under a sheet on its
                 own, srcNow() a source line that depends on what has loaded, link [url, text] shown under the key's source.
 */
@@ -621,22 +1114,30 @@ const modelState = (src, n, age) => ({ kind: 'model', text: srcName(src) + ' · 
 const EDGE_MARK = ['Nothing is drawn outside the dashed frame: the model grid we ask for ends there. Empty does not mean zero.', 'Έξω από το διακεκομμένο πλαίσιο δεν σχεδιάζεται τίποτα: εκεί τελειώνει το πλέγμα του μοντέλου που ζητάμε. Κενό δεν σημαίνει μηδέν.'];
 const demoCoastMark = () => (terrain && terrain.kind === 'demo' ? [['Demo: the land around Cyprus is a rough stand-in shape here, not the real coastline.', 'Δοκιμή: η στεριά γύρω από την Κύπρο είναι εδώ ένα πρόχειρο σχήμα, όχι η πραγματική ακτογραμμή.']] : []);
 const LAYERS = [
-  { id: 'seabed', band: 'WATER', c: '#2f7fb8', solid: true, name: ['Seabed depth', 'Βάθος βυθού'], src: ['no depth grid loaded yet', 'δεν έχει φορτωθεί ακόμη πλέγμα βάθους'],
-    height: ['SEA FLOOR', 'ΒΥΘΟΣ'], paint: seabedPaint, load: loadSeabed,
-    srcNow: () => (seabed ? (seabed.meta.testOnly ? ['TEST FIXTURE · not real depths', 'ΔΟΚΙΜΑΣΤΙΚΟ ΑΡΧΕΙΟ · όχι πραγματικά βάθη'] : ['EMODnet Bathymetry · published depth grid', 'EMODnet Bathymetry · δημοσιευμένο πλέγμα βάθους']) : null),
-    lines: () => (seabed ? [[T('deepest cell in the grid', 'βαθύτερο κελί του πλέγματος'), nf(seabed.deepest) + ' m', seabed.meta.testOnly ? T('test fixture', 'δοκιμαστικό αρχείο') : 'EMODnet']] : []),
-    state: () => (seabed ? { kind: seabed.meta.testOnly ? 'demo' : 'published',
-      text: (seabed.meta.testOnly ? T('Test fixture, not real depths. ', 'Δοκιμαστικό αρχείο, όχι πραγματικά βάθη. ') : '') + seabed.meta.attribution + ' · ' + seabed.meta.licence + ' · '
-        + T(nf(seabed.cells) + ' sea cells, one every ' + fmt(seabed.grid.step * 111) + ' km · retrieved ' + seabed.meta.retrievedAt, nf(seabed.cells) + ' κελιά θάλασσας, ένα κάθε ' + fmt(seabed.grid.step * 111) + ' km · ανάκτηση ' + seabed.meta.retrievedAt) }
-      : none(T('No depth grid has been loaded, so the sea floor is not drawn. Nothing on this sheet is a depth.', 'Δεν έχει φορτωθεί πλέγμα βάθους, άρα ο βυθός δεν σχεδιάζεται. Τίποτα σε αυτό το φύλλο δεν είναι βάθος.'))),
-    card: () => (seabed ? { b: nf(seabed.deepest), em: 'm · ' + T('deepest cell', 'βαθύτερο κελί'), cls: 'old' } : { b: '—', em: T('no depth data yet', 'χωρίς δεδομένα βάθους ακόμη'), cls: 'year' }),
+  { id: 'seabed', band: 'WATER', c: '#2f7fb8', solid: true, def: true, name: ['Seabed depth', 'Βάθος βυθού'], src: ['no depth grid loaded yet', 'δεν έχει φορτωθεί ακόμη πλέγμα βάθους'],
+    height: ['SEA FLOOR', 'ΒΥΘΟΣ'], paint: seabedPaint, load: loadSeabed, answers: ['seabed-profiles'],
+    srcNow: () => (seabed ? (seabed.meta.testOnly ? ['TEST FIXTURE · not real depths', 'ΔΟΚΙΜΑΣΤΙΚΟ ΑΡΧΕΙΟ · όχι πραγματικά βάθη'] : ['EMODnet Bathymetry · published depth grid', 'EMODnet Bathymetry · δημοσιευμένο πλέγμα βάθους'])
+      : profiles() ? ['no depth grid yet · three profile lines only', 'χωρίς πλέγμα βάθους ακόμη · μόνο τρεις γραμμές προφίλ'] : null),
+    lines: () => (seabed ? [[T('deepest cell in the grid', 'βαθύτερο κελί του πλέγματος'), nf(seabed.deepest) + ' m', seabed.meta.testOnly ? T('test fixture', 'δοκιμαστικό αρχείο') : 'EMODnet']] : [])
+      .concat(profiles() ? profiles().features.map((f) => { const e = f.points[f.points.length - 1]; return [T('profile off ', 'προφίλ στα ανοιχτά: ') + f.name, nf(Math.round(Math.max(0, -e.elevation))) + ' m · ' + e.km + ' km', T('profile line', 'γραμμή προφίλ')]; }) : []),
+    state: () => { const pr = profiles(), prText = pr ? T(pr.attribution, pr.attributionEl || pr.attribution) : '';
+      if (seabed) return { kind: seabed.meta.testOnly ? 'demo' : 'published',
+        text: (seabed.meta.testOnly ? T('Test fixture, not real depths. ', 'Δοκιμαστικό αρχείο, όχι πραγματικά βάθη. ') : '') + seabed.meta.attribution + ' · ' + seabed.meta.licence + ' · '
+          + T(nf(seabed.cells) + ' sea cells, one every ' + fmt(seabed.grid.step * 111) + ' km · retrieved ' + seabed.meta.retrievedAt, nf(seabed.cells) + ' κελιά θάλασσας, ένα κάθε ' + fmt(seabed.grid.step * 111) + ' km · ανάκτηση ' + seabed.meta.retrievedAt)
+          + (pr ? T(' · three profile lines: ', ' · τρεις γραμμές προφίλ: ') + prText : '') };
+      if (pr) return { kind: 'published', text: T('No depth grid has been loaded, so the sea floor itself is not drawn. Only the three coloured lines are depths: ', 'Δεν έχει φορτωθεί πλέγμα βάθους, άρα ο ίδιος ο βυθός δεν σχεδιάζεται. Μόνο οι τρεις χρωματιστές γραμμές είναι βάθη: ') + prText };
+      return none(T('No depth grid has been loaded, so the sea floor is not drawn. Nothing on this sheet is a depth.', 'Δεν έχει φορτωθεί πλέγμα βάθους, άρα ο βυθός δεν σχεδιάζεται. Τίποτα σε αυτό το φύλλο δεν είναι βάθος.')); },
+    card: () => (seabed ? { b: nf(seabed.deepest), em: 'm · ' + T('deepest cell', 'βαθύτερο κελί'), cls: 'old' } : { b: profiles() ? '3' : '—', em: T('no depth grid yet', 'χωρίς πλέγμα βάθους ακόμη') + (profiles() ? T(' · profile lines', ' · γραμμές προφίλ') : ''), cls: 'year' }),
     info: { scale: 'depth',
-      cap: ['How deep the sea floor lies around Cyprus, from a published depth grid. Darker blue is deeper.', 'Πόσο βαθιά βρίσκεται ο βυθός γύρω από την Κύπρο, από ένα δημοσιευμένο πλέγμα βάθους. Πιο σκούρο μπλε σημαίνει πιο βαθιά.'],
+      cap: () => (seabed ? ['How deep the sea floor lies around Cyprus, from a published depth grid. Darker blue is deeper.', 'Πόσο βαθιά βρίσκεται ο βυθός γύρω από την Κύπρο, από ένα δημοσιευμένο πλέγμα βάθους. Πιο σκούρο μπλε σημαίνει πιο βαθιά.']
+        : ['How the seabed falls away off three cities: three lines of depths. The depth grid for the whole sea floor has not been loaded yet. Darker blue is deeper.', 'Πώς βαθαίνει ο βυθός στα ανοιχτά τριών πόλεων: τρεις γραμμές με βάθη. Το πλέγμα βάθους για όλο τον βυθό δεν έχει φορτωθεί ακόμη. Πιο σκούρο μπλε σημαίνει πιο βαθιά.']),
       never: ['Nothing moves here: the sea floor does not change from one day to the next.', 'Εδώ δεν κινείται τίποτα: ο βυθός δεν αλλάζει από τη μια μέρα στην άλλη.'],
-      marks: () => [['The light and shade show the slopes of the sea floor. They are worked out from the same depths.', 'Το φως και η σκιά δείχνουν τις πλαγιές του βυθού. Υπολογίζονται από τα ίδια βάθη.'],
+      marks: () => (seabed ? [['The light and shade show the slopes of the sea floor. They are worked out from the same depths.', 'Το φως και η σκιά δείχνουν τις πλαγιές του βυθού. Υπολογίζονται από τα ίδια βάθη.'],
         ['The grid is put together from many surveys, some old, and filled in between them. It is for learning, not for navigation.', 'Το πλέγμα συντίθεται από πολλές μετρήσεις, κάποιες παλιές, και συμπληρώνεται ανάμεσά τους. Είναι για μάθηση, όχι για ναυσιπλοΐα.'],
-        ['Where the grid has no value, nothing is drawn.', 'Όπου το πλέγμα δεν έχει τιμή, δεν σχεδιάζεται τίποτα.']].concat(demoCoastMark()) } },
-  { id: 'waves', band: 'WATER', c: '#8fd0f5', name: ['Waves and sea temperature', 'Κύματα και θερμοκρασία θάλασσας'], src: ['Open-Meteo marine model · sea points', 'Θαλάσσιο μοντέλο Open-Meteo · σημεία θάλασσας'],
+        ['Where the grid has no value, nothing is drawn.', 'Όπου το πλέγμα δεν έχει τιμή, δεν σχεδιάζεται τίποτα.']] : [])
+        .concat(profiles() ? [['Each profile line is 13 points, one every kilometre from the shore outwards, coloured by depth in metres. A hollow point is a value filled in between two cells of the model.', 'Κάθε γραμμή προφίλ έχει 13 σημεία, ένα κάθε χιλιόμετρο από την ακτή προς τα ανοιχτά, χρωματισμένα με το βάθος σε μέτρα. Ένα κενό σημείο είναι τιμή που συμπληρώθηκε ανάμεσα σε δύο κελιά του μοντέλου.']] : [])
+        .concat(seabed ? [] : [['Everywhere else on this sheet the sea floor is not drawn: striped means no depth data, not shallow water.', 'Παντού αλλού σε αυτό το φύλλο ο βυθός δεν σχεδιάζεται: οι ρίγες σημαίνουν ότι δεν υπάρχουν δεδομένα βάθους, όχι ρηχά νερά.']]).concat(demoCoastMark()) } },
+  { id: 'waves', band: 'WATER', c: '#8fd0f5', def: true, name: ['Waves and sea temperature', 'Κύματα και θερμοκρασία θάλασσας'], src: ['Open-Meteo marine model · sea points', 'Θαλάσσιο μοντέλο Open-Meteo · σημεία θάλασσας'],
     height: ['SEA SURFACE', 'ΕΠΙΦΑΝΕΙΑ ΘΑΛΑΣΣΑΣ'], paint: wavesPaint, beat: 2, feed: { vars: ['sea_surface_temperature', 'wave_height'] },
     state: () => { if (!seaPts.length) return GONE(); const r = best('sea_surface_temperature', false);
       return { kind: 'model', text: srcName('openmeteo-marine') + ' · ' + T(seaPts.length + ' sea points', seaPts.length + ' σημεία θάλασσας') + ' · ' + (r ? ageText(r.ageMin) : T('age not stated', 'η ηλικία δεν δηλώνεται')) }; },
@@ -651,7 +1152,7 @@ const LAYERS = [
       marks: [['The dot colour is the sea temperature. Beside it: the temperature, the wave height in metres and the wave period in seconds.', 'Το χρώμα της κουκκίδας είναι η θερμοκρασία της θάλασσας. Δίπλα της: η θερμοκρασία, το ύψος κύματος σε μέτρα και η περίοδος κύματος σε δευτερόλεπτα.'],
         ['This is a model, not a buoy: nobody measured these waves. The gap between crests is not to scale.', 'Αυτό είναι μοντέλο, όχι σημαδούρα: κανείς δεν μέτρησε αυτά τα κύματα. Το κενό ανάμεσα στις κορυφές δεν είναι σε κλίμακα.'],
         ['Marks are drawn only at the points of the sea model, never over land. Between the points nothing is filled in.', 'Τα σημάδια σχεδιάζονται μόνο στα σημεία του μοντέλου της θάλασσας, ποτέ πάνω από στεριά. Ανάμεσα στα σημεία δεν συμπληρώνεται τίποτα.']] } },
-  { id: 'ships', band: 'WATER', c: '#ffb86b', win: shipsWin, name: ['Ports and ships, by quarter', 'Λιμάνια και πλοία, ανά τρίμηνο'], src: ['Eurostat · published port statistics', 'Eurostat · δημοσιευμένα στατιστικά λιμανιών'],
+  { id: 'ships', band: 'WATER', c: '#ffb86b', def: true, win: shipsWin, name: ['Ports and ships, by quarter', 'Λιμάνια και πλοία, ανά τρίμηνο'], src: ['Eurostat · published port statistics', 'Eurostat · δημοσιευμένα στατιστικά λιμανιών'],
     height: ['SEA LEVEL · PORTS', 'ΣΤΑΘΜΗ ΘΑΛΑΣΣΑΣ · ΛΙΜΑΝΙΑ'], paint: shipsPaint, beat: 3, load: loadShips,
     state: () => (ships ? { kind: 'published', text: T('Eurostat, ' + ships.arrivals.id + ' (vessel arrivals, ' + ships.arrQ + ') and ' + ships.freight.id + ' (goods, ' + ships.cargoQ + ') · retrieved ' + ships.freight.retrieved + ' · ',
       'Eurostat, ' + ships.arrivals.id + ' (αφίξεις πλοίων, ' + ships.arrQ + ') και ' + ships.freight.id + ' (εμπορεύματα, ' + ships.cargoQ + ') · ανάκτηση ' + ships.freight.retrieved + ' · ') + TT(ships.freight.attribution) }
@@ -667,24 +1168,8 @@ const LAYERS = [
         ['Each bar is the published total of goods for one port, in thousand tonnes. Each arrival counts once, so one ship can be counted many times.', 'Κάθε μπάρα είναι το δημοσιευμένο σύνολο εμπορευμάτων για ένα λιμάνι, σε χιλιάδες τόνους. Κάθε άφιξη μετρά μία φορά, άρα το ίδιο πλοίο μπορεί να μετρηθεί πολλές φορές.'],
         ['A hollow grey marker is a port with no published figure for the latest quarters.', 'Ένα κενό γκρίζο σημάδι είναι λιμάνι χωρίς δημοσιευμένο στοιχείο για τα τελευταία τρίμηνα.'],
         ['The numbered markers show approximate positions, added by Kleanthis. No ship is drawn: there is no live ship position on this page.', 'Τα αριθμημένα σημάδια δείχνουν θέσεις κατά προσέγγιση, που πρόσθεσε ο Κλεάνθης. Δεν σχεδιάζεται κανένα πλοίο: δεν υπάρχει ζωντανή θέση πλοίου σε αυτή τη σελίδα.']] } },
-  { id: 'water', band: 'WATER', c: '#5bc8e0', nolive: true, win: 'island', name: ['Reservoirs and river reaches', 'Φράγματα και τμήματα ποταμών'], src: ['Water Development Department', 'Τμήμα Αναπτύξεως Υδάτων'],
-    height: ['GROUND LEVEL', 'ΣΤΑΘΜΗ ΕΔΑΦΟΥΣ'],
-    make: () => { const c = buf(), x = c.getContext('2d'); x.strokeStyle = 'rgba(91,200,224,.6)'; x.lineWidth = 1.1;
-      for (let i = 0; i < 24; i++) { let [px, py] = ipx(.3 + hash(i, 3) * .42, .3 + hash(i, 9) * .3);
-        x.beginPath(); x.moveTo(px, py);
-        for (let k = 0; k < 22; k++) { const g = gi(px, py); if (g < 0) break;
-          px += -(g0.h[g + 1] - g0.h[g - 1]) * 150 + (fbm(px / 40, py / 40, 2) - .5) * 5;
-          py += -(g0.h[g + GW] - g0.h[g - GW]) * 150 + (fbm(py / 40, px / 40, 2) - .5) * 5;
-          x.lineTo(px, py); }
-        x.globalAlpha = .3 + hash(i, 11) * .5; x.stroke(); }
-      x.globalAlpha = 1;
-      [[.3, .62, 10], [.42, .55, 7], [.24, .45, 6], [.52, .42, 5]].forEach(([u, v, r]) => { const [cx, cy] = ipx(u, v);
-        const g = x.createRadialGradient(cx, cy, 1, cx, cy, r * 2.4);
-        g.addColorStop(0, 'rgba(130,225,250,.95)'); g.addColorStop(1, 'rgba(60,150,200,0)');
-        x.fillStyle = g; x.beginPath(); x.arc(cx, cy, r * 2.4, 0, 7); x.fill(); });
-      return c; },
-    info: { cap: ['Reservoirs and rivers. No live feed is connected yet, so this is an example drawing and shows no real amounts.', 'Φράγματα και ποτάμια. Δεν έχει συνδεθεί ακόμη ζωντανή πηγή, άρα αυτό είναι σχέδιο-παράδειγμα και δεν δείχνει πραγματικές ποσότητες.'] } },
-  { id: 'island', band: 'GROUND', c: '#F7C46B', solid: true, name: ['Island relief and sensors', 'Ανάγλυφο και αισθητήρες'], src: ['OpenStreetMap · our SenseCAP cards', 'OpenStreetMap · οι κάρτες SenseCAP μας'],
+  STACK_SHEETS.bathing, STACK_SHEETS.flood,
+  { id: 'island', band: 'GROUND', c: '#F7C46B', def: true, solid: true, name: ['Island relief and sensors', 'Ανάγλυφο και αισθητήρες'], src: ['OpenStreetMap · our SenseCAP cards', 'OpenStreetMap · οι κάρτες SenseCAP μας'],
     height: ['GROUND', 'ΕΔΑΦΟΣ'], paint: islandStep, beat: 3, feed: { vars: ['temperature', 'co2', 'pm25'], own: true },
     state: () => { if (!stationPts.length) return GONE();
       const names = [...new Set(stationPts.map((p) => p.src))].map(srcName).join(', '), newest = Math.max(...stationPts.map((p) => p.at || 0));
@@ -696,21 +1181,7 @@ const LAYERS = [
       marks: () => [['Amber pins are the schools. The ring under a pin shows how old that school’s reading is: tight when new, wide and faint when hours old.', 'Οι κεχριμπαρένιες πινέζες είναι τα σχολεία. Το δαχτυλίδι κάτω από την πινέζα δείχνει πόσο παλιά είναι η μέτρηση του σχολείου: σφιχτό όταν είναι καινούρια, φαρδύ και αχνό όταν είναι ωρών.'],
         ['Our sensors are not coloured on this scale: they do not measure the same air as an outdoor station.', 'Οι αισθητήρες μας δεν χρωματίζονται με αυτή την κλίμακα: δεν μετρούν τον ίδιο αέρα με έναν εξωτερικό σταθμό.'],
         ['The hills of Cyprus are drawn, not surveyed. The land around Cyprus is a flat shape with no readings on it: it is there for your bearings.', 'Οι λόφοι της Κύπρου είναι σχεδιασμένοι, όχι μετρημένοι. Η στεριά γύρω από την Κύπρο είναι ένα επίπεδο σχήμα χωρίς μετρήσεις: υπάρχει για να προσανατολίζεσαι.']].concat(demoCoastMark()) } },
-  { id: 'city', band: 'CITY', c: '#C4B8FF', nolive: true, win: 'island', name: ['Streets, buses, EV, people', 'Δρόμοι, λεωφορεία, φόρτιση, κάτοικοι'], src: ['OSM · GTFS · CYSTAT census', 'OSM · GTFS · απογραφή CYSTAT'],
-    height: ['STREET LEVEL', 'ΣΤΑΘΜΗ ΔΡΟΜΟΥ'],
-    make: () => { const c = buf(), x = c.getContext('2d');
-      const towns = [[.63, .55, 1], [.49, .36, .95], [.3, .72, .9], [.1, .56, .7], [.76, .3, .6], [.38, .2, .5]].map(([u, v, w]) => [...ipx(u, v), w]);
-      towns.forEach(([tx, ty, w]) => { for (let i = 0; i < 120 * w; i++) { const a = i * 2.399, d = Math.sqrt((i % 61) / 61) * 40 * w;
-          x.fillStyle = `rgba(196,184,255,${(.5 - d / 120).toFixed(3)})`; x.fillRect(tx + Math.cos(a) * d, ty + Math.sin(a) * d * .8, 1.4, 1.4); }
-        const g = x.createRadialGradient(tx, ty, 2, tx, ty, 44 * w);
-        g.addColorStop(0, 'rgba(196,184,255,.4)'); g.addColorStop(1, 'rgba(160,140,255,0)');
-        x.fillStyle = g; x.beginPath(); x.arc(tx, ty, 44 * w, 0, 7); x.fill(); });
-      x.strokeStyle = 'rgba(214,206,255,.55)'; x.lineWidth = 1;
-      [[0, 1], [1, 2], [2, 3], [1, 4], [0, 2], [1, 5]].forEach(([a, b]) => { const A = towns[a], B = towns[b];
-        x.beginPath(); x.moveTo(A[0], A[1]);
-        x.quadraticCurveTo((A[0] + B[0]) / 2 + 10, (A[1] + B[1]) / 2 - 8, B[0], B[1]); x.stroke(); });
-      return c; },
-    info: { cap: ['Streets, bus stops, chargers and where people live. No live feed is connected yet, so this is an example drawing.', 'Δρόμοι, στάσεις, φορτιστές και πού ζει ο κόσμος. Δεν έχει συνδεθεί ακόμη ζωντανή πηγή, άρα αυτό είναι σχέδιο-παράδειγμα.'] } },
+  STACK_SHEETS.quakes, STACK_SHEETS.drought, STACK_SHEETS.burnt, STACK_SHEETS.hotspots,
   { id: 'heat', band: 'GROUND', c: '#ff9a6b', nolive: true, win: 'island', name: ['Ground heat', 'Θερμότητα εδάφους'], src: ['MODIS LST · Terra and Aqua', 'MODIS LST · Terra και Aqua'],
     height: ['GROUND SURFACE', 'ΕΠΙΦΑΝΕΙΑ ΕΔΑΦΟΥΣ'],
     make: () => raster((x, y, g) => { const t = Math.min(1, Math.max(0, .78 - g0.h[g] * .5 + (fbm(x / 40, y / 40, 3) - .5) * .4));
@@ -721,7 +1192,8 @@ const LAYERS = [
     make: () => raster((x, y, g) => { const n = Math.min(1, Math.max(0, fbm(x / 28, y / 28, 4) * 1.4 - .18 + g0.h[g] * .3));
       const [r, gg, b] = ramp(n, [[0, 120, 104, 70], [.45, 118, 140, 72], [1, 46, 136, 62]]); return [r, gg, b, 115]; }),
     info: { cap: ['How green the land is, as a satellite sees it. No satellite reading has arrived, so this is an example drawing.', 'Πόσο πράσινη είναι η γη, όπως τη βλέπει ένας δορυφόρος. Δεν έχει έρθει δορυφορική μέτρηση, άρα αυτό είναι σχέδιο-παράδειγμα.'] } },
-  { id: 'air', band: 'AIR', c: '#d9b3ff', additive: true, win: () => airF, name: ['Air quality', 'Ποιότητα αέρα'], src: ['Open-Meteo air-quality model · grid', 'Μοντέλο ποιότητας αέρα Open-Meteo · πλέγμα'],
+  STACK_SHEETS.crossings, STACK_SHEETS.ev, STACK_SHEETS.buildings, STACK_SHEETS.permits, STACK_SHEETS.population, STACK_SHEETS.age, STACK_SHEETS.buses, STACK_SHEETS.vehicles,
+  { id: 'air', band: 'AIR', c: '#d9b3ff', def: true, additive: true, win: () => airF, name: ['Air quality', 'Ποιότητα αέρα'], src: ['Open-Meteo air-quality model · grid', 'Μοντέλο ποιότητας αέρα Open-Meteo · πλέγμα'],
     height: ['WHERE PEOPLE BREATHE', 'ΕΚΕΙ ΠΟΥ ΑΝΑΠΝΕΟΥΜΕ'], paint: airStep, beat: 3, feed: { vars: ['pm25', 'pm10', 'ozone'] },
     state: () => { if (!airF) return GONE(); const r = best('pm25', false); return modelState('openmeteo-air', airPts.length, r ? ageText(r.ageMin) : T('age not stated', 'η ηλικία δεν δηλώνεται')); },
     info: { scale: 'pm25',
@@ -729,7 +1201,8 @@ const LAYERS = [
       move: ['More specks mean more fine particles there. The specks only shimmer: they do not show where the air is going.', 'Περισσότερες κουκκίδες σημαίνουν περισσότερα λεπτά σωματίδια εκεί. Οι κουκκίδες απλώς τρεμοπαίζουν: δεν δείχνουν προς τα πού πάει ο αέρας.'],
       rest: ['More specks mean more fine particles there.', 'Περισσότερες κουκκίδες σημαίνουν περισσότερα λεπτά σωματίδια εκεί.'],
       marks: [['Small square dots are the model’s grid points: the only places it gives a number.', 'Οι μικρές τετράγωνες κουκκίδες είναι τα σημεία του πλέγματος: μόνο εκεί δίνει αριθμό το μοντέλο.'], EDGE_MARK] } },
-  { id: 'wind', band: 'AIR', c: '#59d7e8', additive: true, win: () => windF && windF.u, name: ['Wind at 10 m', 'Άνεμος στα 10 m'], src: ['Open-Meteo model grid · airport readings', 'Πλέγμα μοντέλου Open-Meteo · μετρήσεις αεροδρομίων'],
+  STACK_SHEETS.airq, STACK_SHEETS.airday, STACK_SHEETS.met,
+  { id: 'wind', band: 'AIR', c: '#59d7e8', def: true, additive: true, win: () => windF && windF.u, name: ['Wind at 10 m', 'Άνεμος στα 10 m'], src: ['Open-Meteo model grid · airport readings', 'Πλέγμα μοντέλου Open-Meteo · μετρήσεις αεροδρομίων'],
     height: ['10 M ABOVE GROUND', '10 M ΠΑΝΩ ΑΠΟ ΤΟ ΕΔΑΦΟΣ'], paint: windStep, beat: 1, feed: { vars: ['wind_speed'] },
     state: () => { if (!windF) return GONE(); const s = modelState('openmeteo-weather', grid.length, skyAge());
       if (airportWind.length) s.text += ' · ' + T('measured at ' + airportWind.length + ' airport(s): ', 'μετρημένος σε ' + airportWind.length + ' αεροδρόμιο/α: ') + srcName('metar-airports'); return s; },
@@ -747,11 +1220,8 @@ const LAYERS = [
       move: ['Rings are drops landing, seen from above. They appear only inside a square with rain, and more rain makes more rings.', 'Τα δαχτυλίδια είναι σταγόνες που πέφτουν, όπως φαίνονται από ψηλά. Εμφανίζονται μόνο μέσα σε τετράγωνο με βροχή, και περισσότερη βροχή φτιάχνει περισσότερα.'],
       rest: ['Rings appear only inside a square with rain, and more rain means more rings.', 'Τα δαχτυλίδια εμφανίζονται μόνο μέσα σε τετράγωνο με βροχή, και περισσότερη βροχή σημαίνει περισσότερα.'],
       marks: [['No square means the model has no rain there. It is a model, not a rain gauge.', 'Χωρίς τετράγωνο, το μοντέλο δεν έχει βροχή εκεί. Είναι μοντέλο, όχι βροχόμετρο.'], EDGE_MARK] } },
-  { id: 'haze', band: 'AIR', c: '#ffd7a8', nolive: true, win: 'island', name: ['Haze and aerosol column', 'Αιθαλομίχλη και αερολύματα'], src: ['AERONET sun photometers · CAMS', 'Ηλιακά φωτόμετρα AERONET · CAMS'],
-    height: ['THE WHOLE AIR COLUMN', 'ΟΛΗ Η ΣΤΗΛΗ ΑΕΡΑ'],
-    make: () => raster((x, y) => [255, 210, 160, 26 + fbm(x / 54 + 4, y / 54, 4) * 80], (x, y) => [255, 210, 160, 14 + fbm(x / 54 + 4, y / 54, 4) * 44]),
-    info: { cap: ['Dust and haze in the whole column of air. No reading has arrived, so this is an example drawing.', 'Σκόνη και θολούρα σε όλη τη στήλη του αέρα. Δεν έχει έρθει μέτρηση, άρα αυτό είναι σχέδιο-παράδειγμα.'] } },
-  { id: 'aircraft', band: 'AIR', c: '#f4fbff', name: ['Aeroplanes', 'Αεροπλάνα'], src: ['adsb.fi · volunteer receivers', 'adsb.fi · δέκτες εθελοντών'],
+  STACK_SHEETS.aerosol,
+  { id: 'aircraft', band: 'AIR', c: '#f4fbff', def: true, name: ['Aeroplanes', 'Αεροπλάνα'], src: ['adsb.fi · volunteer receivers', 'adsb.fi · δέκτες εθελοντών'],
     height: ['THE SKY · 10,000 FT A STEP', 'Ο ΟΥΡΑΝΟΣ · 10.000 FT ΤΟ ΒΗΜΑ'], paint: aircraftPaint, load: loadAircraft, every: AC.every,
     state: () => { if (!planes) return none(T('Listening for aeroplanes…', 'Ακούμε για αεροπλάνα…'));
       if (!planesFresh()) return none(T('We could not get the positions just now. This is a problem with the connection to adsb.fi, not a sign that the sky is empty.', 'Δεν μπορέσαμε να πάρουμε τις θέσεις αυτή τη στιγμή. Είναι πρόβλημα στη σύνδεση με το adsb.fi, όχι ένδειξη ότι ο ουρανός είναι άδειος.'));
@@ -771,7 +1241,7 @@ const LAYERS = [
           'Γεμάτο βέλος: ' + AC_PHASE.high[1] + '. Κενό βέλος: ' + AC_PHASE.low[1] + '. Τετράγωνο: ' + AC_PHASE.ground[1] + '. Δαχτυλίδι: ' + AC_PHASE.unknown[1] + '. Οι λέξεις μετά το "μάλλον" είναι εικασία από το ύψος, όχι γεγονός.'],
         ['Aeroplanes send their position by radio. Volunteers with small receivers pick it up and share it through adsb.fi. So coverage has gaps, especially far out at sea and close to the ground. A missing aeroplane does not mean an empty sky.', 'Τα αεροπλάνα στέλνουν τη θέση τους με ραδιοκύματα. Εθελοντές με μικρούς δέκτες τη λαμβάνουν και τη μοιράζονται μέσω του adsb.fi. Γι’ αυτό η κάλυψη έχει κενά, ειδικά μακριά στη θάλασσα και κοντά στο έδαφος. Αν λείπει ένα αεροπλάνο, δεν σημαίνει ότι ο ουρανός είναι άδειος.'],
         ['The dashed circle is how far we ask. There are no flight names, places are rounded and nothing is saved.', 'Ο διακεκομμένος κύκλος δείχνει μέχρι πού ρωτάμε. Δεν υπάρχουν ονόματα πτήσεων, οι θέσεις είναι στρογγυλεμένες και τίποτα δεν αποθηκεύεται.']] } },
-  { id: 'cloud', band: 'SPACE', c: '#e8f4ff', additive: true, win: () => cloudF, name: ['Clouds', 'Σύννεφα'], src: ['Open-Meteo weather model · grid', 'Μοντέλο καιρού Open-Meteo · πλέγμα'],
+  { id: 'cloud', band: 'SPACE', c: '#e8f4ff', def: true, additive: true, win: () => cloudF, name: ['Clouds', 'Σύννεφα'], src: ['Open-Meteo weather model · grid', 'Μοντέλο καιρού Open-Meteo · πλέγμα'],
     height: ['CLOUD TOPS', 'ΚΟΡΥΦΕΣ ΝΕΦΩΝ'], paint: cloudPaint,
     state: () => (cloudF ? modelState('openmeteo-weather', grid.length, skyAge()) : GONE()),
     lines: () => (cloudPct != null ? [[T('grid over Cyprus', 'πλέγμα πάνω από την Κύπρο'), cloudPct + ' % · ' + T('model', 'μοντέλο'), 'openmeteo-weather']] : []),
@@ -779,7 +1249,7 @@ const LAYERS = [
       cap: ['How much of the sky is covered by cloud, from the weather model. Whiter means more cover.', 'Πόσο μέρος του ουρανού σκεπάζουν τα σύννεφα, από το μοντέλο καιρού. Πιο λευκό σημαίνει περισσότερη κάλυψη.'],
       never: ['Nothing moves here: the model says how much cloud there is, not which way it drifts.', 'Εδώ δεν κινείται τίποτα: το μοντέλο λέει πόσα σύννεφα υπάρχουν, όχι προς τα πού πάνε.'],
       marks: [['Small square dots are the model’s grid points.', 'Οι μικρές τετράγωνες κουκκίδες είναι τα σημεία του πλέγματος.'], EDGE_MARK] } },
-  { id: 'sat', band: 'SPACE', c: '#9fe0f5', win: 'island', name: ['Satellite picture', 'Δορυφορική εικόνα'], src: ['NASA GIBS · pass 17:00Z', 'NASA GIBS · πέρασμα 17:00Z'],
+  { id: 'sat', band: 'SPACE', c: '#9fe0f5', def: true, win: 'island', name: ['Satellite picture', 'Δορυφορική εικόνα'], src: ['NASA GIBS · pass 17:00Z', 'NASA GIBS · πέρασμα 17:00Z'],
     height: ['FROM ORBIT', 'ΑΠΟ ΤΡΟΧΙΑ'],
     card: () => (satReal ? { b: '1', em: T('real picture', 'πραγματική εικόνα'), cls: 'old' } : null),
     make: () => { const c = raster((x, y, g) => { const n = fbm(x / 18, y / 18, 5), veg = Math.min(1, Math.max(0, n * 1.5 - .25 + g0.h[g] * .25));
@@ -789,6 +1259,10 @@ const LAYERS = [
     info: { cap: ['A picture of Cyprus taken from space on one pass of a satellite.', 'Μια εικόνα της Κύπρου από το διάστημα, από ένα πέρασμα δορυφόρου.'],
       never: ['Nothing moves here: it is one picture of one moment.', 'Εδώ δεν κινείται τίποτα: είναι μία εικόνα μιας στιγμής.'], always: true } },
 ];
+// a sheet fed by /api/stack gets its loading, its painting, its source line and its card from the shared code
+LAYERS.forEach((l) => { if (!l.stack) return; l.paint = paintStack(l); l.load = () => loadStack(l); if (!l.state) l.state = () => stackState(l); if (!l.card) l.card = () => stackCard(l);
+  if (l.moves === 'reveal') l.beat = 2; if (!l.moves) l.revealDone = true; });
+const movesNow = (l) => (!l.stack ? true : l.moves === 'always' ? true : l.moves === 'reveal' ? !l.revealDone : typeof l.moves === 'function' ? !!l.moves(l) : false);
 const FEED = {}; LAYERS.forEach((l) => { if (l.feed) FEED[l.id] = l.feed; });
 const layerOf = (id) => LAYERS.find((l) => l.id === id);
 function sheetState(id) { const l = layerOf(id); return l.nolive ? NO_LIVE() : l.state ? l.state() : GONE(); }
@@ -811,17 +1285,17 @@ const PLAIN = Q.get('aa') === '0' || (SOFT_GL && Q.get('aa') !== '1');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: !mobile && !PLAIN, powerPreference: 'high-performance', alpha: SITE_BG });
 renderer.setPixelRatio(PLAIN ? 1 : Math.min(mobile ? 1.5 : 2, devicePixelRatio || 1));
 const scene = new THREE.Scene(); scene.background = SITE_BG ? null : new THREE.Color('#02050a');
-const camera = new THREE.PerspectiveCamera(38, 2, 1, 60000);
+const camera = new THREE.PerspectiveCamera(38, 2, 2, 60000);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true; controls.dampingFactor = .06;
-controls.minDistance = 220; controls.maxDistance = 16000;
+controls.minDistance = 14; controls.maxDistance = 16000;
 scene.add(new THREE.AmbientLight('#9ec4e6', 1));
 const key = new THREE.DirectionalLight('#eef6ff', 1.5); key.position.set(-500, 900, 500); scene.add(key);
 const rim = new THREE.DirectionalLight('#4CCBEA', .55); rim.position.set(600, 240, -700); scene.add(rim);
 
 // The sheet is the region. Cyprus is about as wide in the scene as it was when the sheet was the island alone, so the
 // pins, masts and labels on it keep their size.
-const SW = 2400, SH = SW * RH / RW, GAPY = 86;
+const SW = 2400, SH = SW * RH / RW, GAPY = 58;
 const TOP = (LAYERS.length - 1) * GAPY, MID = TOP / 2;
 const p3 = (lng, lat, y) => { const [u, v] = uv(lng, lat); return new THREE.Vector3((u - .5) * SW, y, (v - .5) * SH); };
 const ISLE = (() => { const a = p3(ISLAND_BOX.lng0, ISLAND_BOX.lat1, 0), b = p3(ISLAND_BOX.lng1, ISLAND_BOX.lat0, 0); return { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2, w: b.x - a.x, d: b.z - a.z }; })();
@@ -844,13 +1318,17 @@ function label(text, sub, colour, size) {
   s.scale.set(size * 620 / 150, size, 1); s.center.set(0, .5);
   return s;
 }
-const SHEET_LABEL = mobile ? 110 : 82;
+const SHEET_LABEL = mobile ? 74 : 56;
 const CPU2D = Q.get('gpu2d') === '1' ? undefined : { willReadFrequently: true };
 // A sheet's picture covers only the part of the region where it can have anything to show (its "window"): the whole
 // region for the sea, the floors and the sky, the model's grid for the weather, the island for a drawing of the island.
 // Outside its window a sheet is not there at all, so nothing can be painted where there is no data, and the scene has
 // far less empty glass to draw. The thin frame of every sheet still shows the whole region.
 const ISLAND_WIN = { x0: IX0 - IW * .14, y0: IY0 - IH * .22, w: IW * 1.28, h: IH * 1.44 };
+const PANEL_WIN = (() => { const [px0, py0] = PANEL_AT(), x0 = Math.min(ISLAND_WIN.x0, px0 - 12 * U), x1 = Math.max(ISLAND_WIN.x0 + ISLAND_WIN.w, px0 + 345 * U); return { x0, y0: ISLAND_WIN.y0, w: x1 - x0, h: py0 + 190 * U - ISLAND_WIN.y0 }; })();
+const WIDE_WIN = (() => { const [xa, ya] = pxOf(31.85, 36.15), [xb, yb] = pxOf(35.15, 33.9); return { x0: xa, y0: ya, w: xb - xa, h: yb - ya }; })();
+const WINS = { island: ISLAND_WIN, panel: PANEL_WIN, wide: WIDE_WIN };
+const baseWin = (layer) => winOf(typeof layer.win === 'string' ? WINS[layer.win] : layer.win ? ISLAND_WIN : null);
 const winOf = (r) => { if (!r) return { x0: 0, y0: 0, w: LW, h: LH }; const x0 = Math.max(0, Math.floor(r.x0)), y0 = Math.max(0, Math.floor(r.y0));
   return { x0, y0, w: Math.max(8, Math.min(LW, Math.ceil(r.x0 + r.w)) - x0), h: Math.max(8, Math.min(LH, Math.ceil(r.y0 + r.h)) - y0) }; };
 const winGeo = (w) => new THREE.PlaneGeometry(w.w / LW * SW, w.h / LH * SH);
@@ -859,7 +1337,7 @@ function setWin(s, rect) {
   const w = winOf(rect), o = s.win;
   if (o && o.x0 === w.x0 && o.y0 === w.y0 && o.w === w.w && o.h === w.h) return;
   s.win = w;
-  if (s.layer.ctx) { s.layer.ctx.canvas.width = w.w; s.layer.ctx.canvas.height = w.h; }
+  if (s.layer.ctx) { s.layer.ctx.canvas.width = w.w * s.res; s.layer.ctx.canvas.height = w.h * s.res; s.layer.base = null; }
   s.mesh.geometry.dispose(); s.mesh.geometry = winGeo(w); winPlace(s.mesh, w, s.y);
   s.tex.dispose(); s.tex.needsUpdate = true; touch(s.layer.id);       // a picture of a new size needs a new texture
 }
@@ -870,14 +1348,11 @@ function fitWindows() { sheets.forEach((s) => { if (typeof s.layer.win !== 'func
   const f = s.layer.win();
   setWin(s, f ? { x0: f.x0 - 4, y0: f.y0 - 4, w: f.w + 8, h: f.h + 8 } : ISLAND_WIN); }); }
 const sheets = [], sheetOf = {};
+const BLANK = document.createElement('canvas'); BLANK.width = BLANK.height = 2;
 LAYERS.forEach((layer, i) => {
   const y = i * GAPY, group = new THREE.Group(); scene.add(group);
-  const win = winOf(layer.win ? ISLAND_WIN : null);
-  let made;
-  if (layer.paint) { made = document.createElement('canvas'); made.width = win.w; made.height = win.h; layer.ctx = made.getContext('2d', CPU2D); need[layer.id] = true; }
-  else { const whole = layer.make(); if (layer.nolive) stampDrawn(whole, layer.c);
-    made = document.createElement('canvas'); made.width = win.w; made.height = win.h; made.getContext('2d').drawImage(whole, -win.x0, -win.y0); }
-  const tex = new THREE.CanvasTexture(made); tex.minFilter = THREE.LinearFilter; tex.anisotropy = 4;
+  const win = baseWin(layer);
+  const tex = new THREE.CanvasTexture(BLANK); tex.minFilter = THREE.LinearFilter;   // the picture itself is made when the sheet is first switched on (ensure)
   const mesh = new THREE.Mesh(winGeo(win), new THREE.MeshBasicMaterial({
     map: tex, transparent: true, depthWrite: !!layer.solid,
     opacity: layer.solid ? 1 : layer.additive ? .72 : .8,
@@ -891,9 +1366,22 @@ LAYERS.forEach((layer, i) => {
     new THREE.Vector3(-SW / 2, y, SH / 2), new THREE.Vector3(-SW / 2 - 62, y, SH / 2 + 62)]),
     new THREE.LineBasicMaterial({ color: layer.c, transparent: true, opacity: .45 })));
   lab.material.transparent = true;
-  const s = { layer, mesh, tex, y, group, lab, win, on: true };
+  if (layer.height) {                                                 // this sheet's tick on the ruler of heights: shown and hidden with the sheet
+    const rx = SW * .5 + 110, rz = SH * .5 + 50;
+    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(rx - 44, y, rz), new THREE.Vector3(rx, y, rz)]), new THREE.LineBasicMaterial({ color: layer.c, transparent: true, opacity: .55 })));
+    const hl = label(TT(layer.height), '', '#8fa9c4', mobile ? 52 : 38); hl.position.set(rx + 20, y, rz); group.add(hl); }
+  const s = { layer, mesh, tex, y, group, lab, win, on: false, built: false, res: layer.res || 1 }; group.visible = false;
   sheets.push(s); sheetOf[layer.id] = s;
 });
+// A sheet's picture is made the first time the sheet is shown: thirty canvases nobody is looking at would cost memory and time.
+function ensure(s) {
+  if (s.built) return; s.built = true;
+  const layer = s.layer, win = s.win, made = document.createElement('canvas'); made.width = win.w * s.res; made.height = win.h * s.res;
+  if (layer.paint) { layer.ctx = made.getContext('2d', CPU2D); need[layer.id] = true; }
+  else { const whole = layer.make(); if (layer.nolive) stampDrawn(whole, layer.c); made.getContext('2d').drawImage(whole, -win.x0, -win.y0); }
+  const tex = new THREE.CanvasTexture(made); tex.minFilter = THREE.LinearFilter; tex.anisotropy = 4;
+  s.tex.dispose(); s.tex = tex; s.mesh.material.map = tex; s.mesh.material.needsUpdate = true;
+}
 const yOf = (id) => sheetOf[id].y;
 const ISLAND_Y = yOf('island');
 // the line of small print under a sheet's name in the scene: its source, or what it is showing now
@@ -910,26 +1398,29 @@ function beam(from, to, colour, tag, city) {
     scene.add(d); dots.push({ mesh: d, t: i / 3 }); }
   const b = { from, to, dots, line, tag: tag || null, city: city || null }; beams.push(b); return b;
 }
+// the masts, the school pins and their rings stand on the ground sheet, and are shown and hidden with it
+const groundThings = new THREE.Group(); scene.add(groundThings);
 (I.stations || []).forEach((st, i) => { const lng = st.lng, lat = st.lat;
   const p = p3(lng, lat, ISLAND_Y);
   const mast = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.8, 26, 8),
     new THREE.MeshStandardMaterial({ color: '#9fd4ea', emissive: '#2a6b84', metalness: .7, roughness: .4 }));
-  mast.position.set(p.x, ISLAND_Y + 13, p.z); scene.add(mast);
+  mast.position.set(p.x, ISLAND_Y + 13, p.z); groundThings.add(mast);
   const cup = new THREE.Mesh(new THREE.SphereGeometry(3.4, 10, 8),
     new THREE.MeshStandardMaterial({ color: '#d9f0ff', emissive: '#59d7e8', emissiveIntensity: .7 }));
-  cup.position.set(p.x, ISLAND_Y + 28, p.z); scene.add(cup);
+  cup.position.set(p.x, ISLAND_Y + 28, p.z); groundThings.add(cup);
   beam(new THREE.Vector3(p.x, ISLAND_Y + 28, p.z), new THREE.Vector3(p.x, yOf(i < 3 ? 'wind' : 'air'), p.z), i < 3 ? '#59d7e8' : '#d9b3ff', 'stations');
 });
 I.schools.forEach((sc) => {
   const p = p3(sc.lng, sc.lat, ISLAND_Y);
   const pin = new THREE.Mesh(new THREE.ConeGeometry(7, 22, 12),
     new THREE.MeshStandardMaterial({ color: '#F7C46B', emissive: '#7a4c10', emissiveIntensity: .8, metalness: .5, roughness: .3 }));
-  pin.position.set(p.x, ISLAND_Y + 11, p.z); scene.add(pin);
+  pin.position.set(p.x, ISLAND_Y + 11, p.z); groundThings.add(pin);
   const ring = new THREE.Mesh(new THREE.RingGeometry(14, 19, 28), new THREE.MeshBasicMaterial({ color: '#F7C46B', transparent: true, opacity: .35, side: THREE.DoubleSide }));
-  ring.rotation.x = -Math.PI / 2; ring.position.set(p.x, ISLAND_Y + 1.5, p.z); scene.add(ring);
+  ring.rotation.x = -Math.PI / 2; ring.position.set(p.x, ISLAND_Y + 1.5, p.z); groundThings.add(ring);
   beam(new THREE.Vector3(p.x, ISLAND_Y + 22, p.z), new THREE.Vector3(p.x, TOP, p.z), '#F7C46B', 'own', sc.id);
 });
-function sourceBox(pos, colour, text, sub, toY, tag) {
+const boxes = [];
+function sourceBox(id, pos, colour, text, sub, tag, want) {
   const group = new THREE.Group(); scene.add(group);
   const geo = new THREE.BoxGeometry(56, 56, 56);
   const b = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#16293f', emissive: colour, emissiveIntensity: .25, metalness: .6, roughness: .35 }));
@@ -937,17 +1428,22 @@ function sourceBox(pos, colour, text, sub, toY, tag) {
   const w = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: colour, transparent: true, opacity: .8 }));
   w.position.copy(pos); group.add(w);
   const lab = label(text, sub, colour, mobile ? 76 : 54); lab.position.set(pos.x + 44, pos.y + 4, pos.z); group.add(lab);
-  const bm = beam(pos.clone(), new THREE.Vector3(pos.x, toY, pos.z), colour, tag || null);
-  return { group, show: (on) => { group.visible = on; bm.line.visible = on; bm.hidden = !on; } };
+  const bm = beam(pos.clone(), new THREE.Vector3(pos.x, yOf(id), pos.z), colour, tag || null);
+  const rec = { id, want: want || (() => true), show: (on) => { group.visible = on; bm.line.visible = on; bm.hidden = !on; } }; boxes.push(rec); rec.show(false); return rec;
 }
-sourceBox(new THREE.Vector3(-SW * .6, yOf('rain') + 1.4 * GAPY, -SH * .3), '#7fb3ff', 'Open-Meteo', T('MODEL · 0.25° GRID', 'ΜΟΝΤΕΛΟ · ΠΛΕΓΜΑ 0,25°'), yOf('rain'), 'model');
-sourceBox(new THREE.Vector3(SW * .58, yOf('city'), SH * .34), '#C4B8FF', 'CYSTAT · GTFS', T('PUBLISHED FILES', 'ΔΗΜΟΣΙΕΥΜΕΝΑ ΑΡΧΕΙΑ'), yOf('city'));
+// A source is named in the scene only while its sheet is on show and its data is really there.
+function syncBoxes() { boxes.forEach((b) => b.show(sheetOf[b.id].on && b.want()));
+  const ground = sheetOf.island.on; groundThings.visible = ground;
+  beams.forEach((b) => { if (b.tag === 'own' || b.tag === 'stations') { b.hidden = !ground; b.line.visible = ground; } }); }
+sourceBox('wind', new THREE.Vector3(-SW * .6, yOf('wind') + 1.4 * GAPY, -SH * .3), '#7fb3ff', 'Open-Meteo', T('MODEL · 0.25° GRID', 'ΜΟΝΤΕΛΟ · ΠΛΕΓΜΑ 0,25°'), 'model');
+sourceBox('population', new THREE.Vector3(SW * .58, yOf('population'), SH * .34), '#C4B8FF', 'CYSTAT', T('CENSUS OF 1 OCTOBER 2021', 'ΑΠΟΓΡΑΦΗ 1ης ΟΚΤΩΒΡΙΟΥ 2021'));
+sourceBox('buses', new THREE.Vector3(SW * .58, yOf('buses'), -SH * .05), '#a0d6b4', 'GTFS', T('TIMETABLE FILES · NOT OBSERVED', 'ΑΡΧΕΙΑ ΔΡΟΜΟΛΟΓΙΩΝ · ΟΧΙ ΠΑΡΑΤΗΡΗΣΗ'));
+sourceBox('quakes', new THREE.Vector3(-SW * .6, yOf('quakes'), -SH * .1), '#ffd678', 'USGS', T('CATALOGUE OF PAST EVENTS', 'ΚΑΤΑΛΟΓΟΣ ΠΑΛΙΩΝ ΓΕΓΟΝΟΤΩΝ'));
 // The seabed's source is named in the scene only once its file has really been loaded.
-const seabedBox = sourceBox(new THREE.Vector3(SW * .58, yOf('seabed'), -SH * .3), '#2f7fb8', 'EMODnet', T('BATHYMETRY · PUBLISHED GRID', 'ΒΑΘΥΜΕΤΡΙΑ · ΔΗΜΟΣΙΕΥΜΕΝΟ ΠΛΕΓΜΑ'), yOf('seabed'));
-seabedBox.show(false);
-sourceBox(new THREE.Vector3(SW * .58, yOf('ships'), SH * .1), '#ffb86b', 'Eurostat', T('PORT STATISTICS · BY QUARTER', 'ΣΤΑΤΙΣΤΙΚΑ ΛΙΜΑΝΙΩΝ · ΑΝΑ ΤΡΙΜΗΝΟ'), yOf('ships'));
-sourceBox(new THREE.Vector3(-SW * .6, yOf('water'), SH * .36), '#5bc8e0', T('WDD gauges', 'Μετρητές ΤΑΥ'), T('RESERVOIRS · REACHES', 'ΦΡΑΓΜΑΤΑ · ΤΜΗΜΑΤΑ'), yOf('water'));
-sourceBox(new THREE.Vector3(-SW * .6, yOf('aircraft') + .5 * GAPY, SH * .1), '#f4fbff', 'adsb.fi', T('VOLUNTEER RECEIVERS · 20 S', 'ΔΕΚΤΕΣ ΕΘΕΛΟΝΤΩΝ · 20 S'), yOf('aircraft'), 'adsb');
+sourceBox('seabed', new THREE.Vector3(SW * .58, yOf('seabed'), -SH * .3), '#2f7fb8', 'EMODnet', T('BATHYMETRY · PUBLISHED GRID', 'ΒΑΘΥΜΕΤΡΙΑ · ΔΗΜΟΣΙΕΥΜΕΝΟ ΠΛΕΓΜΑ'), null, () => !!seabed && !seabed.meta.testOnly);
+sourceBox('ships', new THREE.Vector3(SW * .58, yOf('ships'), SH * .1), '#ffb86b', 'Eurostat', T('PORT STATISTICS · BY QUARTER', 'ΣΤΑΤΙΣΤΙΚΑ ΛΙΜΑΝΙΩΝ · ΑΝΑ ΤΡΙΜΗΝΟ'));
+sourceBox('flood', new THREE.Vector3(-SW * .6, yOf('flood'), SH * .36), '#6ec8ff', T('Water Dept.', 'ΤΑΥ'), T('FLOOD SCENARIOS · MODELLED', 'ΣΕΝΑΡΙΑ ΠΛΗΜΜΥΡΑΣ · ΜΟΝΤΕΛΟ'));
+sourceBox('aircraft', new THREE.Vector3(-SW * .6, yOf('aircraft') + .5 * GAPY, SH * .1), '#f4fbff', 'adsb.fi', T('VOLUNTEER RECEIVERS · 20 S', 'ΔΕΚΤΕΣ ΕΘΕΛΟΝΤΩΝ · 20 S'), 'adsb');
 
 /* ---- aeroplanes in the scene: an arrow lifted by its height, on a thin line down to the sheet ---- */
 const planeGroup = new THREE.Group(); sheetOf.aircraft.group.add(planeGroup);                               // hidden and shown with their sheet
@@ -1054,11 +1550,13 @@ window.__sheets = () => ({ still: still(), tour, wind: !!windF, rainKnown, rainC
   specks: specks.length, sea: seaPts.length, stations: stationPts.length, beamsLive: beams.filter((b) => b.live).length,
   waves: seaPts.filter((p) => p.dir != null && p.period != null).length, seabed: seabed ? { cells: seabed.cells, deepest: seabed.deepest, testOnly: seabed.meta.testOnly } : null,
   ships: ships ? ships.ports.map((p) => ({ code: p.code, xy: pxOf(p.lng, p.lat), arrivals: p.arrivals, arrQ: p.arrQ, perDay: p.perDay, pulseS: p.pulseS, cargo: p.cargo, cargoQ: p.cargoQ, ended: p.ended, ring: p.arrivals != null ? shipRing(p) : null })) : null,
-  layers: LAYERS.map((l) => l.id), terrain: terrain ? terrain.kind : 'none' });
+  layers: LAYERS.map((l) => l.id), on: sheets.filter((s) => s.on).map((s) => s.layer.id), built: sheets.filter((s) => s.built).map((s) => s.layer.id), loaded: LAYERS.filter((l) => l.loadedAt).map((l) => l.id),
+  opening: LAYERS.filter((l) => l.def).map((l) => l.id), tourAt, revealDone: LAYERS.filter((l) => l.stack && l.revealDone).map((l) => l.id), modes: Object.fromEntries(LAYERS.filter((l) => l.modes).map((l) => [l.id, l.mode])),
+  terrain: terrain ? terrain.kind : 'none' });
 // one painted sheet at one place: how opaque it is there, and its colour (the tests use it to see that a sheet is empty where it has no data)
 window.__inkAt = (id, lng, lat, r) => { const l = layerOf(id); if (!l || !l.ctx) return null; const [x, y] = pxOf(lng, lat), k = r || 3, w = sheetOf[id].win;
   const cx = Math.round(x) - w.x0, cy = Math.round(y) - w.y0; if (cx + k < 0 || cy + k < 0 || cx - k >= w.w || cy - k >= w.h) return { alpha: 0, rgb: [0, 0, 0], outside: true };   // beyond the sheet's window there is no picture at all
-  const d = l.ctx.getImageData(cx - k, cy - k, 2 * k + 1, 2 * k + 1).data; let a = 0, rr = 0, gg = 0, bb = 0;
+  const z = sheetOf[id].res, d = l.ctx.getImageData((cx - k) * z, (cy - k) * z, (2 * k + 1) * z, (2 * k + 1) * z).data; let a = 0, rr = 0, gg = 0, bb = 0;
   for (let i = 0; i < d.length; i += 4) { a = Math.max(a, d[i + 3]); rr += d[i]; gg += d[i + 1]; bb += d[i + 2]; } const n = d.length / 4;
   return { alpha: a, rgb: [Math.round(rr / n), Math.round(gg / n), Math.round(bb / n)] }; };
 // a sum over one whole sheet that changes whenever its picture does (for the reduced-motion and "nothing moves" tests)
@@ -1073,7 +1571,11 @@ window.__windAt = (lng, lat) => { if (!windF) return null; const [x, y] = pxOf(l
 const rail = document.getElementById('rail');
 const BAND = { SPACE: ['SPACE', 'ΔΙΑΣΤΗΜΑ'], AIR: ['AIR', 'ΑΕΡΑΣ'], GROUND: ['GROUND', 'ΕΔΑΦΟΣ'], CITY: ['CITY', 'ΠΟΛΗ'], WATER: ['WATER', 'ΝΕΡΟ'] };
 // A sheet is switched on or off in one place, so a sheet that fetches for itself can start again the moment it is shown.
-function setOn(s, on) { s.on = on; s.group.visible = on; if (s.btn) s.btn.setAttribute('aria-pressed', String(on)); if (on) wake(s.layer); }
+function setOn(s, on) { const was = s.on; s.on = on; s.group.visible = on; if (s.btn) s.btn.setAttribute('aria-pressed', String(on));
+  if (on) { ensure(s); if (!was) { restartReveal(s.layer); touch(s.layer.id); } wake(s.layer); } }
+// The sheets that are on when nothing is being read on its own: the opening set to start with, then whatever the reader chose.
+let baseSet = new Set(LAYERS.filter((l) => l.def).map((l) => l.id)), toolMode = 'default';
+const keepBase = () => { if (soloId == null) baseSet = new Set(sheets.filter((s) => s.on).map((s) => s.layer.id)); };
 Object.keys(BAND).forEach((b) => {
   const list = LAYERS.filter((x) => x.band === b).slice().reverse(); if (!list.length) return;
   const head = document.createElement('button'); head.type = 'button'; head.className = 'band'; head.dataset.fold = b;
@@ -1099,7 +1601,7 @@ Object.keys(BAND).forEach((b) => {
     btn.append(keyEl, name, val, st, go);
     btn.querySelector('b').textContent = TT(x.name);
     btn.querySelector('small').textContent = TT(x.src);
-    btn.addEventListener('click', () => { setOn(s, !s.on); drawTwins(); });
+    btn.addEventListener('click', () => { setOn(s, !s.on); keepBase(); if (soloId == null) markTools('custom'); syncBoxes(); drawTwins(); paintRail(); });
     const row = document.createElement('div'); row.className = 'row'; row.style.setProperty('--c', x.c); row.dataset.id = x.id;
     const rowHead = document.createElement('div'); rowHead.className = 'head';
     const solo = document.createElement('button');
@@ -1141,22 +1643,20 @@ function paintCities(s) {
 }
 function setSolo(id) {
   soloId = soloId === id ? null : id;
-  allBtn.setAttribute('aria-pressed', String(soloId == null));
-  if (onlyBtn) onlyBtn.setAttribute('aria-pressed', 'false');
-  tools.querySelectorAll('[data-band]').forEach((o) => o.setAttribute('aria-pressed', 'false'));
+  markTools(soloId == null ? toolMode : 'solo');
   sheets.forEach((s) => {
-    setOn(s, soloId == null ? true : s.layer.id === soloId);
+    setOn(s, soloId == null ? baseSet.has(s.layer.id) : s.layer.id === soloId);
     if (s.solo) s.solo.setAttribute('aria-pressed', String(s.layer.id === soloId));
     if (s.cities) { const show = s.layer.id === soloId; s.cities.hidden = !show; if (show) paintCities(s); }
   });
-  fitWindows(); drawTwins(); touchAll();                             // the sheet on its own gets the whole region, and the names of the places around it
+  fitWindows(); syncBoxes(); drawTwins(); touchAll();               // the sheet on its own gets the whole region, and the names of the places around it
   document.body.classList.toggle('solo-on', soloId != null);
-  paintLegend();
+  paintLegend(); paintRail();
   const pose = poseFor(viewMode); flyTo(pose[0], pose[1]);
 }
 /* ---- the key: for one sheet at a time, what it shows, what the colours and the motion mean, and where it comes from ---- */
 const NO_MOVE = () => T('Nothing moves here, because there is no reading to show.', 'Εδώ δεν κινείται τίποτα, γιατί δεν υπάρχει μέτρηση να δείξει.');
-const STATE_WORD = { measured: ['MEASURED', 'ΜΕΤΡΗΜΕΝΟ'], model: ['MODEL, NOT A MEASUREMENT', 'ΜΟΝΤΕΛΟ, ΟΧΙ ΜΕΤΡΗΣΗ'], published: ['PUBLISHED FIGURES, NOT LIVE', 'ΔΗΜΟΣΙΕΥΜΕΝΑ ΣΤΟΙΧΕΙΑ, ΟΧΙ ΖΩΝΤΑΝΑ'],
+const STATE_WORD = { scheduled: ['TIMETABLE, NOT OBSERVED', 'ΔΡΟΜΟΛΟΓΙΟ, ΟΧΙ ΠΑΡΑΤΗΡΗΣΗ'], delayed: ['DELAYED AND ROUNDED, NOT LIVE', 'ΜΕ ΚΑΘΥΣΤΕΡΗΣΗ ΚΑΙ ΣΤΡΟΓΓΥΛΕΜΑ, ΟΧΙ ΖΩΝΤΑΝΑ'], measured: ['MEASURED', 'ΜΕΤΡΗΜΕΝΟ'], model: ['MODEL, NOT A MEASUREMENT', 'ΜΟΝΤΕΛΟ, ΟΧΙ ΜΕΤΡΗΣΗ'], published: ['PUBLISHED FIGURES, NOT LIVE', 'ΔΗΜΟΣΙΕΥΜΕΝΑ ΣΤΟΙΧΕΙΑ, ΟΧΙ ΖΩΝΤΑΝΑ'],
   demo: ['DEMO DATA, NOT REAL', 'ΔΕΔΟΜΕΝΑ ΕΠΙΔΕΙΞΗΣ, ΟΧΙ ΠΡΑΓΜΑΤΙΚΑ'], none: ['NO LIVE DATA', 'ΧΩΡΙΣ ΖΩΝΤΑΝΑ ΔΕΔΟΜΕΝΑ'] };
 const legend = document.getElementById('legend');
 const mk = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
@@ -1180,6 +1680,8 @@ function paintLegend() {
     out.push(mk('p', 'lg-gen', T('The sheets cover the sea and the coasts around Cyprus. A sheet is empty wherever its source has no data: empty does not mean zero.', 'Τα φύλλα καλύπτουν τη θάλασσα και τις ακτές γύρω από την Κύπρο. Ένα φύλλο είναι άδειο όπου η πηγή του δεν έχει δεδομένα: άδειο δεν σημαίνει μηδέν.')));
     out.push(mk('p', 'lg-gen', T('Dots climb a beam only while its source reported in the last 90 minutes. A bare line is a quiet source.', 'Οι κουκκίδες ανεβαίνουν μια δέσμη μόνο όσο η πηγή της έστειλε κάτι τα τελευταία 90 λεπτά. Σκέτη γραμμή σημαίνει σιωπηλή πηγή.')));
     out.push(mk('p', 'lg-gen', T('A striped sheet with the words "no live data" is an example drawing, not a measurement.', 'Ένα ριγέ φύλλο με τις λέξεις "χωρίς ζωντανά δεδομένα" είναι σχέδιο-παράδειγμα, όχι μέτρηση.')));
+    out.push(mk('p', 'lg-gen', T(sheets.filter((s) => s.on).length + ' of the ' + LAYERS.length + ' sheets are switched on. The others wait in the list on the left: press one to switch it on, or "ALL" for every sheet at once. A census, a list of past events or a past year is drawn standing still; only what is live, delayed or planned for this minute keeps moving.',
+      sheets.filter((s) => s.on).length + ' από τα ' + LAYERS.length + ' φύλλα είναι αναμμένα. Τα υπόλοιπα περιμένουν στη λίστα αριστερά: πάτα ένα για να το ανάψεις, ή "ΟΛΑ" για όλα μαζί. Μια απογραφή, ένας κατάλογος παλιών γεγονότων ή μια περασμένη χρονιά σχεδιάζονται ακίνητα· μόνο ό,τι είναι ζωντανό, καθυστερημένο ή προγραμματισμένο για αυτό το λεπτό συνεχίζει να κινείται.')));
     if (terrain && terrain.kind === 'demo') out.push(mk('p', 'lg-gen lg-demo', T('Demo: the land drawn around Cyprus is a rough stand-in shape, not the real coastline.', 'Δοκιμή: η στεριά γύρω από την Κύπρο είναι ένα πρόχειρο σχήμα, όχι η πραγματική ακτογραμμή.')));
     legend.dataset.layer = ''; legend.dataset.state = '';
     legend.replaceChildren(...out); return;
@@ -1195,21 +1697,34 @@ function paintLegend() {
   all.addEventListener('click', () => { setSolo(soloId); const b = legend.querySelector('.lg-go'); if (b) b.focus(); });
   step.append(prev, mk('span', 'lg-n', T('LAYER ', 'ΣΤΡΩΜΑ ') + (i + 1) + ' / ' + LAYERS.length), next, all);
   out.push(step, mk('h3', null, TT(layer.name)), mk('p', 'lg-cap', say(info.cap)));
-  const has = st.kind !== 'none';
-  if (info.scale && has) {
-    const sc = SCALE[info.scale], box = mk('div', 'lg-scale'), ends = sc.ends || [['low', 'χαμηλά'], ['high', 'ψηλά']];
-    box.append(mk('div', 'lg-scale-name', TT(SCALE_NAME[info.scale]) + ' · ' + sc.unit));
+  const shown = st.kind !== 'none', answers = (layer.stack ? idsOf(layer) : layer.answers || []).map(pd).filter(Boolean);
+  // the one line each answer says must be shown, word for word; and, when one of two answers has no data, why
+  answers.forEach((p) => { if (Array.isArray(p.honesty)) out.push(mk('p', 'lg-honest', TT(p.honesty))); if (shown && p.available === false && p.reason) out.push(mk('p', 'lg-mark', TT(p.reason))); });
+  const scKey = typeof info.scale === 'function' ? info.scale() : info.scale;
+  if (scKey && shown) {
+    const sc = SCALE[scKey], box = mk('div', 'lg-scale'), ends = sc.ends || [['low', 'χαμηλά'], ['high', 'ψηλά']], unit = T(sc.unit, sc.unitEl || sc.unit);
+    box.append(mk('div', 'lg-scale-name', TT(SCALE_NAME[scKey]) + (unit ? ' · ' + unit : '')));
     const bar = mk('div', 'lg-bar'); bar.style.background = cssScale(sc); box.append(bar);
-    const ticks = mk('div', 'lg-ticks'), mid = (sc.min + sc.max) / 2;
+    const ticks = mk('div', 'lg-ticks'), mid = Math.round((sc.min + sc.max) / 2 * 100) / 100;
     [TT(ends[0]) + ' ' + sc.min, String(mid), sc.max + (sc.top ? '' : '+') + ' ' + TT(ends[1])].forEach((x) => ticks.append(mk('span', null, x)));
     box.append(ticks); out.push(box);
   }
-  const moveLine = info.always ? say(info.never) : !has ? NO_MOVE() : info.never ? say(info.never) : info.move ? say(still() ? info.rest : info.move) : NO_MOVE();
+  if (info.unit && shown) { const box = mk('div', 'lg-scale'); box.append(mk('div', 'lg-scale-name', say(info.unit))); out.push(box); }
+  const moveLine = info.always ? say(info.never) : !shown ? NO_MOVE() : info.never ? say(info.never) : info.move ? say(still() ? info.rest : info.move) : NO_MOVE();
   const mv = mk('p', 'lg-move'); mv.append(mk('b', null, T('Motion: ', 'Κίνηση: ')), moveLine); out.push(mv);
   const marks = typeof info.marks === 'function' ? info.marks() : info.marks;
-  if (has && marks) marks.forEach((m) => out.push(mk('p', 'lg-mark', TT(m))));
+  if (shown && marks) marks.forEach((m) => out.push(mk('p', 'lg-mark', TT(m))));
+  const modes = layer.modes && shown ? layer.modes() : [];
+  if (modes.length > 1) { const row = mk('div', 'lg-modes'); row.setAttribute('role', 'group'); row.setAttribute('aria-label', T('Choose what this sheet shows', 'Διάλεξε τι δείχνει αυτό το φύλλο'));
+    modes.forEach((m) => { const b = mk('button', 'lg-mode', TT(m.name)); b.type = 'button'; b.dataset.mode = m.id; b.setAttribute('aria-pressed', String(layer.mode === m.id));
+      b.addEventListener('click', () => { layer.mode = m.id; restartReveal(layer); touch(layer.id); paintLegend(); const again = [...legend.querySelectorAll('.lg-mode')].find((x) => x.dataset.mode === m.id); if (again) again.focus(); });
+      row.append(b); }); out.push(row); }
+  const spots = layer.spots && shown ? layer.spots() : [];
+  if (spots.length) { const row = mk('div', 'lg-modes lg-spots'); row.setAttribute('role', 'group'); row.setAttribute('aria-label', T('Fly close to a place on this sheet', 'Πέτα κοντά σε ένα σημείο αυτού του φύλλου'));
+    spots.forEach((sp) => { const b = mk('button', 'lg-spot', T('Fly to ', 'Πέτα σε: ') + TT(sp.name)); b.type = 'button';
+      b.addEventListener('click', () => { const pose = spotPose(yOf(layer.id), sp.lng, sp.lat, sp.span); flyTo(pose[0], pose[1]); }); row.append(b); }); out.push(row); }
   const state = mk('div', 'lg-state ' + st.kind); state.setAttribute('aria-live', 'off');   // its age ticks; a screen reader is not told every half minute
-  state.append(mk('b', null, TT(STATE_WORD[st.kind])), mk('span', null, (has ? T('Source: ', 'Πηγή: ') : '') + st.text));
+  state.append(mk('b', null, TT(STATE_WORD[st.kind])), mk('span', null, (shown ? T('Source: ', 'Πηγή: ') : '') + st.text));
   if (layer.link) { const a = mk('a', 'lg-link', layer.link[1]); a.href = layer.link[0]; a.target = '_blank'; a.rel = 'noopener noreferrer'; state.append(a); }
   out.push(state);
   legend.replaceChildren(...out);
@@ -1246,21 +1761,26 @@ const setAll = (fn) => {
     if (s.solo) s.solo.setAttribute('aria-pressed', 'false');
     if (s.cities) s.cities.hidden = true;
   });
-  fitWindows(); drawTwins(); touchAll();
+  keepBase(); fitWindows(); syncBoxes(); drawTwins(); touchAll();
   document.body.classList.remove('solo-on');
-  paintLegend();
+  paintLegend(); paintRail();
 };
 const tools = document.querySelector('.tools');
-const allBtn = document.getElementById('all'), tourBtn = document.getElementById('tour'), hint = document.getElementById('hint');
+const allBtn = document.getElementById('all'), defBtn = document.getElementById('opening'), tourBtn = document.getElementById('tour'), hint = document.getElementById('hint');
+const onlyBtn = document.getElementById('measured');
+// which button of the toolbar describes what is on show: 'default', 'all', 'measured', 'band:AIR', or none of them
+function markTools(mode) { if (mode !== 'solo') toolMode = mode;
+  defBtn.setAttribute('aria-pressed', String(mode === 'default')); allBtn.setAttribute('aria-pressed', String(mode === 'all')); onlyBtn.setAttribute('aria-pressed', String(mode === 'measured'));
+  tools.querySelectorAll('[data-band]').forEach((o) => o.setAttribute('aria-pressed', String(mode === 'band:' + o.dataset.band))); }
+const showOpening = () => { markTools('default'); setAll((s) => !!s.layer.def); };
 tools.querySelectorAll('[data-band]').forEach((b) => b.addEventListener('click', () => {
-  const band = b.dataset.band;
-  const only = b.getAttribute('aria-pressed') !== 'true';
-  tools.querySelectorAll('[data-band]').forEach((o) => o.setAttribute('aria-pressed', String(o === b && only)));
-  allBtn.setAttribute('aria-pressed', String(!only));
-  setAll((s) => (only ? s.layer.band === band || s.layer.id === 'island' : true));
+  const band = b.dataset.band, only = b.getAttribute('aria-pressed') !== 'true';
+  if (!only) { showOpening(); return; }
+  markTools('band:' + band); setAll((s) => s.layer.band === band || s.layer.id === 'island');
 }));
 // Which sheets stand on a reading rather than on a drawing, a model or a published table: the ones with a measured
-// feed, the satellite when a real picture has landed, and a sheet that reports itself as measured right now.
+// feed, the satellite when a real picture has landed, and a sheet that reports itself as measured right now. A sheet
+// that has not been asked for yet cannot say, so "measured only" asks the live ones first.
 const MEASURED_KIND = new Set(['reference-station', 'calibrated-network', 'low-cost-sensor', 'crowd-sourced']);
 function measuredIds() {
   const ids = new Set();
@@ -1272,23 +1792,19 @@ function measuredIds() {
     }
   });
   LAYERS.forEach((l) => { if (!FEED[l.id] && !l.nolive && l.state && l.state().kind === 'measured') ids.add(l.id); });
-  return ids;                                                      // rain, cloud, waves, ports, seabed never qualify: a model or a table is not a gauge
+  return ids;                                                      // rain, cloud, waves, ports, seabed, census never qualify: a model or a table is not a gauge
 }
-const onlyBtn = document.getElementById('measured');
-if (onlyBtn) onlyBtn.addEventListener('click', () => {
-  const on = onlyBtn.getAttribute('aria-pressed') !== 'true';
-  onlyBtn.setAttribute('aria-pressed', String(on));
-  allBtn.setAttribute('aria-pressed', String(!on));
-  tools.querySelectorAll('[data-band]').forEach((o) => o.setAttribute('aria-pressed', 'false'));
-  const ids = measuredIds();
-  setAll((s) => (on ? ids.has(s.layer.id) : true));
+onlyBtn.addEventListener('click', async () => {
+  if (onlyBtn.getAttribute('aria-pressed') === 'true') { showOpening(); return; }
+  markTools('measured');
+  // the index of the stack API says which answers are live: only those sheets are asked for, to learn whether they hold a reading now
+  try { const r = await fetch('/api/stack', { headers: { accept: 'application/json' } }), idx = r.ok ? await r.json() : null, liveIds = new Set(((idx && idx.sheets) || []).filter((x) => x.live === true).map((x) => x.id));
+    await Promise.all(LAYERS.filter((l) => l.stack && !l.asked && idsOf(l).some((id) => liveIds.has(id))).map((l) => loadStack(l).catch(() => {}))); } catch (e) { /* the sheets already asked for can still answer */ }
+  if (toolMode !== 'measured') return;
+  const ids = measuredIds(); setAll((s) => ids.has(s.layer.id));
 });
-allBtn.addEventListener('click', () => {
-  if (onlyBtn) onlyBtn.setAttribute('aria-pressed', 'false');
-  allBtn.setAttribute('aria-pressed', 'true');
-  tools.querySelectorAll('[data-band]').forEach((o) => o.setAttribute('aria-pressed', 'false'));
-  setAll(() => true);
-});
+allBtn.addEventListener('click', () => { markTools('all'); setAll(() => true); });
+defBtn.addEventListener('click', showOpening);
 
 /* ---- the camera: the whole region, or flown in to Cyprus ---- */
 // How far back the camera must stand for a ball of radius r to fit the part of the window the panels leave free.
@@ -1307,6 +1823,10 @@ function soloPose(y, mode) {
   const ty = wide ? y : y - .15 * d;                                // on a phone the key sits at the bottom, so the sheet is lifted clear of it
   return [[cx - .16 / n * d, ty + .8 / n * d, cz + .9 / n * d], [cx, ty, cz]];
 }
+// close over one place on one sheet (the built-up boxes are 1.8 km wide: a speck until the camera goes down to them)
+function spotPose(y, lng, lat, span) { const at = p3(lng, lat, y), width = span * I.k / RW * SW, wide = innerWidth > 860;
+  const d = Math.max(16, 1.3 * width / (2 * Math.tan(19 * Math.PI / 180) * Math.min(1, camera.aspect) * (wide ? .5 : 1))), n = Math.hypot(.1, .9, .5);
+  return [[at.x - .1 / n * d, y + .9 / n * d, at.z + .5 / n * d], [at.x, y, at.z]]; }
 let viewMode = 'region', labelFade = 1;
 const LABEL_CORNER = new THREE.Vector3(-SW / 2, MID, SH / 2);
 const poseFor = (mode) => (soloId != null ? soloPose(yOf(soloId), mode) : mode === 'cyprus' ? cyprusPose() : homePose());
@@ -1319,23 +1839,24 @@ function setView(mode) {
 Object.keys(viewBtns).forEach((k) => { if (viewBtns[k]) viewBtns[k].addEventListener('click', () => setView(k)); });
 
 /* ---- the tour, which steps aside the moment you take hold ---- */
-// From the whole region in to Cyprus, low over the sea sheets, up through the ground and the air to the sky, and back out.
-let TOUR = [];
-function planTour() { const H = homePose(), C = cyprusPose();
-  TOUR = [
-    { t: 0, pos: H[0], tgt: H[1] },
-    { t: 9, pos: C[0], tgt: C[1] },
-    { t: 17, pos: [ISLE.x - 620, yOf('ships') + 420, ISLE.z + 900], tgt: [ISLE.x - 40, yOf('waves'), ISLE.z] },
-    { t: 25, pos: [ISLE.x + 340, yOf('veg') + 300, ISLE.z + 760], tgt: [ISLE.x + 80, yOf('island') + 60, ISLE.z + 30] },
-    { t: 33, pos: [ISLE.x + 1500, yOf('aircraft') + 620, ISLE.z + 1400], tgt: [ISLE.x, yOf('wind'), ISLE.z] },
-    { t: 42, pos: H[0], tgt: H[1] },
-  ]; }
-// With reduced motion the camera does not tour by itself: the view stands still until the reader moves it.
-let tour = !still(), tourT = 0;
+// The whole region with the opening set first; then every sheet in turn, on its own with its key, from the seabed up to
+// the satellite; then back to the opening view, and round again. With reduced motion it does not start by itself, and if
+// it is switched on the camera steps from view to view without flying. ?tour=0 opens the page with the tour off.
+const TOUR_OPEN = 12, TOUR_HOLD = 8;
+let tour = Q.get('tour') === '0' ? false : !still(), tourT = 0, tourAt = -1, touring = false;
+function tourStep(dt) {
+  tourT += dt; if (tourT < (tourAt === -1 ? TOUR_OPEN : TOUR_HOLD)) return;
+  tourT = 0; tourAt = tourAt + 1 >= LAYERS.length ? -1 : tourAt + 1;
+  touring = true;
+  try { if (tourAt === -1) { if (soloId != null) setSolo(soloId); showOpening(); setView('region'); } else { if (soloId === LAYERS[tourAt].id) soloId = null; setSolo(LAYERS[tourAt].id); } }
+  finally { touring = false; }
+}
 const ease = (a, b, f) => a + (b - a) * (f < .5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2);
 tourBtn.setAttribute('aria-pressed', String(tour)); hint.hidden = !tour;
-function stopTour() { if (!tour) return; tour = false; tourBtn.setAttribute('aria-pressed', 'false'); hint.hidden = true; }
-tourBtn.addEventListener('click', () => { tour = !tour; fly = null; tourBtn.setAttribute('aria-pressed', String(tour)); hint.hidden = !tour; });
+function stopTour() { if (!tour || touring) return; tour = false; tourBtn.setAttribute('aria-pressed', 'false'); hint.hidden = true; }
+tourBtn.addEventListener('click', () => { tour = !tour; tourT = 0; tourAt = soloId == null ? -1 : LAYERS.findIndex((l) => l.id === soloId); tourBtn.setAttribute('aria-pressed', String(tour)); hint.hidden = !tour; });
+// taking hold of anything on the page ends the tour: the reader is in charge from then on
+document.querySelector('.ui').addEventListener('click', (e) => { if (!(e.target.closest && e.target.closest('#tour'))) stopTour(); }, true);
 controls.addEventListener('start', () => { stopTour(); fly = null; });
 canvas.addEventListener('wheel', () => { stopTour(); fly = null; }, { passive: true });
 
@@ -1347,7 +1868,7 @@ function flyTo(pos, tgt) {
 }
 
 function size() { const w = innerWidth, h = innerHeight;
-  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); planTour(); }
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 addEventListener('resize', size); size();
 { const H = homePose(); camera.position.set(H[0][0], H[0][1], H[0][2]); controls.target.set(H[1][0], H[1][1], H[1][2]); }   // the opening view is the whole region
 window.__region = () => ({ box: R, view: viewMode, flying: !!fly, cam: camera.position.toArray(), tgt: controls.target.toArray(), dist: camera.position.distanceTo(controls.target),
@@ -1369,9 +1890,10 @@ function runLoad(l) {
   if (!l.load || loading.has(l.id)) return;
   loading.add(l.id); l.loadedAt = Date.now();
   Promise.resolve().then(() => l.load()).catch((e) => { console.error('The sheet "' + l.id + '" could not load: ' + String((e && e.message) || e)); })
-    .then(() => { loading.delete(l.id); fitWindows(); touch(l.id); seabedBox.show(!!seabed && !seabed.meta.testOnly); paintRail(); markBeams(); refreshLegend(soloId === l.id); paintSolo(); });
+    .then(() => { loading.delete(l.id); if (!l.everLoaded) { l.everLoaded = true; restartReveal(l); } fitWindows(); touch(l.id); syncBoxes(); paintRail(); markBeams(); refreshLegend(soloId === l.id); paintSolo(); });
 }
-function wake(l) { if (l.load && l.every && Date.now() - (l.loadedAt || 0) > l.every) runLoad(l); }
+// asked for when the sheet is first switched on; after that, again only when its own pace says so
+function wake(l) { if (!l.load) return; if (!l.loadedAt || (l.every && Date.now() - l.loadedAt > l.every)) runLoad(l); }
 // the land around Cyprus: asked for once, and again while the server is still collecting it
 async function loadTerrain(tries) {
   try {
@@ -1402,9 +1924,9 @@ function tick() {
   // sheet is left alone and catches up when it is shown again.
   for (let i = 0; i < sheets.length; i++) { const s = sheets[i], l = s.layer;
     if (!l.paint || !s.on) continue;
-    if (!(need[l.id] || (anim && l.beat && (frame + i) % (l.beat * slow) === 0))) continue;
+    if (!(need[l.id] || (anim && l.beat && movesNow(l) && (frame + i) % (l.beat * slow) === 0))) continue;
     const p0 = PROF ? performance.now() : 0, since = l.paintedAt == null ? dt : t - l.paintedAt;
-    l.ctx.setTransform(1, 0, 0, 1, -s.win.x0, -s.win.y0);            // paint in sheet pixels, whatever part of the sheet this canvas covers
+    l.ctx.setTransform(s.res, 0, 0, s.res, -s.win.x0 * s.res, -s.win.y0 * s.res);   // paint in sheet pixels, whatever part of the sheet this canvas covers and however fine it is
     l.paint(l.ctx, t, anim, Math.min(since, .12)); l.paintedAt = t; need[l.id] = false; s.tex.needsUpdate = true;
     if (PROF) { PROF.paint[l.id] = (PROF.paint[l.id] || 0) + performance.now() - p0; PROF.uploads++; PROF.slow = slow; } }
   stepPlanes(anim);
@@ -1433,18 +1955,15 @@ function tick() {
     rec.halo.material.color.set(h.c);
     rec.halo.material.opacity = h.o;
   });
-  if (tour) {
-    tourT += dt; const span = TOUR[TOUR.length - 1].t, tt = tourT % span;
-    let i = 0; while (i < TOUR.length - 2 && TOUR[i + 1].t <= tt) i++;
-    const A = TOUR[i], B = TOUR[i + 1], f = (tt - A.t) / (B.t - A.t);
-    camera.position.set(ease(A.pos[0], B.pos[0], f), ease(A.pos[1], B.pos[1], f), ease(A.pos[2], B.pos[2], f));
-    controls.target.set(ease(A.tgt[0], B.tgt[0], f), ease(A.tgt[1], B.tgt[1], f), ease(A.tgt[2], B.tgt[2], f));
-  } else if (fly) {
+  if (tour) tourStep(dt);
+  if (fly) {
     fly.f = Math.min(1, fly.f + dt / .9);
     camera.position.set(ease(fly.p0[0], fly.p1[0], fly.f), ease(fly.p0[1], fly.p1[1], fly.f), ease(fly.p0[2], fly.p1[2], fly.f));
     controls.target.set(ease(fly.t0[0], fly.t1[0], fly.f), ease(fly.t0[1], fly.t1[1], fly.f), ease(fly.t0[2], fly.t1[2], fly.f));
     if (fly.f >= 1) fly = null;
   }
+  { const d = camera.position.distanceTo(controls.target), near = d < 400 ? .4 : 2;      // close over a city box the camera needs to see things an arm's length away
+    if (camera.near !== near) { camera.near = near; camera.updateProjectionMatrix(); } }
   controls.update();
   const r0 = PROF ? performance.now() : 0;
   renderer.render(scene, camera); frame++;
@@ -1465,14 +1984,6 @@ const twins = new THREE.Group(); scene.add(twins);
   const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(rx, lo, rz), new THREE.Vector3(rx, hi, rz)]),
     new THREE.LineBasicMaterial({ color: '#4d6a86', transparent: true, opacity: .5 }));
   scene.add(line);
-  LAYERS.forEach((layer, i) => {
-    const y = i * GAPY, h = layer.height; if (!h) return;
-    const tk = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(rx - 44, y, rz), new THREE.Vector3(rx, y, rz)]),
-      new THREE.LineBasicMaterial({ color: layer.c, transparent: true, opacity: .55 }));
-    scene.add(tk);
-    const lab = label(TT(h), '', '#8fa9c4', mobile ? 60 : 42);
-    lab.position.set(rx + 20, y, rz); scene.add(lab);
-  });
   const head = label(T('WHAT EACH SHEET STANDS FOR', 'ΤΙ ΔΕΙΧΝΕΙ ΚΑΘΕ ΦΥΛΛΟ'), T('stacked to be read, not to scale', 'στοιβαγμένα για να διαβάζονται, όχι σε κλίμακα'), '#8fa9c4', mobile ? 66 : 48);
   head.position.set(rx + 20, hi + GAPY * .55, rz); scene.add(head);
 }
@@ -1723,10 +2234,10 @@ I.schools.forEach((sc) => {
   const p = p3(sc.lng, sc.lat, ISLAND_Y);
   CITY_POS[sc.id] = p;
   const lab = label(sc.name, '—', '#F7C46B', mobile ? 40 : 28);
-  lab.position.set(p.x + 14, ISLAND_Y + 34, p.z); scene.add(lab);
+  lab.position.set(p.x + 14, ISLAND_Y + 34, p.z); groundThings.add(lab);
   const halo = new THREE.Mesh(new THREE.RingGeometry(16, 20, 40),
     new THREE.MeshBasicMaterial({ color: '#F7C46B', transparent: true, opacity: .5, side: THREE.DoubleSide }));
-  halo.rotation.x = -Math.PI / 2; halo.position.set(p.x, ISLAND_Y + 2.5, p.z); scene.add(halo);
+  halo.rotation.x = -Math.PI / 2; halo.position.set(p.x, ISLAND_Y + 2.5, p.z); groundThings.add(halo);
   pinLabels.push({ sc, lab, p, halo, ageMin: null });
 });
 function paintPins() {
@@ -1862,7 +2373,7 @@ async function loadSatellite() {
       const c = document.createElement('canvas'); c.width = Math.round(w.w * k); c.height = Math.round(w.h * k);
       c.getContext('2d').drawImage(img, (x0 - w.x0) * k, (y0 - w.y0) * k, (x1 - x0) * k, (y1 - y0) * k);
       const tex = new THREE.CanvasTexture(c); tex.minFilter = THREE.LinearFilter; tex.anisotropy = 4;
-      sheet.tex = tex; sheet.mesh.material.map = tex;
+      sheet.built = true; sheet.tex = tex; sheet.mesh.material.map = tex;
       sheet.mesh.material.needsUpdate = true;
       satReal = true; paintLegend();
       const when = im.time ? new Date(im.time) : null;
@@ -1889,10 +2400,9 @@ async function loadLive() {
     console.error('The live readings could not be shown: ' + window.__liveError);
   }
 }
-paintRail(); paintProbe(); paintLegend();
+showOpening(); paintProbe();                                         // the opening set is switched on: only these sheets are made and asked for now
 loadLive(); loadSatellite(); loadTerrain(0);
-LAYERS.forEach((l) => { if (!l.load) return; runLoad(l);
-  if (l.every) setInterval(() => { if (!document.hidden && sheetOf[l.id].on) runLoad(l); }, l.every); });
+setInterval(() => { if (!document.hidden) sheets.forEach((s) => { if (s.on && s.layer.loadedAt) wake(s.layer); }); }, 2000);
 setInterval(() => { if (!document.hidden) loadLive(); }, 120000);
 // The readings on the screen age even when no new ones arrive, so the clock on them keeps running between fetches.
 setInterval(() => { if (!document.hidden && live) { paintRail(); paintProbe(); paintPins(); paintSky(); paintSolo(); markBeams(); touch('island'); refreshLegend(); } }, 30000);
