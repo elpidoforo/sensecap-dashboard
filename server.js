@@ -1215,6 +1215,12 @@ const botData = {
   domPage, domNet,
 };
 
+// The reviewed context files (context.js): read once, shared by the Data layers page and the data stack.
+const contextStore = require('./context').createContext({ root: __dirname, log: (m) => console.error(m) });
+// The data stack (stackdata.js): /api/stack/<id>, one small map-ready answer per dataset. It fetches nothing itself: every answer comes from what the
+// modules above already hold or from a frozen copy in the repo. Vehicles only ever through trailsFor('public').
+const stackData = require('./stackdata').createStackData({ root: __dirname, demo: DEMO, mock: MOCK, priv, trailsFor, devices: () => rawDevices(), cityBuildings, gtfs: () => gtfs, eea: () => eea, satellite: () => satellite, context: contextStore, cydom, metar, log: (m) => console.error(m) });
+
 function startApp() {
   const bot = createBot({
     apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL,
@@ -1234,7 +1240,7 @@ function startApp() {
     satellite = createSatellite({ root: __dirname, dataDir: DATA_DIR, log: (m) => console.error(m), demo: process.env.SATELLITE !== '0' && process.env.SATELLITE_DEMO === '1', off: process.env.SATELLITE === '0' || (MOCK && process.env.SATELLITE_LIVE !== '1'), offReason: process.env.SATELLITE === '0' ? 'switched off with SATELLITE=0' : 'test mode' });
     satellite.start();
   } catch (e) { console.error('Satellite feeds: not started (' + e.message + ')'); satellite = null; }
-  layers = createLayers({ root: __dirname, dataDir: DATA_DIR, appCore, data: botData, feeds, gtfs, satellite, context: require('./context').createContext({ root: __dirname, log: (m) => console.error(m) }), apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });   // works without the student app too (only editing the mission needs a teacher sign-in)
+  layers = createLayers({ root: __dirname, dataDir: DATA_DIR, appCore, data: botData, feeds, gtfs, satellite, context: contextStore, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });   // works without the student app too (only editing the mission needs a teacher sign-in)
   if (!appCore.enabled) return console.error('Student app is off: ' + appCore.reason);
   feeds.attach(appCore);   // from now on the on/off switches of the feeds are kept in the student database
   studio = createStudio({ appCore, notify: notifier, layers, classValid: (req) => classLogin.enabled && classLogin.valid(req), bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });
@@ -1623,6 +1629,7 @@ const server = http.createServer(async (req, res) => {
     if (await toolkitWatch.handle(req, res, url)) return;   // /watch/api/title: checks a title, stores nothing
     if (dataHealth && (await dataHealth.handle(req, res, url))) return;   // /api/health: read only, no sign-in
     if (await cityBuildings.handle(req, res, url)) return;   // /api/city/<id>: buildings and streets of one city centre, read only
+    if (await stackData.handle(req, res, url)) return;   // /api/stack/<id>: the datasets of the 3D data stack as small map-ready answers, read only
     if (await toolkitForecast.handle(req, res, url)) return;   // /api/toolkit/forecast: saved forecasts against what was measured, read only
     if (gtfs && (await gtfs.handle(req, res, url))) return;   // /api/transit/*: official bus timetables, read only, rate limited
     if (eea && (await eea.handle(req, res, url))) return;     // /api/eea/*: official air-quality stations and the school-sensor comparison, read only
