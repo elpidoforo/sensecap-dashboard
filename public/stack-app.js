@@ -275,6 +275,7 @@ let gridF = null;         // the rectangle those points cover (half a step aroun
 let windF = null;         // the wind as two fields in m/s: u blows to the east, v blows to the north
 let rainCells = [], rainKnown = false, cellW = 40, cellH = 40;
 let cloudF = null, airF = null, airPts = [], specks = [];
+let seaF = null;                                                      // the sea temperature, filled in between the model's sea points
 let seaPts = [], stationPts = [];
 let windDir = null, windSrc = null, rainMm = null, cloudPct = null, skyAt = null, airportWind = [];
 let soloId = null;
@@ -450,7 +451,7 @@ function seabedPaint(c) {
   c.globalCompositeOperation = 'source-over'; c.clearRect(0, 0, LW, LH);
   c.fillStyle = 'rgba(5,13,24,.95)'; c.fillRect(0, 0, LW, LH);
   if (seabed) c.drawImage(depthC, 0, 0);
-  landFill(c, '#0b1826'); coast(c); regionLabels(c);
+  landFill(c, '#0b1826'); islandFloor(); if (reliefC) c.drawImage(reliefC, 0, 0); coast(c); regionLabels(c);   // Cyprus keeps its drawn relief
   if (!seabed) hatch(c, '#2f7fb8');
   profileLines(c);
   if (!seabed) pill(c, NO_DEPTH(), '#8fd0f5', IY1 + 40 * U);
@@ -476,9 +477,17 @@ async function loadSeabed() {
 // is drawn wider for a longer period. It is far too small to draw to scale: the gap shows longer or shorter, not metres.
 const waveGap = (period) => (5 + Math.min(14, period) ** 2 * .16) * (mobile ? .85 : 1);
 const WAVE_COL = '225,244,255';
+// The sea colour: the temperature at the model's points, filled in between them (said on the sheet), kept to the sea only.
+const seaBase = buf();
+function seaField() { const c = seaBase.getContext('2d'); c.clearRect(0, 0, LW, LH); if (!seaF) return;
+  paintField(c, seaF, (v) => colOf(SCALE.sst, v).concat(150));
+  c.globalCompositeOperation = 'destination-out'; c.drawImage(landC, 0, 0); onIsl(c, () => { c.fillStyle = '#000'; c.fill(ISL); }); c.globalCompositeOperation = 'source-over'; }
 function wavesPaint(c, t, anim) {
   c.globalCompositeOperation = 'source-over'; c.clearRect(0, 0, LW, LH);
+  if (seaF) c.drawImage(seaBase, 0, 0);
+  islandFloor(); if (reliefC) c.drawImage(reliefC, 0, 0);               // Cyprus keeps its drawn relief, the same as on the island sheet
   coast(c); if (withNames('waves')) regionLabels(c);
+  if (seaF) frameOf(c, seaF, 'rgba(143,208,245,.4)');
   if (!seaPts.length) { pill(c, emptyWords(), '#8fd0f5'); return; }
   c.lineCap = 'round';
   seaPts.forEach((p) => { const [x, y] = pxOf(p.lng, p.lat);
@@ -486,17 +495,18 @@ function wavesPaint(c, t, anim) {
     if (p.wave != null) { const hgt = Math.min(4, Math.max(0, p.wave));
       if (p.dir != null && p.period != null && p.period > 0) {
         const b = ((p.dir + 180) % 360) * Math.PI / 180, dx = Math.sin(b), dy = -Math.cos(b);   // the feed says where waves come FROM; they travel the other way
-        const gap = waveGap(p.period), half = 5 + hgt * 5, reach = gap * 2.4, ph = anim ? (t / p.period) % 1 : 0;   // one crest passes the dot every wave period
-        for (let k = -3; k <= 3; k++) { const s = (k + ph) * gap; if (Math.abs(s) > reach) continue;
+        const gap = waveGap(p.period), half = 12 + hgt * 9, reach = gap * 3.6, ph = anim ? (t / p.period) % 1 : 0;   // one crest passes the dot every wave period
+        for (let k = -5; k <= 5; k++) { const s = (k + ph) * gap; if (Math.abs(s) > reach) continue;
           const cx = x + dx * s, cy = y + dy * s; if (!isSea(cx, cy)) continue;
-          c.strokeStyle = `rgba(${WAVE_COL},${(.22 + .7 * (1 - Math.abs(s) / reach)).toFixed(3)})`; c.lineWidth = 1 + hgt * .55;
+          c.strokeStyle = `rgba(${WAVE_COL},${(.18 + .6 * (1 - Math.abs(s) / reach)).toFixed(3)})`; c.lineWidth = 1.2 + hgt * .8;
           c.beginPath(); c.moveTo(cx + dy * half, cy - dx * half); c.quadraticCurveTo(cx + dx * half * .4, cy + dy * half * .4, cx - dy * half, cy + dx * half); c.stroke(); }
         if (!anim) arrow(c, x + dx * (reach + 3), y + dy * (reach + 3), Math.atan2(dy, dx), 9, `rgba(${WAVE_COL},.95)`, 1.5);
       } else {                                                         // no direction or period in the feed: a ring that stands still, wider for higher waves
         c.strokeStyle = `rgba(${WAVE_COL},.9)`; c.lineWidth = 1.3; c.beginPath(); c.arc(x, y, 4 + Math.min(3, hgt) * 8, 0, 7); c.stroke(); } }
-    if (p.sst != null) { c.fillStyle = rgb(colOf(SCALE.sst, p.sst)); c.strokeStyle = 'rgba(2,6,12,.9)'; c.lineWidth = 1.2;
-      c.beginPath(); c.arc(x, y, 4, 0, 7); c.fill(); c.stroke(); tinyText(c, fmt(p.sst) + '°', x + 7, y - 6); }
-    if (p.wave != null) tinyText(c, fmt(p.wave) + ' m' + (p.period != null ? ' · ' + fmt(p.period) + ' s' : ''), x + 7, y + 13); });
+    c.strokeStyle = 'rgba(255,255,255,.9)'; c.lineWidth = 1.6; c.beginPath(); c.arc(x, y, 4, 0, 7); c.stroke();      // a ring on every model point
+    if (withNames('waves')) {                                           // the numbers only when this sheet is shown alone: a full stack stays readable
+      if (p.sst != null) tinyText(c, fmt(p.sst) + '°', x + 7, y - 6);
+      if (p.wave != null) tinyText(c, fmt(p.wave) + ' m' + (p.period != null ? ' · ' + fmt(p.period) + ' s' : ''), x + 7, y + 13); } });
 }
 
 /* ---- ships: published statistics by quarter at five ports. No ship is drawn, and nothing here travels. ---- */
@@ -1151,9 +1161,9 @@ const LAYERS = [
       rest: () => (seaPts.some((p) => p.dir != null && p.period != null)
         ? ['The crests stand still and the small arrow shows which way the waves travel. Longer, thicker crests mean higher waves; a wider gap means a longer wave.', 'Οι κορυφές μένουν ακίνητες και το μικρό βέλος δείχνει προς τα πού ταξιδεύουν τα κύματα. Πιο μακριές και χοντρές κορυφές σημαίνουν πιο ψηλά κύματα· πιο μεγάλο κενό σημαίνει πιο μακρύ κύμα.']
         : ['The feed gave no wave direction or period, so each ring stands still. A wider ring means higher waves.', 'Η πηγή δεν έδωσε κατεύθυνση ή περίοδο κύματος, άρα κάθε δαχτυλίδι μένει ακίνητο. Πιο φαρδύ δαχτυλίδι σημαίνει πιο ψηλά κύματα.']),
-      marks: [['The dot colour is the sea temperature. Beside it: the temperature, the wave height in metres and the wave period in seconds.', 'Το χρώμα της κουκκίδας είναι η θερμοκρασία της θάλασσας. Δίπλα της: η θερμοκρασία, το ύψος κύματος σε μέτρα και η περίοδος κύματος σε δευτερόλεπτα.'],
+      marks: [['The colour of the sea is its temperature. A white ring marks each point of the sea model. When this sheet is shown alone, the numbers appear beside each ring: the temperature, the wave height in metres and the wave period in seconds.', 'Το χρώμα της θάλασσας είναι η θερμοκρασία της. Ένας λευκός δακτύλιος σημαδεύει κάθε σημείο του μοντέλου της θάλασσας. Όταν αυτό το φύλλο φαίνεται μόνο του, οι αριθμοί εμφανίζονται δίπλα σε κάθε δακτύλιο: η θερμοκρασία, το ύψος κύματος σε μέτρα και η περίοδος κύματος σε δευτερόλεπτα.'],
         ['This is a model, not a buoy: nobody measured these waves. The gap between crests is not to scale.', 'Αυτό είναι μοντέλο, όχι σημαδούρα: κανείς δεν μέτρησε αυτά τα κύματα. Το κενό ανάμεσα στις κορυφές δεν είναι σε κλίμακα.'],
-        ['Marks are drawn only at the points of the sea model, never over land. Between the points nothing is filled in.', 'Τα σημάδια σχεδιάζονται μόνο στα σημεία του μοντέλου της θάλασσας, ποτέ πάνω από στεριά. Ανάμεσα στα σημεία δεν συμπληρώνεται τίποτα.']] } },
+        ['The waves and rings are drawn only at the points of the sea model, never over land. Between the points the colour of the sea is filled in from the nearest points, so it is an estimate, not a reading. Nothing is drawn outside the dashed frame.', 'Τα κύματα και οι δακτύλιοι σχεδιάζονται μόνο στα σημεία του μοντέλου της θάλασσας, ποτέ πάνω από στεριά. Ανάμεσα στα σημεία το χρώμα της θάλασσας συμπληρώνεται από τα κοντινότερα σημεία, άρα είναι εκτίμηση και όχι μέτρηση. Έξω από το διακεκομμένο πλαίσιο δεν σχεδιάζεται τίποτα.']] } },
   { id: 'ships', band: 'WATER', c: '#ffb86b', def: true, win: shipsWin, name: ['Ports and ships, by quarter', 'Λιμάνια και πλοία, ανά τρίμηνο'], src: ['Eurostat · published port statistics', 'Eurostat · δημοσιευμένα στατιστικά λιμανιών'],
     height: ['SEA LEVEL · PORTS', 'ΣΤΑΘΜΗ ΘΑΛΑΣΣΑΣ · ΛΙΜΑΝΙΑ'], paint: shipsPaint, beat: 3, load: loadShips,
     state: () => (ships ? { kind: 'published', text: T('Eurostat, ' + ships.arrivals.id + ' (vessel arrivals, ' + ships.arrQ + ') and ' + ships.freight.id + ' (goods, ' + ships.cargoQ + ') · retrieved ' + ships.freight.retrieved + ' · ',
@@ -2316,6 +2326,7 @@ function paintWind() {
   airPts = (m.air || []).filter((p) => p.pm25 != null && p.lat != null && p.lng != null);
   airF = mkField(airPts, (p) => p.pm25); airField(); seedSpecks();
   seaPts = (m.sea || []).filter((p) => p.lat != null && p.lng != null && (p.sst != null || p.wave != null));
+  seaF = mkField(seaPts.filter((p) => p.sst != null), (p) => p.sst); seaField();
   stationPts = (m.stations || []).filter((p) => p.temp != null && p.lat != null && p.lng != null);
   fitWindows(); touchAll();
   const rains = home.map((p) => p.rain).filter((v) => v != null);
