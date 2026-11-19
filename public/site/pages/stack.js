@@ -10,7 +10,7 @@
 (function () {
   'use strict';
   const T = SC.t, el = SC.el;
-  SC.css('/site/pages/map.css');
+  SC.css('/site/pages/frame3d.css');
 
   SC.register('stack', {
     title: ['The data stack in 3D', 'Η στοίβα δεδομένων σε 3D'],

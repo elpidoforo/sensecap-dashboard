@@ -2,13 +2,13 @@
   City centres in 3D (#/city): the island, then the centre of a city with its buildings and streets from OpenStreetMap.
   The 3D view is a separate document (/city.html, three.js needs its own canvas and an import map), shown in a same-origin frame,
   as the Cyprus 3D page does. This file builds the frame, forwards the language and ?city=, shows a loading overlay, and an error
-  card with "Try again" if the 3D engine could not start. Styles are shared with the map page (map.css, prefix mp-).
+  card with "Try again" if the 3D engine could not start. Styles are shared with the map page (frame3d.css, prefix mp-).
   Privacy: buildings and streets only; no vehicle and no person is drawn.
 */
 (function () {
   'use strict';
   const T = SC.t, el = SC.el;
-  SC.css('/site/pages/map.css');
+  SC.css('/site/pages/frame3d.css');
 
   SC.register('city', {
     title: ['City centres in 3D', 'Τα κέντρα των πόλεων σε 3D'],

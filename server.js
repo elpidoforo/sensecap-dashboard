@@ -1600,6 +1600,7 @@ async function sourceRoutes(req, res, url) {
 
 /* ---------- http ---------- */
 
+const clientErr = { times: [] };
 function sendJson(res, status, obj) {
   res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(obj));
@@ -1740,6 +1741,18 @@ const server = http.createServer(async (req, res) => {
         latest: rawLatest,
         trails: (h) => rawTrails(h, '4097'),
       }));
+    }
+    // A page tells us why its 3D view could not start (stack-guard.js). Only the error text, the file and line, and the browser's
+    // name are written to the log: no cookie, no address, nothing about the person. Capped, so it cannot be used to fill the log.
+    if (url.pathname === '/api/client-error') {
+      const now = Date.now();
+      clientErr.times = clientErr.times.filter((t) => now - t < 600000);
+      if (clientErr.times.length < 40) {
+        clientErr.times.push(now);
+        const tidy = (v, n) => String(v == null ? '' : v).replace(/[^\x20-\x7E\u0370-\u03FF]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
+        console.log('Client error [' + tidy(url.searchParams.get('p'), 20) + '] ' + tidy(url.searchParams.get('m'), 300) + ' · ' + tidy(req.headers['user-agent'], 160));
+      }
+      res.writeHead(204, { 'Cache-Control': 'no-store' }); return res.end();
     }
     if (url.pathname === '/api/config') {
       return sendJson(res, 200, { demo: DEMO, names: measurementNames, gps: [GPS_LAT, GPS_LNG], exactPositions: privileged(req), posDelayMin: priv.delayMin, posGrid: priv.grid });
