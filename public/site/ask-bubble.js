@@ -153,6 +153,7 @@
     panel.hidden = !open;
     btn.setAttribute('aria-expanded', String(open));
     if (open) {
+      if (SC.guide) SC.guide.close();   // one panel at a time
       loadQuestions().then(() => { if (open) fillQuestions(); });
       const input = panel.querySelector('.kb-in input');
       setTimeout(() => input.focus(), 30);
@@ -160,6 +161,7 @@
   }
 
   SC.askBubble = {
+    close() { if (root && open) toggle(false); },
     setPage(id, name) {
       if (!root) build();
       pageId = id; pageName = name || id;

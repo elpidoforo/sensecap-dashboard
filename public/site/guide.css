@@ -1,0 +1,80 @@
+/* Guide me (site/guide.js): a round button above the Ask bubble, its panel, and the red light that shows where to press. */
+.kg-root[hidden], .kg-panel[hidden], .kg-dot[hidden], .kg-steps[hidden], .kg-ctl[hidden] { display: none; }
+.kg-btn {
+  position: fixed; right: 22px; bottom: 78px; z-index: 60;
+  display: flex; align-items: center; gap: 9px; padding: 10px 16px 10px 12px; min-height: 44px;
+  border-radius: 999px; cursor: pointer; color: #fff4e8;
+  background: linear-gradient(160deg, rgba(120, 58, 20, .96), rgba(46, 22, 10, .96));
+  border: 1px solid rgba(242, 165, 107, .6);
+  box-shadow: 0 18px 40px -18px rgba(0, 0, 0, .9);
+  font: 700 13.5px/1 var(--nm-font, Inter, system-ui, sans-serif);
+}
+.kg-btn:hover { border-color: #ffd0a6; }
+.kg-ic { width: 22px; height: 22px; flex: 0 0 auto; display: block; border-radius: 50%; background: #F2A56B;
+  -webkit-mask: radial-gradient(circle at 50% 50%, #000 3px, transparent 4px), conic-gradient(from -35deg at 28% 50%, #000 70deg, transparent 0);
+  mask: radial-gradient(circle at 50% 50%, #000 3px, transparent 4px), conic-gradient(from -35deg at 28% 50%, #000 70deg, transparent 0); }
+.kg-btn:focus-visible, .kg-panel button:focus-visible, .kg-in input:focus-visible { outline: 2px solid #8FE3F7; outline-offset: 2px; }
+
+.kg-panel {
+  position: fixed; right: 22px; bottom: 134px; z-index: 61; width: min(380px, calc(100vw - 32px)); max-height: min(70vh, 560px);
+  display: flex; flex-direction: column; border-radius: 20px; overflow: hidden; color: var(--nm-text, #e6eef8);
+  background: linear-gradient(165deg, rgba(20, 44, 74, .98), rgba(7, 16, 30, .98));
+  border: 1px solid rgba(242, 165, 107, .4);
+  box-shadow: 0 30px 70px -30px rgba(0, 0, 0, .95);
+  font: 400 13px/1.55 var(--nm-font, Inter, system-ui, sans-serif);
+}
+.kg-h { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid rgba(242, 165, 107, .2); }
+.kg-ht { flex: 1; min-width: 0; }
+.kg-ht b { display: block; font-weight: 700; font-size: 13.5px; line-height: 1.2; }
+.kg-ht small { display: block; color: #9db0c8; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kg-voice, .kg-ctl button, .kg-chip, .kg-in button {
+  cursor: pointer; border-radius: 999px; padding: 7px 12px; min-height: 32px; color: #dff1fb;
+  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .16); font: 600 12px/1.2 inherit; font-family: inherit;
+}
+.kg-voice[aria-pressed="true"] { border-color: rgba(242, 165, 107, .7); color: #ffd9b8; }
+.kg-x { width: 28px; height: 28px; flex: 0 0 auto; border-radius: 50%; cursor: pointer; background: transparent; border: 1px solid rgba(255, 255, 255, .16); color: #9db0c8; font-size: 17px; line-height: 1; }
+.kg-b { padding: 12px 14px 14px; overflow-y: auto; min-height: 0; }
+.kg-lede { margin: 0 0 10px; color: #b6c8dd; }
+.kg-feed { display: flex; flex-direction: column; gap: 8px; max-height: 230px; overflow-y: auto; }
+.kg-feed:empty { display: none; }
+.kg-you { align-self: flex-end; max-width: 88%; padding: 7px 11px; border-radius: 14px 14px 4px 14px; background: rgba(76, 203, 234, .16); overflow-wrap: anywhere; }
+.kg-a { padding: 9px 12px; border-radius: 14px 14px 14px 4px; background: rgba(255, 255, 255, .055); }
+.kg-a p { margin: 0 0 6px; } .kg-a p:last-child { margin: 0; }
+.kg-note { color: #ffd9b8; font-size: 12.5px; }
+.kg-work { color: #9db0c8; font-style: italic; }
+.kg-err { color: #ffb4b4; }
+.kg-steps { margin: 10px 0 0; padding: 0 0 0 20px; }
+.kg-steps li { margin: 0 0 5px; color: #9db0c8; }
+.kg-steps li.now { color: #fff; font-weight: 600; }
+.kg-steps li.done { text-decoration: line-through; opacity: .6; }
+.kg-ctl, .kg-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.kg-chip { border-color: rgba(242, 165, 107, .45); }
+.kg-chip:disabled, .kg-in button:disabled { opacity: .5; cursor: default; }
+.kg-in { display: flex; gap: 7px; margin-top: 10px; }
+.kg-in input { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 12px; color: #e6eef8; background: rgba(0, 0, 0, .28); border: 1px solid rgba(255, 255, 255, .14); font: inherit; }
+.kg-f { padding: 8px 14px; border-top: 1px solid rgba(255, 255, 255, .08); color: #9db0c8; font-size: 11px; }
+
+/* the thing to press gets a red outline as well, so the light is not the only sign */
+.kg-target { outline: 2px solid #ff5a4d !important; outline-offset: 3px; }
+
+/* the red light: it sits on top of the thing to press and lets the press through */
+.kg-dot {
+  position: fixed; left: 0; top: 0; z-index: 70; width: 26px; height: 26px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, #ff5a4d 0 34%, rgba(255, 60, 48, .45) 36% 60%, transparent 62%);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .85), 0 0 22px 6px rgba(255, 60, 48, .75);
+  transition: transform .7s cubic-bezier(.3, .8, .3, 1);
+  animation: kg-pulse 1.3s ease-in-out infinite;
+}
+.kg-dot.still { transition: none; animation: none; }
+@keyframes kg-pulse { 0%, 100% { box-shadow: 0 0 0 2px rgba(255, 255, 255, .85), 0 0 14px 3px rgba(255, 60, 48, .6); } 50% { box-shadow: 0 0 0 2px rgba(255, 255, 255, .95), 0 0 30px 12px rgba(255, 60, 48, .9); } }
+@media (prefers-reduced-motion: reduce) { .kg-dot { transition: none; animation: none; } }
+@media (max-width: 640px) {
+  .kg-btn { right: 14px; bottom: 70px; padding: 10px; }
+  .kg-btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .kg-panel { right: 12px; left: 12px; width: auto; bottom: 124px; max-height: 62vh; }
+  .kg-panel.stepping .kg-lede, .kg-panel.stepping .kg-you, .kg-panel.stepping .kg-chips, .kg-panel.stepping .kg-in, .kg-panel.stepping .kg-f, .kg-panel.stepping .kg-steps li:not(.now) { display: none; }
+  .kg-panel.stepping .kg-steps { margin: 8px 0 0; list-style: none; padding: 0; }
+  .kg-panel.stepping .kg-feed { max-height: 96px; }
+  .kg-panel.stepping.up { bottom: auto; top: 12px; }
+}
+@media print { .kg-root, .kg-dot { display: none; } }

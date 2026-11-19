@@ -733,6 +733,38 @@ function createApp(opts = {}) {
   const schoolsForBot = () => all('SELECT id, slug, name, short, match, lat, lng FROM schools ORDER BY id');
   const botGlobalLimit = () => envInt('BOT_GLOBAL_DAILY', 800);
 
+  /* ---- the guide ("Guide me"): the page tells the assistant which things on the screen it may point at ----
+   * The list comes from the visitor's own browser, so it is treated as data: ids must fit a fixed shape, labels are cut to
+   * letters, digits and plain punctuation, and a step the assistant writes is kept only when its id is in that list. So the
+   * red light can never be sent to something that is not on the page, whatever the model or the page text says. */
+  const GUIDE_ID = /^(nav|el):[a-z0-9_-]{1,32}$/;
+  const guideLabel = (v, max = 48) => String(v == null ? '' : v).replace(/[^\p{L}\p{N} .,'&()/+-]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+  function cleanGuide(body) {
+    const g = body && body.guide;
+    if (!g || typeof g !== 'object' || Array.isArray(g)) return null;
+    const page = String(g.page || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 30);
+    const seen = new Set(), targets = [];
+    for (const t of (Array.isArray(g.targets) ? g.targets : []).slice(0, 60)) {
+      const id = String((t && t.id) || ''), label = guideLabel(t && t.label);
+      if (!GUIDE_ID.test(id) || seen.has(id) || !label) continue;
+      seen.add(id); targets.push({ id, label });
+    }
+    if (!page || !targets.length) return null;
+    return { page, name: guideLabel(g.name, 40) || page, targets, lang: g.lang === 'el' ? 'el' : 'en', mode: ['explain', 'challenge', 'here', 'ask'].includes(g.mode) ? g.mode : 'explain' };
+  }
+  // The assistant ends a guide answer with lines "STEP: <id> | <what to press and notice>". They are cut out of the text and checked.
+  function splitGuide(text, guide) {
+    const allowed = new Set(guide.targets.map((t) => t.id)), steps = [], keep = [];
+    for (const line of String(text || '').split('\n')) {
+      const m = /^\s*STEP:\s*(\S+)\s*\|\s*(.+)$/i.exec(line);
+      if (!m) { if (!/^\s*STEP:/i.test(line)) keep.push(line); continue; }
+      const say = m[2].replace(/\s+/g, ' ').trim().slice(0, 240);
+      if (allowed.has(m[1]) && say && steps.length < 4) steps.push({ id: m[1], say });
+    }
+    const cut = steps.findIndex((st) => st.id.startsWith('nav:'));   // after a move to another page its buttons are not the ones that were listed
+    return { text: keep.join('\n').trim(), steps: cut >= 0 ? steps.slice(0, cut + 1) : steps };
+  }
+
   // Runs the assistant and streams one JSON object per line: {type:'tool'} while it looks things up, then {type:'answer'} or {type:'error'}.
   async function streamAnswer({ req, res, logId, ctx, extra }) {
     res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no', 'X-Content-Type-Options': 'nosniff' });
@@ -743,7 +775,8 @@ function createApp(opts = {}) {
     try {
       const r = await bot.ask({ ...ctx, onTool: (name) => send({ type: 'tool', name }), signal: ctrl.signal });
       run('UPDATE bot_logs SET answer = ?, tools = ?, ms = ?, tokens_in = ?, tokens_out = ? WHERE id = ?', r.text, JSON.stringify(r.tools), Date.now() - t0, r.tokensIn || 0, r.tokensOut || 0, logId);
-      send({ type: 'answer', text: r.text, id: logId, tools: r.tools, ...extra() });
+      const guided = ctx.guide ? splitGuide(r.text, ctx.guide) : null;
+      send({ type: 'answer', text: guided ? (guided.text || r.text.replace(/^\s*STEP:.*$/gim, '').trim()) : r.text, id: logId, tools: r.tools, ...(guided ? { steps: guided.steps } : {}), ...extra() });
     } catch (e) {
       run('UPDATE bot_logs SET error = ?, ms = ? WHERE id = ?', String(e.message).slice(0, 300), Date.now() - t0, logId);
       log('Assistant error: ' + e.message);
@@ -831,7 +864,7 @@ function createApp(opts = {}) {
     const logId = run('INSERT INTO bot_logs(user_id, school_id, created_at, question, visitor) VALUES (NULL, NULL, ?, ?, ?)', now, question, vh).id;
     return streamAnswer({
       req, res, logId, extra: () => ({ remaining: leftToday(vh, L, Date.now()), limit: L.visitorDaily }),
-      ctx: { public: true, user: null, school: null, team: null, schools: schoolsForBot(), history, question, handbook: (q) => handbookSearch(q, true) },
+      ctx: { public: true, user: null, school: null, team: null, schools: schoolsForBot(), history, question, guide: cleanGuide(body), handbook: (q) => handbookSearch(q, true) },
     });
   });
 

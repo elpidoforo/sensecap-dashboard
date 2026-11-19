@@ -1,0 +1,164 @@
+'use strict';
+/* Guide me (site/guide.js, the guide part of POST /app/api/ask): Kleanthis explains a page, gives steps, and a red light
+   shows where to press. The assistant is a fake service on this machine (ANTHROPIC_BASE_URL), so nothing leaves it and the
+   test decides what "the model" says, including things it must not be obeyed on.
+   Real server in demo mode, real browser. Run: node tests/guide/guide_test.js   (ports 3961 and 3962) */
+const { spawn } = require('child_process');
+const http = require('http');
+const fs = require('fs'), os = require('os'), path = require('path');
+const { chromium, devices } = require('playwright');
+const ROOT = path.join(__dirname, '..', '..'), PORT = 3961, FAKE = 3962, BASE = 'http://127.0.0.1:' + PORT;
+const OUT = process.env.GUIDE_SHOTS || '';
+let pass = 0, fail = 0;
+const ok = (c, name) => { if (c) pass++; else { fail++; console.log('FAIL: ' + name); } };
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+let reply = 'Hello.', lastSystem = '', calls = 0;
+const fake = http.createServer((req, res) => {
+  let body = '';
+  req.on('data', (d) => { body += d; });
+  req.on('end', () => {
+    calls++;
+    try { const j = JSON.parse(body); lastSystem = (j.system || []).map((b) => b.text).join('\n'); } catch (e) { lastSystem = ''; }
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ id: 'm', type: 'message', role: 'assistant', stop_reason: 'end_turn', content: [{ type: 'text', text: reply }], usage: { input_tokens: 10, output_tokens: 10 } }));
+  });
+});
+
+const post = async (body, cookie) => {
+  const r = await fetch(BASE + '/app/api/ask', { method: 'POST', headers: { 'content-type': 'application/json', origin: BASE, ...(cookie ? { cookie } : {}) }, body: JSON.stringify(body) });
+  const text = await r.text();
+  let ans = null; text.split('\n').forEach((l) => { try { const e = JSON.parse(l); if (e.type === 'answer') ans = e; } catch (e) { /* not a line of JSON */ } });
+  return { status: r.status, ans, text };
+};
+
+(async () => {
+  await new Promise((r) => fake.listen(FAKE, '127.0.0.1', r));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'guide-'));
+  const srv = spawn(process.execPath, ['-e', "require('./server')"], { cwd: ROOT,
+    env: { ...process.env, PORT: String(PORT), DEMO: '1', OPEN_METEO_MOCK: '1', SATELLITE: '0', DATA_DIR: dir, ANTHROPIC_API_KEY: 'test-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:' + FAKE, BOT_IP_MINUTE: '500', BOT_IP_DAILY: '500', BOT_VISITOR_DAILY: '500' }, stdio: 'ignore' });
+  process.on('exit', () => { try { srv.kill(); } catch (e) { /* gone */ } });
+  for (let i = 0; i < 60; i++) { try { const r = await fetch(BASE + '/'); if (r.ok) break; } catch (e) { /* not up yet */ } await wait(300); }
+
+  /* ---------- the server: what it tells the assistant, and what it keeps of the answer ---------- */
+  const targets = [{ id: 'nav:layers', label: 'Data layers' }, { id: 'el:1', label: 'Temperature' }, { id: 'el:2', label: 'Compare <b>cities</b>' },
+    { id: 'javascript:alert(1)', label: 'bad id' }, { id: 'el:3', label: '' }, { id: 'el:1', label: 'duplicate' }];
+  reply = 'This page shows today.\nWhich city is warmest?\nSTEP: el:1 | Press Temperature and read the four numbers.\nSTEP: el:99 | Press something that is not there.\nSTEP: nav:layers | Now open Data layers.\nSTEP: el:2 | A step after leaving the page.';
+  let r = await post({ question: 'Explain this page', guide: { page: 'home', name: 'Today', lang: 'en', mode: 'explain', targets } });
+  ok(r.status === 200 && r.ans, 'guide: an answer arrives (' + r.status + ')');
+  ok(r.ans && !/STEP:/.test(r.ans.text) && /Which city is warmest\?/.test(r.ans.text), 'guide: the STEP lines are cut out of the words that are shown and spoken');
+  ok(r.ans && JSON.stringify(r.ans.steps.map((s) => s.id)) === '["el:1","nav:layers"]', 'guide: a step to something not on the page is dropped, and nothing follows a move to another page (' + JSON.stringify(r.ans && r.ans.steps) + ')');
+  ok(/GUIDE MODE/.test(lastSystem) && /nav:layers = Data layers/.test(lastSystem) && /el:1 = Temperature/.test(lastSystem), 'guide: the assistant is told what it may point at');
+  ok(/^el:2 = Compare b cities[^<>]*$/m.test(lastSystem), 'guide: labels are cut to plain words before the assistant sees them');
+  ok(!/javascript:|bad id|duplicate/.test(lastSystem), 'guide: an id of the wrong shape, an empty label and a repeated id never reach the assistant');
+  ok(/Answer in English/.test(lastSystem) && /not the final answer/.test(lastSystem), 'guide: it is asked to teach (next step, not the answer), in the language of the page');
+  r = await post({ question: 'Εξήγησέ μου', guide: { page: 'home', name: 'Σήμερα', lang: 'el', mode: 'challenge', targets } });
+  ok(/Answer in Greek/.test(lastSystem) && /investigation/.test(lastSystem), 'guide: Greek, and the challenge mode has its own instruction');
+  reply = 'Only words.';
+  r = await post({ question: 'Hello there' });
+  ok(r.ans && r.ans.steps === undefined && !/GUIDE MODE/.test(lastSystem), 'guide: a plain question (the Ask bubble) is exactly as before: no guide text, no steps');
+  r = await post({ question: 'x y z', guide: { page: 'home', targets: [] } });
+  ok(r.ans && r.ans.steps === undefined && !/GUIDE MODE/.test(lastSystem), 'guide: with nothing to point at there is no guide mode');
+  r = await post({ question: 'x y z', guide: 'nonsense' });
+  ok(r.status === 200 && !/GUIDE MODE/.test(lastSystem), 'guide: a guide that is not an object is ignored');
+
+  /* ---------- the browser ---------- */
+  const b = await chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+  try {
+    for (const [name, greek, phone] of [['desktop', false, false], ['greek', true, false], ['phone', false, true]]) {
+      const ctx = await b.newContext(phone ? { ...devices['iPhone 13'] } : { viewport: { width: 1366, height: 900 }, deviceScaleFactor: OUT ? 2 : 1 });
+      const p = await ctx.newPage();
+      const errs = [];
+      p.on('pageerror', (e) => errs.push(e.message));
+      // what the browser would have said aloud is recorded, so the test can read it (a test machine has no voice)
+      await p.addInitScript(() => {
+        window.__said = [];
+        window.SpeechSynthesisUtterance = function (t) { this.text = t; };
+        Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speak: (u) => window.__said.push(u.text), cancel: () => {}, getVoices: () => [] } });
+      });
+      await p.goto(BASE + '/' + (greek ? '?lang=el' : '') + '#/layers', { waitUntil: 'load' });
+      await wait(3000);
+      ok(await p.locator('.kg-btn').count() === 1 && await p.locator('.kb-bubble').count() === 1, name + ': the guide button is there, next to the Ask bubble');
+      const overlap = await p.evaluate(() => { const a = document.querySelector('.kg-btn').getBoundingClientRect(), c = document.querySelector('.kb-bubble').getBoundingClientRect(); return !(a.bottom <= c.top || a.top >= c.bottom || a.right <= c.left || a.left >= c.right); });
+      ok(!overlap, name + ': the two buttons do not sit on top of each other');
+      await p.click('.kg-btn'); await wait(700);
+      ok(!(await p.evaluate(() => document.querySelector('.kg-panel').hidden)), name + ': pressing it opens the panel');
+      const foot = await p.locator('.kg-f').innerText();
+      ok(/(not a person|όχι άνθρωπος)/.test(foot) && /(no microphone|χωρίς μικρόφωνο)/.test(foot), name + ': it says it is an AI and that there is no microphone');
+
+      // the model points at the first button of the page, then at a menu link
+      const list = await p.evaluate(() => [...document.querySelectorAll('#view button, #view a.nm-btn, #view [role="tab"], #view select, #view summary')].filter((n) => !n.disabled && n.getBoundingClientRect().width > 4).length);
+      ok(list > 0, name + ': the page has things to point at (' + list + ')');
+      reply = (greek ? 'Αυτή η σελίδα δείχνει τα στρώματα.' : 'This page lists the data layers.') + '\nSTEP: el:1 | ' + (greek ? 'Πάτησε το πρώτο κουμπί.' : 'Press the first button.') + '\nSTEP: nav:weather | ' + (greek ? 'Τώρα άνοιξε τον καιρό.' : 'Now open the weather page.');
+      await p.locator('.kg-chip').first().click();
+      await p.waitForSelector('.kg-a', { timeout: 15000 });
+      await wait(1200);
+      ok(/(data layers|στρώματα)/.test(await p.locator('.kg-a').innerText()), name + ': the answer is shown as text');
+      ok(await p.locator('.kg-steps li').count() === 2 && await p.locator('.kg-steps li.now').count() === 1, name + ': the two steps are listed and the first is the current one');
+      const said = await p.evaluate(() => window.__said.join(' | '));
+      ok(/(first button|πρώτο κουμπί)/.test(said) && /(data layers|στρώματα)/.test(said), name + ': the words and the first step are read aloud (' + said.slice(0, 60) + ')');
+      const onTarget = () => p.evaluate(() => {
+        const d = document.querySelector('.kg-dot'); if (d.hidden) return 'hidden';
+        const r = d.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+        const hit = document.elementFromPoint(x, y);
+        return hit ? (hit.closest('#view') ? 'view' : hit.closest('.nm-side-a') ? 'nav:' + hit.closest('.nm-side-a').dataset.id : hit.closest('#burger') ? 'burger' : 'other') : 'none';
+      });
+      ok(await onTarget() === 'view', name + ': the red light sits on a button of the page (' + await onTarget() + ')');
+      ok(await p.locator('#view .kg-target').count() === 1, name + ': and the thing to press has a red outline too');
+      ok(await p.evaluate(() => getComputedStyle(document.querySelector('.kg-dot')).pointerEvents) === 'none', name + ': the light lets the press through');
+      if (OUT && !phone) await p.screenshot({ path: path.join(OUT, 'guide-' + name + '.png') });
+
+      // a press somewhere else is answered kindly, with no new request
+      const before = calls;
+      await p.evaluate(() => document.querySelector('#view h1, #view h2, #view p').click());
+      await wait(300);
+      ok(/(red light|κόκκινο φως)/.test(await p.locator('.kg-note').last().innerText()) && calls === before, name + ': a press elsewhere gets a hint and asks the assistant nothing');
+
+      // pressing the thing moves to the next step, again with no new request
+      await p.evaluate(() => { const d = document.querySelector('.kg-dot').getBoundingClientRect(); document.elementFromPoint(d.left + 13, d.top + 13).click(); });
+      await wait(1500);
+      ok(await p.locator('.kg-steps li.done').count() === 1 && calls === before, name + ': pressing it ticks the step off without a new request');
+      const said2 = await p.evaluate(() => window.__said[window.__said.length - 1]);
+      ok(/(weather|καιρό)/.test(said2), name + ': and the next step is read aloud');
+      // the step may have opened a dialog of the page: close it the way a student would
+      const notes0 = await p.locator('.kg-note').count();
+      await p.evaluate(() => { const d = [...document.querySelectorAll('[role="dialog"] button, .nm-modal button')].find((x) => /^(Close|Κλείσιμο)$/.test(x.textContent.trim()) && !x.closest('.kg-root, .kb-root')); if (d) d.click(); });
+      await wait(600);
+      ok(await p.locator('.kg-note').count() === notes0, name + ': closing a dialog is not called a wrong press');
+      let where = await onTarget();
+      ok(where === 'burger' || where === 'nav:weather', name + ': the light moves to the menu link, or to the menu button while the menu is closed (' + where + ')');
+      if (where === 'burger') { await p.click('#burger'); await wait(1200); where = await onTarget(); ok(where === 'nav:weather', name + ': with the menu open the light is on the link itself (' + where + ')'); }
+      if (OUT && !phone) await p.screenshot({ path: path.join(OUT, 'guide-' + name + '-step2.png') });
+      {
+        await p.click('a.nm-side-a[data-id="weather"]'); await wait(2500);
+        ok(/#\/weather/.test(p.url()), name + ': the press still does what the link does');
+        ok(await p.locator('.kg-target').count() === 0, name + ': the outline is taken off again');
+      ok(await p.evaluate(() => document.querySelector('.kg-dot').hidden) && await p.locator('.kg-steps li').count() === 0, name + ': after the last step the light goes away');
+        ok(/(What do I do here|Τι κάνω εδώ)/.test(await p.locator('.kg-chip').first().innerText()), name + ': and on the new page it offers to carry on');
+      }
+
+      // typed text: a phone number is not sent
+      const n0 = calls;
+      await p.fill('.kg-in input', 'call me on 99123456'); await p.click('.kg-in button'); await wait(900);
+      ok(calls === n0 && /(Not sent|Δεν στάλθηκε)/.test(await p.locator('.kg-note').last().innerText()), name + ': a typed phone number is stopped in the browser');
+      reply = greek ? 'Σωστή σκέψη.' : 'Good thinking.';
+      await p.fill('.kg-in input', greek ? 'Νομίζω η Λεμεσός' : 'I think it is Limassol'); await p.click('.kg-in button');
+      await p.waitForFunction((n) => document.querySelectorAll('.kg-a').length > n, 1, { timeout: 15000 }).catch(() => {});
+      ok(calls === n0 + 1 && /typed an answer or a question/.test(lastSystem), name + ': a plain typed answer is sent, as an answer to the teacher');
+
+      // one panel at a time, and closing stops everything
+      await p.click('.kb-bubble'); await wait(500);
+      ok(await p.evaluate(() => document.querySelector('.kg-panel').hidden && !document.querySelector('.kb-panel').hidden), name + ': opening the Ask bubble closes the guide');
+      await p.click('.kg-btn'); await wait(500);
+      ok(await p.evaluate(() => !document.querySelector('.kg-panel').hidden && document.querySelector('.kb-panel').hidden), name + ': and the other way round');
+      await p.keyboard.press('Escape'); await wait(300);
+      ok(await p.evaluate(() => document.querySelector('.kg-panel').hidden && document.querySelector('.kg-dot').hidden), name + ': Escape closes the panel and removes the light');
+      await p.goto(BASE + '/' + (greek ? '?lang=el' : '') + '#/ask', { waitUntil: 'load' }); await wait(1500);
+      ok(await p.evaluate(() => document.querySelector('.kg-root').hidden), name + ': no guide button on the full chat page');
+      ok(errs.length === 0, name + ': no page errors (' + errs.slice(0, 2).join(' / ') + ')');
+      await ctx.close();
+    }
+  } finally { await b.close(); srv.kill(); fake.close(); }
+  console.log(`\n${pass} passed, ${fail} failed`);
+  process.exit(fail ? 1 : 0);
+})().catch((e) => { console.error(e); process.exit(1); });

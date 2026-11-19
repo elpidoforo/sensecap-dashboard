@@ -684,7 +684,7 @@
       window.scrollTo(0, 0);
       const pending = def.render(fresh, { id, args: route.args, query: route.query, me: SC.me, lang: SC.lang, go: SC.go });
       stopEx = SC.explain ? SC.explain.mount(fresh, id) : null;   // the "how this page works" strip goes under the title while the page is still loading its data
-      if (SC.askBubble) { const inf = SC.pageInfo(id); SC.askBubble.setPage(id, inf ? inf.name : id); }   // the Ask bubble follows the page it is on
+      if (SC.askBubble) { const inf = SC.pageInfo(id); SC.askBubble.setPage(id, inf ? inf.name : id); if (SC.guide) SC.guide.setPage(id, inf ? inf.name : id); }   // the Ask bubble follows the page it is on
       const out = await pending;
       if (my !== token) { if (stopEx) stopEx(); if (typeof out === 'function') out(); return; }
       cleanup = () => { if (stopEx) stopEx(); if (typeof out === 'function') out(); };
