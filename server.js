@@ -470,7 +470,10 @@ const OM_MARINE_BASE = (process.env.OPEN_METEO_MARINE_BASE || 'https://marine-ap
 const SC_BASE = (process.env.SENSOR_COMMUNITY_BASE || 'https://data.sensor.community').replace(/\/$/, '');
 const METAR_BASE = (process.env.METAR_BASE || 'https://aviationweather.gov').replace(/\/$/, '');
 const ADSBFI_BASE = (process.env.ADSBFI_BASE || 'https://opendata.adsb.fi').replace(/\/$/, '');
-const B = { lat0: 34.5, lat1: 35.75, lng0: 32.2, lng1: 34.7, step: 0.04 };
+// Widened from Cyprus-only (34.5-35.75N, 32.2-34.7E) to a regional view that also catches a slice of southern Turkey,
+// Lebanon/Syria and the open sea between them, so the 3D scene reads as "Cyprus in its region", not an island on a void.
+// TERRAIN_STEP below is coarsened to match (same ballpark point count, so first-load time does not multiply).
+const B = { lat0: 33.3, lat1: 36.8, lng0: 31.0, lng1: 36.3, step: 0.04 };
 const WG = { lat0: 34.5, latStep: 0.25, rows: 6, lng0: 32.3, lngStep: 0.25, cols: 10 };
 const SEA_POINTS = [
   [34.4, 32.6], [34.4, 33.2], [34.4, 33.8], [34.7, 34.4], [35.1, 34.5],
@@ -532,16 +535,23 @@ function weatherGridPoints() {
 function mockLand(lat, lng) {
   const a = ((lat - 35.0) / 0.4) ** 2 + ((lng - 33.2) / 1.0) ** 2 < 1;
   const karpas = lat > 35.25 && lat < 35.65 && lng > 33.7 && lng < 34.55 && Math.abs(lat - (35.3 + (lng - 33.7) * 0.28)) < 0.12;
-  return a || karpas;
+  // Rough neighbouring coastlines for demo mode only (so a screenshot without a live Open-Meteo key still shows the regional
+  // context) - a coarse band each for southern Turkey (north), Lebanon/Syria (east) and nothing further, since Egypt's coast
+  // sits well outside this box. Real deployments get the actual coastline shape from Open-Meteo's elevation data, not this.
+  const turkey = lat > 36.2;
+  const levant = lng > 35.4 && lat < 36.2;
+  return a || karpas || turkey || levant;
 }
 function mockElevation(lat, lng) {
   if (!mockLand(lat, lng)) return 0;
   const tro = 1950 * Math.exp(-(((lat - 34.93) / 0.2) ** 2 + ((lng - 32.87) / 0.3) ** 2));
   const kyr = 950 * Math.exp(-(((lat - 35.3) / 0.07) ** 2 + ((lng - 33.3) / 0.7) ** 2));
-  return 5 + tro + kyr;
+  const taurus = lat > 36.2 ? 400 + 1400 * Math.exp(-(((lat - 36.9) / 0.5) ** 2)) : 0;         // a rough Taurus-foothills bump
+  const levant_hills = (lng > 35.4 && lat < 36.2) ? 150 + 600 * Math.exp(-(((lng - 36.0) / 0.5) ** 2)) : 0;
+  return 5 + tro + kyr + taurus + levant_hills;
 }
 
-const TERRAIN_STEP = 0.05;
+const TERRAIN_STEP = 0.11;
 const T = { done: null, elev: null, next: 0, running: false, error: null, retryAt: 0, lats: [], lngs: [], rows: 0, cols: 0 };
 
 const TERRAIN_FILE = path.join(os.tmpdir(), 'cyprus-terrain-v2.json');

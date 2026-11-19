@@ -21,8 +21,8 @@
       if (cfg && cfg.demo) tags.push({ cls: 'demo', text: T('Demo data', 'Δοκιμαστικά δεδομένα') });
       const delayed = cfg && cfg.exactPositions === false;
       const hrs = cfg && cfg.posDelayMin ? Math.max(1, Math.round(cfg.posDelayMin / 60)) : 2;
-      const lede = T('The island in 3D: mountains, wind and our sensors as columns whose height shows the reading. Drag to turn it, scroll to zoom.',
-        'Το νησί σε 3D: βουνά, άνεμος και οι αισθητήρες μας ως στήλες με ύψος ανάλογο της μέτρησης. Σύρετε για να το γυρίσετε, κυλήστε για μεγέθυνση.');
+      const lede = T('The island in 3D, and the coasts around it: mountains, wind and our sensors as columns whose height shows the reading. Drag to turn it, scroll to zoom.',
+        'Το νησί σε 3D, και οι ακτές γύρω του: βουνά, άνεμος και οι αισθητήρες μας ως στήλες με ύψος ανάλογο της μέτρησης. Σύρετε για να το γυρίσετε, κυλήστε για μεγέθυνση.');
       const head = SC.head({
         title: T('Cyprus 3D', 'Κύπρος 3D'),
         lede,
