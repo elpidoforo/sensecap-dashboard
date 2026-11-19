@@ -502,7 +502,9 @@
       const other = [...document.querySelectorAll('[role="dialog"], dialog[open]')].some((d) => !root.contains(d) && !d.closest('.kb-root') && visible(d));
       if (!other) toggle(false);
     });
-    addEventListener('scroll', () => { if (at >= 0) place(); }, true);
+    // while the page or the menu scrolls, the light stays glued to the thing it points at (no gliding behind it)
+    let glue = 0;
+    addEventListener('scroll', () => { if (at < 0) return; dot.classList.add('glued'); clearTimeout(glue); glue = setTimeout(() => { dot.classList.remove('glued'); place(); }, 250); place(); }, true);
     addEventListener('pagehide', () => { hush(); micDrop(); });
     addEventListener('pointerup', micUp); addEventListener('blur', micDrop);
   }

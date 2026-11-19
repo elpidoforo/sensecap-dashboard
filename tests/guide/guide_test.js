@@ -245,20 +245,20 @@ const post = async (body, cookie) => {
       await p.locator('.kg-chip').first().click(); await wait(1500);   // yes
       const where = () => p.evaluate(() => { const d = document.querySelector('.kg-dot'); if (d.hidden) return 'hidden'; const r = d.getBoundingClientRect(); const h = document.elementFromPoint(r.left + 13, r.top + 13); return h ? (h.closest('.nm-side-a') ? 'nav:' + h.closest('.nm-side-a').dataset.id : h.closest('#burger') ? 'burger' : 'other') : 'none'; });
       let w = await where();
-      if (w === 'burger') { await p.click('#burger'); await wait(1200); w = await where(); }
+      if (w === 'burger') { await p.click('#burger'); await wait(2500); w = await where(); }
       if (greek) {   // one student, not signed in: the account comes first
         ok(/(get your account|παίρνεις τον λογαριασμό σου)/.test(await p.locator('.kg-a').last().innerText()), name + ': he says the tour starts with the account');
         ok(w === 'nav:join', name + ': for one student the tour points at Join or sign in first (' + w + ')');
         await p.click('a.nm-side-a[data-id="join"]'); await wait(2500);
         ok(/πρέπει να τον εγκρίνει ένας εκπαιδευτικός/.test(await p.locator('.kg-feed').innerText()), name + ': on arrival he says how to ask for an account and that a teacher must approve it');
         w = await where();
-        if (w === 'burger') { await p.click('#burger'); await wait(1200); w = await where(); }
+        if (w === 'burger') { await p.click('#burger'); await wait(2500); w = await where(); }
       } else ok(!/account/.test(await p.locator('.kg-feed').innerText()), name + ': a class is not asked to make an account');
       ok(w === 'nav:layers', name + ': the tour points at Data layers (' + w + ')');
       await p.click('a.nm-side-a[data-id="layers"]'); await wait(2500);
       ok(/(Each card is one source|Κάθε κάρτα είναι μία πηγή)/.test(await p.locator('.kg-feed').innerText()), name + ': on arrival he says where the data comes from');
       w = await where();
-      if (w === 'burger') { await p.click('#burger'); await wait(1200); w = await where(); }
+      if (w === 'burger') { await p.click('#burger'); await wait(2500); w = await where(); }
       ok(w === 'nav:stack', name + ': then it points at the 3D stack (' + w + ')');
       if (OUT) await p.screenshot({ path: path.join(OUT, 'guide-' + name + '.png') });
       await p.click('a.nm-side-a[data-id="stack"]'); await wait(2500);
@@ -267,10 +267,10 @@ const post = async (body, cookie) => {
       reply = 'Hello class.';
       await p.locator('.kg-chip', { hasText: /(Explain|Εξήγησ)/ }).first().click();
       await p.waitForFunction(() => /Hello class/.test(document.querySelector('.kg-feed').textContent), null, { timeout: 15000 }).catch(() => {});
-      ok(calls === c0 + 1 && /a whole class watching one screen/.test(lastSystem) && /primary school/.test(lastSystem), name + ': the next real question tells the assistant it is a primary class');
+      ok(calls === c0 + 1 && (greek ? /one student, on their own/ : /a whole class watching one screen/).test(lastSystem) && /primary school/.test(lastSystem), name + ': the next real question tells the assistant who is there (a primary class, or one primary student)');
       await p.reload({ waitUntil: 'load' }); await wait(2500);
       await p.click('.kg-btn'); await wait(700);
-      ok(/(mission for the class|αποστολή για την τάξη)/.test(await p.locator('.kg-chips').innerText()), name + ': a class is offered a class mission');
+      ok((greek ? /αποστολή/ : /mission for the class/).test(await p.locator('.kg-chips').innerText()), name + ': a class is offered a class mission, a student a mission');
       ok(!/(my name is Kleanthis|με λένε Κλεάνθη)/.test(await p.locator('.kg-b').innerText()) && await p.locator('.kg-chip', { hasText: /(Change who is here|Άλλαξε ποιος)/ }).count() === 1, name + ': on a later visit the questions are not asked again, and can be changed');
       ok(errs.length === 0, name + ': no page errors (' + errs.slice(0, 2).join(' / ') + ')');
       await ctx.close();

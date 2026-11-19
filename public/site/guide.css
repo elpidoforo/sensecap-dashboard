@@ -67,6 +67,7 @@
   animation: kg-pulse 1.3s ease-in-out infinite;
 }
 .kg-dot.still { transition: none; animation: none; }
+.kg-dot.glued { transition: none; }
 @keyframes kg-pulse { 0%, 100% { box-shadow: 0 0 0 2px rgba(255, 255, 255, .85), 0 0 14px 3px rgba(255, 60, 48, .6); } 50% { box-shadow: 0 0 0 2px rgba(255, 255, 255, .95), 0 0 30px 12px rgba(255, 60, 48, .9); } }
 @media (prefers-reduced-motion: reduce) { .kg-dot { transition: none; animation: none; } }
 @media (max-width: 640px) {
