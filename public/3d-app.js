@@ -76,7 +76,9 @@ renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 1, 2000);
-const HOME_POS = new THREE.Vector3(2, 92, 176);   // a low, wide view of the whole island (as in the design picture)
+// Pulled back ~2.3x from the Cyprus-only framing so the wider terrain (now reaching Turkey's coast to the north and
+// Lebanon/Syria to the east, see server.js's B bounds) fits the opening view instead of spilling past the edges.
+const HOME_POS = new THREE.Vector3(25, 212, 400);   // a low, wide view of the island and its surrounding coasts
 const HOME_TGT = new THREE.Vector3(-16, 0, 4);    // a little to the left, so the island sits in the free space between the two panels
 // the opening view: a wide screen looks from a low angle; a tall, narrow one (a phone) stands further back so the whole island still fits
 function homeView() {
@@ -91,7 +93,7 @@ controls.target.copy(homeView().tgt);
 controls.enableDamping = true;
 controls.maxPolarAngle = Math.PI * 0.49;
 controls.minDistance = 30;
-controls.maxDistance = 600;
+controls.maxDistance = 1200;   // raised with the wider terrain so a narrow (phone) screen's extra pull-back still fits
 // newer three.js builds (r155 and later) use physical light units, which show the same intensities about 1.6 times darker than the colour scales were drawn for: lift them so flat ground shows its scale colour
 const physicalLights = renderer.physicallyCorrectLights === true || renderer.useLegacyLights === false;
 const LIGHT_K = physicalLights ? 1.6 : 1;
