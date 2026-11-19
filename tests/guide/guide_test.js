@@ -95,11 +95,12 @@ const post = async (body, cookie) => {
         window.__said = [];
         try { if (!sessionStorage.getItem('fresh')) localStorage.setItem('sc.guide.who.v1', JSON.stringify({ who: 'student', age: 'upper', goal: 'look' })); } catch (e) { /* no storage */ }
         window.SpeechSynthesisUtterance = function (t) { this.text = t; };
-        Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speak: (u) => window.__said.push(u.text), cancel: () => {}, getVoices: () => [] } });
+        Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speak: (u) => { window.__said.push(u.text); window.__utt = u; if (u.onstart) u.onstart(); }, cancel: () => {}, getVoices: () => [] } });
       });
       await p.goto(BASE + '/' + (greek ? '?lang=el' : '') + '#/layers', { waitUntil: 'load' });
       await wait(3000);
       ok(await p.locator('.kg-btn').count() === 1 && await p.locator('.kb-bubble').count() === 1, name + ': the guide button is there, next to the Ask bubble');
+      ok(await p.evaluate(() => { const i = document.querySelector('.kg-btn img.kg-face'); return !!i && i.complete && i.naturalWidth > 0 && i.alt === ''; }), name + ': the button carries his face, loaded from our own site');
       const overlap = await p.evaluate(() => { const a = document.querySelector('.kg-btn').getBoundingClientRect(), c = document.querySelector('.kb-bubble').getBoundingClientRect(); return !(a.bottom <= c.top || a.top >= c.bottom || a.right <= c.left || a.left >= c.right); });
       ok(!overlap, name + ': the two buttons do not sit on top of each other');
       await p.click('.kg-btn'); await wait(700);
@@ -117,6 +118,8 @@ const post = async (body, cookie) => {
       ok(/(data layers|στρώματα)/.test(await p.locator('.kg-a').innerText()), name + ': the answer is shown as text');
       ok(await p.locator('.kg-steps li').count() === 2 && await p.locator('.kg-steps li.now').count() === 1, name + ': the two steps are listed and the first is the current one');
       const said = await p.evaluate(() => window.__said.join(' | '));
+      ok(await p.evaluate(() => document.querySelector('.kg-root').classList.contains('talking')), name + ': while he speaks the face shows it');
+      ok(await p.evaluate(() => { window.__utt.onend(); return !document.querySelector('.kg-root').classList.contains('talking'); }), name + ': and stops showing it when he has finished');
       ok(/(first button|πρώτο κουμπί)/.test(said) && /(data layers|στρώματα)/.test(said), name + ': the words and the first step are read aloud (' + said.slice(0, 60) + ')');
       const onTarget = () => p.evaluate(() => {
         const d = document.querySelector('.kg-dot'); if (d.hidden) return 'hidden';
@@ -219,7 +222,7 @@ const post = async (body, cookie) => {
       await p.addInitScript(() => {
         window.__said = [];
         window.SpeechSynthesisUtterance = function (t) { this.text = t; };
-        Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speak: (u) => window.__said.push(u.text), cancel: () => {}, getVoices: () => [] } });
+        Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speak: (u) => { window.__said.push(u.text); window.__utt = u; if (u.onstart) u.onstart(); }, cancel: () => {}, getVoices: () => [] } });
       });
       await p.goto(BASE + '/' + (greek ? '?lang=el' : '') + '#/weather', { waitUntil: 'load' });
       await wait(3000);

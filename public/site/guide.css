@@ -104,3 +104,21 @@
   background: radial-gradient(circle, #ff5a4d 0 45%, rgba(255, 60, 48, .45) 47% 70%, transparent 72%); box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .85), 0 0 12px 3px rgba(255, 60, 48, .75);
   animation: kg-pulse 1.3s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .kg-chip.kg-next::after { animation: none; } }
+
+/* Kleanthis's face (an invented character). It sits in the button, in the top bar of the box and in the first hello;
+   a ring pulses round it while he is speaking, and stands still for people who asked for less motion. */
+.kg-face { display: block; flex: 0 0 auto; border-radius: 50%; object-fit: cover; }
+.kg-btn { padding: 4px 16px 4px 4px; gap: 10px; }
+.kg-face-b { width: 52px; height: 52px; }
+.kg-face-h { width: 40px; height: 40px; }
+.kg-face-hello { width: 72px; height: 72px; float: left; margin: 0 12px 6px 0; }
+.kg-hello::after { content: ""; display: block; clear: both; }
+.kg-root.talking .kg-face-b, .kg-root.talking .kg-face-h { box-shadow: 0 0 0 3px rgba(242, 165, 107, .9), 0 0 18px 4px rgba(242, 165, 107, .6); animation: kg-talk 1.1s ease-in-out infinite; }
+@keyframes kg-talk { 0%, 100% { box-shadow: 0 0 0 2px rgba(242, 165, 107, .7), 0 0 8px 1px rgba(242, 165, 107, .35); } 50% { box-shadow: 0 0 0 4px rgba(242, 165, 107, 1), 0 0 22px 7px rgba(242, 165, 107, .7); } }
+@media (prefers-reduced-motion: reduce) { .kg-root.talking .kg-face-b, .kg-root.talking .kg-face-h { animation: none; } }
+@media (max-width: 640px) { .kg-btn { padding: 3px; } .kg-face-b { width: 48px; height: 48px; } }
+/* the button is taller now that it carries a face: the box and the first hello sit above it */
+.kg-panel { bottom: 152px; }
+.kg-hello { bottom: 152px; }
+@media (min-width: 641px) { .kg-panel.at-bl { bottom: 152px; } .kg-panel.at-tl, .kg-panel.at-tr { bottom: auto; } }
+@media (max-width: 640px) { .kg-panel { bottom: 136px; } .kg-hello { bottom: 136px; } }

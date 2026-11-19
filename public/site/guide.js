@@ -57,9 +57,13 @@
     return [...document.querySelectorAll('a.nm-side-a[data-id]')].find((a) => 'nav:' + String(a.getAttribute('data-id')).toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32) === id) || null;
   }
 
+  // Kleanthis's face: a drawing of an invented character, not a real person. It is decoration (the words beside it carry the name).
+  const face = (size, cls) => el('img', { class: 'kg-face ' + cls, src: '/site/media/kleanthis-' + (size > 128 ? 320 : 128) + '.png', alt: '', width: size, height: size, decoding: 'async' });
+  const talking = (on) => { if (root) root.classList.toggle('talking', !!on); };
+
   /* ---------- the voice (this device only) ---------- */
   const synth = () => (typeof speechSynthesis === 'object' && typeof SpeechSynthesisUtterance === 'function' ? speechSynthesis : null);
-  function hush() { const s = synth(); if (s) { try { s.cancel(); } catch (e) { /* nothing was speaking */ } } }
+  function hush() { const s = synth(); if (s) { try { s.cancel(); } catch (e) { /* nothing was speaking */ } } talking(false); }
   function speak(text) {
     const s = synth();
     if (!s || !voiceOn || !text) return;
@@ -72,7 +76,8 @@
     u.lang = want === 'el' ? 'el-GR' : 'en-GB';
     if (voice) u.voice = voice;
     u.rate = 0.88;   // a little slower than normal speech: easier to follow, above all for younger students
-    try { s.speak(u); } catch (e) { /* the text is on the screen anyway */ }
+    u.onstart = () => talking(true); u.onend = u.onerror = () => talking(false);   // the face shows when he is speaking
+    try { s.speak(u); } catch (e) { talking(false); }
   }
 
   /* ---------- the red light ---------- */
@@ -320,7 +325,8 @@
     if (!synth()) voiceBtn.hidden = true;   // a browser with no voice: the text is all there is, and no switch pretends otherwise
     panel = el('div', { class: 'kg-panel', hidden: true, role: 'dialog', 'aria-label': T('Kleanthis guides you through this page', 'Ο Κλεάνθης σε οδηγεί σε αυτή τη σελίδα') },
       el('div', { class: 'kg-h' },
-        el('div', { class: 'kg-ht' }, el('b', null, T('Guide me', 'Οδήγησέ με')), el('small', null, '')),
+        face(40, 'kg-face-h'),
+        el('div', { class: 'kg-ht' }, el('b', null, T('Kleanthis', 'Κλεάνθης')), el('small', null, '')),
         el('button', { type: 'button', class: 'kg-move', 'aria-label': T('Move this box to another corner', 'Μετακίνησε το πλαίσιο σε άλλη γωνία'), title: T('Move to another corner', 'Σε άλλη γωνία'), onclick: nextCorner }, '⤢'),
         voiceBtn,
         el('button', { type: 'button', class: 'kg-x', 'aria-label': T('Close', 'Κλείσιμο'), onclick: () => toggle(false) }, '×')),
@@ -338,7 +344,7 @@
           el('button', { type: 'button', onclick: typed }, T('Send', 'Στείλε')))),
       el('div', { class: 'kg-f' }, T('AI assistant · not a person · no microphone, nothing is recorded', 'Βοηθός AI · όχι άνθρωπος · χωρίς μικρόφωνο, τίποτα δεν ηχογραφείται')));
     btn = el('button', { type: 'button', class: 'kg-btn', 'aria-expanded': 'false', onclick: () => toggle(!open) },
-      el('i', { class: 'kg-ic', 'aria-hidden': 'true' }), el('span', null, T('Guide me', 'Οδήγησέ με')));
+      face(52, 'kg-face-b'), el('span', null, T('Guide me', 'Οδήγησέ με')));
     dot = el('div', { class: 'kg-dot' + (reduced() ? ' still' : ''), hidden: true, 'aria-hidden': 'true' });
     root = el('div', { class: 'kg-root' }, panel, btn);
     document.body.append(root, dot);
@@ -383,6 +389,7 @@
       if (open || who || root.hidden || (SC.askBubble && SC.askBubble.isOpen && SC.askBubble.isOpen())) return;
       store.set(HELLO_KEY, '1');
       bubble = el('div', { class: 'kg-hello', role: 'status' },
+        face(96, 'kg-face-hello'),
         el('p', null, T('Hello, my name is Kleanthis. Shall I show you how this site works?', 'Γεια σου, με λένε Κλεάνθη. Να σου δείξω πώς δουλεύει αυτός ο ιστότοπος;')),
         el('div', null,
           el('button', { type: 'button', class: 'kg-chip', onclick: () => { hideHello(); toggle(true); } }, T('Yes, please', 'Ναι, παρακαλώ')),
