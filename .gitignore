@@ -7,3 +7,4 @@ node_modules/
 
 # Saved Met Office history (needs a volume on Railway)
 data/
+fieldwork/.seabedgrid-partial.json

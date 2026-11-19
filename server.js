@@ -474,10 +474,20 @@ const ADSBFI_BASE = (process.env.ADSBFI_BASE || 'https://opendata.adsb.fi').repl
 // Lebanon/Syria and the open sea between them, so the 3D scene reads as "Cyprus in its region", not an island on a void.
 // TERRAIN_STEP below is coarsened to match (same ballpark point count, so first-load time does not multiply).
 const B = { lat0: 33.3, lat1: 36.8, lng0: 31.0, lng1: 36.3, step: 0.04 };
-const WG = { lat0: 34.5, latStep: 0.25, rows: 6, lng0: 32.3, lngStep: 0.25, cols: 10 };
+// The model grid for weather and air: 0.25 degree steps. It was 6 x 10 = 60 points over the island only (34.5-35.75 N, 32.3-34.55 E).
+// It is now 10 x 14 = 140 points (34.0-36.25 N, 31.8-35.05 E) on the SAME lattice, so every old point is still a point and the
+// pages that look up "the nearest grid point" find what they found before; the extra rows and columns are the sea around Cyprus,
+// up to the coast of Turkey, for the data stack's regional view. It is not the whole terrain box: that would be 330 points a
+// refresh. Open-Meteo budget (omBudget below, 450 locations a minute): weather 140 every 10 min, air 140 every 30 min, sea 22
+// every 30 min - at worst 302 in one minute (it was 130), which leaves room for one 100-point terrain batch.
+const WG = { lat0: 34.0, latStep: 0.25, rows: 10, lng0: 31.8, lngStep: 0.25, cols: 14 };
+// Points of the sea model. The first ten hug the island (as before); the other twelve are open water around it, placed well
+// clear of every coast, because the marine model answers null for a point it counts as land.
 const SEA_POINTS = [
   [34.4, 32.6], [34.4, 33.2], [34.4, 33.8], [34.7, 34.4], [35.1, 34.5],
   [35.65, 33.0], [35.6, 33.6], [35.3, 32.2], [34.8, 32.1], [35.1, 32.0],
+  [33.8, 32.0], [33.8, 33.2], [33.8, 34.4], [33.7, 35.0], [34.5, 31.4], [35.3, 31.3],
+  [35.9, 31.6], [35.9, 32.6], [36.0, 34.2], [36.2, 35.2], [35.5, 35.2], [34.6, 35.2],
 ];
 
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
@@ -603,7 +613,7 @@ async function terrainJob() {
     saveTerrainProgress();
     T.done = {
       rows: T.rows, cols: T.cols, lat0: B.lat0, lat1: B.lat1, lng0: B.lng0, lng1: B.lng1,
-      elev: T.elev.map((v) => Math.round(v)), mock: false,
+      elev: T.elev.map((v) => Math.round(v)), step: TERRAIN_STEP, mock: false,
     };
   } catch (e) {
     T.error = e.message;
@@ -622,13 +632,13 @@ function terrainStatus() {
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) elev.push(Math.round(mockElevation(B.lat0 + r * TERRAIN_STEP, B.lng0 + c * TERRAIN_STEP)));
     }
-    return { ready: true, data: { rows, cols, lat0: B.lat0, lat1: B.lat1, lng0: B.lng0, lng1: B.lng1, elev, mock: true } };
+    return { ready: true, data: { rows, cols, lat0: B.lat0, lat1: B.lat1, lng0: B.lng0, lng1: B.lng1, elev, step: TERRAIN_STEP, mock: true } };
   }
   if (T.done) return { ready: true, data: T.done };
   if (!T.elev) {
     prepareTerrain();
     if (T.next >= T.lats.length) {
-      T.done = { rows: T.rows, cols: T.cols, lat0: B.lat0, lat1: B.lat1, lng0: B.lng0, lng1: B.lng1, elev: T.elev.map((v) => Math.round(v)), mock: false };
+      T.done = { rows: T.rows, cols: T.cols, lat0: B.lat0, lat1: B.lat1, lng0: B.lng0, lng1: B.lng1, elev: T.elev.map((v) => Math.round(v)), step: TERRAIN_STEP, mock: false };
       return { ready: true, data: T.done };
     }
   }
@@ -729,19 +739,31 @@ function air() {
   });
 }
 
+// The sea model: sea-surface temperature and wave height, and (for the data stack's waves) the direction the waves come FROM
+// in degrees and their period in seconds. The two extra names, wave_direction and wave_period, are taken from Open-Meteo's own
+// Marine API page (the docs_url in sources/openmeteo-marine.json), which also says "wave directions are always reported as the
+// direction the waves come from". If the service refuses them (HTTP 400, as for an unknown variable) the request is made again
+// without them and the points carry dir: null, period: null - the stack then draws rings that stand still. No value is made up.
 function sea() {
   return viaFeed('openmeteo', cached, 'sea', 1800000, async () => {
     let points;
+    const fin = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
     if (MOCK) {
-      points = SEA_POINTS.map(([lat, lng], i) => ({ lat, lng, wave: 0.4 + (i % 4) * 0.5, sst: 24 + (i % 5) * 0.4 }));
+      points = SEA_POINTS.map(([lat, lng], i) => ({ lat, lng, wave: 0.4 + (i % 4) * 0.5, sst: 24 + (i % 5) * 0.4, dir: 240 + (i % 6) * 15, period: 3.5 + (i % 4) * 1.5 }));
     } else {
-      const j = await omJson(
-        OM_MARINE_BASE + '/v1/marine?latitude=' + SEA_POINTS.map((p) => p[0]).join(',') +
-        '&longitude=' + SEA_POINTS.map((p) => p[1]).join(',') + '&current=wave_height,sea_surface_temperature&timezone=UTC',
-        SEA_POINTS.length
-      );
+      const seaUrl = (vars) => OM_MARINE_BASE + '/v1/marine?latitude=' + SEA_POINTS.map((p) => p[0]).join(',') +
+        '&longitude=' + SEA_POINTS.map((p) => p[1]).join(',') + '&current=' + vars + '&timezone=UTC';
+      let j;
+      try {
+        j = await omJson(seaUrl('wave_height,wave_direction,wave_period,sea_surface_temperature'), SEA_POINTS.length);
+      } catch (e) {
+        if (!e || e.status !== 400) throw e;
+        console.log('Open-Meteo marine: wave_direction and wave_period were refused (HTTP 400), asking again without them');
+        j = await omJson(seaUrl('wave_height,sea_surface_temperature'), SEA_POINTS.length);
+      }
       points = asArray(j).map((o, i) => ({
         lat: SEA_POINTS[i][0], lng: SEA_POINTS[i][1], wave: o.current.wave_height, sst: o.current.sea_surface_temperature,
+        dir: fin(o.current.wave_direction), period: fin(o.current.wave_period),
       }));
     }
     return { points, updated: new Date().toISOString(), mock: MOCK };
@@ -1673,7 +1695,7 @@ const server = http.createServer(async (req, res) => {
     }
     const to = redirectFor(url);
     if (to) { res.writeHead(302, { Location: to, 'Cache-Control': 'no-store' }); return res.end(); }
-    const fieldwork = /^\/api\/fieldwork\/(reservoir|weather|coast|crossings|census|ev|power|flood|drought|aeronet|gases|verifiedno2|arakapas|seaarrivals|seanational|seafreight)$/.exec(url.pathname);
+    const fieldwork = /^\/api\/fieldwork\/(reservoir|weather|coast|crossings|census|ev|power|flood|drought|aeronet|gases|verifiedno2|arakapas|seaarrivals|seanational|seafreight|seabedgrid)$/.exec(url.pathname);
     if (fieldwork) {
       if (req.method !== 'GET' && req.method !== 'HEAD') {
         res.writeHead(405, { Allow: 'GET, HEAD' });
@@ -1683,6 +1705,12 @@ const server = http.createServer(async (req, res) => {
       let payload = null;
       try { payload = await fs.promises.readFile(file); }
       catch (e) {   // the extract is missing or unreadable: say so plainly, and keep the reason out of the answer
+        if (fieldwork[1] === 'seabedgrid' && e && e.code === 'ENOENT') {
+          // The depth grid is the one extract that may not have been imported yet (fieldwork/import_seabed_grid.py needs the
+          // EMODnet service). That is a normal state, not a fault: the data stack asks on every load and shows "no depth data yet".
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache' });
+          return res.end(req.method === 'HEAD' ? undefined : '{"available":false}');
+        }
         console.log('Fieldwork: ' + fieldwork[1] + ' could not be read: ' + (e && e.code));
         res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
         return res.end('{"error":"not found"}');

@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The data stack in 3D · Kleanthis</title>
+<style>
+/* Instrument panel: a dark observation deck. One accent (sensor amber) against instrument cyan;
+   every layer carries its own hue, which is the only other colour on the page. */
+:root{
+  --void:#02050a; --deep:#060d18; --panel:rgba(12,24,40,.82); --edge:rgba(140,190,235,.16);
+  --ink:#eaf2fb; --dim:#95b0cc; --faint:#5d7a99; --amber:#F7C46B; --cyan:#4bbfe0;
+  --live:#86e0a8; --old:#8FE3F7; --year:#9db6d1;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--void);color:var(--ink);font:400 14px/1.5 var(--sans);-webkit-font-smoothing:antialiased;overflow:hidden}
+html.on-site,html.on-site body{background:transparent}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#gl:active{cursor:grabbing}
+.ui{position:fixed;inset:0;pointer-events:none;display:flex;flex-direction:column;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:14px}
+.glass{background:linear-gradient(180deg,var(--panel),rgba(6,13,24,.9));border:1px solid var(--edge);border-radius:13px;
+  backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2);
+  box-shadow:0 26px 54px -30px #000,inset 0 1px 0 rgba(255,255,255,.06)}
+.top{display:flex;align-items:center;gap:9px;flex-wrap:wrap;flex:0 0 auto}
+.brand{display:flex;align-items:baseline;gap:9px;padding:8px 13px}
+.brand b{font:800 12px/1 var(--sans);letter-spacing:2.2px}
+.brand i{font-style:normal;font:700 9px/1 var(--mono);letter-spacing:1.4px;color:var(--cyan)}
+.badge{padding:7px 11px;border-radius:999px;font:700 9.5px/1 var(--mono);letter-spacing:.9px;
+  background:rgba(224,127,63,.14);border:1px solid rgba(242,165,107,.4);color:#F2A56B}
+.clock{margin-left:auto;padding:8px 12px;font:700 10.5px/1 var(--mono);letter-spacing:1px;color:var(--old)}
+.mid{flex:1 1 auto;display:flex;gap:12px;align-items:flex-start;min-height:0;padding-top:12px}
+.rail{pointer-events:auto;width:244px;padding:9px 9px 7px;max-height:100%;overflow:auto;flex:0 0 auto}
+.rail h2{margin:3px 5px 8px;font:800 8.5px/1 var(--mono);letter-spacing:1.9px;color:var(--faint)}
+.band{margin:9px 5px 5px;display:flex;align-items:center;gap:7px;font:800 8px/1 var(--mono);letter-spacing:1.8px;color:#4f6c8a}
+.band::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(140,190,235,.22),transparent)}
+.lay{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:6px 8px;margin-bottom:4px;cursor:pointer;
+  border-radius:9px;background:rgba(255,255,255,.028);border:1px solid rgba(255,255,255,.05);color:inherit;font:inherit}
+.lay:hover{background:rgba(120,190,240,.1)}
+.lay:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.lay[aria-pressed="false"]{opacity:.42}
+.lay .key{width:6px;height:16px;border-radius:2px;background:var(--c);box-shadow:0 0 9px var(--c);flex:0 0 auto}
+.lay .nm{flex:1;min-width:0}
+.lay .nm b{display:block;font:700 10.5px/1.3 var(--sans)}
+.lay .nm small{display:block;font:600 8.5px/1.35 var(--mono);color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lay .val{font:700 10px/1 var(--mono);white-space:nowrap;text-align:right}
+.lay .val em{font-style:normal;display:block;margin-top:3px;font-size:8px;color:var(--faint)}
+.lay .st{width:6px;height:6px;border-radius:50%;flex:0 0 auto}
+.lay{position:relative;overflow:hidden}
+.lay .go{position:absolute;left:0;bottom:0;height:2px;width:0;background:var(--c);opacity:.5;transition:width .9s linear}
+.lay.fresh{animation:arrived 1.1s ease-out}
+@keyframes arrived{0%{background:rgba(255,255,255,.22)}100%{background:rgba(255,255,255,.028)}}
+.solo{position:absolute;right:6px;bottom:5px;width:15px;height:15px;padding:0;border-radius:50%;cursor:pointer;
+  background:transparent;border:1px solid rgba(255,255,255,.22);color:var(--faint);font:700 8px/1 var(--mono)}
+.solo:hover{border-color:var(--c);color:#dff1fb}
+.solo[aria-pressed="true"]{background:var(--c);border-color:var(--c);color:#06131f}
+.solo:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.row{position:relative}
+.row .head{position:relative}
+.cities{margin:-2px 0 6px;padding:5px 9px 6px;border-radius:0 0 9px 9px;background:rgba(255,255,255,.04);
+  font:600 8.5px/1.6 var(--mono);color:var(--faint)}
+.cities div{display:flex;justify-content:space-between;gap:8px}
+.cities b{color:#dff1fb;font-weight:700}
+.st.live{background:var(--live);box-shadow:0 0 7px var(--live)}
+.st.old{background:var(--old);opacity:.8}
+.st.year{background:var(--year);opacity:.5}
+.side{pointer-events:none;margin-left:auto;width:266px;max-height:100%;min-height:0;flex:0 0 auto;display:flex;flex-direction:column;gap:10px}
+.probe{pointer-events:auto;width:100%;padding:10px 12px 11px;flex:0 0 auto}
+/* The key: one sheet at a time, in words a student can read. Larger type than the instrument labels on purpose. */
+.legend{pointer-events:auto;width:100%;padding:10px 12px 12px;overflow:auto;min-height:0;flex:0 1 auto;--c:var(--cyan)}
+.legend h2{margin:1px 3px 8px;font:800 8.5px/1 var(--mono);letter-spacing:1.9px;color:var(--faint)}
+.legend h3{margin:8px 0 2px;font:700 14px/1.25 var(--sans);color:var(--c)}
+.legend p{margin:7px 0 0;font:500 11.5px/1.5 var(--sans);color:var(--dim)}
+.legend p.lg-cap{color:var(--ink);font-size:12px}
+.legend p b{color:var(--ink);font-weight:700}
+.lg-step{display:flex;align-items:center;gap:6px}
+.lg-step .lg-n{flex:1;text-align:center;font:700 9.5px/1 var(--mono);letter-spacing:1.1px;color:var(--dim)}
+.lg-step button,.lg-go{min-height:32px;min-width:34px;padding:0 10px;border-radius:8px;cursor:pointer;color:var(--ink);
+  background:rgba(120,190,240,.1);border:1px solid var(--edge);font:700 11px/1 var(--mono)}
+.lg-go{width:100%;min-height:36px;background:linear-gradient(180deg,#F7C46B,#E8963F);border:0;color:#0a1420;font:700 12px/1.2 var(--sans)}
+.lg-step button:hover{background:rgba(120,190,240,.22)}
+.lg-step button:focus-visible,.lg-go:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.lg-scale{margin-top:10px}
+.lg-scale-name{font:700 9.5px/1.3 var(--mono);letter-spacing:.6px;color:var(--ink)}
+.lg-bar{height:11px;margin-top:5px;border-radius:6px;border:1px solid rgba(255,255,255,.22)}
+.lg-ticks{display:flex;justify-content:space-between;margin-top:3px;font:700 9.5px/1.3 var(--mono);color:var(--dim);font-variant-numeric:tabular-nums}
+.lg-state{margin-top:10px;padding:7px 9px;border-radius:9px;border:1px solid var(--edge);font:500 11px/1.45 var(--sans);color:var(--dim)}
+.lg-state b{display:block;margin-bottom:2px;font:800 9px/1.2 var(--mono);letter-spacing:1.3px}
+.lg-state.measured{border-color:rgba(134,224,168,.45);background:rgba(134,224,168,.07)} .lg-state.measured b{color:var(--live)}
+.lg-state.model{border-color:rgba(127,179,255,.45);background:rgba(127,179,255,.07)} .lg-state.model b{color:#a9c8ff}
+.lg-state.none{border-style:dashed;border-color:rgba(242,165,107,.55);background:rgba(224,127,63,.08)} .lg-state.none b{color:#F2A56B}
+.probe h2{margin:1px 3px 8px;font:800 8.5px/1 var(--mono);letter-spacing:1.9px;color:var(--faint)}
+.kv{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.055);
+  font-variant-numeric:tabular-nums}
+.kv span{font:600 9.5px/1 var(--mono);color:var(--dim)}
+.kv b{font:700 11.5px/1 var(--mono)}
+.kv b em{font-style:normal;font-size:8.5px;color:var(--faint);margin-left:3px}
+.probe p{margin:9px 0 0;font:500 9px/1.55 var(--mono);color:var(--faint)}
+.foot{flex:0 0 auto;display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;padding-top:10px}
+.tools{pointer-events:auto;display:flex;gap:3px;padding:5px 6px;margin-inline:auto;max-width:100%;overflow-x:auto;flex-wrap:nowrap}
+.tools button{flex:0 0 auto}
+.tools button{border:0;background:transparent;color:var(--dim);cursor:pointer;
+  padding:8px 13px;border-radius:8px;font:700 9.5px/1 var(--mono);letter-spacing:1.1px}
+.tools button:hover{background:rgba(120,190,240,.12);color:var(--ink)}
+.tools button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.tools button[aria-pressed="true"]{background:linear-gradient(180deg,#F7C46B,#E8963F);color:#0a1420}
+.note{font:600 8.5px/1.5 var(--mono);color:#44607d;max-width:240px}
+.hint{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom,0px));
+  font:600 9px/1 var(--mono);letter-spacing:1px;color:var(--faint);pointer-events:none;opacity:.9}
+@media (max-width:860px){
+  .hint{display:none}
+  .mid{flex-direction:column;gap:8px;overflow:auto;pointer-events:none}
+  .rail,.side{width:100%;max-height:none;margin-left:0}
+  .side{flex:0 0 auto}
+  .legend{overflow:visible;flex:0 0 auto}
+  .rail{max-height:40vh}
+  /* one sheet on its own: the key takes the room of the probe, and the list of layers shrinks */
+  body.solo-on .probe,body.solo-on .rail{display:none}
+  body.solo-on .mid{justify-content:flex-end;overflow:visible}
+  body.solo-on .legend{max-height:40vh;overflow:auto}
+  body:not(.solo-on) .legend .lg-gen{display:none}
+  .probe .kv:nth-child(n+6){display:none}
+  .note{display:none}
+}
+/* a short window (the frame on the home page): one sheet on show gives the probe's room to the key */
+@media (max-height:700px) and (min-width:861px){ body.solo-on .probe{display:none} }
+@media (prefers-reduced-motion:reduce){ .lay,.lay .go{transition:none} .lay.fresh{animation:none} }
+</style>
+</head>
+<body>
+<canvas id="gl" tabindex="0" aria-label="The data stack over Cyprus in 3D" data-ael="Η στοίβα δεδομένων πάνω από την Κύπρο σε 3D"></canvas>
+<div class="ui">
+  <div class="top">
+    <div class="glass brand"><i>KLEANTHIS</i><b>CYPRUS DATA STACK</b></div>
+    <div class="badge" data-el="ΖΩΝΤΑΝΕΣ ΜΕΤΡΗΣΕΙΣ · ΣΧΕΔΙΑΣΜΕΝΟ ΑΝΑΓΛΥΦΟ">LIVE READINGS · DRAWN RELIEF</div>
+    <div class="glass clock" id="clock"></div>
+  </div>
+
+  <div class="mid">
+    <aside class="glass rail" id="rail" aria-label="Layers" data-ael="Στρώματα"><h2 data-el="ΣΤΡΩΜΑΤΑ ΚΑΙ ΟΙ ΠΗΓΕΣ ΤΟΥΣ">LAYERS AND THEIR SOURCES</h2></aside>
+    <div class="side">
+    <aside class="glass probe">
+      <h2 data-el="ΜΕΤΡΗΣΗ · PASCAL ΛΑΡΝΑΚΑ">PROBE · PASCAL LARNAKA</h2>
+      <div class="kv"><span data-el="ΘΕΡΜΟΚΡΑΣΙΑ">AIR TEMP</span><b>21.4<em>°C</em></b></div>
+      <div class="kv"><span data-el="CO₂">CO₂</span><b>612<em>PPM</em></b></div>
+      <div class="kv"><span data-el="PM2.5">PM2.5</span><b>9.3<em>µG/M³</em></b></div>
+      <div class="kv"><span data-el="ΑΝΕΜΟΣ 10 M">WIND 10 M</span><b>5.1<em>M/S</em></b></div>
+      <div class="kv"><span data-el="ΒΡΟΧΗ 1Ω">RAIN 1H</span><b>0.4<em>MM</em></b></div>
+      <div class="kv"><span data-el="ΘΑΛΑΣΣΑ 3 KM">SEA 3 KM</span><b>22.8<em>°C</em></b></div>
+      <div class="kv"><span data-el="ΤΕΛΕΥΤΑΙΑ ΜΕΤΡΗΣΗ">LAST READING</span><b>4<em>MIN</em></b></div>
+      <p data-el="ΚΑΘΕ ΣΤΡΩΜΑ ΚΡΑΤΑ ΤΟ ΔΙΚΟ ΤΟΥ ΡΟΛΟΪ ΚΑΙ ΤΗ ΔΙΚΗ ΤΟΥ ΠΗΓΗ. ΟΙ ΔΕΣΜΕΣ ΔΕΙΧΝΟΥΝ ΑΠΟ ΠΟΥ ΕΡΧΕΤΑΙ Η ΚΑΘΕ ΜΙΑ.">EVERY LAYER KEEPS ITS OWN CLOCK AND ITS OWN SOURCE. THE BEAMS SHOW WHERE EACH ONE COMES FROM.</p>
+    </aside>
+    <section class="glass legend" id="legend" aria-live="polite" aria-label="Key to the layer on show" data-ael="Υπόμνημα για το στρώμα που φαίνεται"></section>
+    </div>
+  </div>
+
+  <div class="foot">
+    <p class="note" data-el="ΣΥΡΕ ΓΙΑ ΠΕΡΙΣΤΡΟΦΗ · ΚΥΛΗΣΗ Ή ΤΣΙΜΠΗΜΑ ΓΙΑ ΖΟΥΜ · ΠΑΤΑ ΕΝΑ ΣΤΡΩΜΑ ΓΙΑ ΝΑ ΤΟ ΚΡΥΨΕΙΣ · Ο ΔΑΚΤΥΛΙΟΣ ΣΕ ΚΑΘΕ ΣΧΟΛΕΙΟ ΔΕΙΧΝΕΙ ΠΟΣΟ ΠΑΛΙΑ ΕΙΝΑΙ Η ΜΕΤΡΗΣΗ ΤΩΝ ΔΙΚΩΝ ΤΟΥ ΑΙΣΘΗΤΗΡΩΝ · ΔΥΟ ΚΟΥΚΙΔΕΣ ΣΕ ΜΠΑΡΑ: ΔΥΟ ΠΗΓΕΣ ΔΕΝ ΣΥΜΦΩΝΟΥΝ ΚΑΙ ΤΟ ΚΕΝΟ ΕΙΝΑΙ Η ΔΙΑΦΟΡΑ ΤΟΥΣ, ΟΧΙ ΘΕΣΗ">DRAG TO TURN · SCROLL OR PINCH TO ZOOM · TAP A LAYER TO HIDE IT · THE RING AT EACH SCHOOL SHOWS HOW OLD ITS OWN SENSOR READING IS · TWO DOTS ON A BAR: TWO SOURCES DISAGREE AND THE GAP IS THE SIZE OF THAT DISAGREEMENT, NOT A PLACE</p>
+    <div class="glass tools">
+      <button type="button" id="tour" aria-pressed="true" data-el="ΞΕΝΑΓΗΣΗ">TOUR</button>
+      <button type="button" id="all" aria-pressed="true" data-el="ΟΛΑ">ALL</button>
+      <button type="button" id="measured" aria-pressed="false" data-el="ΜΟΝΟ ΜΕΤΡΗΜΕΝΑ">MEASURED ONLY</button>
+      <button type="button" data-band="SPACE" data-el="ΔΙΑΣΤΗΜΑ">SPACE</button>
+      <button type="button" data-band="AIR" data-el="ΑΕΡΑΣ">AIR</button>
+      <button type="button" data-band="GROUND" data-el="ΕΔΑΦΟΣ">GROUND</button>
+      <button type="button" data-band="CITY" data-el="ΠΟΛΗ">CITY</button>
+      <button type="button" data-band="WATER" data-el="ΝΕΡΟ">WATER</button>
+    </div>
+    <p class="note" style="text-align:right" data-el="ΚΑΘΕ ΣΤΡΩΜΑ ΔΕΙΧΝΕΙ ΤΗΝ ΠΗΓΗ ΤΟΥ ΚΑΙ ΤΗΝ ΗΛΙΚΙΑ ΤΗΣ ΜΕΤΡΗΣΗΣ · ΤΑ ΥΠΟΛΟΙΠΑ ΛΕΝΕ «ΣΧΕΔΙΑΣΜΕΝΟ»">EACH LAYER SHOWS ITS SOURCE AND THE AGE OF ITS READING · THE REST SAY “DRAWN”</p>
+  </div>
+</div>
+<div class="hint" id="hint" data-el="Η ΞΕΝΑΓΗΣΗ ΤΡΕΧΕΙ · ΣΥΡΕ ΓΙΑ ΝΑ ΑΝΑΛΑΒΕΙΣ">TOUR RUNNING · DRAG TO TAKE OVER</div>
+<script src="/site/island.js"></script>
+<script src="/stack-guard.js"></script>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three-r160/build/three.module.js", "three/addons/": "/vendor/three-r160/examples/jsm/" } }
+</script>
+<script type="module" src="/stack-app-old.js"></script>
+</body>
+</html>

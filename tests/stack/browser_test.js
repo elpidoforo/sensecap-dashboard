@@ -1,6 +1,7 @@
 'use strict';
 /* The data stack in 3D (#/stack and /stack.html): the page is served under the import-map policy, the 3D view starts,
    every layer is listed with its source, the buttons hide and show layers, and the whole thing speaks Greek.
+   The newer sheets and the wider region have their own files beside this one: region_test.js, sea_air_test.js, feeds_test.js.
    The key: every layer has a caption, a scale with units, a line on what its motion means and a line on its source, in both
    languages; the painted sheets draw only what the feed holds; reduced motion gets a still picture; no data says so.
    Real server in demo mode, real browser.
@@ -12,7 +13,8 @@ const ROOT = path.join(__dirname, '..', '..'), PORT = Number(process.env.STACK_T
 let pass = 0, fail = 0;
 const ok = (c, name) => { if (c) pass++; else { fail++; console.log('FAIL: ' + name); } };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage', '--no-sandbox'];
+const GL = ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'];
+const N = 15;   // the sheets of the stack: seabed, waves, ships, water, island, city, heat, veg, air, wind, rain, haze, aircraft, cloud, sat
 
 (async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'stk-'));
@@ -47,9 +49,15 @@ const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swifts
       let ready = false;
       for (let i = 0; i < 80 && !ready; i++) { ready = await frame.evaluate(() => !!window.__embedReady).catch(() => false); if (!ready) await wait(250); }
       ok(ready, name + ': the 3D view started');
-      ok(await frame.locator('.lay').count() === 12, name + ': every layer is listed');
+      ok(await frame.locator('.lay').count() === N, name + ': every layer is listed');
       const srcs = await frame.locator('.lay small').allTextContents();
-      ok(srcs.length === 12 && srcs.every((s) => s.trim().length > 3), name + ': every layer says where it comes from');
+      ok(srcs.length === N && srcs.every((s) => s.trim().length > 3), name + ': every layer says where it comes from');
+      // the list is in bands that fold; on a phone they start folded so the scene is not hidden behind the list
+      const folds = await frame.evaluate(() => [...document.querySelectorAll('.band')].map((h) => ({ open: h.getAttribute('aria-expanded'), shown: !document.getElementById(h.getAttribute('aria-controls')).hidden, text: h.innerText })));
+      ok(folds.length === 5 && folds.every((f) => (f.open === 'true') === f.shown && (f.open === 'true') === !phone), name + ': the five bands are ' + (phone ? 'folded' : 'open') + ' to start with, and say so');
+      ok(folds.every((f) => (el ? /[Α-Ω]/.test(f.text) : /^[A-Z]+\s*\d+$/.test(f.text.replace(/\n/g, ' ').trim()))), name + ': each band is named in the reader\'s language, with its count (' + folds.map((f) => f.text.replace(/\n/g, ' ')).join(', ') + ')');
+      if (phone) { for (let i = 0; i < 5; i++) { await frame.locator('.band').nth(i).focus(); await p.keyboard.press('Enter'); }
+        ok(await frame.evaluate(() => [...document.querySelectorAll('.band')].every((h) => h.getAttribute('aria-expanded') === 'true' && !document.getElementById(h.getAttribute('aria-controls')).hidden)), 'phone: the keyboard unfolds every band'); }
       ok(errs.length === 0, name + ': the page threw nothing (' + errs.join(' | ') + ')');
 
       // the sheets that are fed by real readings, and the ones that say they are not
@@ -57,9 +65,11 @@ const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swifts
       const vals = await frame.locator('.lay .val').allTextContents();
       const measured = vals.filter((v) => /ago|now|πριν|μόλις/.test(v));
       const drawn = vals.filter((v) => /drawn|σχεδιασμένο/.test(v));
+      const other = vals.filter((v) => /published|δημοσιευμένα|DEMO|ΕΠΙΔΕΙΞΗ|no depth data|χωρίς δεδομένα βάθους/.test(v) && !/ago|now|πριν|μόλις|drawn|σχεδιασμένο/.test(v));
       ok(measured.length >= 3, name + ': the measured sheets show a real reading with its age (' + measured.length + ')');
       ok(drawn.length >= 3, name + ': the sheets with no feed say they are drawn (' + drawn.length + ')');
-      ok(measured.length + drawn.length === 12, name + ': every layer says which of the two it is');
+      ok(other.length === 3, name + ': the ports say "published", the demo aeroplanes say "demo" and the seabed says it has no depth data (' + other.join(' | ') + ')');
+      ok(measured.length + drawn.length + other.length === N, name + ': every layer says which of these it is');
       ok(measured.every((v) => /[0-9]/.test(v)), name + ': a measured sheet shows a number');
       const rail = await frame.evaluate(() => document.querySelector('.rail').innerText);
       ok(/sensecap|cydom|openmeteo|metar/.test(rail), name + ': the rail names the source each reading came from');
@@ -96,7 +106,7 @@ const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swifts
       for (let i = 0; i < 30; i++) { sent = await frame.evaluate(() => (window.__pulses ? window.__pulses() : 0)); if (sent) break; await wait(300); }
       ok(sent > 0, name + ': a reading that arrives travels up the beam from its source (' + sent + ')');
       const bars = await frame.evaluate(() => [...document.querySelectorAll('.lay .go')].map((b2) => parseFloat(b2.style.width) || 0));
-      ok(bars.length === 12 && bars.some((w) => w > 0), name + ': a sheet shows how far it is through the wait for its next reading');
+      ok(bars.length === N && bars.some((w) => w > 0), name + ': a sheet shows how far it is through the wait for its next reading');
 
       // the bearings are averaged the way angles have to be
       const bear = await frame.evaluate(() => [window.__meanBearing([350, 10]), window.__meanBearing([90, 90]), window.__meanBearing([])]);
@@ -135,7 +145,7 @@ const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swifts
       await frame.evaluate(() => document.querySelector('#legend .lg-go').click());
       await wait(400);
       const seen = [];
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < N; i++) {
         seen.push(await frame.evaluate(() => { const L = document.getElementById('legend'), q = (s) => (L.querySelector(s) ? L.querySelector(s).innerText : '');
           return { id: L.dataset.layer, state: L.dataset.state, cap: q('.lg-cap'), move: q('.lg-move'), scale: q('.lg-scale'), src: q('.lg-state'), all: L.innerText,
             alone: [...document.querySelectorAll('.lay')].filter((x) => x.getAttribute('aria-pressed') === 'true').length }; }));
@@ -144,14 +154,17 @@ const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swifts
         await wait(250);
       }
       const by = (id) => seen.find((x) => x.id === id) || {};
-      ok(new Set(seen.map((x) => x.id)).size === 12 && seen.every((x) => x.alone === 1), name + ': the key steps through all twelve layers, one at a time');
+      ok(new Set(seen.map((x) => x.id)).size === N && seen.every((x) => x.alone === 1), name + ': the key steps through all ' + N + ' layers, one at a time');
+      ok(seen[0].id === 'seabed' && seen[N - 1].id === 'sat' && /1 \/ 15/.test(seen[0].all) && /15 \/ 15/.test(seen[N - 1].all), name + ': from the seabed up to the satellite, counting as it goes');
       ok(await frame.evaluate(() => document.getElementById('legend').contains(document.activeElement)), name + ': and the keyboard stays inside the key while it steps');
       ok(seen.every((x) => x.cap.length > 30 && x.move.length > 20 && x.src.length > 15), name + ': every layer has a caption, a line on motion and a line on its source');
       const greek = /[α-ωά-ώ]/, latinWords = /\b(the|and|from|with|where)\b/i;
       ok(seen.every((x) => (el ? greek.test(x.cap) && greek.test(x.move) && greek.test(x.src) && !latinWords.test(x.cap + x.move) : !greek.test(x.all))), name + ': the key speaks ' + (el ? 'Greek' : 'English') + ' throughout');
-      const units = { wind: 'm/s', rain: 'mm', cloud: '%', air: 'µg/m³', seabed: '°C', island: '°C' };
+      const units = { wind: 'm/s', rain: 'mm', cloud: '%', air: 'µg/m³', waves: '°C', island: '°C' };
       ok(Object.keys(units).every((id) => by(id).scale.includes(units[id]) && /[0-9]/.test(by(id).scale)), name + ': every fed layer shows a colour scale with numbers and its unit');
-      ok(['wind', 'rain', 'cloud', 'air', 'seabed'].every((id) => by(id).state === 'model' && /(MODEL|ΜΟΝΤΕΛΟ)/.test(by(id).src)), name + ': a sheet painted from a model says it is a model, not a measurement');
+      ok(['wind', 'rain', 'cloud', 'air', 'waves'].every((id) => by(id).state === 'model' && /(MODEL|ΜΟΝΤΕΛΟ)/.test(by(id).src)), name + ': a sheet painted from a model says it is a model, not a measurement');
+      ok(by('ships').state === 'published' && /(PUBLISHED|ΔΗΜΟΣΙΕΥΜΕΝΑ)/.test(by('ships').src) && by('aircraft').state === 'demo' && /(DEMO|ΕΠΙΔΕΙΞΗΣ)/.test(by('aircraft').src), name + ': published figures say "published", made-up test points say "demo"');
+      ok(by('seabed').state === 'none' && by('seabed').scale === '' && !/EMODnet/i.test(by('seabed').all), name + ': with no depth file the seabed claims no source and shows no scale');
       ok(by('island').state === 'measured' && /[0-9]/.test(by('island').src), name + ': the stations sheet says it is measured, and by how many stations');
       ok(['water', 'city', 'heat', 'veg', 'haze'].every((id) => by(id).state === 'none' && by(id).scale === '' && /(NO LIVE DATA|ΧΩΡΙΣ ΖΩΝΤΑΝΑ ΔΕΔΟΜΕΝΑ)/.test(by(id).src)), name + ': a sheet with no feed says "no live data", shows no scale and claims no motion');
       ok(/(lines travel|γραμμές ταξιδεύουν)/.test(by('wind').move) && /(only inside|μόνο μέσα)/.test(by('rain').move), name + ': the key says what the motion of wind and rain means');
@@ -168,7 +181,8 @@ const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swifts
       await frame.evaluate(() => document.getElementById('measured').click());
       await wait(600);
       const left = await frame.evaluate(() => [...document.querySelectorAll('.lay')].filter((x) => x.getAttribute('aria-pressed') === 'true').map((x) => x.innerText));
-      ok(left.length >= 1 && left.length < 12, name + ': "measured only" leaves the sheets that stand on a reading (' + left.length + ' of 12)');
+      ok(left.length >= 1 && left.length < N, name + ': "measured only" leaves the sheets that stand on a reading (' + left.length + ' of ' + N + ')');
+      ok(left.every((x) => !/published|δημοσιευμένα|DEMO|ΕΠΙΔΕΙΞΗ|Aeroplanes|Αεροπλάνα|Seabed|Βάθος/.test(x)), name + ': and neither a published table nor a demo point counts as measured');
       ok(left.every((x) => !/drawn|σχεδιασμένο/.test(x)), name + ': and not one of them is a drawing');
       ok(left.every((x) => !/(model|μοντέλο)/.test(x)), name + ': and not one of them is a model either (' + left.map((x) => x.split('\n')[0]).join(', ') + ')');
       await frame.evaluate(() => document.getElementById('all').click());
@@ -194,7 +208,7 @@ const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swifts
         // a band button keeps the island for reference
         await frame.evaluate(() => document.querySelector('[data-band="AIR"]').click()); await wait(400);   // the bar can sit off the short test viewport
         const on = await frame.evaluate(() => [...document.querySelectorAll('.lay')].filter((b) => b.getAttribute('aria-pressed') === 'true').length);
-        ok(on > 0 && on < 12, name + ': a band shows some layers and hides the rest (' + on + ')');
+        ok(on > 0 && on < N, name + ': a band shows some layers and hides the rest (' + on + ')');
         await frame.evaluate(() => document.getElementById('all').click()); await wait(400);
         ok(await frame.evaluate(() => [...document.querySelectorAll('.lay')].every((b) => b.getAttribute('aria-pressed') === 'true')), name + ': "all" brings every layer back');
       }
@@ -264,7 +278,7 @@ const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swifts
       });
       await p.goto(BASE + '/stack.html?lang=el', { waitUntil: 'load', timeout: 60000 });
       for (let i = 0; i < 80; i++) { if (await p.evaluate(() => !!window.__embedReady && /πριν|μόλις/.test(document.querySelector('.rail').innerText)).catch(() => false)) break; await wait(250); }
-      const kinds = await p.evaluate(() => ['wind', 'rain', 'cloud', 'air', 'seabed', 'island'].map((id) => window.__sheetState(id)));
+      const kinds = await p.evaluate(() => ['wind', 'rain', 'cloud', 'air', 'waves', 'island'].map((id) => window.__sheetState(id)));
       ok(kinds.every((k) => k === 'none'), 'no data: every fed sheet reports that nothing arrived (' + kinds.join(', ') + ')');
       const s2 = await p.evaluate(() => window.__sheets());
       ok(!s2.wind && s2.rainCells === 0 && s2.specks === 0 && s2.beamsLive <= 4, 'no data: no wind lines, no rain and no specks are made up');

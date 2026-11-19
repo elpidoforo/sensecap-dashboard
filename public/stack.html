@@ -37,8 +37,16 @@ html.on-site,html.on-site body{background:transparent}
 .mid{flex:1 1 auto;display:flex;gap:12px;align-items:flex-start;min-height:0;padding-top:12px}
 .rail{pointer-events:auto;width:244px;padding:9px 9px 7px;max-height:100%;overflow:auto;flex:0 0 auto}
 .rail h2{margin:3px 5px 8px;font:800 8.5px/1 var(--mono);letter-spacing:1.9px;color:var(--faint)}
-.band{margin:9px 5px 5px;display:flex;align-items:center;gap:7px;font:800 8px/1 var(--mono);letter-spacing:1.8px;color:#4f6c8a}
-.band::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(140,190,235,.22),transparent)}
+/* a band of the rail is a button: it folds its layers away, so a long list stays usable */
+.band{margin:7px 0 3px;padding:5px 5px;width:100%;display:flex;align-items:center;gap:7px;cursor:pointer;border:0;border-radius:6px;background:transparent;
+  font:800 8px/1 var(--mono);letter-spacing:1.8px;color:#6f8cab;text-align:left}
+.band:hover{background:rgba(120,190,240,.08);color:var(--dim)}
+.band:focus-visible{outline:2px solid var(--cyan);outline-offset:1px}
+.band em{font-style:normal;letter-spacing:.4px;color:#4f6c8a}
+.band::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(140,190,235,.22),transparent);order:2}
+.band i{order:3;width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translate(-1px,-1px)}
+.band[aria-expanded="false"] i{transform:rotate(-45deg)}
+.band-body[hidden]{display:none}
 .lay{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:6px 8px;margin-bottom:4px;cursor:pointer;
   border-radius:9px;background:rgba(255,255,255,.028);border:1px solid rgba(255,255,255,.05);color:inherit;font:inherit}
 .lay:hover{background:rgba(120,190,240,.1)}
@@ -93,6 +101,11 @@ html.on-site,html.on-site body{background:transparent}
 .lg-state b{display:block;margin-bottom:2px;font:800 9px/1.2 var(--mono);letter-spacing:1.3px}
 .lg-state.measured{border-color:rgba(134,224,168,.45);background:rgba(134,224,168,.07)} .lg-state.measured b{color:var(--live)}
 .lg-state.model{border-color:rgba(127,179,255,.45);background:rgba(127,179,255,.07)} .lg-state.model b{color:#a9c8ff}
+.lg-state.published{border-color:rgba(255,184,107,.4);background:rgba(255,184,107,.06)} .lg-state.published b{color:#ffc98e}
+.lg-state.demo{border-style:dashed;border-color:rgba(242,165,107,.6);background:rgba(224,127,63,.1)} .lg-state.demo b{color:#F2A56B}
+.lg-link{display:inline-block;margin-top:4px;color:var(--old);font-weight:700}
+.lg-link:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.legend p.lg-demo{color:#F2A56B}
 .lg-state.none{border-style:dashed;border-color:rgba(242,165,107,.55);background:rgba(224,127,63,.08)} .lg-state.none b{color:#F2A56B}
 .probe h2{margin:1px 3px 8px;font:800 8.5px/1 var(--mono);letter-spacing:1.9px;color:var(--faint)}
 .kv{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.055);
@@ -105,10 +118,12 @@ html.on-site,html.on-site body{background:transparent}
 .tools{pointer-events:auto;display:flex;gap:3px;padding:5px 6px;margin-inline:auto;max-width:100%;overflow-x:auto;flex-wrap:nowrap}
 .tools button{flex:0 0 auto}
 .tools button{border:0;background:transparent;color:var(--dim);cursor:pointer;
-  padding:8px 13px;border-radius:8px;font:700 9.5px/1 var(--mono);letter-spacing:1.1px}
+  padding:8px 10px;border-radius:8px;font:700 9.5px/1 var(--mono);letter-spacing:.9px}
 .tools button:hover{background:rgba(120,190,240,.12);color:var(--ink)}
 .tools button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .tools button[aria-pressed="true"]{background:linear-gradient(180deg,#F7C46B,#E8963F);color:#0a1420}
+.tools .view[aria-pressed="true"]{background:rgba(75,191,224,.2);color:var(--ink);box-shadow:inset 0 0 0 1px rgba(75,191,224,.6)}
+.tools .sep{flex:0 0 1px;align-self:stretch;margin:3px 4px;background:var(--edge)}
 .note{font:600 8.5px/1.5 var(--mono);color:#44607d;max-width:240px}
 .hint{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom,0px));
   font:600 9px/1 var(--mono);letter-spacing:1px;color:var(--faint);pointer-events:none;opacity:.9}
@@ -129,14 +144,14 @@ html.on-site,html.on-site body{background:transparent}
 }
 /* a short window (the frame on the home page): one sheet on show gives the probe's room to the key */
 @media (max-height:700px) and (min-width:861px){ body.solo-on .probe{display:none} }
-@media (prefers-reduced-motion:reduce){ .lay,.lay .go{transition:none} .lay.fresh{animation:none} }
+@media (prefers-reduced-motion:reduce){ .lay,.lay .go{transition:none} .lay.fresh{animation:none} .band i{transition:none} }
 </style>
 </head>
 <body>
-<canvas id="gl" tabindex="0" aria-label="The data stack over Cyprus in 3D" data-ael="Η στοίβα δεδομένων πάνω από την Κύπρο σε 3D"></canvas>
+<canvas id="gl" tabindex="0" aria-label="The data stack over Cyprus and the sea around it in 3D" data-ael="Η στοίβα δεδομένων πάνω από την Κύπρο και τη θάλασσα γύρω της σε 3D"></canvas>
 <div class="ui">
   <div class="top">
-    <div class="glass brand"><i>KLEANTHIS</i><b>CYPRUS DATA STACK</b></div>
+    <div class="glass brand"><i>KLEANTHIS</i><b data-el="ΣΤΟΙΒΑ ΔΕΔΟΜΕΝΩΝ ΚΥΠΡΟΥ">CYPRUS DATA STACK</b></div>
     <div class="badge" data-el="ΖΩΝΤΑΝΕΣ ΜΕΤΡΗΣΕΙΣ · ΣΧΕΔΙΑΣΜΕΝΟ ΑΝΑΓΛΥΦΟ">LIVE READINGS · DRAWN RELIEF</div>
     <div class="glass clock" id="clock"></div>
   </div>
@@ -160,8 +175,11 @@ html.on-site,html.on-site body{background:transparent}
   </div>
 
   <div class="foot">
-    <p class="note" data-el="ΣΥΡΕ ΓΙΑ ΠΕΡΙΣΤΡΟΦΗ · ΚΥΛΗΣΗ Ή ΤΣΙΜΠΗΜΑ ΓΙΑ ΖΟΥΜ · ΠΑΤΑ ΕΝΑ ΣΤΡΩΜΑ ΓΙΑ ΝΑ ΤΟ ΚΡΥΨΕΙΣ · Ο ΔΑΚΤΥΛΙΟΣ ΣΕ ΚΑΘΕ ΣΧΟΛΕΙΟ ΔΕΙΧΝΕΙ ΠΟΣΟ ΠΑΛΙΑ ΕΙΝΑΙ Η ΜΕΤΡΗΣΗ ΤΩΝ ΔΙΚΩΝ ΤΟΥ ΑΙΣΘΗΤΗΡΩΝ · ΔΥΟ ΚΟΥΚΙΔΕΣ ΣΕ ΜΠΑΡΑ: ΔΥΟ ΠΗΓΕΣ ΔΕΝ ΣΥΜΦΩΝΟΥΝ ΚΑΙ ΤΟ ΚΕΝΟ ΕΙΝΑΙ Η ΔΙΑΦΟΡΑ ΤΟΥΣ, ΟΧΙ ΘΕΣΗ">DRAG TO TURN · SCROLL OR PINCH TO ZOOM · TAP A LAYER TO HIDE IT · THE RING AT EACH SCHOOL SHOWS HOW OLD ITS OWN SENSOR READING IS · TWO DOTS ON A BAR: TWO SOURCES DISAGREE AND THE GAP IS THE SIZE OF THAT DISAGREEMENT, NOT A PLACE</p>
+    <p class="note" data-el="ΣΥΡΕ ΓΙΑ ΠΕΡΙΣΤΡΟΦΗ · ΚΥΛΗΣΗ Ή ΤΣΙΜΠΗΜΑ ΓΙΑ ΖΟΥΜ · ΤΑ "ΠΕΡΙΟΧΗ" ΚΑΙ "ΚΥΠΡΟΣ" ΜΕΤΑΚΙΝΟΥΝ ΤΗ ΘΕΑ · ΠΑΤΑ ΕΝΑ ΣΤΡΩΜΑ ΓΙΑ ΝΑ ΤΟ ΚΡΥΨΕΙΣ · Ο ΔΑΚΤΥΛΙΟΣ ΣΕ ΚΑΘΕ ΣΧΟΛΕΙΟ ΔΕΙΧΝΕΙ ΠΟΣΟ ΠΑΛΙΑ ΕΙΝΑΙ Η ΜΕΤΡΗΣΗ ΤΩΝ ΔΙΚΩΝ ΤΟΥ ΑΙΣΘΗΤΗΡΩΝ · ΔΥΟ ΚΟΥΚΙΔΕΣ ΣΕ ΜΠΑΡΑ: ΔΥΟ ΠΗΓΕΣ ΔΕΝ ΣΥΜΦΩΝΟΥΝ ΚΑΙ ΤΟ ΚΕΝΟ ΕΙΝΑΙ Η ΔΙΑΦΟΡΑ ΤΟΥΣ, ΟΧΙ ΘΕΣΗ">DRAG TO TURN · SCROLL OR PINCH TO ZOOM · "REGION" AND "CYPRUS" MOVE THE VIEW · TAP A LAYER TO HIDE IT · THE RING AT EACH SCHOOL SHOWS HOW OLD ITS OWN SENSOR READING IS · TWO DOTS ON A BAR: TWO SOURCES DISAGREE AND THE GAP IS THE SIZE OF THAT DISAGREEMENT, NOT A PLACE</p>
     <div class="glass tools">
+      <button type="button" class="view" id="view-region" aria-pressed="true" data-el="ΠΕΡΙΟΧΗ" title="Show the whole region around Cyprus" data-tel="Δείξε όλη την περιοχή γύρω από την Κύπρο">REGION</button>
+      <button type="button" class="view" id="view-cyprus" aria-pressed="false" data-el="ΚΥΠΡΟΣ" title="Fly in to Cyprus" data-tel="Πέτα κοντά στην Κύπρο">CYPRUS</button>
+      <span class="sep" aria-hidden="true"></span>
       <button type="button" id="tour" aria-pressed="true" data-el="ΞΕΝΑΓΗΣΗ">TOUR</button>
       <button type="button" id="all" aria-pressed="true" data-el="ΟΛΑ">ALL</button>
       <button type="button" id="measured" aria-pressed="false" data-el="ΜΟΝΟ ΜΕΤΡΗΜΕΝΑ">MEASURED ONLY</button>
