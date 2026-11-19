@@ -59,10 +59,10 @@ stack; not duplicated), **sheet after X**, **cannot be a map sheet**.
 
 | # | Dataset | Measures (unit) | Geography | Time | Served from | Licence and credit | Verdict |
 |---|---|---|---|---|---|---|---|
-| 9 | Weather model (`openmeteo-weather`) | Temperature, humidity, wind, rain, cloud, pressure | Grid, 60 points at 0.25° | Live model, cache 10 min | `/api/weather` | CC BY 4.0, "Weather data by Open-Meteo.com" | **Sheet now, elsewhere**: wind and rain sheets already read it through `/layers/api/live` (AIR band) |
+| 9 | Weather model (`openmeteo-weather`) | Temperature, humidity, wind, rain, cloud, pressure | Grid, 140 points at 0.25° (34.0–36.25 N, 31.8–35.05 E) | Live model, cache 10 min | `/api/weather` | CC BY 4.0, "Weather data by Open-Meteo.com" | **Sheet now, elsewhere**: wind and rain sheets already read it through `/layers/api/live` (AIR band) |
 | 10 | Five-day forecast | Daily forecast | One point (central Cyprus) | Model | `/api/forecast` | CC BY 4.0, Open-Meteo | **Cannot be a map sheet**: one point for the whole island |
-| 11 | Air-quality model (`openmeteo-air`) | PM2.5, PM10, dust, ozone (µg/m³), European AQI | Grid, 60 points | Live model, cache 30 min | `/api/air` | CC BY 4.0, "Air quality data by Open-Meteo.com" | **Sheet now, elsewhere** (AIR band). A model: never drawn as a measurement |
-| 12 | Sea model (`openmeteo-marine`) | Sea surface temperature (°C), wave height (m) | 10 sea points | Live model, cache 30 min | `/api/sea` | CC BY 4.0, "Marine data by Open-Meteo.com" | **Sheet now, elsewhere** (WATER band, `seabed` sheet) |
+| 11 | Air-quality model (`openmeteo-air`) | PM2.5, PM10, dust, ozone (µg/m³), European AQI | Grid, 140 points | Live model, cache 30 min | `/api/air` | CC BY 4.0, "Air quality data by Open-Meteo.com" | **Sheet now, elsewhere** (AIR band). A model: never drawn as a measurement |
+| 12 | Sea model (`openmeteo-marine`) | Sea surface temperature (°C), wave height (m) | 22 sea points; also wave direction and period | Live model, cache 30 min | `/api/sea` | CC BY 4.0, "Marine data by Open-Meteo.com" | **Sheet now, elsewhere** (WATER band, `waves` sheet) |
 | 13 | Terrain | Elevation (m) | Grid 0.05° | One-off | `/api/terrain` | Open-Meteo elevation, CC BY 4.0 | **Sheet now, elsewhere**: the relief under every sheet. Note: `stack-app.js` still draws its own relief |
 | 14 | Saved forecasts against reality (`toolkit-forecast.js`) | Forecast, later measurement and later model value per day | Four city points | Once a day | `/api/toolkit/forecast` | Derived from 5 and 9 | **Cannot be a map sheet**: a comparison per city over days; drawn side by side it would rank the cities |
 
@@ -555,3 +555,24 @@ The extracts are in `fieldwork/stack/`, not in `fieldwork/`, so the thirteen inv
 - The 392 unplaced areas have English names only (the CYSTAT file has no Greek names).
 - The age floor of 50 residents is this module's choice, stricter than the publisher.
 - `island.js` has no recorded source or licence. This document only reports that; `THIRD_PARTY_NOTICES.md` was not changed about it.
+
+## 6. How the stack draws it (added when the sheets were built)
+
+`public/stack-app.js` holds thirty sheets; eighteen of them are fed by this API. Two answers share a sheet where they belong together.
+
+| Sheet id in the stack | Answers | Moves? |
+|---|---|---|
+| `population`, `age` | `population`, `age` | Reveal once, then still. Municipalities or districts, one level at a time. No density |
+| `buildings` | `buildings` | Reveal once. Four boxes at true size; the key has "fly to" buttons |
+| `buses` | `bus-network` + `bus-now` | Hollow squares move at timetable pace in real seconds; no trail |
+| `vehicles` | `own-vehicles` | Replay; a mark jumps between grid points of the answer and is never drawn in between |
+| `quakes` | `earthquakes` | One ripple per event in date order, then still |
+| `hotspots`, `burnt` | `fire-hotspots`, `burnt-areas` | Slow glow while live; burnt areas still |
+| `airq` | `air-stations` | Still (one value an hour); PM2.5 or PM10 |
+| `met` | `met-stations` + `airports` | A dot runs along each measured wind arrow |
+| `ev`, `crossings`, `bathing`, `flood`, `permits` | same names | Reveal once, then still |
+| `drought`, `airday`, `aerosol` | `drought`, `air-day`, `aerosol-sites` | Replay of a past period with its date on the sheet and the whole period in a panel |
+| `seabed` (not a sheet of its own) | `seabed-profiles` | The three profile lines are drawn on the seabed sheet, with or without a depth grid |
+
+The three example drawings these replace (`water`, `city`, `haze`) were removed. `heat` and `veg` stay as example drawings (rows 18 and 19: no grid).
+Sensor.Community (row 7) is not drawn. Tests: `tests/stack/sheets_test.js`, `tests/stack/sea_air_test.js`, `tests/stack/browser_test.js`.

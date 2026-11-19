@@ -659,7 +659,7 @@ function stackCard(l) { const st = stackState(l);
 // what every /api/stack sheet does before and after its own drawing
 function paintStack(l) { return (c, t, anim, dt) => {
   c.globalCompositeOperation = 'source-over'; c.clearRect(0, 0, LW, LH);
-  coast(c); if (withNames(l.id)) regionLabels(c);
+  coast(c); if (withNames(l.id) && typeof l.win !== 'string') regionLabels(c);   // a sheet that covers Cyprus only has no room for the neighbours' names
   const ids = idsOf(l), ps = ids.map(pd);
   if (!ps.some(Boolean)) { pill(c, l.asked ? T('THE DATA OF THIS SHEET COULD NOT BE READ', 'ΤΑ ΔΕΔΟΜΕΝΑ ΑΥΤΟΥ ΤΟΥ ΦΥΛΛΟΥ ΔΕΝ ΔΙΑΒΑΣΤΗΚΑΝ') : T('LOADING…', 'ΦΟΡΤΩΝΕΙ…'), l.c); l.revealDone = true; return; }
   if (!ids.some(has)) { hatch(c, l.c); pill(c, NO_STACK(), l.c); l.revealDone = true; return; }
@@ -1433,6 +1433,8 @@ function sourceBox(id, pos, colour, text, sub, tag, want) {
 }
 // A source is named in the scene only while its sheet is on show and its data is really there.
 function syncBoxes() { boxes.forEach((b) => b.show(sheetOf[b.id].on && b.want()));
+  // the satellites circle the whole stack; while one sheet below the sky is read on its own they step out of the way
+  const sky = soloId == null || layerOf(soloId).band === 'SPACE'; [polar, polarLabel, cone, geo, geoLabel, geoCone].forEach((o) => { o.visible = sky; });
   const ground = sheetOf.island.on; groundThings.visible = ground;
   beams.forEach((b) => { if (b.tag === 'own' || b.tag === 'stations') { b.hidden = !ground; b.line.visible = ground; } }); }
 sourceBox('wind', new THREE.Vector3(-SW * .6, yOf('wind') + 1.4 * GAPY, -SH * .3), '#7fb3ff', 'Open-Meteo', T('MODEL · 0.25° GRID', 'ΜΟΝΤΕΛΟ · ΠΛΕΓΜΑ 0,25°'), 'model');
