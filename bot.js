@@ -406,7 +406,16 @@ function createBot(cfg) {
   /* "Guide me": the assistant acts as a teacher for the page the student is on and may point at things on it. The list of
    * things comes from the page (school.js cleans it and later drops any step whose id is not in it). */
   let know = null;       // what the site says about its own pages (guide-knowledge.js), read once
+  const loadKnow = () => { if (!know) { try { know = require('./guide-knowledge').createGuideKnowledge({ root: __dirname, log }); } catch (e) { know = { page: () => '', map: () => '', project: () => '' }; log('Guide knowledge off: ' + e.message); } } return know; };
+  // What the project says about itself (public/site/project.js, also shown on the page "About the project"). Given with every question.
+  function projectBlock(lang) {
+    const text = loadKnow().project ? loadKnow().project(lang) : '';
+    return text ? 'ABOUT THE PROJECT, in its own words. Use this for questions about what the project is, its mission, the schools, the roles, the steps, how AI is used and where it leads. '
+      + 'It is everything you know about the project itself: do not add dates, numbers, names, partners, prizes or results that are not written here; if asked for one, say it is not in the project text and suggest asking a teacher. '
+      + 'Never rank the schools or the cities.\n' + text : '';
+  }
   function guideBlock(g) {
+    loadKnow();
     if (!know) { try { know = require('./guide-knowledge').createGuideKnowledge({ root: __dirname, log }); } catch (e) { know = { page: () => '', map: () => '' }; log('Guide knowledge off: ' + e.message); } }
     // Three guides, one for each kind of audience. Each has its own way of explaining, its own kind of mission and its own tone.
     const AUD = {
@@ -466,6 +475,8 @@ function createBot(cfg) {
     const messages = buildMessages(ctx.history || [], ctx.question);
     const used = [];
     const sysBlocks = systemBlocks(ctx);
+    const proj = projectBlock(ctx.guide && ctx.guide.lang === 'el' ? 'el' : 'en');
+    if (proj) sysBlocks.push({ type: 'text', text: proj });
     if (ctx.guide) sysBlocks.push({ type: 'text', text: guideBlock(ctx.guide) });
     let tokensIn = 0, tokensOut = 0;
     for (let step = 0; step < MAX_STEPS; step++) {

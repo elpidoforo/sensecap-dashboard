@@ -5,7 +5,9 @@
  *   - public/site/shell.js           : the menu (page ids and their names), read with a pattern, never run
  * The explainer files are plain data wrapped in a small function. They are run once, at start, in an empty sandbox (node:vm)
  * that holds nothing but an object to collect the data: no require, no process, no network.
- * createGuideKnowledge({ root }) -> { page(id, lang), map(lang), ids } */
+ *   - public/site/project.js         : the project's knowledge base (mission, schools, roles, steps, rules), the same file the
+ *                                      page "About the project" shows; read in the same kind of sandbox
+ * createGuideKnowledge({ root }) -> { page(id, lang), map(lang), project(lang), ids } */
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -34,6 +36,13 @@ function createGuideKnowledge({ root, log = () => {} }) {
     while ((m = re.exec(shell))) if (!names[m[1]]) names[m[1]] = [m[2], m[3]];
   } catch (e) { log('Guide knowledge: menu not read (' + e.message + ')'); }
 
+  let proj = null;       // SC.PROJECT from public/site/project.js
+  try {
+    const SC = {};
+    vm.runInContext(fs.readFileSync(path.join(root, 'public', 'site', 'project.js'), 'utf8'), vm.createContext({ window: { SC }, SC }), { timeout: 500, filename: 'project.js' });
+    if (SC.PROJECT && SC.PROJECT.mission && Array.isArray(SC.PROJECT.roles)) proj = SC.PROJECT;
+  } catch (e) { log('Guide knowledge: project text not read (' + e.message + ')'); }
+
   const L = (pair, lang) => String((pair && (lang === 'el' ? pair[1] : pair[0])) || (pair && pair[0]) || '');
   return {
     ids: () => Object.keys(pages),
@@ -42,6 +51,23 @@ function createGuideKnowledge({ root, log = () => {} }) {
       const p = pages[id];
       if (!p) return '';
       return [L(p.lead, lang)].concat(p.steps.map((s, i) => (i + 1) + '. ' + L(s.h, lang) + ': ' + L(s.s, lang) + (s.c ? ' ' + L(s.c, lang) : ''))).join('\n');
+    },
+    // what the project says about itself, as plain lines (empty when the file could not be read)
+    project(lang) {
+      if (!proj) return '';
+      const P = proj, both = (x) => L(x.name, lang) + ': ' + L(x.does, lang);
+      return [
+        'Name: ' + L(P.name, lang) + '. ' + L(P.platform, lang),
+        'Mission: ' + L(P.mission.title, lang) + '. ' + L(P.mission.tag, lang) + ' ' + L(P.mission.what, lang) + ' ' + L(P.mission.why, lang) + ' Motto: ' + L(P.mission.motto, lang),
+        'Schools: ' + P.schools.map((s) => L(s.name, lang) + ' (' + L(s.city, lang) + ')').join('; ') + '.',
+        'People: ' + P.people.map((p) => L(p, lang)).join(' '),
+        'The five roles in a team:\n' + P.roles.map((r) => '- ' + both(r)).join('\n'),
+        'The four steps:\n' + P.steps.map((s, i) => (i + 1) + '. ' + both(s)).join('\n'),
+        'Using AI: ' + L(P.responsible.motto, lang) + ' ' + P.responsible.rules.map(both).join(' '),
+        'Where it leads:\n' + P.goals.map((g) => '- ' + both(g)).join('\n'),
+        'Start: ' + L(P.launch.when, lang) + ' ' + P.launch.steps.map((s, i) => (i + 1) + ') ' + L(s, lang)).join(', ') + '.',
+        'Keep in mind: ' + P.honest.map((p) => L(p, lang)).join(' '),
+      ].join('\n');
     },
     // one line per page in the menu: its id, its name and what it is for
     map(lang) {

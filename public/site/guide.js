@@ -25,7 +25,7 @@
 
   let root = null, panel = null, btn = null, dot = null, open = false, busy = false, stop = null;
   let pageId = null, pageName = '';
-  const OWN_PAGES = new Set(['home', 'layers', 'weather', 'explore', 'library', 'city3d', 'city', 'stack', 'health', 'fieldwork', 'alerts', 'warnings', 'feeds', 'helpers', 'research', 'archive', 'guides', 'districts', 'vehicles', 'aircraft']);
+  const OWN_PAGES = new Set(['home', 'about', 'layers', 'weather', 'explore', 'library', 'city3d', 'city', 'stack', 'health', 'fieldwork', 'alerts', 'warnings', 'feeds', 'helpers', 'research', 'archive', 'guides', 'districts', 'vehicles', 'aircraft']);
   let voiceOn = store.get('sc.guide.voice') !== '0';
   let targets = new Map();            // id -> element, as listed for the last request
   let steps = [], at = -1, watch = null, arrived = false;
