@@ -80,4 +80,21 @@ The checks on `#/health` report any extract whose licence, credit line, method o
 | EV charging points (`ev`) | Department of Electrical and Mechanical Services, Cyprus, via the National Access Point. CC BY 4.0. |
 | Municipal population (`census`) | © Republic of Cyprus, Statistical Service (CYSTAT), Census of Population and Housing 2021. CYSTAT data reuse terms: name the source and identify any processing. |
 
-Last reviewed: 2026-11-16.
+## Frozen extracts behind the data stack (`fieldwork/stack/`, `GET /api/stack/<id>`)
+
+Three more dated copies, taken from the research checkpoint of 19 November 2026 and kept byte for byte beside the JSON built from them
+(the import scripts check the SHA-256 of each). Every answer of `/api/stack` carries the licence and the credit line of its dataset;
+`docs/STACK-DATA.md` lists them all. The terms below were not re-read from the publishers' pages on 19 November (no network where this was
+built): they are the terms the checkpoint and the existing extracts record.
+
+| Extract | Publisher and terms |
+|---|---|
+| Earthquakes of magnitude 4.5 and above, 2015 to 2026 (`earthquakes`) | US Geological Survey, ANSS Comprehensive Earthquake Catalog. US government work in the public domain; USGS asks to be credited as the source (https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits). Region selected and summary values kept by Kleanthis. |
+| Residents and age by municipality and community (`census-localities`) | © Republic of Cyprus, Statistical Service (CYSTAT), Census of Population and Housing 2021, predefined tables 47 and 48. CYSTAT data reuse terms: name the source and identify any processing (https://www.cystat.gov.cy/en/StaticPage?id=1491). Age groups, percentages and the 2024 recast of four municipalities calculated by Kleanthis; CYSTAT is not responsible for them. |
+| Building permits by district (`permits`) | © Republic of Cyprus, Statistical Service, table 1440010E. CYSTAT data reuse terms as above. Reshaped by Kleanthis. |
+
+The data stack also re-serves, with their existing credits, data that is already listed above: the GTFS timetables (CC BY 4.0), the
+OpenStreetMap city centres (ODbL), the EEA stations, NASA FIRMS, EFFIS, the bathing-water history (EEA and DG Environment, CC BY 4.0) and
+seven of the investigations.
+
+Last reviewed: 2026-11-19.

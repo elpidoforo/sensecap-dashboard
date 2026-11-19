@@ -22,7 +22,7 @@
  * as "failed" or "not answering" in status(), and its readings are simply absent.
  *
  *   createSatellite({ root, dataDir, log, env, now, demo, off, offReason, feedsDir, places, transport, allowLocalHttp })
- *     -> { enabled, demo, start, stop, status, probe, read, images, imageFile, has, ids, virtualSources, keyState, handle }
+ *     -> { enabled, demo, start, stop, status, probe, read, points, images, imageFile, has, ids, virtualSources, keyState, handle }
  */
 
 const fs = require('fs');
@@ -38,6 +38,7 @@ const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 const MAX_IMAGES_PER_FEED = 60;     // all kinds of picture of one feed together
 const MAX_IMAGES_PER_GROUP = 12;     // the newest ones of one kind of picture
 const MAX_READINGS = 24;
+const MAX_POINTS = 2000;         // places one feed may hand to the data stack
 const TIMEOUTS = { probe: 8000, read: 5000, images: 4000 };
 const PROBE_TTL_OK = 30000, PROBE_TTL_BAD = 10000, LIST_TTL = 10000;
 
@@ -272,6 +273,34 @@ function createSatellite(opts) {
   }
 
   /* ----- images ----- */
+  /* The places a feed knows (fire hotspots, burnt areas), for the data stack. A feed offers them with an optional points() ->
+     { at, points: [{ lat, lng, ... }] } or null. Only finite coordinates and numbers, short strings and short lists of strings are passed
+     on, at most MAX_POINTS of them; a feed that throws is logged once like any other failure and answers null. */
+  async function points(id) {
+    const e = entries.get(id);
+    if (!e || e.state !== 'ready' || !e.feed || typeof e.feed.points !== 'function') return null;
+    let r;
+    try { r = await withTimeout(Promise.resolve().then(() => e.feed.points()), timeouts.read, 'points'); }
+    catch (err) { failFeed(e, 'points', err); return null; }
+    if (!r || typeof r !== 'object' || !Array.isArray(r.points)) return null;
+    const at = msOf(r.at), out = [];
+    for (const p of r.points.slice(0, MAX_POINTS)) {
+      const lat = p && num(p.lat), lng = p && num(p.lng);
+      if (lat == null || lng == null || Math.abs(lat) > 90 || Math.abs(lng) > 180) continue;
+      const row = { lat, lng };
+      for (const [k, v] of Object.entries(p)) {
+        if (k === 'lat' || k === 'lng' || !/^[a-z][A-Za-z0-9]{0,15}$/.test(k)) continue;
+        if (typeof v === 'number' && Number.isFinite(v)) row[k] = v;
+        else if (typeof v === 'string') row[k] = scrub(v, e).slice(0, 40);
+        else if (Array.isArray(v)) row[k] = v.filter((x) => typeof x === 'string').slice(0, 8).map((x) => scrub(x, e).slice(0, 40));
+      }
+      out.push(row);
+    }
+    const extra = {};
+    for (const [k, v] of Object.entries(r)) if (k !== 'at' && k !== 'points' && /^[a-z][A-Za-z0-9]{0,15}$/.test(k)) { if (typeof v === 'number' && Number.isFinite(v)) extra[k] = v; else if (Array.isArray(v)) extra[k] = v.filter((x) => typeof x === 'string').slice(0, 8).map((x) => scrub(x, e).slice(0, 40)); }
+    return { ...extra, at: at && at > 0 ? at : null, points: out };
+  }
+
   function insideDir(e, file) {
     if (typeof file !== 'string' || !file || file.includes('\0')) return null;
     const full = path.resolve(e.ctx.dir, file);
@@ -445,7 +474,7 @@ function createSatellite(opts) {
   if (o.guardProcess !== false) { registries.add(api()); installGuard(); }
   return api();
 
-  function api() { return me || (me = { enabled: true, demo, start, stop, status, probe, read, images, imageFile, has, ids, allIds, virtualSources, keyState, handle, _t: { entries, feedsDir, baseDir, scrub, tooMany, escaped } }); }
+  function api() { return me || (me = { enabled: true, demo, start, stop, status, probe, read, points, images, imageFile, has, ids, allIds, virtualSources, keyState, handle, _t: { entries, feedsDir, baseDir, scrub, tooMany, escaped } }); }
 }
 
 module.exports = { createSatellite, ID_RE, IMAGE_ID_RE };

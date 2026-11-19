@@ -19,7 +19,7 @@
  *
  * Privacy: buildings and streets only. No vehicle, no person, no sensor position.
  *
- * createCityBuildings({ dataDir, mock, fetch, overpassUrl, log, now, wait }) -> { handle(req, res, url), start(), status(), _t }
+ * createCityBuildings({ dataDir, mock, fetch, overpassUrl, log, now, wait }) -> { handle(req, res, url), start(), status(), get(id), _t }
  */
 const fs = require('fs');
 const path = require('path');
@@ -224,7 +224,9 @@ function createCityBuildings(o) {
     Object.keys(CITIES).forEach((id) => { if (stale(read(id))) load(id); });
   }
   const status = () => Object.keys(CITIES).map((id) => ({ id, saved: !!read(id), at: (read(id) || {}).at || null, running: !!(state[id] || {}).running, error: (state[id] || {}).error || null }));
-  return { handle, start, status, _t: { convert, demo, heightOf, metres, boxOf, queryFor, joinWays, idle: () => queue } };
+  // for stackdata.js: the same answer as GET /api/city/<id> ({ code, body }), from the same cache; it never fetches more than the page would
+  const get = (id) => (Object.prototype.hasOwnProperty.call(CITIES, id) ? view(id) : { code: 404, body: { error: 'Unknown city.' } });
+  return { handle, start, status, get, _t: { convert, demo, heightOf, metres, boxOf, queryFor, joinWays, idle: () => queue } };
 }
 
 module.exports = { createCityBuildings, CITIES };

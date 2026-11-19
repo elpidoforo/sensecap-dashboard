@@ -163,5 +163,12 @@ module.exports = function create(ctx) {
   }
   function stop() { stopped = true; clearTimeout(timer); timer = null; }
 
-  return { id: ID, hosts: [HOST], start, stop, probe, read, images: () => [], refresh, _t: { BBOX, LAYER, get state() { return state; } } };
+  // For the data stack (stackdata.js): the burnt areas updated in the last 30 days, each as the middle of its perimeter with its area. null when nothing fresh is known.
+  function points() {
+    const s = fresh();
+    if (!s) return null;
+    return { at: s.fetchedAt, windowDays: 30, points: recentAreas().map((a) => ({ lat: a.lat, lng: a.lng, ha: a.ha, t0: a.t0, t1: a.t1 })) };
+  }
+
+  return { id: ID, hosts: [HOST], start, stop, probe, read, images: () => [], points, refresh, _t: { BBOX, LAYER, get state() { return state; } } };
 };
