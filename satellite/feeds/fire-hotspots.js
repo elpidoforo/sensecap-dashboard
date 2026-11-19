@@ -250,5 +250,12 @@ module.exports = function create(ctx) {
   }
   function stop() { stopped = true; clearTimeout(timer); timer = null; }
 
-  return { id: ID, hosts: [HOST], start, stop, probe, read, images, refresh, _t: { AREA, DAYS, current, get state() { return state; } } };
+  // For the data stack (stackdata.js): the hotspots of the last 24 hours as places, exactly the ones the picture draws. null when nothing fresh is known.
+  function points() {
+    const k = current();
+    if (!k) return null;
+    return { at: k.at, windowHours: 24, late: k.late.slice(), points: k.hotspots.map((h) => ({ lat: h.lat, lng: h.lng, t: h.t, sats: (h.sats || []).map((i) => SAT_NAME[i] || i) })) };
+  }
+
+  return { id: ID, hosts: [HOST], start, stop, probe, read, images, points, refresh, _t: { AREA, DAYS, current, get state() { return state; } } };
 };

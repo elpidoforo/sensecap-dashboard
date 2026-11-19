@@ -8,7 +8,7 @@ A satellite value describes an **area** (a pixel of 250 m to 25 km), only where 
 
 | File | What it is |
 | --- | --- |
-| `index.js` | The registry: finds the feeds, builds each feed's `ctx`, starts and stops them, isolates every failure, answers `status()`, `probe(id)`, `read(id, cityId)`, `images()`, `imageFile(feedId, imageId)` and serves `/api/satellite/*`. |
+| `index.js` | The registry: finds the feeds, builds each feed's `ctx`, starts and stops them, isolates every failure, answers `status()`, `probe(id)`, `read(id, cityId)`, `points(id)`, `images()`, `imageFile(feedId, imageId)` and serves `/api/satellite/*`. |
 | `http.js` | `ctx.get`: the only way a feed reaches the network. |
 | `testing.js` | `makeCtx({ id, hosts, fixtures })` for feed unit tests, with the same host rules and no network. |
 | `feeds/<id>.js` | One feed. `feeds/_demo.js` (made-up pictures, only with `SATELLITE_DEMO=1`) is the worked example. |
@@ -48,6 +48,7 @@ module.exports = function create(ctx) {            // ctx = { id, dir, log, get,
 ### The rules for what a feed returns
 
 - `read(cityId)`: rows with a numeric `value` and a numeric observation `time` in ms (not the fetch time). `variable` must be in `vocab/variables.json` and in the source file, with the same unit; layers.js drops the others and drops values outside the plausible range. At most 24 rows. Say in `note` that it is an area.
+- `points()` (optional): the places a feed knows, for the data stack (`stackdata.js`): `{ at, points: [{ lat, lng, ... }] }` or `null` when nothing fresh is known. Only numbers, short strings and short lists of strings are passed on, at most 2000 points. The fire hotspots and the burnt areas have it.
 - `images()`: `id` is letters, digits, `-` and `_` only (at most 80 characters, it is part of a web address); `file` is a file under `ctx.dir` (a relative path is taken from there; a path outside it, a link out of it, an empty file and a file over 12 MB are all skipped); `contentType` is png, jpeg, webp, gif or svg; `time` is required. `cloud` (0 to 100) is optional: from 40 the page says "lots of cloud". At most 12 pictures per feed; the page shows the latest large and up to 7 earlier days as small pictures.
 - Everything must degrade: no network, bad JSON, 403 or 429, an empty answer: `probe().ok` false, `read()` empty, one log line, no crash.
 

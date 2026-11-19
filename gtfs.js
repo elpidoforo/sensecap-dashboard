@@ -11,6 +11,8 @@
  *   2. A streaming CSV reader (readTable): UTF-8 BOM, quotes, CRLF, quoted line breaks, long lines refused.
  *   3. buildFeed: one zip becomes one compact object (stops, lines, planned first and last times per stop, simplified line shapes).
  *      shapes.txt is optional. Without it a line simply has no drawing and the answer says so.
+ *      It also keeps the planned runs (patterns and runs, see buildFeed): which trips run on which day type and the planned minute at each
+ *      stop, so stackdata.js can say where a bus SHOULD be by the timetable. That is the timetable, never a bus that was seen.
  *   4. createGtfs: downloads each zip on startup and then every GTFS_REFRESH_DAYS (7) days, with If-None-Match and If-Modified-Since
  *      when it has them, keeps the compact result in DATA_DIR/gtfs/, and NEVER fails startup: a feed that cannot be fetched or
  *      read is logged in ONE line and the saved copy (if any) keeps serving.
@@ -25,7 +27,7 @@
  *   GTFS_STARTUP_MIN_AGE_H=6 do not download again at startup when the last check is younger than this
  *   GTFS_MAX_ZIP_MB=100      biggest download                      GTFS_MAX_FILE_MB=400 biggest file inside a zip
  *   GTFS_TIMEOUT_S=20        no data for this long ends a download GTFS_RATE_PER_MIN=60 per address, for the API
- * createGtfs({ dataDir, log, simulated, feeds, env, now }) -> { enabled, start, tick, check, handle, probe, status, stop, _t }
+ * createGtfs({ dataDir, log, simulated, feeds, env, now }) -> { enabled, start, tick, check, handle, probe, status, timetables, stop, _t }
  */
 const fsp = require('fs').promises;
 const path = require('path');
@@ -306,6 +308,7 @@ async function readTable(source, onRow, opts) {
    3. One zip becomes one compact object
    ===================================================================================================== */
 
+const MAX_RUN_ROWS = 6e6, MAX_PATTERNS = 60000;   // caps on what is kept for the planned runs (the seven Cyprus files are far below both)
 const D8 = /^\d{8}$/;
 const get = (f, i) => (i === undefined ? '' : f[i] || '');
 // "HH:MM:SS" with any number of hours (a trip after midnight is 25:10:00) becomes minutes, or -1.
@@ -440,7 +443,8 @@ async function buildFeed(zip, info, opts) {
 
   // stop times: for every stop, which line stops there and when (first and last time on each day type)
   const serve = new Map();
-  let nRows = 0, noTrip = 0, noStop = 0, inactive = 0, noTime = 0;
+  const tripStops = new Array(tRoute.length);   // per trip that runs: [sequence, stop, minute, ...] for the planned runs further down
+  let nRows = 0, noTrip = 0, noStop = 0, inactive = 0, noTime = 0, stopRows = 0;
   await table('stop_times.txt', need('stop_times.txt'), (f, c) => {
     nRows++;
     const ti = tripIdx.get(f[c.trip_id]);
@@ -457,6 +461,8 @@ async function buildFeed(zip, info, opts) {
     let a = m.get(key);
     if (!a) m.set(key, a = [0, -1, -1, 0, -1, -1, 0, -1, -1]);
     if (t < 0) { noTime++; return; }
+    const seq = Number(get(f, c.stop_sequence));
+    if (Number.isFinite(seq) && stopRows < MAX_RUN_ROWS) { stopRows++; (tripStops[ti] || (tripStops[ti] = [])).push(seq, si, t); }
     for (let k = 0; k < 3; k++) {
       if (!(fl & (1 << k))) continue;
       const b = k * 3;
@@ -474,6 +480,34 @@ async function buildFeed(zip, info, opts) {
   const rOrder = [...usedRoutes].sort((a, b) => a - b), newRoute = new Map(rOrder.map((r, i) => [r, i]));
   const outServe = [];
   for (const si of sOrder) for (const [k, a] of serve.get(si)) outServe.push([newStop.get(si), newRoute.get(Math.floor(k / 65536)), k % 65536, ...a]);
+
+  /* Planned runs, for "where should each bus be now according to the timetable". Trips that visit the same stops with the same minutes
+     between them share one pattern: [line, headsign, [stop, ...], [minutes after the first stop, ...]]. A run is one trip of a pattern:
+     [pattern, minute of the day it leaves the first stop, day types]. Only trips that run in the timetable around `ref` are kept, only
+     stops that have a time, and times are whole minutes, as everywhere in this file. This is the timetable, never a bus that was seen. */
+  const patterns = [], runs = [], patIdx = new Map();
+  let runsSkipped = 0;
+  for (let ti = 0; ti < tripStops.length; ti++) {
+    const a = tripStops[ti];
+    if (!a || a.length < 6) { if (a) runsSkipped++; continue; }
+    const n = a.length / 3, order = Array.from({ length: n }, (_, i) => i).sort((x, y) => a[x * 3] - a[y * 3]);
+    const st = [], off = [], t0 = a[order[0] * 3 + 2];
+    let bad = false, last = t0;
+    for (const i of order) {
+      const s = newStop.get(a[i * 3 + 1]), t = a[i * 3 + 2];
+      if (s === undefined || t < last) { bad = true; break; }   // a time that runs backwards: the trip is left out rather than guessed
+      last = t; st.push(s); off.push(t - t0);
+    }
+    if (bad || off[off.length - 1] > 24 * 60) { runsSkipped++; continue; }
+    const key = newRoute.get(tRoute[ti]) + '|' + tHead[ti] + '|' + st.join(',') + '|' + off.join(',');
+    let pi = patIdx.get(key);
+    if (pi === undefined) {
+      if (patterns.length >= MAX_PATTERNS) { runsSkipped++; continue; }
+      pi = patterns.length; patIdx.set(key, pi); patterns.push([newRoute.get(tRoute[ti]), tHead[ti], st, off]);
+    }
+    runs.push([pi, t0, tFlags[ti]]);
+  }
+  runs.sort((x, y) => x[1] - y[1] || x[0] - y[0]);
 
   // line shapes: the two most used drawings of every line, when the zip has shapes.txt
   const shapeE = zip.find('shapes.txt'), shapes = {};
@@ -517,6 +551,7 @@ async function buildFeed(zip, info, opts) {
     stops: sOrder.map((s) => { const p = stops[s]; return [p.id, p.name, p.lat, p.lng, p.code]; }),
     routes: rOrder.map((r) => { const p = routes[r]; return [p.id, p.short, p.long, p.type, p.agency]; }),
     heads, serve: outServe, shapes,
+    patterns, runs, runsSkipped,
     buildMs: Date.now() - t0,
   };
 }
@@ -529,6 +564,16 @@ function validCompact(o) {
   for (const s of o.stops) if (!Array.isArray(s) || typeof s[0] !== 'string' || typeof s[1] !== 'string' || !Number.isFinite(s[2]) || !Number.isFinite(s[3])) return false;
   for (const r of o.routes) if (!Array.isArray(r) || typeof r[0] !== 'string' || typeof r[1] !== 'string' || typeof r[2] !== 'string') return false;
   for (const r of o.serve) if (!Array.isArray(r) || r.length !== 12 || !(r[0] >= 0 && r[0] < ns) || !(r[1] >= 0 && r[1] < nr) || !(r[2] >= 0 && r[2] < nh)) return false;
+  // the planned runs are newer than the first saved copies: a copy without them is still valid (it only has no scheduled movement)
+  if (o.patterns !== undefined || o.runs !== undefined) {
+    if (!Array.isArray(o.patterns) || !Array.isArray(o.runs)) return false;
+    for (const p of o.patterns) {
+      if (!Array.isArray(p) || !(p[0] >= 0 && p[0] < nr) || !(p[1] >= 0 && p[1] < nh) || !Array.isArray(p[2]) || !Array.isArray(p[3]) || p[2].length < 2 || p[2].length !== p[3].length) return false;
+      for (const s of p[2]) if (!(s >= 0 && s < ns)) return false;
+      for (let i = 0; i < p[3].length; i++) if (!Number.isFinite(p[3][i]) || p[3][i] < 0 || (i && p[3][i] < p[3][i - 1])) return false;
+    }
+    for (const r of o.runs) if (!Array.isArray(r) || !(r[0] >= 0 && r[0] < o.patterns.length) || !Number.isFinite(r[1]) || !(r[2] > 0 && r[2] < 8)) return false;
+  }
   return true;
 }
 
@@ -700,7 +745,8 @@ function createGtfs(opts) {
     s.attemptAt = now();
     try {
       const headers = {};
-      if (loaded.has(feed.id) && !fresh) { if (s.etag) headers['If-None-Match'] = s.etag; if (s.lastModified) headers['If-Modified-Since'] = s.lastModified; }
+      const old = noRuns(feed.id);   // a copy saved before the planned runs existed is built again from the zip, even when the zip is the same
+      if (loaded.has(feed.id) && !fresh && !old) { if (s.etag) headers['If-None-Match'] = s.etag; if (s.lastModified) headers['If-Modified-Since'] = s.lastModified; }
       const r = await download(feed.url, headers, { maxBytes: cfg.maxZip, idleMs: cfg.idleMs, totalMs: cfg.totalMs, check: checkUrl });
       if (r.status === 304) {
         s.okAt = now(); s.error = null;
@@ -711,7 +757,7 @@ function createGtfs(opts) {
       if (r.buf.length < 4 || r.buf.readUInt32LE(0) !== 0x04034b50) throw new Error(`the answer is not a zip file (${r.contentType || 'no content type'}, ${r.buf.length} bytes)`);
       const sha = crypto.createHash('sha256').update(r.buf).digest('hex');
       s.etag = r.etag || null; s.lastModified = r.lastModified || null;
-      if (loaded.has(feed.id) && s.sha === sha) {
+      if (loaded.has(feed.id) && s.sha === sha && !old) {
         s.okAt = now(); s.error = null;
         log(`GTFS ${feed.id}: the same file again (${size(r.buf.length)}, ${r.etag || r.lastModified ? 'headers offered' : 'no ETag or Last-Modified offered'}), the saved copy stays`);
         await saveState();
@@ -741,12 +787,14 @@ function createGtfs(opts) {
     }
   }
 
+  const noRuns = (id) => { const c = loaded.get(id); return !!c && !Array.isArray(c.runs); };
   // A feed that failed is left alone for GTFS_RETRY_HOURS (also at startup, so a crash loop does not hammer the portal).
   const due = (feed, reason) => {
     if (reason === 'force') return true;
     const s = st(feed.id), t = now(), have = loaded.has(feed.id);
     if (s.error && s.attemptAt && t - s.attemptAt < cfg.retryMs) return false;
     if (!have || !s.okAt) return true;
+    if (noRuns(feed.id) && !(s.attemptAt && t - s.attemptAt < cfg.retryMs)) return true;   // one more download, so the saved copy gains its planned runs
     return t - s.okAt >= (reason === 'startup' ? cfg.startupMinAgeMs : cfg.refreshMs);
   };
 
@@ -976,6 +1024,8 @@ function createGtfs(opts) {
   const stop = () => { if (timer) clearInterval(timer); timer = null; };
   return {
     enabled, start, stop, handle, probe, status,
+    // for stackdata.js: the compact timetables that are loaded and when each was last checked. Read only; static timetables, no vehicle.
+    timetables: () => feedList.filter((f) => loaded.has(f.id)).map((f) => ({ id: f.id, name: f.name, nameEl: f.nameEl, checkedAt: (state.get(f.id) || {}).okAt || null, loadedAt: (state.get(f.id) || {}).loadedAt || null, data: loaded.get(f.id) })),
     tick: () => cycle('tick'),                       // what the timer does every hour
     check: (x) => cycle(x && x.force ? 'force' : 'startup', Boolean(x && x.fresh)),   // for tests and by hand: { force: true } asks every feed now, { fresh: true } without If-None-Match
     feeds: feedList.map((f) => ({ id: f.id, name: f.name, host: new URL(f.url).host })),
