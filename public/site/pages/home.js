@@ -404,12 +404,14 @@
         stackFrame.src = 'about:blank'; stackFrame.remove(); stackFrame = null; stackOn = false;
         stackCard.append(waitLine());
       };
-      let awayAt = 0;
+      let awayAt = 0, inSight = false;
       if ('IntersectionObserver' in window) {
         stackIO = new IntersectionObserver((rows) => {
-          const seen = rows.some((r) => r.isIntersecting);
-          if (seen) { awayAt = 0; startStack(); return; }
-          awayAt = awayAt || setTimeout(() => { awayAt = 0; stopStack(); }, 20000);   // a scroll past it does not stop it
+          inSight = rows[rows.length - 1].isIntersecting;
+          // Back in sight: the pending stop is cancelled. (It used to be forgotten but not cancelled, so the scene was torn
+          // down 20 seconds later while the reader was turning it, and it did not come back.)
+          if (inSight) { clearTimeout(awayAt); awayAt = 0; startStack(); return; }
+          if (!awayAt) awayAt = setTimeout(() => { awayAt = 0; if (!inSight) stopStack(); }, 20000);   // a scroll past it does not stop it
         }, { rootMargin: '400px' });
         stackIO.observe(stackCard);
       } else { timers.push(setTimeout(startStack, 4000)); }
@@ -594,7 +596,7 @@
         window.removeEventListener('resize', relayout);
         if (ro) ro.disconnect();
         if (core) { core.destroy(); core = null; }
-        if (stackIO) { stackIO.disconnect(); stackIO = null; }
+        clearTimeout(awayAt); if (stackIO) { stackIO.disconnect(); stackIO = null; }
         if (stackFrame) stackFrame.src = 'about:blank';      // the 3D scene stops when the reader leaves the page
         clearTimeout(packT);
       };
