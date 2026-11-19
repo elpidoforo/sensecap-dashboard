@@ -75,6 +75,12 @@
       note: ['Several charging points can share the same coordinates. Compare the reported points by operator and current type. The inventory records infrastructure. Check with the operator for current availability.', 'Πολλά σημεία φόρτισης μπορεί να έχουν τις ίδιες συντεταγμένες. Σύγκρινε τα σημεία ανά πάροχο και τύπο ρεύματος. Για τη διαθεσιμότητα κάθε σημείου συμβουλεύσου τον πάροχο.'],
       axisLabel: ['Operator', 'Πάροχος']
     },
+    sea: {
+      name: ['Ships and ports', 'Πλοία και λιμάνια'], icon: 'pin', axis: 'quarter', extracts: ['seaarrivals', 'seanational', 'seafreight'],
+      question: ['How busy were the ports of Cyprus in each quarter?', 'Πόση κίνηση είχαν τα λιμάνια της Κύπρου σε κάθε τρίμηνο;'],
+      note: ['Published statistics by quarter. They do not show where ships are right now.', 'Δημοσιευμένα στατιστικά ανά τρίμηνο. Δεν δείχνουν πού βρίσκονται τα πλοία αυτή τη στιγμή.'],
+      axisLabel: ['Quarter', 'Τρίμηνο']
+    },
     census: {
       name: ['Municipal population', 'Πληθυσμός δήμων'], icon: 'users', axis: 'category',
       question: ['How many people lived in these four municipalities in 2021?', 'Πόσοι άνθρωποι ζούσαν στους τέσσερις δήμους το 2021;'],
@@ -98,6 +104,7 @@
 
   function coordinates(topic, key) {
     if (topic.axis === 'hour') return Number(String(key).slice(11,13));
+    if (topic.axis === 'quarter') return Number(String(key).slice(0,4)) * 4 + Number(String(key).slice(6));   // 2025-Q4: quarters are evenly spaced
     return topic.axis === 'date' ? Date.parse(String(key).slice(0, 10) + 'T00:00:00Z') : Number(key);
   }
   function lineChart(rows, series, topic, unit) {
@@ -133,7 +140,7 @@
         }
         prevX = at;
       });
-      chart.append(svg('path',{d:path,fill:'none',stroke:colours[s.index % colours.length],'stroke-width':2.6,'stroke-dasharray':dash[s.index % dash.length]}));
+      chart.append(svg('path',{d:path,fill:'none',stroke:colours[s.index % colours.length],'stroke-width':2.6,'stroke-dasharray':s.dash ?? dash[s.index % dash.length]}));
     });
     return h('div', {class:'fw-line-plot', role:'img', 'aria-label':translated(topic.question) + ' (' + unit + ')'},
       yLabels, chart, xLabels);
@@ -384,8 +391,15 @@
     }},t('Skip to selected investigation','Μετάβαση στην επιλεγμένη διερεύνηση'));
     root.append(SC.head({title:t('Explore source data','Διερεύνηση πηγών'),help:false,lede:t('Choose a Cyprus dataset, compare places and download the values behind your chart.','Επίλεξε δεδομένα για την Κύπρο, σύγκρινε περιοχές και κατέβασε τις τιμές του διαγράμματός σου.')}),skip,h('div',{class:'fw-layout'},nav,panel),
       h('a',{class:'fw-back',href:'#/layers'},t('Back to Data layers','Πίσω στα στρώματα δεδομένων')));
-    try { const data=await SC.api('/api/fieldwork/'+id); if (!Array.isArray(data.series) || !data.series.length) throw Error(); renderDataset(panel,id,data); }
+    // Ships and ports reads three extracts and has its own view (sea-ports.js); every other topic reads one.
+    async function load() {
+      const fetched = await Promise.all((topics[id].extracts || [id]).map(key => SC.api('/api/fieldwork/'+key)));
+      if (!fetched.every(data => Array.isArray(data.series) && data.series.length)) throw Error();
+      if (id === 'sea') SC.seaPorts(panel, {arrivals:fetched[0], national:fetched[1], freight:fetched[2]}, {lineChart, downloadCsv, format, colours});
+      else renderDataset(panel,id,fetched[0]);
+    }
+    try { await load(); }
     catch { panel.replaceChildren(h('p',{role:'alert'},t('This extract could not be loaded. Reopen the dataset to try again.','Αδυναμία φόρτωσης. Άνοιξε ξανά το σύνολο δεδομένων.')),
-      h('button',{type:'button',class:'nm-btn',onclick:async e=>{e.currentTarget.disabled=true;try {renderDataset(panel,id,await SC.api('/api/fieldwork/'+id));}catch{panel.querySelector('button').disabled=false;}}},t('Retry','Επανάληψη'))); }
+      h('button',{type:'button',class:'nm-btn',onclick:async e=>{e.currentTarget.disabled=true;try {await load();}catch{panel.querySelector('button').disabled=false;}}},t('Retry','Επανάληψη'))); }
   }});
 })();

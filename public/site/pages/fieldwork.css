@@ -81,3 +81,27 @@
 .fw-skip:focus {display:inline-block;margin:4px 0 10px;padding:8px 12px;color:var(--nm-ink);background:var(--nm-harbour);outline:2px solid var(--nm-copper-2)}
 
 .fw-fire-products {padding-inline-start:1.2rem}.fw-fire-products li + li {margin-top:12px}
+
+/* Ships and ports (sea-ports.js): quarterly port statistics, never ship positions. */
+.fw-sea-part {margin-top:26px;min-width:0}
+.fw-sea-part h3 {margin:0 0 6px;font-size:1.2rem;color:var(--nm-ink)}
+.fw-sea-part h4 {margin:0;font-size:1rem}
+.fw-sea-part > p,.fw-sea-part li {color:var(--nm-lede);line-height:1.5}
+.fw-sea-notlive {margin:16px 0 10px}
+.fw-sea-dates {display:flex;flex-wrap:wrap;gap:4px 22px;margin:0;font-size:.92rem;color:var(--nm-lede)}
+.fw-sea-map {max-height:70vh}
+.fw-sea-ports {display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px}
+.fw-sea-ports .nm-btn {max-width:100%;white-space:normal;text-align:left}
+.fw-sea-ports .nm-btn[aria-pressed=true] {background:var(--nm-copper-soft);border-color:var(--nm-copper-2);color:#ffd2aa}
+.fw-sea-detail {min-height:1.5em;overflow-wrap:anywhere}
+.fw-sea-select {max-width:100%;min-height:44px}
+.fw-sea-filters {display:flex;flex-wrap:wrap;gap:10px 22px}
+.fw-sea-filters span {display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0;max-width:100%}
+.fw-sea-swatch {flex-shrink:0}
+.fw-sea-missing {color:var(--nm-muted);font-style:italic}
+.fw-sea-total,.fw-sea-national,.fw-sea-ends {margin:12px 0;padding:10px 14px;border:1px dashed var(--nm-line);border-radius:10px;line-height:1.5;color:var(--nm-text)}
+.fw-sea-latest {list-style:none;padding:0;margin:10px 0;display:grid;gap:6px;font-size:.92rem}
+.fw-sea-latest li {display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.fw-sea-table summary {cursor:pointer;min-height:44px;display:flex;align-items:center;color:var(--nm-copper-2)}
+.fw-sea-table .fw-table-actions {margin-top:6px}
+.fw-sea-part .fw-bar-line {flex-wrap:wrap}

@@ -72,7 +72,7 @@ ok(x.sum.status === 'fail' && gate(x, 'licence').status === 'fail' && /could not
 // the real extracts that ship with the site
 const H = createDataHealth({ layers: null, root: ROOT, log: () => {} });
 const real = H._t.extractsReport();
-ok(real.items.length === 13, 'all thirteen investigations are reported (' + real.items.length + ')');
+ok(real.items.length === 16, 'all sixteen extracts behind the investigations are reported (' + real.items.length + ')');
 ok(real.items.every((it) => gate(it, 'licence').status === 'pass'), 'every investigation that ships has a licence recorded');
 ok(real.items.every((it) => it.gates.length === 5 && it.name && it.nameEl), 'every investigation is checked five ways and named in both languages');
 ok(real.items.some((it) => gate(it, 'fingerprint').status === 'pass'), 'at least one investigation still matches the file it was made from');
