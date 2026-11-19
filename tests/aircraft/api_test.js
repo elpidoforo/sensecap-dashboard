@@ -7,7 +7,7 @@
 const os = require('os'), fs = require('fs'), path = require('path'), http = require('http');
 const { spawn } = require('child_process');
 const ROOT = path.join(__dirname, '..', '..');
-const PORT = 3989, FAKE_PORT = 3988, BASE = `http://127.0.0.1:${PORT}`;
+const PORT = Number(process.env.AIRCRAFT_TEST_PORT) || 3989, FAKE_PORT = Number(process.env.AIRCRAFT_FAKE_PORT) || 3988, BASE = `http://127.0.0.1:${PORT}`;
 let passed = 0, failed = 0;
 const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + m); } };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));

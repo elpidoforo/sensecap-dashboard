@@ -6,7 +6,7 @@
 const os = require('os'), fs = require('fs'), path = require('path');
 const { spawn } = require('child_process');
 const { chromium } = require('playwright');
-const PORT = 3987, BASE = `http://127.0.0.1:${PORT}`;
+const PORT = Number(process.env.AIRCRAFT_TEST_PORT) || 3987, BASE = `http://127.0.0.1:${PORT}`;
 const SHOTS = process.env.AIRCRAFT_SHOTS || (fs.existsSync('/home/claude/kleanthis-research') ? '/home/claude/kleanthis-research' : os.tmpdir());
 let passed = 0, failed = 0;
 const ok = (c, m) => { if (c) passed++; else { failed++; console.log('FAIL: ' + m); } };

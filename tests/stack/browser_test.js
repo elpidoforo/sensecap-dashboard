@@ -8,7 +8,7 @@
 const { spawn } = require('child_process');
 const fs = require('fs'), os = require('os'), path = require('path');
 const { chromium, devices } = require('playwright');
-const ROOT = path.join(__dirname, '..', '..'), PORT = 3979, BASE = 'http://127.0.0.1:' + PORT;
+const ROOT = path.join(__dirname, '..', '..'), PORT = Number(process.env.STACK_TEST_PORT) || 3979, BASE = 'http://127.0.0.1:' + PORT;
 let pass = 0, fail = 0;
 const ok = (c, name) => { if (c) pass++; else { fail++; console.log('FAIL: ' + name); } };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
