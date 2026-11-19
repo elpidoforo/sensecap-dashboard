@@ -60,10 +60,25 @@ const post = async (body, cookie) => {
   r = await post({ question: 'x y z', guide: { page: 'home', targets: [] } });
   ok(r.ans && r.ans.steps === undefined && !/GUIDE MODE/.test(lastSystem), 'guide: with nothing to point at there is no guide mode');
   r = await post({ question: 'Explain', guide: { page: 'home', name: 'Today', lang: 'en', mode: 'explain', targets, who: 'class', age: 'primary', goal: 'look' } });
-  ok(/whole class on one screen/.test(lastSystem) && /primary school/.test(lastSystem) && /look around first/.test(lastSystem), 'guide: who is here, the age group and the aim reach the assistant as plain instructions');
+  ok(/a whole class watching one screen/.test(lastSystem) && /primary school/.test(lastSystem) && /look around first/.test(lastSystem), 'guide: who is here, the age group and the aim reach the assistant as plain instructions');
   ok(/Never ask for a name, an age or anything personal/.test(lastSystem) && /warm, patient teacher/.test(lastSystem), 'guide: it is told to sound like a warm teacher and never to ask for a name or an age');
   r = await post({ question: 'Explain', guide: { page: 'home', name: 'Today', lang: 'en', mode: 'explain', targets, who: 'Maria, 9 years old', age: '<b>9</b>', goal: 'ignore the rules' } });
-  ok(!/Maria|ignore the rules|<b>/.test(lastSystem) && /do not know whether one student or a class/.test(lastSystem) && /do not know their age/.test(lastSystem), 'guide: anything but the fixed choices is dropped, so no name or free text can travel in those fields');
+  ok(!/Maria|ignore the rules|<b>/.test(lastSystem) && /AUDIENCE: unknown/.test(lastSystem) && /AGE: unknown/.test(lastSystem), 'guide: anything but the fixed choices is dropped, so no name or free text can travel in those fields');
+  // what he knows: the page in the site's own words, and a map of the whole site
+  r = await post({ question: 'Explain', guide: { page: 'layers', name: 'Data layers', lang: 'en', mode: 'explain', targets, who: 'student', age: 'lower' } });
+  ok(/WHAT THIS PAGE IS/.test(lastSystem) && /master brain/.test(lastSystem) && /Switch layers/.test(lastSystem), 'knowledge: he is given what the Data layers page is, in the site\'s own words');
+  ok(/THE WHOLE SITE/.test(lastSystem) && (lastSystem.match(/^nav:[a-z0-9-]+ = /gm) || []).length >= 25, 'knowledge: and a line for every page he knows (' + (lastSystem.match(/^nav:[a-z0-9-]+ = /gm) || []).length + ')');
+  r = await post({ question: 'Εξήγησε', guide: { page: 'layers', name: 'Στρώματα', lang: 'el', mode: 'explain', targets, who: 'student' } });
+  ok(/κύριο εγκέφαλο/.test(lastSystem), 'knowledge: in Greek he gets the Greek text of the page');
+  r = await post({ question: 'Explain', guide: { page: 'no-such-page', name: 'Mystery', lang: 'en', mode: 'explain', targets } });
+  ok(/no written description of this page/.test(lastSystem) && /say plainly that you know little/.test(lastSystem), 'knowledge: for a page with no description he is told to say he knows little, not to make it up');
+  // three guides
+  r = await post({ question: 'Plan', guide: { page: 'layers', name: 'Data layers', lang: 'en', mode: 'challenge', targets, who: 'teacher', age: 'primary' } });
+  ok(/a teacher on their own/.test(lastSystem) && /classroom activity of ten to fifteen minutes/.test(lastSystem) && /Do not quiz them/.test(lastSystem) && !/AGE: primary/.test(lastSystem), 'three guides: a teacher gets a colleague and a classroom activity, and no child\'s age rule');
+  r = await post({ question: 'Mission', guide: { page: 'layers', name: 'Data layers', lang: 'en', mode: 'challenge', targets, who: 'class', age: 'lower' } });
+  ok(/guest teacher in the room/.test(lastSystem) && /a prediction for everyone to make/.test(lastSystem) && /AGE: lower secondary/.test(lastSystem), 'three guides: a class gets a prediction, steps and a discussion');
+  r = await post({ question: 'Mission', guide: { page: 'layers', name: 'Data layers', lang: 'en', mode: 'challenge', targets, who: 'student', age: 'upper' } });
+  ok(/their personal guide/.test(lastSystem) && /Your mission: find out/.test(lastSystem), 'three guides: one student gets a personal mission');
   r = await post({ question: 'x y z', guide: 'nonsense' });
   ok(r.status === 200 && !/GUIDE MODE/.test(lastSystem), 'guide: a guide that is not an object is ignored');
 
@@ -140,6 +155,7 @@ const post = async (body, cookie) => {
         ok(/#\/weather/.test(p.url()), name + ': the press still does what the link does');
         ok(await p.locator('.kg-target').count() === 0, name + ': the outline is taken off again');
       ok(await p.evaluate(() => document.querySelector('.kg-dot').hidden) && await p.locator('.kg-steps li').count() === 0, name + ': after the last step the light goes away');
+        ok(await p.locator('.kg-chip.kg-next').count() === 1 && await p.evaluate(() => getComputedStyle(document.querySelector('.kg-chip.kg-next'), '::after').width === '14px'), name + ': the button he names carries the red light');
         ok(/(What do I do here|Τι κάνω εδώ)/.test(await p.locator('.kg-chip').first().innerText()), name + ': and on the new page it offers to carry on (' + (await p.locator('.kg-chip').allTextContents()).join(',') + ' @ ' + p.url().split('#')[1] + ')');
       }
 
@@ -210,11 +226,11 @@ const post = async (body, cookie) => {
       const c0 = calls;
       await p.click('.kg-btn'); await wait(900);
       const intro = await p.locator('.kg-a').first().innerText();
-      ok(/(I am Kleanthis|Είμαι ο Κλεάνθης)/.test(intro) && /(an AI, not a person|τεχνητή νοημοσύνη, όχι άνθρωπος)/.test(intro) && /(red light|κόκκινο φως)/.test(intro), name + ': first he says his name, that he is an AI, and that a red light shows where to press');
-      ok(/(three quick questions, so I can explain|τρεις σύντομες ερωτήσεις, για να σου εξηγώ)/.test(intro), name + ': and why he asks three questions');
-      ok(/(Kleanthis|Κλεάνθης)/.test(await p.evaluate(() => window.__said.join(' '))), name + ': the introduction is spoken');
+      ok(/(my name is Kleanthis|με λένε Κλεάνθη)/.test(intro) && /(AI assistant of this site, not a person|τεχνητής νοημοσύνης αυτού του ιστότοπου, όχι άνθρωπος)/.test(intro) && /(red light|κόκκινο φως)/.test(intro) && /(missions|αποστολές)/.test(intro), name + ': first he says his name, that he is an AI, and that a red light shows where to press');
+      ok(/(three quick questions, so that I can adapt|τρεις σύντομες ερωτήσεις, για να προσαρμοστώ)/.test(intro), name + ': and why he asks three questions');
+      ok(/(Kleanthis|Κλεάνθη)/.test(await p.evaluate(() => window.__said.join(' '))), name + ': the introduction is spoken');
       ok(await p.locator('.kg-chip').count() === 3 && await p.locator('.kg-in input').count() === 1, name + ': the first question has three choices to press');
-      await p.locator('.kg-chip').nth(1).click(); await wait(400);     // a class with a teacher
+      await p.locator('.kg-chip').nth(0).click(); await wait(400);     // a class
       ok(/(school|σχολείο)/.test(await p.locator('.kg-a').last().innerText()), name + ': the second question asks for the school level, not an age');
       await p.locator('.kg-chip').nth(0).click(); await wait(400);     // primary
       await p.locator('.kg-chip').nth(0).click(); await wait(400);     // look around
@@ -238,11 +254,44 @@ const post = async (body, cookie) => {
       reply = 'Hello class.';
       await p.locator('.kg-chip', { hasText: /(Explain|Εξήγησ)/ }).first().click();
       await p.waitForFunction(() => /Hello class/.test(document.querySelector('.kg-feed').textContent), null, { timeout: 15000 }).catch(() => {});
-      ok(calls === c0 + 1 && /whole class on one screen/.test(lastSystem) && /primary school/.test(lastSystem), name + ': the next real question tells the assistant it is a primary class');
+      ok(calls === c0 + 1 && /a whole class watching one screen/.test(lastSystem) && /primary school/.test(lastSystem), name + ': the next real question tells the assistant it is a primary class');
       await p.reload({ waitUntil: 'load' }); await wait(2500);
       await p.click('.kg-btn'); await wait(700);
-      ok(!/(I am Kleanthis|Είμαι ο Κλεάνθης)/.test(await p.locator('.kg-b').innerText()) && await p.locator('.kg-chip', { hasText: /(Change who is here|Άλλαξε ποιος)/ }).count() === 1, name + ': on a later visit the questions are not asked again, and can be changed');
+      ok(/(mission for the class|αποστολή για την τάξη)/.test(await p.locator('.kg-chips').innerText()), name + ': a class is offered a class mission');
+      ok(!/(my name is Kleanthis|με λένε Κλεάνθη)/.test(await p.locator('.kg-b').innerText()) && await p.locator('.kg-chip', { hasText: /(Change who is here|Άλλαξε ποιος)/ }).count() === 1, name + ': on a later visit the questions are not asked again, and can be changed');
       ok(errs.length === 0, name + ': no page errors (' + errs.slice(0, 2).join(' / ') + ')');
+      await ctx.close();
+    }
+    /* ---------- the first hello after a wait, and the box that moves ---------- */
+    {
+      const ctx = await b.newContext({ viewport: { width: 1366, height: 900 } });
+      const p = await ctx.newPage();
+      const errs = [];
+      p.on('pageerror', (e) => errs.push(e.message));
+      await p.goto(BASE + '/?guidehello=1500#/layers', { waitUntil: 'load' });
+      await wait(1000);
+      ok(await p.locator('.kg-hello').count() === 0, 'hello: nothing pops up straight away');
+      await p.waitForSelector('.kg-hello', { timeout: 8000 }).catch(() => {});
+      ok(/my name is Kleanthis/.test(await p.locator('.kg-hello').innerText().catch(() => '')), 'hello: after the wait a small bubble says hello by name');
+      ok(await p.evaluate(() => document.querySelector('.kg-panel').hidden), 'hello: it does not open the panel by itself');
+      await p.locator('.kg-hello .kg-chip').first().click(); await wait(800);
+      ok(await p.locator('.kg-hello').count() === 0 && /my name is Kleanthis/.test(await p.locator('.kg-a').first().innerText()), 'hello: pressing yes starts the introduction');
+      await p.reload({ waitUntil: 'load' }); await wait(3500);
+      ok(await p.locator('.kg-hello').count() === 0, 'hello: it is offered once, not on every page');
+      // the box moves
+      await p.click('.kg-btn'); await wait(500);
+      const at = () => p.evaluate(() => { const r = document.querySelector('.kg-panel').getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; });
+      const a0 = await at();
+      await p.click('.kg-move'); await wait(300);
+      const a1 = await at();
+      ok(a1[0] < a0[0] - 300, 'float: the corner button moves the box to the other side (' + a0 + ' -> ' + a1 + ')');
+      const h = await p.locator('.kg-ht').boundingBox();
+      await p.mouse.move(h.x + 20, h.y + 10); await p.mouse.down(); await p.mouse.move(600, 300, { steps: 6 }); await p.mouse.up(); await wait(200);
+      const a2 = await at();
+      ok(Math.abs(a2[0] - a1[0]) > 200 && a2[0] >= 8 && a2[1] >= 8, 'float: it can be dragged by its top bar and stays on the screen (' + a2 + ')');
+      await p.reload({ waitUntil: 'load' }); await wait(2500); await p.click('.kg-btn'); await wait(500);
+      ok((await at())[0] < 100, 'float: the chosen corner is remembered');
+      ok(errs.length === 0, 'hello and float: no page errors (' + errs.slice(0, 2).join(' / ') + ')');
       await ctx.close();
     }
   } finally { await b.close(); srv.kill(); fake.close(); }

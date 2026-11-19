@@ -162,6 +162,7 @@
 
   SC.askBubble = {
     close() { if (root && open) toggle(false); },
+    isOpen() { return open; },
     setPage(id, name) {
       if (!root) build();
       pageId = id; pageName = name || id;

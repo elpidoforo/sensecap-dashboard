@@ -79,3 +79,28 @@
   .kg-panel.stepping.up { bottom: auto; top: 12px; }
 }
 @media print { .kg-root, .kg-dot { display: none; } }
+
+/* the box floats: four corners (the button in its top bar steps through them) or wherever it was dragged */
+.kg-h { cursor: grab; touch-action: none; }
+.kg-move { width: 28px; height: 28px; flex: 0 0 auto; border-radius: 50%; cursor: pointer; background: transparent; border: 1px solid rgba(255, 255, 255, .16); color: #9db0c8; font-size: 14px; line-height: 1; }
+@media (min-width: 641px) {
+  .kg-panel.at-bl { right: auto; left: 22px; }
+  .kg-panel.at-tl { right: auto; left: 22px; bottom: auto; top: 22px; }
+  .kg-panel.at-tr { bottom: auto; top: 22px; }
+}
+@media (max-width: 640px) { .kg-move { display: none; } .kg-h { cursor: default; } }
+/* the first hello */
+.kg-hello { position: fixed; right: 22px; bottom: 134px; z-index: 61; width: min(300px, calc(100vw - 32px)); padding: 12px 14px; border-radius: 16px 16px 4px 16px;
+  color: #e6eef8; background: linear-gradient(165deg, rgba(20, 44, 74, .98), rgba(7, 16, 30, .98)); border: 1px solid rgba(242, 165, 107, .5);
+  box-shadow: 0 24px 50px -24px rgba(0, 0, 0, .95); font: 400 13.5px/1.5 var(--nm-font, Inter, system-ui, sans-serif); }
+.kg-hello p { margin: 0 0 10px; }
+.kg-hello div { display: flex; gap: 7px; flex-wrap: wrap; }
+@media (max-width: 640px) { .kg-hello { right: 12px; bottom: 124px; } }
+@media print { .kg-hello { display: none; } }
+
+/* "Press What do I do here?": the button he names gets the same red light and outline as anything else he points at */
+.kg-chip.kg-next { position: relative; outline: 2px solid #ff5a4d; outline-offset: 3px; padding-right: 30px; }
+.kg-chip.kg-next::after { content: ""; position: absolute; right: 8px; top: 50%; width: 14px; height: 14px; margin-top: -7px; border-radius: 50%;
+  background: radial-gradient(circle, #ff5a4d 0 45%, rgba(255, 60, 48, .45) 47% 70%, transparent 72%); box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .85), 0 0 12px 3px rgba(255, 60, 48, .75);
+  animation: kg-pulse 1.3s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .kg-chip.kg-next::after { animation: none; } }

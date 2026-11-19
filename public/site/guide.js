@@ -150,12 +150,18 @@
     panel.querySelector('.kg-ctl').hidden = !steps.length;
     panel.classList.toggle('stepping', steps.length > 0);   // on a phone the panel shrinks to the current step, so it does not cover the thing to press
   }
+  // What the two main buttons say depends on who is here: a student gets missions, a class gets class missions, a teacher gets lesson ideas.
+  const CHIPS = {
+    student: [['explain', 'Explain this page', 'Εξήγησέ μου τη σελίδα'], ['challenge', 'Give me a mission', 'Δώσε μου μια αποστολή']],
+    class: [['explain', 'Explain this page to the class', 'Εξήγησε τη σελίδα στην τάξη'], ['challenge', 'A mission for the class', 'Μια αποστολή για την τάξη']],
+    teacher: [['explain', 'What can I teach with this page?', 'Τι μπορώ να διδάξω με αυτή τη σελίδα;'], ['challenge', 'Plan a class activity', 'Σχεδίασε μια δραστηριότητα']],
+  };
   function chips() {
     const box = panel.querySelector('.kg-chips');
     const list = [];
     if (arrived) list.push(['here', T('What do I do here?', 'Τι κάνω εδώ;')]);
-    list.push(['explain', T('Explain this page', 'Εξήγησέ μου τη σελίδα')], ['challenge', T('Give me a challenge', 'Δώσε μου μια πρόκληση')]);
-    box.replaceChildren(...list.map(([mode, text]) => el('button', { type: 'button', class: 'kg-chip', onclick: () => ask(text, mode) }, text)),
+    (CHIPS[who && who.who] || CHIPS.student).forEach(([mode, en, gr]) => list.push([mode, T(en, gr)]));
+    box.replaceChildren(...list.map(([mode, text]) => el('button', { type: 'button', class: 'kg-chip' + (mode === 'here' ? ' kg-next' : ''), onclick: () => ask(text, mode) }, text)),   // the button he has just named carries the red light too
       el('button', { type: 'button', class: 'kg-chip kg-quiet', onclick: tour }, T('Show me round', 'Ξενάγησέ με')),
       el('button', { type: 'button', class: 'kg-chip kg-quiet', onclick: welcome }, T('Change who is here', 'Άλλαξε ποιος είναι εδώ')));
   }
@@ -169,8 +175,8 @@
   let who = null;
   try { const w = JSON.parse(store.get(WHO_KEY) || 'null'); if (w && typeof w === 'object') who = { who: w.who || null, age: w.age || null, goal: w.goal || null }; } catch (e) { who = null; }
   const QUESTIONS = [
-    { key: 'who', q: ['First: who is here with me?', 'Πρώτα: ποιος είναι εδώ μαζί μου;'],
-      opts: [['student', 'Just me', 'Μόνο εγώ'], ['class', 'A class with a teacher', 'Μια τάξη με εκπαιδευτικό'], ['teacher', 'I am a teacher', 'Είμαι εκπαιδευτικός']] },
+    { key: 'who', q: ['Who am I speaking with?', 'Με ποιον μιλάω;'],
+      opts: [['class', 'A class', 'Μια τάξη'], ['teacher', 'A teacher', 'Έναν εκπαιδευτικό'], ['student', 'One student', 'Έναν μαθητή ή μια μαθήτρια']] },
     { key: 'age', q: ['Which school are the students in?', 'Σε ποιο σχολείο πάνε οι μαθητές;'],
       opts: [['primary', 'Primary school', 'Δημοτικό'], ['lower', 'Gymnasium (12 to 14)', 'Γυμνάσιο (12 έως 14)'], ['upper', 'Lyceum (15 to 18)', 'Λύκειο (15 έως 18)']] },
     { key: 'goal', q: ['And what would you like to do today?', 'Και τι θα ήθελες να κάνεις σήμερα;'],
@@ -178,8 +184,8 @@
   ];
   function welcome() {
     hush(); finish('');
-    const hello = T('Hello! I am Kleanthis, your guide on this site. I am an AI, not a person. I will show you where to press with a red light, so that you find the answers yourself. I have three quick questions, so I can explain things in the way that suits you.',
-      'Γεια σου! Είμαι ο Κλεάνθης, ο οδηγός σου σε αυτόν τον ιστότοπο. Είμαι τεχνητή νοημοσύνη, όχι άνθρωπος. Θα σου δείχνω με ένα κόκκινο φως πού να πατήσεις, για να βρίσκεις μόνος σου τις απαντήσεις. Έχω τρεις σύντομες ερωτήσεις, για να σου εξηγώ με τον τρόπο που σου ταιριάζει.');
+    const hello = T('Hello, my name is Kleanthis. I am the AI assistant of this site, not a person. I am here to teach you, to help you find your way around, and to give you missions. I show you where to press with a red light. First, three quick questions, so that I can adapt to you.',
+      'Γεια σου, με λένε Κλεάνθη. Είμαι ο βοηθός τεχνητής νοημοσύνης αυτού του ιστότοπου, όχι άνθρωπος. Είμαι εδώ για να σε διδάξω, να σε βοηθήσω να βρεις τον δρόμο σου και να σου δώσω αποστολές. Σου δείχνω πού να πατήσεις με ένα κόκκινο φως. Πρώτα, τρεις σύντομες ερωτήσεις, για να προσαρμοστώ σε σένα.');
     const box = el('div', { class: 'kg-a' }, el('p', null, hello)); say(box);
     who = { who: null, age: null, goal: null };
     askWho(0, hello);
@@ -315,6 +321,7 @@
     panel = el('div', { class: 'kg-panel', hidden: true, role: 'dialog', 'aria-label': T('Kleanthis guides you through this page', 'Ο Κλεάνθης σε οδηγεί σε αυτή τη σελίδα') },
       el('div', { class: 'kg-h' },
         el('div', { class: 'kg-ht' }, el('b', null, T('Guide me', 'Οδήγησέ με')), el('small', null, '')),
+        el('button', { type: 'button', class: 'kg-move', 'aria-label': T('Move this box to another corner', 'Μετακίνησε το πλαίσιο σε άλλη γωνία'), title: T('Move to another corner', 'Σε άλλη γωνία'), onclick: nextCorner }, '⤢'),
         voiceBtn,
         el('button', { type: 'button', class: 'kg-x', 'aria-label': T('Close', 'Κλείσιμο'), onclick: () => toggle(false) }, '×')),
       el('div', { class: 'kg-b' },
@@ -335,6 +342,8 @@
     dot = el('div', { class: 'kg-dot' + (reduced() ? ' still' : ''), hidden: true, 'aria-hidden': 'true' });
     root = el('div', { class: 'kg-root' }, panel, btn);
     document.body.append(root, dot);
+    dock(); panel.querySelector('.kg-h').addEventListener('pointerdown', dragStart);
+    helloLater();
     document.addEventListener('click', onClick, true);
     addEventListener('keydown', (e) => {   // Escape closes the guide, unless the student is closing a dialog of the page
       if (e.key !== 'Escape' || !open || e.defaultPrevented) return;
@@ -345,8 +354,48 @@
     addEventListener('pagehide', hush);
   }
 
+  /* ---------- the box floats: drag it by its top bar, or press the corner button; it never has to cover what you are reading ---------- */
+  const POS_KEY = 'sc.guide.pos.v1', CORNERS = ['br', 'bl', 'tl', 'tr'];
+  let corner = CORNERS.includes(store.get(POS_KEY)) ? store.get(POS_KEY) : 'br';
+  function dock() { panel.style.left = ''; panel.style.top = ''; panel.style.right = ''; panel.style.bottom = ''; CORNERS.forEach((c) => panel.classList.toggle('at-' + c, c === corner)); panel.classList.remove('free'); }
+  function nextCorner() { corner = CORNERS[(CORNERS.indexOf(corner) + 1) % CORNERS.length]; store.set(POS_KEY, corner); dock(); }
+  function dragStart(e) {
+    if (e.target.closest('button') || innerWidth <= 640) return;      // on a phone the box already moves out of the way by itself
+    const r = panel.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+    const move = (ev) => {
+      const x = Math.max(8, Math.min(innerWidth - r.width - 8, ev.clientX - dx)), y = Math.max(8, Math.min(innerHeight - 60, ev.clientY - dy));
+      panel.classList.add('free'); CORNERS.forEach((c) => panel.classList.remove('at-' + c));
+      panel.style.left = x + 'px'; panel.style.top = y + 'px'; panel.style.right = 'auto'; panel.style.bottom = 'auto';
+    };
+    const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); };
+    addEventListener('pointermove', move); addEventListener('pointerup', up);
+    e.preventDefault();
+  }
+
+  /* ---------- the first hello: a minute after a first visit, a small bubble by the button offers the introduction ----------
+   * Once per browser, never while a panel is open, and it only speaks after it is pressed (a browser allows no voice before a press). */
+  const HELLO_KEY = 'sc.guide.hello.v1';
+  let helloTimer = null, bubble = null;
+  function helloLater() {
+    if (who || store.get(HELLO_KEY) || helloTimer) return;
+    helloTimer = setTimeout(() => {
+      helloTimer = null;
+      if (open || who || root.hidden || (SC.askBubble && SC.askBubble.isOpen && SC.askBubble.isOpen())) return;
+      store.set(HELLO_KEY, '1');
+      bubble = el('div', { class: 'kg-hello', role: 'status' },
+        el('p', null, T('Hello, my name is Kleanthis. Shall I show you how this site works?', 'Γεια σου, με λένε Κλεάνθη. Να σου δείξω πώς δουλεύει αυτός ο ιστότοπος;')),
+        el('div', null,
+          el('button', { type: 'button', class: 'kg-chip', onclick: () => { hideHello(); toggle(true); } }, T('Yes, please', 'Ναι, παρακαλώ')),
+          el('button', { type: 'button', class: 'kg-chip kg-quiet', onclick: hideHello }, T('Not now', 'Όχι τώρα'))));
+      root.append(bubble);
+    }, HELLO_MS);
+  }
+  function hideHello() { if (bubble) { bubble.remove(); bubble = null; } }
+  const HELLO_MS = (() => { try { const m = /[?&]guidehello=(\d+)/.exec(location.search); if (m) return Math.max(200, Number(m[1])); } catch (e) { /* no address */ } return 60000; })();
+
   function toggle(want) {
     open = !!want;
+    if (open) hideHello();
     panel.hidden = !open;
     btn.setAttribute('aria-expanded', String(open));
     if (open) { if (SC.askBubble && SC.askBubble.close) SC.askBubble.close(); loadKit(); if (!who && !feed().children.length) welcome(); else chips(); setTimeout(() => { const c = panel.querySelector('.kg-chip'); if (c && open) c.focus(); }, 30); }
