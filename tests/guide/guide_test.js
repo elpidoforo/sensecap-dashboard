@@ -134,7 +134,7 @@ const post = async (body, cookie) => {
         ok(/#\/weather/.test(p.url()), name + ': the press still does what the link does');
         ok(await p.locator('.kg-target').count() === 0, name + ': the outline is taken off again');
       ok(await p.evaluate(() => document.querySelector('.kg-dot').hidden) && await p.locator('.kg-steps li').count() === 0, name + ': after the last step the light goes away');
-        ok(/(What do I do here|Τι κάνω εδώ)/.test(await p.locator('.kg-chip').first().innerText()), name + ': and on the new page it offers to carry on');
+        ok(/(What do I do here|Τι κάνω εδώ)/.test(await p.locator('.kg-chip').first().innerText()), name + ': and on the new page it offers to carry on (' + (await p.locator('.kg-chip').allTextContents()).join(',') + ' @ ' + p.url().split('#')[1] + ')');
       }
 
       // typed text: a phone number is not sent
@@ -145,6 +145,36 @@ const post = async (body, cookie) => {
       await p.fill('.kg-in input', greek ? 'Νομίζω η Λεμεσός' : 'I think it is Limassol'); await p.click('.kg-in button');
       await p.waitForFunction((n) => document.querySelectorAll('.kg-a').length > n, 1, { timeout: 15000 }).catch(() => {});
       ok(calls === n0 + 1 && /typed an answer or a question/.test(lastSystem), name + ': a plain typed answer is sent, as an answer to the teacher');
+
+      // the review's cases
+      if (!phone) {
+        // a page that shows what students wrote sends the menu links only
+        await p.goto(BASE + '/' + (greek ? '?lang=el' : '') + '#/submitted', { waitUntil: 'load' }); await wait(2500);
+        if (await p.evaluate(() => document.querySelector('.kg-panel').hidden)) { await p.click('.kg-btn'); await wait(500); }
+        reply = 'Words only.';
+        const c0 = calls;
+        await p.locator('.kg-chip', { hasText: /(Explain|Εξήγησ)/ }).first().click();
+        await p.waitForFunction((n) => document.querySelectorAll('.kg-a').length > n, await p.locator('.kg-a').count(), { timeout: 15000 }).catch(() => {});
+        ok(calls === c0 + 1 && /nav:layers = /.test(lastSystem) && !/^el:\d+ = /m.test(lastSystem), name + ': on a page with student writing only the menu links are sent, never the page\'s own buttons');
+
+        // two presses on the target do not skip a step; Stop inside the 350 ms does not bring "well done"
+        await p.goto(BASE + '/' + (greek ? '?lang=el' : '') + '#/layers', { waitUntil: 'load' }); await wait(2500);
+        if (await p.evaluate(() => document.querySelector('.kg-panel').hidden)) { await p.click('.kg-btn'); await wait(500); }
+        reply = 'Three steps.\nSTEP: el:1 | One.\nSTEP: el:1 | Two.\nSTEP: el:1 | Three.';
+        await p.locator('.kg-chip', { hasText: /(Explain|Εξήγησ)/ }).first().click();
+        await p.waitForFunction(() => document.querySelectorAll('.kg-steps li').length === 3, null, { timeout: 15000 }).catch(() => {});
+        await wait(1800);
+        await p.evaluate(() => { const t = document.querySelector('.kg-target'); t.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); t.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); });
+        await wait(900);
+        ok(await p.locator('.kg-steps li.done').count() === 1, name + ': a double press ticks off one step, not two (' + await p.locator('.kg-steps li.done').count() + ')');
+        const notes1 = await p.locator('.kg-note').allTextContents();
+        await p.evaluate(() => { document.querySelector('.kg-target').dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); [...document.querySelectorAll('.kg-ctl button')][1].click(); });
+        await wait(900);
+        const notes2 = await p.locator('.kg-note').allTextContents();
+        ok(await p.locator('.kg-steps li').count() === 0 && !notes2.slice(notes1.length).some((t) => /(Well done|Μπράβο)/.test(t)), name + ': Stop right after a press stops, and nothing says "well done" afterwards');
+        ok(await p.locator('.kg-target').count() === 0 && await p.evaluate(() => document.querySelector('.kg-dot').hidden), name + ': and the light and outline are gone');
+        ok(await p.evaluate(() => { const b2 = document.querySelector('.kg-chip'); const f = getComputedStyle(b2); return f.fontWeight === '600' && f.fontSize === '12px'; }), name + ': the small buttons carry their own type size');
+      }
 
       // one panel at a time, and closing stops everything
       await p.click('.kb-bubble'); await wait(500);

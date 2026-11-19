@@ -20,6 +20,7 @@
 
   let root = null, panel = null, btn = null, dot = null, open = false, busy = false, stop = null;
   let pageId = null, pageName = '';
+  const OWN_PAGES = new Set(['home', 'layers', 'weather', 'explore', 'library', 'city3d', 'city', 'stack', 'health', 'fieldwork', 'alerts', 'warnings', 'feeds', 'helpers', 'research', 'archive', 'guides', 'districts', 'vehicles', 'aircraft']);
   let voiceOn = store.get('sc.guide.voice') !== '0';
   let targets = new Map();            // id -> element, as listed for the last request
   let steps = [], at = -1, watch = null, arrived = false;
@@ -35,16 +36,25 @@
       const id = 'nav:' + String(a.getAttribute('data-id')).toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32), label = labelOf(a);
       if (id.length > 4 && label && !targets.has(id) && a.getAttribute('data-id') !== pageId) { targets.set(id, a); list.push({ id, label: label.slice(0, 48) }); }
     });
-    const view = document.getElementById('view');
+    // Buttons of the page are listed only on pages whose words are the site's own. Pages that show what students wrote (titles,
+    // team names, notes) send the menu links alone, so nothing a student typed can reach the assistant as a "label".
+    const view = OWN_PAGES.has(pageId) ? document.getElementById('view') : null;
     let n = 0;
     if (view) view.querySelectorAll('button, a.nm-btn, [role="tab"], select, summary').forEach((b) => {
       if (n >= 28 || b.disabled || !visible(b)) return;
-      const label = labelOf(b);
-      if (label.length < 2 || label.length > 48) return;
+      const label = String(b.textContent || '').replace(/\s+/g, ' ').trim() || labelOf(b);
+      if (b.closest('[data-student], form') || label.length < 2 || label.length > 48) return;
       const id = 'el:' + (++n);
       targets.set(id, b); list.push({ id, label });
     });
     return list;
+  }
+
+  // A menu link is looked up afresh each time (the shell redraws the menu); a button of the page is the very element that was listed.
+  function nodeOf(id) {
+    if (!targets.has(id)) return null;
+    if (!id.startsWith('nav:')) return targets.get(id);
+    return [...document.querySelectorAll('a.nm-side-a[data-id]')].find((a) => 'nav:' + String(a.getAttribute('data-id')).toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32) === id) || null;
   }
 
   /* ---------- the voice (this device only) ---------- */
@@ -72,14 +82,18 @@
   }
   let lit = null;
   function unlight() { if (lit) { lit.classList.remove('kg-target'); lit = null; } }
+  let pressed = false;                  // between a press and the next step the menu may be redrawn: do not judge the old link in that moment
   function place() {
+    if (pressed) return;
     if (at < 0 || !steps[at]) { dot.hidden = true; unlight(); return; }
-    const node = targets.get(steps[at].id);
+    const node = nodeOf(steps[at].id);
     if (!node || !node.isConnected) { finish(T('That button is not on the screen any more, so I stopped the steps.', 'Αυτό το κουμπί δεν είναι πια στην οθόνη, γι’ αυτό σταμάτησα τα βήματα.')); return; }
     const show = burgerFor(node) || node;
     if (!visible(show)) { dot.hidden = true; unlight(); return; }
     const r = show.getBoundingClientRect();
-    if (r.bottom < 0 || r.top > innerHeight) { try { show.scrollIntoView({ block: 'center', behavior: reduced() ? 'auto' : 'smooth' }); } catch (e) { show.scrollIntoView(); } }
+    if (!scrolled && (r.bottom < 0 || r.top > innerHeight)) { scrolled = true; try { show.scrollIntoView({ block: 'center', behavior: reduced() ? 'auto' : 'smooth' }); } catch (e) { show.scrollIntoView(); } }
+    if (lit !== show) { unlight(); lit = show; lit.classList.add('kg-target'); }
+    if (r.bottom < 0 || r.top > innerHeight) { dot.hidden = true; return; }   // the student scrolled away to read: the outline stays, the light waits
     dot.hidden = false;
     panel.classList.toggle('up', innerWidth <= 640 && r.top + r.height / 2 > innerHeight / 2);   // on a phone the panel moves out of the way of the thing to press
     // the light sits in the top right corner of the thing (so its words stay readable) and a red outline goes round all of it
@@ -87,21 +101,24 @@
     if (lit !== show) { unlight(); lit = show; lit.classList.add('kg-target'); }
   }
   function onClick(e) {
-    if (at < 0 || !steps[at]) return;
-    const node = targets.get(steps[at].id);
-    if (node && node.contains(e.target)) { const nav = steps[at].id.startsWith('nav:'); setTimeout(() => next(nav), 350); return; }
+    if (at < 0 || !steps[at] || pressed) return;
+    const node = nodeOf(steps[at].id);
+    if (node && node.contains(e.target)) { const nav = steps[at].id.startsWith('nav:'), mine = at, run = runId; pressed = true; setTimeout(() => { pressed = false; if (at === mine && run === runId) next(nav); }, 350); return; }
     if (!e.target.closest || !e.target.closest('#view')) return;   // the menu, a dialog the step opened, our own panels: not a wrong answer
     note(T('Not that one. Look for the red light.', 'Όχι αυτό. Ψάξε το κόκκινο φως.'));
   }
+  let runId = 0, scrolled = false, arrivedAt = 0;
   function startSteps(list) {
+    runId++; scrolled = false;
     steps = list; at = list.length ? 0 : -1; arrived = false;
     drawSteps();
     if (at >= 0) { clearInterval(watch); watch = setInterval(place, 300); place(); }
   }
   function next(wasNav) {
-    at++;
+    if (at < 0) return;
+    at++; scrolled = false;
     if (at >= steps.length) {
-      arrived = !!wasNav;
+      arrived = !!wasNav; arrivedAt = Date.now();
       finish(wasNav ? T('You are there. Press "What do I do here?" and we carry on.', 'Έφτασες. Πάτησε «Τι κάνω εδώ;» και συνεχίζουμε.')
         : T('Well done, that was the last step. What did you notice?', 'Μπράβο, αυτό ήταν το τελευταίο βήμα. Τι παρατήρησες;'), true);
       return;
@@ -109,7 +126,7 @@
     drawSteps(); place(); speak(steps[at].say);
   }
   function finish(text, aloud) {
-    clearInterval(watch); watch = null; steps = []; at = -1; dot.hidden = true; panel.classList.remove('up'); unlight();
+    runId++; clearInterval(watch); watch = null; steps = []; at = -1; dot.hidden = true; panel.classList.remove('up'); unlight();
     drawSteps();
     if (text) { note(text); if (aloud) speak(text); }
     chips();
@@ -121,7 +138,7 @@
   function note(text) { if (!text) return; const old = feed().querySelector('.kg-note:last-child'); if (old && old.textContent === text) return; say(el('div', { class: 'kg-note' }, text)); }
   function drawSteps() {
     const box = panel.querySelector('.kg-steps');
-    box.replaceChildren(...steps.map((st, i) => el('li', { class: i < at ? 'done' : i === at ? 'now' : '' }, st.say)));
+    box.replaceChildren(...steps.map((st, i) => el('li', { class: i < at ? 'done' : i === at ? 'now' : '', 'aria-current': i === at ? 'step' : null }, st.say)));
     box.hidden = !steps.length;
     panel.querySelector('.kg-ctl').hidden = !steps.length;
     panel.classList.toggle('stepping', steps.length > 0);   // on a phone the panel shrinks to the current step, so it does not cover the thing to press
@@ -142,7 +159,7 @@
       const s = document.createElement('script');
       s.src = '/site/pages/tk4-kit.js';
       s.onload = () => done(!!(window.TK4 && window.TK4.checkText));
-      s.onerror = () => { s.remove(); done(false); };
+      s.onerror = () => { s.remove(); kit = null; done(false); };
       document.head.append(s);
     });
     return kit;
@@ -166,7 +183,7 @@
     say(el('div', { class: 'kg-you' }, text));
     const working = el('div', { class: 'kg-work' }, T('Thinking…', 'Σκέφτεται…'));
     say(working);
-    const list = collect();
+    const list = collect(), from = pageId;
     const ctrl = new AbortController();
     stop = () => ctrl.abort();
     const fail = (msg) => { working.remove(); say(el('div', { class: 'kg-err' }, msg)); };
@@ -186,8 +203,9 @@
         if (!got) fail((err && err.message) || T('The answer stopped before it arrived. Try again.', 'Η απάντηση σταμάτησε πριν φτάσει. Δοκίμασε ξανά.'));
         else {
           working.remove();
-          const mine = (Array.isArray(got.steps) ? got.steps : []).filter((st) => st && targets.has(st.id) && typeof st.say === 'string').slice(0, 4);   // only things this page listed
+          const mine = (from !== pageId ? [] : Array.isArray(got.steps) ? got.steps : []).filter((st) => st && targets.has(st.id) && typeof st.say === 'string').slice(0, 4);   // only things this page listed
           const words = String(got.text || '').replace(/\*\*/g, '').trim();
+          if (!words && !mine.length) say(el('div', { class: 'kg-err' }, T('Kleanthis had nothing to say to that. Try again in other words.', 'Ο Κλεάνθης δεν είχε κάτι να πει. Δοκίμασε με άλλα λόγια.')));
           if (words) { const box = el('div', { class: 'kg-a' }); words.split('\n').forEach((l) => { if (l.trim()) box.append(el('p', null, l.trim())); }); say(box); }
           history.push({ role: 'user', text }, { role: 'assistant', text: words });
           startSteps(mine);
@@ -208,6 +226,7 @@
       voiceOn = !voiceOn; store.set('sc.guide.voice', voiceOn ? '1' : '0'); if (!voiceOn) hush();
       voiceBtn.setAttribute('aria-pressed', String(voiceOn)); voiceBtn.textContent = voiceOn ? T('Voice on', 'Φωνή ανοιχτή') : T('Voice off', 'Φωνή κλειστή');
     } }, voiceOn ? T('Voice on', 'Φωνή ανοιχτή') : T('Voice off', 'Φωνή κλειστή'));
+    if (!synth()) voiceBtn.hidden = true;   // a browser with no voice: the text is all there is, and no switch pretends otherwise
     panel = el('div', { class: 'kg-panel', hidden: true, role: 'dialog', 'aria-label': T('Kleanthis guides you through this page', 'Ο Κλεάνθης σε οδηγεί σε αυτή τη σελίδα') },
       el('div', { class: 'kg-h' },
         el('div', { class: 'kg-ht' }, el('b', null, T('Guide me', 'Οδήγησέ με')), el('small', null, '')),
@@ -216,7 +235,7 @@
       el('div', { class: 'kg-b' },
         el('p', { class: 'kg-lede' }, T('Kleanthis explains this page, asks you a question and shows you where to press with a red light.', 'Ο Κλεάνθης εξηγεί τη σελίδα, σου κάνει μια ερώτηση και σου δείχνει με ένα κόκκινο φως πού να πατήσεις.')),
         el('div', { class: 'kg-feed', role: 'log', 'aria-live': 'polite' }),
-        el('ol', { class: 'kg-steps', hidden: true }),
+        el('ol', { class: 'kg-steps', hidden: true, 'aria-live': 'polite' }),
         el('div', { class: 'kg-ctl', hidden: true },
           el('button', { type: 'button', onclick: () => next(false) }, T('Skip this step', 'Παράλειψε το βήμα')),
           el('button', { type: 'button', onclick: () => { hush(); finish(T('Steps stopped.', 'Τα βήματα σταμάτησαν.')); } }, T('Stop', 'Στοπ'))),
@@ -232,7 +251,11 @@
     root = el('div', { class: 'kg-root' }, panel, btn);
     document.body.append(root, dot);
     document.addEventListener('click', onClick, true);
-    addEventListener('keydown', (e) => { if (e.key === 'Escape' && open) toggle(false); });
+    addEventListener('keydown', (e) => {   // Escape closes the guide, unless the student is closing a dialog of the page
+      if (e.key !== 'Escape' || !open || e.defaultPrevented) return;
+      const other = [...document.querySelectorAll('[role="dialog"], dialog[open]')].some((d) => !root.contains(d) && !d.closest('.kb-root') && visible(d));
+      if (!other) toggle(false);
+    });
     addEventListener('scroll', () => { if (at >= 0) place(); }, true);
     addEventListener('pagehide', hush);
   }
@@ -241,8 +264,8 @@
     open = !!want;
     panel.hidden = !open;
     btn.setAttribute('aria-expanded', String(open));
-    if (open) { if (SC.askBubble && SC.askBubble.close) SC.askBubble.close(); loadKit(); chips(); }
-    else { if (stop) stop(); hush(); finish(''); }
+    if (open) { if (SC.askBubble && SC.askBubble.close) SC.askBubble.close(); loadKit(); chips(); setTimeout(() => { const c = panel.querySelector('.kg-chip'); if (c && open) c.focus(); }, 30); }
+    else { if (stop) stop(); hush(); finish(''); if (panel.contains(document.activeElement)) btn.focus(); }
   }
 
   SC.guide = {
@@ -250,6 +273,8 @@
       if (!root) build();
       const moved = id !== pageId;
       pageId = id; pageName = name || id;
+      if (moved) { hush(); if (arrived && Date.now() - arrivedAt > 2000) {   // the move that brought the student here can be reported a moment after the press; any later move is a new page
+        arrived = false; if (open) chips(); } }
       panel.querySelector('.kg-ht small').textContent = pageName;
       root.hidden = id === 'ask';
       if (root.hidden && open) toggle(false);

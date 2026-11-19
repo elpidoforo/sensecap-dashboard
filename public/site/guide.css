@@ -1,5 +1,5 @@
 /* Guide me (site/guide.js): a round button above the Ask bubble, its panel, and the red light that shows where to press. */
-.kg-root[hidden], .kg-panel[hidden], .kg-dot[hidden], .kg-steps[hidden], .kg-ctl[hidden] { display: none; }
+.kg-voice[hidden], .kg-root[hidden], .kg-panel[hidden], .kg-dot[hidden], .kg-steps[hidden], .kg-ctl[hidden] { display: none; }
 .kg-btn {
   position: fixed; right: 22px; bottom: 78px; z-index: 60;
   display: flex; align-items: center; gap: 9px; padding: 10px 16px 10px 12px; min-height: 44px;
@@ -29,7 +29,7 @@
 .kg-ht small { display: block; color: #9db0c8; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kg-voice, .kg-ctl button, .kg-chip, .kg-in button {
   cursor: pointer; border-radius: 999px; padding: 7px 12px; min-height: 32px; color: #dff1fb;
-  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .16); font: 600 12px/1.2 inherit; font-family: inherit;
+  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .16); font: 600 12px/1.2 var(--nm-font, Inter, system-ui, sans-serif);
 }
 .kg-voice[aria-pressed="true"] { border-color: rgba(242, 165, 107, .7); color: #ffd9b8; }
 .kg-x { width: 28px; height: 28px; flex: 0 0 auto; border-radius: 50%; cursor: pointer; background: transparent; border: 1px solid rgba(255, 255, 255, .16); color: #9db0c8; font-size: 17px; line-height: 1; }
