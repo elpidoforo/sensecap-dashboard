@@ -69,7 +69,31 @@ html.on-site,html.on-site body{background:transparent}
 .st.live{background:var(--live);box-shadow:0 0 7px var(--live)}
 .st.old{background:var(--old);opacity:.8}
 .st.year{background:var(--year);opacity:.5}
-.probe{pointer-events:auto;margin-left:auto;width:218px;padding:10px 12px 11px;flex:0 0 auto}
+.side{pointer-events:none;margin-left:auto;width:266px;max-height:100%;min-height:0;flex:0 0 auto;display:flex;flex-direction:column;gap:10px}
+.probe{pointer-events:auto;width:100%;padding:10px 12px 11px;flex:0 0 auto}
+/* The key: one sheet at a time, in words a student can read. Larger type than the instrument labels on purpose. */
+.legend{pointer-events:auto;width:100%;padding:10px 12px 12px;overflow:auto;min-height:0;flex:0 1 auto;--c:var(--cyan)}
+.legend h2{margin:1px 3px 8px;font:800 8.5px/1 var(--mono);letter-spacing:1.9px;color:var(--faint)}
+.legend h3{margin:8px 0 2px;font:700 14px/1.25 var(--sans);color:var(--c)}
+.legend p{margin:7px 0 0;font:500 11.5px/1.5 var(--sans);color:var(--dim)}
+.legend p.lg-cap{color:var(--ink);font-size:12px}
+.legend p b{color:var(--ink);font-weight:700}
+.lg-step{display:flex;align-items:center;gap:6px}
+.lg-step .lg-n{flex:1;text-align:center;font:700 9.5px/1 var(--mono);letter-spacing:1.1px;color:var(--dim)}
+.lg-step button,.lg-go{min-height:32px;min-width:34px;padding:0 10px;border-radius:8px;cursor:pointer;color:var(--ink);
+  background:rgba(120,190,240,.1);border:1px solid var(--edge);font:700 11px/1 var(--mono)}
+.lg-go{width:100%;min-height:36px;background:linear-gradient(180deg,#F7C46B,#E8963F);border:0;color:#0a1420;font:700 12px/1.2 var(--sans)}
+.lg-step button:hover{background:rgba(120,190,240,.22)}
+.lg-step button:focus-visible,.lg-go:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.lg-scale{margin-top:10px}
+.lg-scale-name{font:700 9.5px/1.3 var(--mono);letter-spacing:.6px;color:var(--ink)}
+.lg-bar{height:11px;margin-top:5px;border-radius:6px;border:1px solid rgba(255,255,255,.22)}
+.lg-ticks{display:flex;justify-content:space-between;margin-top:3px;font:700 9.5px/1.3 var(--mono);color:var(--dim);font-variant-numeric:tabular-nums}
+.lg-state{margin-top:10px;padding:7px 9px;border-radius:9px;border:1px solid var(--edge);font:500 11px/1.45 var(--sans);color:var(--dim)}
+.lg-state b{display:block;margin-bottom:2px;font:800 9px/1.2 var(--mono);letter-spacing:1.3px}
+.lg-state.measured{border-color:rgba(134,224,168,.45);background:rgba(134,224,168,.07)} .lg-state.measured b{color:var(--live)}
+.lg-state.model{border-color:rgba(127,179,255,.45);background:rgba(127,179,255,.07)} .lg-state.model b{color:#a9c8ff}
+.lg-state.none{border-style:dashed;border-color:rgba(242,165,107,.55);background:rgba(224,127,63,.08)} .lg-state.none b{color:#F2A56B}
 .probe h2{margin:1px 3px 8px;font:800 8.5px/1 var(--mono);letter-spacing:1.9px;color:var(--faint)}
 .kv{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.055);
   font-variant-numeric:tabular-nums}
@@ -91,11 +115,20 @@ html.on-site,html.on-site body{background:transparent}
 @media (max-width:860px){
   .hint{display:none}
   .mid{flex-direction:column;gap:8px;overflow:auto;pointer-events:none}
-  .rail,.probe{width:100%;max-height:none;margin-left:0}
+  .rail,.side{width:100%;max-height:none;margin-left:0}
+  .side{flex:0 0 auto}
+  .legend{overflow:visible;flex:0 0 auto}
   .rail{max-height:40vh}
+  /* one sheet on its own: the key takes the room of the probe, and the list of layers shrinks */
+  body.solo-on .probe,body.solo-on .rail{display:none}
+  body.solo-on .mid{justify-content:flex-end;overflow:visible}
+  body.solo-on .legend{max-height:40vh;overflow:auto}
+  body:not(.solo-on) .legend .lg-gen{display:none}
   .probe .kv:nth-child(n+6){display:none}
   .note{display:none}
 }
+/* a short window (the frame on the home page): one sheet on show gives the probe's room to the key */
+@media (max-height:700px) and (min-width:861px){ body.solo-on .probe{display:none} }
 @media (prefers-reduced-motion:reduce){ .lay,.lay .go{transition:none} .lay.fresh{animation:none} }
 </style>
 </head>
@@ -110,6 +143,7 @@ html.on-site,html.on-site body{background:transparent}
 
   <div class="mid">
     <aside class="glass rail" id="rail" aria-label="Layers" data-ael="Στρώματα"><h2 data-el="ΣΤΡΩΜΑΤΑ ΚΑΙ ΟΙ ΠΗΓΕΣ ΤΟΥΣ">LAYERS AND THEIR SOURCES</h2></aside>
+    <div class="side">
     <aside class="glass probe">
       <h2 data-el="ΜΕΤΡΗΣΗ · PASCAL ΛΑΡΝΑΚΑ">PROBE · PASCAL LARNAKA</h2>
       <div class="kv"><span data-el="ΘΕΡΜΟΚΡΑΣΙΑ">AIR TEMP</span><b>21.4<em>°C</em></b></div>
@@ -121,6 +155,8 @@ html.on-site,html.on-site body{background:transparent}
       <div class="kv"><span data-el="ΤΕΛΕΥΤΑΙΑ ΜΕΤΡΗΣΗ">LAST READING</span><b>4<em>MIN</em></b></div>
       <p data-el="ΚΑΘΕ ΣΤΡΩΜΑ ΚΡΑΤΑ ΤΟ ΔΙΚΟ ΤΟΥ ΡΟΛΟΪ ΚΑΙ ΤΗ ΔΙΚΗ ΤΟΥ ΠΗΓΗ. ΟΙ ΔΕΣΜΕΣ ΔΕΙΧΝΟΥΝ ΑΠΟ ΠΟΥ ΕΡΧΕΤΑΙ Η ΚΑΘΕ ΜΙΑ.">EVERY LAYER KEEPS ITS OWN CLOCK AND ITS OWN SOURCE. THE BEAMS SHOW WHERE EACH ONE COMES FROM.</p>
     </aside>
+    <section class="glass legend" id="legend" aria-live="polite" aria-label="Key to the layer on show" data-ael="Υπόμνημα για το στρώμα που φαίνεται"></section>
+    </div>
   </div>
 
   <div class="foot">

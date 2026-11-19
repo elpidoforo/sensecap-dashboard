@@ -1,6 +1,8 @@
 'use strict';
 /* The data stack in 3D (#/stack and /stack.html): the page is served under the import-map policy, the 3D view starts,
    every layer is listed with its source, the buttons hide and show layers, and the whole thing speaks Greek.
+   The key: every layer has a caption, a scale with units, a line on what its motion means and a line on its source, in both
+   languages; the painted sheets draw only what the feed holds; reduced motion gets a still picture; no data says so.
    Real server in demo mode, real browser.
    Run: node tests/stack/browser_test.js */
 const { spawn } = require('child_process');
@@ -113,6 +115,55 @@ const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swifts
       await wait(500);
       ok(await frame.evaluate(() => [...document.querySelectorAll('.lay')].every((x) => x.getAttribute('aria-pressed') === 'true')), name + ': pressing it again brings the others back');
 
+      // the key: before any sheet is chosen it says how to read the stack and offers the layers one by one
+      const gen = await frame.evaluate(() => document.getElementById('legend').innerText);
+      ok(el ? /ένα ένα/.test(gen) : /one by one/.test(gen), name + ': the key offers to show the layers one by one');
+      // what the painted sheets stand on: only numbers that are in the feed
+      const feedNow = await frame.evaluate(async () => (await (await fetch('/layers/api/live')).json()).map);
+      const st0 = await frame.evaluate(() => window.__sheets());
+      ok(st0.wind && st0.cloud && st0.air && st0.rainKnown, name + ': wind, rain, cloud and air are painted from the model grid');
+      ok(st0.rainCells === feedNow.wind.filter((q) => q.rain > 0).length, name + ': rain is drawn in exactly the grid cells the model gives rain to (' + st0.rainCells + ')');
+      ok(st0.sea === feedNow.sea.length && st0.stations === feedNow.stations.filter((q) => q.temp != null).length, name + ': one mark per sea point and per station in the feed (' + st0.sea + ', ' + st0.stations + ')');
+      ok(st0.specks > 0 && st0.beamsLive > 0, name + ': specks follow the particles, and only a reporting source has dots on its beam (' + st0.specks + ', ' + st0.beamsLive + ')');
+      // the moving lines go the way the model says the wind blows, at its speed
+      const gp = feedNow.wind.filter((q) => q.lat > 34.7 && q.lat < 35.5 && q.lng > 32.5 && q.lng < 34.3)[3];
+      const drawnWind = await frame.evaluate((q) => window.__windAt(q.lng, q.lat), gp);
+      const turn = Math.abs(((drawnWind.from - gp.wd + 540) % 360) - 180);
+      ok(turn < 20 && Math.abs(drawnWind.ms - gp.ws) < 1.5, name + ': at a grid point the drawn wind matches the feed (' + Math.round(drawnWind.from) + '° ' + drawnWind.ms.toFixed(1) + ' m/s against ' + gp.wd + '° ' + gp.ws + ' m/s)');
+
+      // one by one: every layer has a caption, says what moves, and says what it stands on
+      await frame.evaluate(() => document.querySelector('#legend .lg-go').click());
+      await wait(400);
+      const seen = [];
+      for (let i = 0; i < 12; i++) {
+        seen.push(await frame.evaluate(() => { const L = document.getElementById('legend'), q = (s) => (L.querySelector(s) ? L.querySelector(s).innerText : '');
+          return { id: L.dataset.layer, state: L.dataset.state, cap: q('.lg-cap'), move: q('.lg-move'), scale: q('.lg-scale'), src: q('.lg-state'), all: L.innerText,
+            alone: [...document.querySelectorAll('.lay')].filter((x) => x.getAttribute('aria-pressed') === 'true').length }; }));
+        if (i === 0) { await frame.locator('#legend .lg-next').focus(); await p.keyboard.press('Enter'); }   // the keyboard steps as well as the mouse
+        else await frame.evaluate(() => document.querySelector('#legend .lg-next').click());
+        await wait(250);
+      }
+      const by = (id) => seen.find((x) => x.id === id) || {};
+      ok(new Set(seen.map((x) => x.id)).size === 12 && seen.every((x) => x.alone === 1), name + ': the key steps through all twelve layers, one at a time');
+      ok(await frame.evaluate(() => document.getElementById('legend').contains(document.activeElement)), name + ': and the keyboard stays inside the key while it steps');
+      ok(seen.every((x) => x.cap.length > 30 && x.move.length > 20 && x.src.length > 15), name + ': every layer has a caption, a line on motion and a line on its source');
+      const greek = /[α-ωά-ώ]/, latinWords = /\b(the|and|from|with|where)\b/i;
+      ok(seen.every((x) => (el ? greek.test(x.cap) && greek.test(x.move) && greek.test(x.src) && !latinWords.test(x.cap + x.move) : !greek.test(x.all))), name + ': the key speaks ' + (el ? 'Greek' : 'English') + ' throughout');
+      const units = { wind: 'm/s', rain: 'mm', cloud: '%', air: 'µg/m³', seabed: '°C', island: '°C' };
+      ok(Object.keys(units).every((id) => by(id).scale.includes(units[id]) && /[0-9]/.test(by(id).scale)), name + ': every fed layer shows a colour scale with numbers and its unit');
+      ok(['wind', 'rain', 'cloud', 'air', 'seabed'].every((id) => by(id).state === 'model' && /(MODEL|ΜΟΝΤΕΛΟ)/.test(by(id).src)), name + ': a sheet painted from a model says it is a model, not a measurement');
+      ok(by('island').state === 'measured' && /[0-9]/.test(by('island').src), name + ': the stations sheet says it is measured, and by how many stations');
+      ok(['water', 'city', 'heat', 'veg', 'haze'].every((id) => by(id).state === 'none' && by(id).scale === '' && /(NO LIVE DATA|ΧΩΡΙΣ ΖΩΝΤΑΝΑ ΔΕΔΟΜΕΝΑ)/.test(by(id).src)), name + ': a sheet with no feed says "no live data", shows no scale and claims no motion');
+      ok(/(lines travel|γραμμές ταξιδεύουν)/.test(by('wind').move) && /(only inside|μόνο μέσα)/.test(by('rain').move), name + ': the key says what the motion of wind and rain means');
+      if (phone) {
+        const box = await frame.evaluate(() => { const r = document.getElementById('legend').getBoundingClientRect(); return { top: r.top / innerHeight, bottom: r.bottom / innerHeight }; });
+        ok(box.top > 0.3 && box.bottom <= 1.01, 'phone: with one sheet on show the key keeps to the lower part and leaves the sheet in view (' + box.top.toFixed(2) + ' to ' + box.bottom.toFixed(2) + ')');
+      }
+      await frame.evaluate(() => document.querySelector('#legend .lg-all').click());
+      await wait(400);
+      ok(await frame.evaluate(() => [...document.querySelectorAll('.lay')].every((x) => x.getAttribute('aria-pressed') === 'true') && !!document.querySelector('#legend .lg-go')), name + ': "All" in the key brings every layer back');
+      ok(errs.length === 0, name + ': stepping through the layers threw nothing (' + errs.join(' | ') + ')');
+
       // the honest view in one press
       await frame.evaluate(() => document.getElementById('measured').click());
       await wait(600);
@@ -174,6 +225,54 @@ const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swifts
         const fits = await frame.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
         ok(fits <= 1, 'phone: the 3D frame fits the screen too (' + fits + ')');
       }
+      await ctx.close();
+    }
+
+    // reduced motion: nothing tours or flows, and the still picture is explained as a still picture
+    {
+      const ctx = await b.newContext({ viewport: { width: 1280, height: 860 }, reducedMotion: 'reduce' });
+      const p = await ctx.newPage();
+      const errs = [];
+      p.on('pageerror', (e) => errs.push(e.message));
+      await p.goto(BASE + '/stack.html?lang=en', { waitUntil: 'load', timeout: 60000 });
+      for (let i = 0; i < 80; i++) { if (await p.evaluate(() => !!window.__embedReady && window.__sheets().wind).catch(() => false)) break; await wait(250); }
+      const s1 = await p.evaluate(() => window.__sheets());
+      ok(s1.still === true && s1.tour === false, 'reduced motion: the page knows, and the camera does not tour by itself');
+      ok(await p.evaluate(() => document.getElementById('tour').getAttribute('aria-pressed') === 'false' && document.getElementById('hint').hidden), 'reduced motion: the tour button and its hint say so');
+      await p.evaluate(() => document.querySelector('.row[data-id="wind"] .solo').click());
+      await wait(500);
+      const mv = await p.evaluate(() => document.querySelector('#legend .lg-move').innerText);
+      ok(/arrow/.test(mv) && !/travel/.test(mv), 'reduced motion: the wind is explained as still arrows, not as moving lines (' + mv + ')');
+      // the still wind sheet is not empty, and stays the same picture from one moment to the next
+      const ink = () => p.evaluate(() => { const t = window.__windInk; return t ? t() : null; });
+      const a1 = await ink(); await wait(700); const a2 = await ink();
+      ok(a1 && a1.lit > 200 && a1.sum === a2.sum, 'reduced motion: the wind sheet is a picture that stands still (' + (a1 && a1.lit) + ' lit pixels)');
+      ok(errs.length === 0, 'reduced motion: the page threw nothing (' + errs.join(' | ') + ')');
+      await ctx.close();
+    }
+
+    // nothing arrived: a fed sheet says so instead of drawing something
+    {
+      const ctx = await b.newContext({ viewport: { width: 1280, height: 860 } });
+      const p = await ctx.newPage();
+      const errs = [];
+      p.on('pageerror', (e) => errs.push(e.message));
+      await p.route('**/layers/api/live', async (route) => {
+        const j = await (await fetch(BASE + '/layers/api/live')).json();
+        j.map = { wind: [], sea: [], stations: [], air: [], weatherAt: null };
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(j) });
+      });
+      await p.goto(BASE + '/stack.html?lang=el', { waitUntil: 'load', timeout: 60000 });
+      for (let i = 0; i < 80; i++) { if (await p.evaluate(() => !!window.__embedReady && /πριν|μόλις/.test(document.querySelector('.rail').innerText)).catch(() => false)) break; await wait(250); }
+      const kinds = await p.evaluate(() => ['wind', 'rain', 'cloud', 'air', 'seabed', 'island'].map((id) => window.__sheetState(id)));
+      ok(kinds.every((k) => k === 'none'), 'no data: every fed sheet reports that nothing arrived (' + kinds.join(', ') + ')');
+      const s2 = await p.evaluate(() => window.__sheets());
+      ok(!s2.wind && s2.rainCells === 0 && s2.specks === 0 && s2.beamsLive <= 4, 'no data: no wind lines, no rain and no specks are made up');
+      await p.evaluate(() => document.querySelector('.row[data-id="wind"] .solo').click());
+      await wait(400);
+      const txt = await p.evaluate(() => document.getElementById('legend').innerText);
+      ok(/ΧΩΡΙΣ ΖΩΝΤΑΝΑ ΔΕΔΟΜΕΝΑ/.test(txt) && /Δεν ήρθαν δεδομένα/.test(txt) && !/m\/s/.test(txt), 'no data: the key says so in Greek and shows no scale');
+      ok(errs.length === 0, 'no data: the page threw nothing (' + errs.join(' | ') + ')');
       await ctx.close();
     }
   } catch (e) {
