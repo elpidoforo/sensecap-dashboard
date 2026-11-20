@@ -15,7 +15,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // the pretend speech service: remembers what it was asked, answers with a short tone or with words
 const seen = { speech: [], hear: [], auth: [] };
-let speechStatus = 200, refuseVoice = '', heardText = 'Which city is the warmest today?';
+let busyFirst = 0, speechStatus = 200, refuseVoice = '', heardText = 'Which city is the warmest today?';
 const tone = (secs) => { const b = Buffer.alloc(Math.floor(24000 * secs) * 2); for (let i = 0; i < b.length / 2; i++) b.writeInt16LE(Math.round(Math.sin(i / 12) * 6000), i * 2); return b; };
 const fake = http.createServer((req, res) => {
   const parts = []; req.on('data', (d) => parts.push(d));
@@ -25,6 +25,7 @@ const fake = http.createServer((req, res) => {
     if (req.url === '/api/v1/audio/speech') {
       seen.speech.push(j);
       if (refuseVoice && j.voice === refuseVoice) { res.writeHead(400, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: { message: 'unknown voice' } })); }
+      if (busyFirst > 0) { busyFirst--; res.writeHead(429, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: { message: 'Provider returned 429' } })); }
       if (speechStatus !== 200) { res.writeHead(speechStatus, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: { message: 'no, and your key was ' + KEY } })); }
       res.writeHead(200, { 'content-type': 'audio/pcm;rate=24000' }); return res.end(tone(0.4));
     }
@@ -63,6 +64,23 @@ const up = async (base) => { for (let i = 0; i < 80; i++) { try { const r = awai
   ok(none.enabled === false, 'no key: the voice is off');
   let threw = false; try { await none.speak('Hello', 'en'); } catch (e) { threw = true; } ok(threw, 'no key: nothing is sent');
   ok(seen.speech.length === 0, 'no key: the service was not called');
+
+  /* ---------- a busy moment: asked again, so the made voice is kept ---------- */
+  {
+    const v = createVoice({ apiKey: KEY, env: { OPENROUTER_BASE: 'http://127.0.0.1:' + FAKE, GUIDE_TTS_RETRY_MS: '10' } });
+    const n0 = seen.speech.length; busyFirst = 1;
+    let out = null, bad = null; try { out = await v.speak('A busy moment, once.', 'en'); } catch (e) { bad = e; }
+    ok(!bad && out && out.buf.length > 100 && seen.speech.length - n0 === 2, 'busy (429) once: the voice asks again and the made voice is kept (' + (bad ? bad.message : (seen.speech.length - n0) + ' calls') + ')');
+    const n1 = seen.speech.length; busyFirst = 5; bad = null;
+    try { await v.speak('A busy moment, always.', 'en'); } catch (e) { bad = e; }
+    busyFirst = 0;
+    ok(bad && /429/.test(bad.message) && seen.speech.length - n1 === 3, 'busy (429) every time: three tries, then it gives up so the browser voice can take over (' + (seen.speech.length - n1) + ' calls)');
+    speechStatus = 402; const n2 = seen.speech.length; bad = null;
+    try { await v.speak('No credits.', 'en'); } catch (e) { bad = e; }
+    speechStatus = 200;
+    ok(bad && /402/.test(bad.message) && seen.speech.length - n2 === 1, 'no credits (402): not asked again, because waiting does not help');
+    seen.speech.length = 0;                       // the checks below count calls from here
+  }
 
   /* ---------- the server ---------- */
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'voice-')), dirOff = fs.mkdtempSync(path.join(os.tmpdir(), 'voice-off-'));

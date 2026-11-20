@@ -43,6 +43,7 @@ function createVoice({ apiKey, log = () => {}, env = process.env } = {}) {
   const speed = Number(env.GUIDE_TTS_SPEED) > 0 ? Number(env.GUIDE_TTS_SPEED) : null;
   const sttModel = env.GUIDE_STT_MODEL || 'openai/whisper-1';
   const zdr = env.GUIDE_STT_ZDR !== '0';
+  const retryMs = Number(env.GUIDE_TTS_RETRY_MS) >= 0 && env.GUIDE_TTS_RETRY_MS !== undefined && env.GUIDE_TTS_RETRY_MS !== '' ? Number(env.GUIDE_TTS_RETRY_MS) : 700;
   const cache = createCache({ max: 400, maxBytes: 40e6, sizeOf: (v) => v.buf.length });
   const clean = (m) => String(m || '').split(key || '\u0000').join('***').slice(0, 200);
 
@@ -61,6 +62,11 @@ function createVoice({ apiKey, log = () => {}, env = process.env } = {}) {
       const body = { model: ttsModel, input: text, voice: ttsVoice, instructions: style + (lang === 'el' ? ' The text is in Greek: speak natural Greek.' : ''), response_format: gemini ? 'pcm' : 'mp3' };
       if (speed) body.speed = speed;
       let r = await call('/api/v1/audio/speech', body, 45000);
+      for (let n = 0; n < 2 && (r.status === 429 || r.status === 503) ; n++) {   // too busy for a moment (a provider's "slow down"): ask again, so the made voice is kept instead of the browser's. Not for 402: that is empty credits and waiting will not help.
+        log('Guide voice: speech service answered ' + r.status + ', trying again');
+        await new Promise((ok) => setTimeout(ok, retryMs));
+        r = await call('/api/v1/audio/speech', body, 45000);
+      }
       if ((r.status === 400 || r.status === 404 || r.status === 422) && body.voice !== FALLBACK_VOICE) {   // the service does not know this voice: say it with the known one rather than fall silent
         log('Guide voice: "' + body.voice + '" was refused (' + r.status + '), using ' + FALLBACK_VOICE);
         r = await call('/api/v1/audio/speech', Object.assign({}, body, { voice: FALLBACK_VOICE }), 45000);
