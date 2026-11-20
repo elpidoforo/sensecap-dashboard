@@ -300,6 +300,25 @@ const N = 30;   // the sheets of the stack, from the seabed up to the satellite 
       ok(errs.length === 0, 'no data: the page threw nothing (' + errs.join(' | ') + ')');
       await ctx.close();
     }
+    // full screen: one button, in both languages; it takes the page full screen and gives it back
+    for (const lang of ['en', 'el']) {
+      const ctx = await b.newContext({ viewport: { width: 1280, height: 860 } });
+      const p = await ctx.newPage();
+      const errs = [];
+      p.on('pageerror', (e) => errs.push(e.message));
+      await p.goto(BASE + '/stack.html?lang=' + lang, { waitUntil: 'load', timeout: 60000 });
+      for (let i = 0; i < 80; i++) { if (await p.evaluate(() => !!window.__embedReady).catch(() => false)) break; await wait(250); }
+      const label = await p.evaluate(() => document.getElementById('full').textContent);
+      ok(lang === 'el' ? label === 'ΠΛΗΡΗΣ ΟΘΟΝΗ' : label === 'FULL SCREEN', 'full screen (' + lang + '): the button is labelled (' + label + ')');
+      await p.click('#full'); await wait(600);
+      ok(await p.evaluate(() => !!document.fullscreenElement && document.getElementById('full').getAttribute('aria-pressed') === 'true'), 'full screen (' + lang + '): one click takes the page full screen and the button says so');
+      const back = await p.evaluate(() => document.getElementById('full').textContent);
+      ok(lang === 'el' ? back === 'ΕΞΟΔΟΣ ΑΠΟ ΠΛΗΡΗ ΟΘΟΝΗ' : back === 'EXIT FULL SCREEN', 'full screen (' + lang + '): the button offers the way out (' + back + ')');
+      await p.click('#full'); await wait(600);
+      ok(await p.evaluate(() => !document.fullscreenElement && document.getElementById('full').getAttribute('aria-pressed') === 'false'), 'full screen (' + lang + '): a second click gives the screen back');
+      ok(errs.length === 0, 'full screen (' + lang + '): the page threw nothing (' + errs.join(' | ') + ')');
+      await ctx.close();
+    }
   } catch (e) {
     fail++; console.log('FAIL: the run stopped: ' + (e && e.stack));
   } finally {

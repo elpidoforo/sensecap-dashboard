@@ -1872,6 +1872,18 @@ function stopTour() { if (!tour || touring) return; tour = false; tourBtn.setAtt
 tourBtn.addEventListener('click', () => { tour = !tour; tourT = 0; tourAt = soloId == null ? -1 : LAYERS.findIndex((l) => l.id === soloId); tourBtn.setAttribute('aria-pressed', String(tour)); hint.hidden = !tour; });
 // taking hold of anything on the page ends the tour: the reader is in charge from then on
 document.querySelector('.ui').addEventListener('click', (e) => { if (!(e.target.closest && e.target.closest('#tour'))) stopTour(); }, true);
+// Full screen: the browser's own full screen for the whole 3D page (inside the home-page frame it fills the display too). Where a
+// browser has none (an iPhone), the stack opens on its own page at full size instead. Esc leaves, as in every browser.
+const fullBtn = document.getElementById('full'), fsRoot = document.documentElement;
+const fsOn = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+function fsSync() { const on = fsOn(); fullBtn.setAttribute('aria-pressed', String(on)); fullBtn.textContent = on ? T('EXIT FULL SCREEN', 'ΕΞΟΔΟΣ ΑΠΟ ΠΛΗΡΗ ΟΘΟΝΗ') : T('FULL SCREEN', 'ΠΛΗΡΗΣ ΟΘΟΝΗ'); }
+fullBtn.addEventListener('click', () => {
+  if (fsOn()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+  const ask = fsRoot.requestFullscreen || fsRoot.webkitRequestFullscreen;
+  if (ask) { const r = ask.call(fsRoot); if (r && r.catch) r.catch(() => {}); return; }
+  if (window.top !== window) { try { window.top.location.assign('/stack.html?lang=' + (EL ? 'el' : 'en')); } catch (e) { window.open('/stack.html?lang=' + (EL ? 'el' : 'en'), '_blank'); } }
+});
+document.addEventListener('fullscreenchange', fsSync); document.addEventListener('webkitfullscreenchange', fsSync);
 controls.addEventListener('start', () => { stopTour(); fly = null; });
 canvas.addEventListener('wheel', () => { stopTour(); fly = null; }, { passive: true });
 
