@@ -328,7 +328,8 @@ function windStep(c, t, anim, dt) {
     const u = sampleF(windF.u, x, y), v = sampleF(windF.v, x, y), sp = Math.hypot(u, v);
     const nx = x + u * WIND_PX * dt, ny = y - v * WIND_PX * dt, hot = Math.min(1, sp / 10);
     if (inF(f, nx, ny)) { c.strokeStyle = rgb(colOf(SCALE.wind, sp), (.55 + hot * .4).toFixed(3));
-      c.lineWidth = .8 + hot; c.beginPath(); c.moveTo(x, y); c.lineTo(nx, ny); c.stroke(); }
+      c.lineWidth = .8 + hot; c.beginPath(); c.moveTo(x, y); c.lineTo(nx, ny); c.stroke();
+      if (hot > .35) { c.fillStyle = 'rgba(235,252,255,' + (.35 + hot * .5).toFixed(3) + ')'; c.beginPath(); c.arc(nx, ny, .9 + hot * 1.1, 0, 7); c.fill(); } }   // a bright head on the faster lines, so the flow reads as moving light
     pcl[o] = nx; pcl[o + 1] = ny; pcl[o + 3]++; }
   coast(c); if (withNames('wind')) regionLabels(c); frameOf(c, f, 'rgba(89,215,232,.5)'); airportArrows(c);
 }
