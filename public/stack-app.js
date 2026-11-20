@@ -1247,7 +1247,7 @@ const LAYERS = [
     lines: () => (planesFresh() ? ['high', 'low', 'ground', 'unknown'].map((k) => [TT(AC_PHASE[k]), String(planes.pts.filter((p) => p.phase === k).length), planes.mock ? T('demo', 'επίδειξη') : 'adsb.fi']) : []),
     info: {
       cap: ['Where aeroplanes around the island are right now, as far as volunteer radio receivers can hear them. The picture renews every 20 seconds.', 'Πού βρίσκονται τώρα τα αεροπλάνα γύρω από το νησί, όσο μπορούν να τα ακούσουν οι ραδιοδέκτες εθελοντών. Η εικόνα ανανεώνεται κάθε 20 δευτερόλεπτα.'],
-      move: ['Between two refreshes each arrow slides along its heading at its reported speed. That in-between movement is worked out from speed and direction, not observed.', 'Ανάμεσα σε δύο ανανεώσεις κάθε βέλος γλιστρά κατά την πορεία του με την ταχύτητα που ανέφερε. Αυτή η ενδιάμεση κίνηση υπολογίζεται από ταχύτητα και κατεύθυνση, δεν παρατηρείται.'],
+      move: ['Between two refreshes each arrow slides along its heading at its reported speed. That in-between movement is worked out from speed and direction, not observed. The dashed line ahead of an arrow shows where it would be in two minutes if it kept its heading and speed: arithmetic, not a forecast. The ring on the ground under it only marks the spot; it breathes while the arrow is moving.', 'Ανάμεσα σε δύο ανανεώσεις κάθε βέλος γλιστρά κατά την πορεία του με την ταχύτητα που ανέφερε. Αυτή η ενδιάμεση κίνηση υπολογίζεται από ταχύτητα και κατεύθυνση, δεν παρατηρείται. Η διακεκομμένη γραμμή μπροστά από ένα βέλος δείχνει πού θα ήταν σε δύο λεπτά αν κρατούσε την πορεία και την ταχύτητά του: αριθμητική, όχι πρόβλεψη. Ο δακτύλιος στο έδαφος από κάτω σημαδεύει μόνο το σημείο· αναπνέει όσο το βέλος κινείται.'],
       rest: ['Each arrow stands where the aeroplane was last heard and points the way it was moving.', 'Κάθε βέλος μένει εκεί όπου ακούστηκε τελευταία το αεροπλάνο και δείχνει προς τα πού κινούνταν.'],
       marks: () => [['Height: every 10,000 ft lifts an arrow one step above the sheet, up the thin line under it (the ruler at the corner of the sheet marks the steps). The dot on the sheet is where it was heard, with its height in feet.', 'Ύψος: κάθε 10.000 ft σηκώνουν το βέλος ένα βήμα πάνω από το φύλλο, πάνω στη λεπτή γραμμή από κάτω του (ο χάρακας στη γωνία του φύλλου δείχνει τα βήματα). Η κουκκίδα στο φύλλο είναι εκεί όπου ακούστηκε, με το ύψος του σε πόδια.'],
         ['Filled arrow: ' + AC_PHASE.high[0] + '. Hollow arrow: ' + AC_PHASE.low[0] + '. Square: ' + AC_PHASE.ground[0] + '. Ring: ' + AC_PHASE.unknown[0] + '. The words after "likely" are a guess from the height, not a fact.',
@@ -1473,6 +1473,7 @@ function buildPlanes() {
   const y0 = yOf('aircraft');
   planes.pts.forEach((p) => {
     const g = new THREE.Group(), lift = planeLift(p), col = AC_COL[p.phase], at = p3(p.lng, p.lat, y0);
+    let ring = null, ahead = null;
     const flat = (o) => { o.rotation.x = -Math.PI / 2; return o; };
     if (p.phase === 'ground') g.add(flat(new THREE.Mesh(new THREE.PlaneGeometry(15, 15), new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide }))));
     else if (p.phase === 'unknown') g.add(flat(new THREE.Mesh(new THREE.RingGeometry(7, 10, 24), new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide }))));
@@ -1483,6 +1484,15 @@ function buildPlanes() {
         head.add(flat(p.phase === 'high' ? new THREE.Mesh(arrowFill, new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide }))
           : new THREE.LineLoop(arrowEdge, new THREE.LineBasicMaterial({ color: col })))); }
       g.add(head);
+      // a soft ring and a small mark on the ground under it, so the height line has a foot; the ring breathes slowly while the sheet is live
+      ring = flat(new THREE.Mesh(new THREE.RingGeometry(8, 12, 32), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .35, side: THREE.DoubleSide, depthWrite: false })));
+      g.add(ring); g.add(flat(new THREE.Mesh(new THREE.CircleGeometry(2.6, 16), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .7, side: THREE.DoubleSide }))));
+      // where it would be in two minutes if it kept its heading and speed: pointing ahead, so it cannot be read as where it has been
+      if (p.track != null && p.gs != null && p.gs > 0 && (p.phase === 'high' || p.phase === 'low')) {
+        const perNm = p3(p.lng, p.lat + 1 / 60, 0).distanceTo(p3(p.lng, p.lat, 0)), len = p.gs / 30 * perNm;          // knots are nautical miles an hour; two minutes is a thirtieth of an hour
+        const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, -10), new THREE.Vector3(0, 0, -10 - len)]), new THREE.LineDashedMaterial({ color: col, dashSize: 5, gapSize: 5, transparent: true, opacity: .75 }));
+        ln.computeLineDistances(); head.add(ln); ahead = { len, perNm };
+      }
       g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, lift, 0)]), new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: .5 })));
       const steps = []; for (let k = 1; k * AC.yStep <= lift + .01; k++) steps.push(new THREE.Vector3(0, k * AC.yStep, 0));   // one bead for every full 10,000 ft
       if (steps.length) g.add(new THREE.Points(new THREE.BufferGeometry().setFromPoints(steps), new THREE.PointsMaterial({ color: col, size: 5, sizeAttenuation: false })));
@@ -1490,7 +1500,7 @@ function buildPlanes() {
     g.position.set(at.x, y0 + 1.5, at.z); planeGroup.add(g);
     // only an aeroplane in the air with both a speed and a heading can be moved along between refreshes
     const moves = !p.onGround && p.gs != null && p.gs > 0 && p.track != null && (p.phase === 'high' || p.phase === 'low');
-    planeObjs.push({ p, g, moves, lat: p.lat, lng: p.lng, lift });
+    planeObjs.push({ p, g, moves, lat: p.lat, lng: p.lng, lift, ring, ahead });
   });
 }
 // Between refreshes: where each arrow would be if it kept its heading and speed. It is arithmetic, and the key says so.
@@ -1498,6 +1508,8 @@ function stepPlanes(anim) {
   if (!planeObjs.length) return;
   if (!planesFresh()) { buildPlanes(); touch('aircraft'); return; }   // too old to call live: the arrows go, and the sheet says why
   const dt = anim ? Math.min(AC.driftMaxS, (Date.now() - planes.at) / 1000) : 0, y0 = yOf('aircraft');
+  const pulse = anim ? .3 + .12 * Math.sin(Date.now() / 700) : .35;
+  planeObjs.forEach((o) => { if (o.ring) o.ring.material.opacity = o.moves ? pulse : .35; });   // only an aeroplane that is moving breathes
   planeObjs.forEach((o) => { if (!o.moves) return;
     const nm = o.p.gs * dt / 3600, tr = o.p.track * Math.PI / 180;     // knots are nautical miles an hour; a nautical mile is a minute of latitude
     o.lat = o.p.lat + nm * Math.cos(tr) / 60; o.lng = o.p.lng + nm * Math.sin(tr) / (60 * Math.cos(o.p.lat * Math.PI / 180));
@@ -1512,7 +1524,7 @@ function stepPlanes(anim) {
 }
 window.__aircraft = () => ({ n: planeObjs.length, demo: !!(planes && planes.mock), fresh: planesFresh(), sheetY: yOf('aircraft'), yPerFt: AC.yStep / AC.ftStep,
   pts: planeObjs.map((o) => ({ id: o.p.id, phase: o.p.phase, altFt: o.p.altFt, gs: o.p.gs, track: o.p.track, lat0: o.p.lat, lng0: o.p.lng, lat: o.lat, lng: o.lng, moves: o.moves,
-    y: o.g.position.y + o.lift, heading: o.g.children[0] && o.g.children[0].rotation ? -o.g.children[0].rotation.y * 180 / Math.PI : null })) });
+    y: o.g.position.y + o.lift, aheadLen: o.ahead ? o.ahead.len : null, perNm: o.ahead ? o.ahead.perNm : null, ring: !!o.ring, heading: o.g.children[0] && o.g.children[0].rotation ? -o.g.children[0].rotation.y * 180 / Math.PI : null })) });
 
 /* ---- satellites ---- */
 function satellite(scale) {

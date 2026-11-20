@@ -105,6 +105,10 @@ const key = (page) => page.evaluate(() => { const L = document.getElementById('l
       const flying = a1.pts.filter((q) => q.altFt != null && q.phase !== 'ground' && q.phase !== 'unknown');
       ok(flying.length > 0 && flying.every((q) => Math.abs((q.y - a1.sheetY - 1.5) - q.altFt * a1.yPerFt) < 0.01), name + ': an arrow is lifted by its real height on the stated scale');
       ok(flying.filter((q) => q.track != null).every((q) => Math.abs((((q.heading - q.track) % 360) + 540) % 360 - 180) < 0.01), name + ': and points along its track');
+      const aim = a1.pts.filter((q) => q.moves);
+      ok(aim.length > 0 && aim.every((q) => q.aheadLen != null && Math.abs(q.aheadLen - q.gs / 30 * q.perNm) < 0.001 && q.aheadLen > 0), name + ': each moving aeroplane has a line ahead of it as long as two minutes at its own speed');
+      ok(a1.pts.filter((q) => !q.moves).every((q) => q.aheadLen == null), name + ': one without speed and heading has no line ahead');
+      ok(flying.every((q) => q.ring), name + ': an aeroplane in the air has its ring on the ground');
       await wait(2500);
       const a2 = await page.evaluate(() => window.__aircraft());
       const mover = a2.pts.find((q) => q.moves);
