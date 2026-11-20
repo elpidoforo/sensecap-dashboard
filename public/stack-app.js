@@ -1832,7 +1832,7 @@ const homePose = () => away([0, MID, 0], Math.min(15500, fitDist(Math.hypot(SW /
 const cyprusPose = () => away([ISLE.x, MID * .9, ISLE.z], Math.min(15500, fitDist(Math.hypot(ISLE.w / 2, ISLE.d / 2, TOP / 2) * 1.3)));
 /* one sheet on its own is looked at from above, so its picture can be read: the whole sheet, or Cyprus on it */
 function soloPose(y, mode) {
-  const wide = innerWidth > 860, share = wide ? .5 : 1;              // the panels on both sides cover part of a wide screen
+  const wide = innerWidth > 860, share = wide ? .74 : 1;             // a wide screen: only the key on the right covers part of the sheet (the side lists step away)
   const width = mode === 'cyprus' ? ISLE.w * 1.2 : SW, cx = mode === 'cyprus' ? ISLE.x : 0, cz = mode === 'cyprus' ? ISLE.z : 0;
   const d = Math.min(15500, (mode === 'cyprus' ? 1.1 : 1.22) * width / (2 * Math.tan(19 * Math.PI / 180) * camera.aspect * share));
   const n = Math.hypot(.16, .8, .9);

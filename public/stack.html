@@ -158,6 +158,8 @@ html.on-site,html.on-site body{background:transparent}
   .probe .kv:nth-child(n+6){display:none}
   .note{display:none}
 }
+/* a card taken out of the pile: on a wide screen the side lists step away, so the sheet is big and the key stands beside it */
+@media (min-width:861px){ body.solo-on .rail,body.solo-on .probe{display:none} }
 /* a short window (the frame on the home page): one sheet on show gives the probe's room to the key */
 @media (max-height:700px) and (min-width:861px){ body.solo-on .probe{display:none} }
 @media (prefers-reduced-motion:reduce){ .lay,.lay .go{transition:none} .lay.fresh{animation:none} .band i{transition:none} }
