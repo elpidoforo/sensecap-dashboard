@@ -319,6 +319,39 @@ const N = 30;   // the sheets of the stack, from the seabed up to the satellite 
       ok(errs.length === 0, 'full screen (' + lang + '): the page threw nothing (' + errs.join(' | ') + ')');
       await ctx.close();
     }
+    // a tile leaves the pile and comes back: the others stay in view while it flies, then only it is left; nothing stays displaced
+    {
+      const ctx = await b.newContext({ viewport: { width: 1280, height: 860 } });
+      const p = await ctx.newPage();
+      const errs = [];
+      p.on('pageerror', (e) => errs.push(e.message));
+      await p.goto(BASE + '/stack.html?lang=en', { waitUntil: 'load', timeout: 60000 });
+      for (let i = 0; i < 80; i++) { if (await p.evaluate(() => !!window.__embedReady).catch(() => false)) break; await wait(250); }
+      await wait(500);
+      const before = await p.evaluate(() => window.__sheets().on.length);
+      await p.click('#menu'); await p.evaluate(() => document.querySelectorAll('#menu-list button')[24].click()); await wait(150);
+      const mid = await p.evaluate(() => { const s = window.__sheets(); return { lifting: s.lifting, shown: s.shown.length, raised: s.raised }; });
+      ok(mid.lifting && mid.shown > 1 && mid.raised > 0, 'lift: while the tile flies out, the pile is still in view and the tile is raised (' + JSON.stringify(mid) + ')');
+      await wait(1400);
+      const end = await p.evaluate(() => { const s = window.__sheets(); return { lifting: s.lifting, shown: s.shown, raised: s.raised, on: s.on }; });
+      ok(!end.lifting && end.raised === 0 && end.shown.length === 1 && end.on.length === 1, 'lift: once it has arrived only that tile is shown and nothing is left displaced (' + JSON.stringify(end) + ')');
+      await p.click('#back'); await wait(150);
+      ok(await p.evaluate(() => window.__sheets().lifting), 'lift: going back, the tile returns to the pile with the same movement');
+      await wait(1400);
+      const back = await p.evaluate(() => { const s = window.__sheets(); return { lifting: s.lifting, raised: s.raised, on: s.on.length, shown: s.shown.length }; });
+      ok(!back.lifting && back.raised === 0 && back.on === before && back.shown === before, 'lift: the pile is as it was (' + JSON.stringify(back) + ')');
+      ok(errs.length === 0, 'lift: the page threw nothing (' + errs.join(' | ') + ')');
+      await ctx.close();
+    }
+    {
+      const ctx = await b.newContext({ viewport: { width: 1280, height: 860 }, reducedMotion: 'reduce' });
+      const p = await ctx.newPage();
+      await p.goto(BASE + '/stack.html?lang=en', { waitUntil: 'load', timeout: 60000 });
+      for (let i = 0; i < 80; i++) { if (await p.evaluate(() => !!window.__embedReady).catch(() => false)) break; await wait(250); }
+      await p.click('#menu'); await p.evaluate(() => document.querySelectorAll('#menu-list button')[24].click()); await wait(150);
+      ok(await p.evaluate(() => { const s = window.__sheets(); return !s.lifting && s.shown.length === 1 && s.raised === 0; }), 'lift: with reduced motion the tile simply appears, nothing flies');
+      await ctx.close();
+    }
     // the menu of layers and sources, and the way back to the stack
     for (const lang of ['en', 'el']) {
       const ctx = await b.newContext({ viewport: { width: 1280, height: 860 } });

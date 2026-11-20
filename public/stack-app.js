@@ -1567,7 +1567,7 @@ window.__sheets = () => ({ still: still(), tour, wind: !!windF, rainKnown, rainC
   ships: ships ? ships.ports.map((p) => ({ code: p.code, xy: pxOf(p.lng, p.lat), arrivals: p.arrivals, arrQ: p.arrQ, perDay: p.perDay, pulseS: p.pulseS, cargo: p.cargo, cargoQ: p.cargoQ, ended: p.ended, ring: p.arrivals != null ? shipRing(p) : null })) : null,
   layers: LAYERS.map((l) => l.id), on: sheets.filter((s) => s.on).map((s) => s.layer.id), built: sheets.filter((s) => s.built).map((s) => s.layer.id), loaded: LAYERS.filter((l) => l.loadedAt).map((l) => l.id),
   opening: LAYERS.filter((l) => l.def).map((l) => l.id), tourAt, revealDone: LAYERS.filter((l) => l.stack && l.revealDone).map((l) => l.id), modes: Object.fromEntries(LAYERS.filter((l) => l.modes).map((l) => [l.id, l.mode])),
-  terrain: terrain ? terrain.kind : 'none' });
+  terrain: terrain ? terrain.kind : 'none', lifting: !!lift, shown: sheets.filter((s) => s.group.visible).map((s) => s.layer.id), raised: sheets.filter((s) => s.group.position.y !== 0).length });
 // one painted sheet at one place: how opaque it is there, and its colour (the tests use it to see that a sheet is empty where it has no data)
 window.__inkAt = (id, lng, lat, r) => { const l = layerOf(id); if (!l || !l.ctx) return null; const [x, y] = pxOf(lng, lat), k = r || 3, w = sheetOf[id].win;
   const cx = Math.round(x) - w.x0, cy = Math.round(y) - w.y0; if (cx + k < 0 || cy + k < 0 || cx - k >= w.w || cy - k >= w.h) return { alpha: 0, rgb: [0, 0, 0], outside: true };   // beyond the sheet's window there is no picture at all
@@ -1657,6 +1657,7 @@ function paintCities(s) {
   }));
 }
 function setSolo(id) {
+  const wasOn = sheets.filter((s) => s.on), wasSolo = soloId;
   soloId = soloId === id ? null : id;
   markTools(soloId == null ? toolMode : 'solo');
   sheets.forEach((s) => {
@@ -1669,6 +1670,7 @@ function setSolo(id) {
   document.getElementById('back').hidden = soloId == null;
   paintLegend(); paintRail();
   const pose = poseFor(viewMode); flyTo(pose[0], pose[1]);
+  startLift(wasOn, soloId != null ? soloId : wasSolo, soloId != null);
 }
 /* ---- the key: for one sheet at a time, what it shows, what the colours and the motion mean, and where it comes from ---- */
 const NO_MOVE = () => T('Nothing moves here, because there is no reading to show.', 'Εδώ δεν κινείται τίποτα, γιατί δεν υπάρχει μέτρηση να δείξει.');
@@ -1908,6 +1910,25 @@ document.addEventListener('fullscreenchange', fsSync); document.addEventListener
 controls.addEventListener('start', () => { stopTour(); fly = null; });
 canvas.addEventListener('wheel', () => { stopTour(); fly = null; }, { passive: true });
 
+// A tile leaves the pile and comes back to it: while the camera flies, the picked sheet rises out of its slot and settles, and the
+// others stay in view a moment longer, sinking back a little. With reduced motion nothing of this runs.
+let lift = null;
+function liftEnd() { if (!lift) return; sheets.forEach((s) => { s.group.position.y = 0; s.group.visible = s.on; }); lift = null; }
+function startLift(wasOn, id, going) {
+  liftEnd();
+  if (still() || !sheetOf[id]) return;
+  const others = going ? wasOn.filter((s) => s.layer.id !== id) : sheets.filter((s) => s.on && s.layer.id !== id);
+  lift = { id, going, others, f: 0 };
+  others.forEach((s) => { s.group.visible = true; });
+}
+function liftStep(dt) {
+  if (!lift) return;
+  lift.f = Math.min(1, lift.f + dt / .9);
+  const f = lift.f, up = Math.sin(Math.PI * f) * SW * .07, sink = (lift.going ? f : 1 - f) * SW * .035;
+  sheetOf[lift.id].group.position.y = up;
+  lift.others.forEach((s) => { s.group.position.y = -sink; });
+  if (f >= 1) liftEnd();
+}
 let fly = null;
 function flyTo(pos, tgt) {
   stopTour();
@@ -2004,6 +2025,7 @@ function tick() {
     rec.halo.material.opacity = h.o;
   });
   if (tour) tourStep(dt);
+  liftStep(dt);
   if (fly) {
     fly.f = Math.min(1, fly.f + dt / .9);
     camera.position.set(ease(fly.p0[0], fly.p1[0], fly.f), ease(fly.p0[1], fly.p1[1], fly.f), ease(fly.p0[2], fly.p1[2], fly.f));
