@@ -27,6 +27,15 @@ html.on-site,html.on-site body{background:transparent}
 .glass{background:linear-gradient(180deg,var(--panel),rgba(6,13,24,.9));border:1px solid var(--edge);border-radius:13px;
   backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2);
   box-shadow:0 26px 54px -30px #000,inset 0 1px 0 rgba(255,255,255,.06)}
+.menuwrap{position:relative;display:flex;gap:8px;pointer-events:auto}
+.menubtn,.backbtn{padding:8px 13px;border:1px solid var(--edge);color:var(--ink);cursor:pointer;font:700 10.5px/1 var(--mono);letter-spacing:1px}
+.menubtn:hover,.backbtn:hover{border-color:var(--cyan)}
+.menubtn:focus-visible,.backbtn:focus-visible,.menulist button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.menulist{position:absolute;top:100%;left:0;margin-top:8px;width:min(560px,calc(100vw - 32px));max-height:min(70vh,640px);overflow:auto;padding:6px 8px 10px;z-index:5}
+.menulist h3{margin:9px 4px 3px;font:700 9px/1 var(--mono);letter-spacing:1.4px;color:var(--faint)}
+.menulist button{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;padding:7px 9px;border:0;border-left:3px solid var(--c,var(--cyan));border-radius:6px;background:transparent;color:var(--ink);text-align:left;cursor:pointer;font:600 12px/1.2 var(--sans)}
+.menulist button span{font:500 10.5px/1.3 var(--sans);color:var(--dim)}
+.menulist button:hover,.menulist button[aria-current="true"]{background:rgba(120,190,240,.14)}
 .top{display:flex;align-items:center;gap:9px;flex-wrap:wrap;flex:0 0 auto}
 .brand{display:flex;align-items:baseline;gap:9px;padding:8px 13px}
 .brand b{font:800 12px/1 var(--sans);letter-spacing:2.2px}
@@ -159,6 +168,11 @@ html.on-site,html.on-site body{background:transparent}
 <div class="ui">
   <div class="top">
     <div class="glass brand"><i>KLEANTHIS</i><b data-el="ΣΤΟΙΒΑ ΔΕΔΟΜΕΝΩΝ ΚΥΠΡΟΥ">CYPRUS DATA STACK</b></div>
+    <div class="menuwrap">
+      <button type="button" class="glass menubtn" id="menu" aria-expanded="false" aria-controls="menu-list" data-el="ΣΤΡΩΜΑΤΑ ΚΑΙ ΠΗΓΕΣ ▾">LAYERS AND SOURCES ▾</button>
+      <button type="button" class="glass backbtn" id="back" hidden data-el="ΠΙΣΩ ΣΤΗ ΣΤΟΙΒΑ">BACK TO THE STACK</button>
+      <div class="glass menulist" id="menu-list" hidden role="group" aria-label="All layers and where their data comes from" data-ael="Όλα τα στρώματα και από πού προέρχονται τα δεδομένα τους"></div>
+    </div>
     <div class="badge" data-el="ΖΩΝΤΑΝΕΣ ΜΕΤΡΗΣΕΙΣ · ΣΧΕΔΙΑΣΜΕΝΟ ΑΝΑΓΛΥΦΟ">LIVE READINGS · DRAWN RELIEF</div>
     <div class="glass clock" id="clock"></div>
   </div>

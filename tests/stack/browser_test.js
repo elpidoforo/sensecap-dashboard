@@ -319,6 +319,29 @@ const N = 30;   // the sheets of the stack, from the seabed up to the satellite 
       ok(errs.length === 0, 'full screen (' + lang + '): the page threw nothing (' + errs.join(' | ') + ')');
       await ctx.close();
     }
+    // the menu of layers and sources, and the way back to the stack
+    for (const lang of ['en', 'el']) {
+      const ctx = await b.newContext({ viewport: { width: 1280, height: 860 } });
+      const p = await ctx.newPage();
+      const errs = [];
+      p.on('pageerror', (e) => errs.push(e.message));
+      await p.goto(BASE + '/stack.html?lang=' + lang, { waitUntil: 'load', timeout: 60000 });
+      for (let i = 0; i < 80; i++) { if (await p.evaluate(() => !!window.__embedReady).catch(() => false)) break; await wait(250); }
+      ok(await p.evaluate(() => document.getElementById('menu-list').hidden && document.getElementById('back').hidden), 'menu (' + lang + '): closed at the start, and no way-back button while the whole stack shows');
+      await p.click('#menu'); await wait(200);
+      const n = await p.evaluate(() => document.querySelectorAll('#menu-list button').length);
+      const withSrc = await p.evaluate(() => [...document.querySelectorAll('#menu-list button')].filter((x) => x.querySelector('span')).length);
+      ok(n === 30 && withSrc === 30, 'menu (' + lang + '): every one of the 30 layers is listed with its source (' + n + '/' + withSrc + ')');
+      await p.evaluate(() => document.querySelectorAll('#menu-list button')[11].click()); await wait(600);
+      ok(await p.evaluate(() => window.__sheets().solo != null || document.body.classList.contains('solo-on')), 'menu (' + lang + '): picking a layer brings it out on its own');
+      ok(await p.evaluate(() => document.getElementById('menu-list').hidden && !document.getElementById('back').hidden), 'menu (' + lang + '): the list closes and the way-back button appears');
+      await p.click('#back'); await wait(600);
+      ok(await p.evaluate(() => !document.body.classList.contains('solo-on') && document.getElementById('back').hidden), 'menu (' + lang + '): the way-back button puts the card back in the stack');
+      await p.click('#menu'); await p.keyboard.press('Escape'); await wait(200);
+      ok(await p.evaluate(() => document.getElementById('menu-list').hidden), 'menu (' + lang + '): Esc closes the list');
+      ok(errs.length === 0, 'menu (' + lang + '): the page threw nothing (' + errs.join(' | ') + ')');
+      await ctx.close();
+    }
   } catch (e) {
     fail++; console.log('FAIL: the run stopped: ' + (e && e.stack));
   } finally {

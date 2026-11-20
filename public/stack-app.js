@@ -1666,6 +1666,7 @@ function setSolo(id) {
   });
   fitWindows(); syncBoxes(); drawTwins(); touchAll();               // the sheet on its own gets the whole region, and the names of the places around it
   document.body.classList.toggle('solo-on', soloId != null);
+  document.getElementById('back').hidden = soloId == null;
   paintLegend(); paintRail();
   const pose = poseFor(viewMode); flyTo(pose[0], pose[1]);
 }
@@ -1872,6 +1873,26 @@ function stopTour() { if (!tour || touring) return; tour = false; tourBtn.setAtt
 tourBtn.addEventListener('click', () => { tour = !tour; tourT = 0; tourAt = soloId == null ? -1 : LAYERS.findIndex((l) => l.id === soloId); tourBtn.setAttribute('aria-pressed', String(tour)); hint.hidden = !tour; });
 // taking hold of anything on the page ends the tour: the reader is in charge from then on
 document.querySelector('.ui').addEventListener('click', (e) => { if (!(e.target.closest && e.target.closest('#tour'))) stopTour(); }, true);
+/* ---- the menu of layers and sources, and the way back to the stack: pick a card from the list and it comes out of the pile ---- */
+const menuBtn = document.getElementById('menu'), menuList = document.getElementById('menu-list'), backBtn = document.getElementById('back');
+const BAND_NAME = { WATER: ['WATER', 'ΝΕΡΟ'], GROUND: ['GROUND', 'ΕΔΑΦΟΣ'], CITY: ['CITY', 'ΠΟΛΗ'], AIR: ['AIR', 'ΑΕΡΑΣ'], SPACE: ['SPACE', 'ΔΙΑΣΤΗΜΑ'] };
+function closeMenu(focus) { menuList.hidden = true; menuBtn.setAttribute('aria-expanded', 'false'); if (focus) menuBtn.focus(); }
+function paintMenu() {
+  menuList.textContent = '';
+  let band = null;
+  LAYERS.forEach((l) => {
+    if (l.band !== band) { band = l.band; const h = mk('h3', null, T(BAND_NAME[band][0], BAND_NAME[band][1])); menuList.append(h); }
+    const b = mk('button', null, T(l.name[0], l.name[1])); b.type = 'button'; b.style.setProperty('--c', l.c);
+    if (Array.isArray(l.src)) b.append(mk('span', null, T(l.src[0], l.src[1])));
+    if (l.id === soloId) b.setAttribute('aria-current', 'true');
+    b.addEventListener('click', () => { if (soloId !== l.id) setSolo(l.id); closeMenu(true); });
+    menuList.append(b);
+  });
+}
+menuBtn.addEventListener('click', () => { if (menuList.hidden) { paintMenu(); menuList.hidden = false; menuBtn.setAttribute('aria-expanded', 'true'); const cur = menuList.querySelector('[aria-current]'); (cur || menuList.querySelector('button')).focus(); } else closeMenu(false); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menuList.hidden) { e.stopPropagation(); closeMenu(true); } }, true);
+document.addEventListener('pointerdown', (e) => { if (!menuList.hidden && !e.target.closest('.menuwrap')) closeMenu(false); });
+backBtn.addEventListener('click', () => { if (soloId != null) setSolo(soloId); });
 // Full screen: the browser's own full screen for the whole 3D page (inside the home-page frame it fills the display too). Where a
 // browser has none (an iPhone), the stack opens on its own page at full size instead. Esc leaves, as in every browser.
 const fullBtn = document.getElementById('full'), fsRoot = document.documentElement;
