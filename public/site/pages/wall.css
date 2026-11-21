@@ -1,0 +1,18 @@
+/* Data Wall and Data Flow: dark glass panels in the Data Vortex look */
+.wl { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; padding: 0; }
+.wl-panel { grid-column: span 12; background: #050b16; color: #EAF0F7; border: 1px solid rgba(125,211,252,.18); border-radius: 22px; padding: 16px 16px 12px; box-shadow: 0 24px 60px -30px rgba(5,11,22,.8); min-width: 0; }
+@media (min-width: 980px) { .wl-half { grid-column: span 6; } .wl-wide { grid-column: span 12; } }
+.wl-h { margin: 0 0 4px; font: 700 18px/1.2 inherit; color: #fff; letter-spacing: .01em; }
+.wl-hint { margin: 0 0 10px; color: #9fb2cc; font-size: 13px; max-width: 70ch; }
+.wl-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.wl-tools button, .wl-tools select { font: 600 12px ui-monospace, Menlo, monospace; color: #c6d3e6; background: rgba(255,255,255,.04); border: 1px solid #4a6585; border-radius: 99px; padding: 7px 12px; cursor: pointer; }
+.wl-tools button[aria-pressed="true"] { background: #7DD3FC; color: #06203a; border-color: #7DD3FC; }
+.wl-tools button:focus-visible, .wl-tools select:focus-visible, .wl-list summary:focus-visible { outline: 2px solid #FBBF24; outline-offset: 2px; }
+.wl-host { position: relative; min-height: 280px; max-width: 100%; overflow-x: hidden; }
+.wl-tall { } .wl-tall .wl-host { min-height: 420px; }
+.wl-read { min-height: 1.4em; margin: 8px 0 0; font: 12px ui-monospace, Menlo, monospace; color: #b9c7da; }
+.wl-empty { margin: 24px 4px; color: #9fb2cc; font-size: 14px; max-width: 60ch; }
+.wl-list { margin-top: 8px; color: #b9c7da; font-size: 12.5px; }
+.wl-list summary { cursor: pointer; color: #7DD3FC; }
+.wl-list ul { margin: 8px 0 0; padding-left: 18px; max-height: 240px; overflow: auto; }
+.wl-foot { grid-column: span 12; color: #6f8299; font-size: 12px; margin: 0; }
