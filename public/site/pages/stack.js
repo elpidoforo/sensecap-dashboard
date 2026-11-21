@@ -34,6 +34,8 @@
 
       const params = new URLSearchParams();
       params.set('embed', '1');
+      const wantSolo = /[?&]solo=([a-z0-9]+)/.exec(location.hash);   // a link from the Data Vortex lifts that sheet out of the stack
+      if (wantSolo) params.set('solo', wantSolo[1]);
       params.set('lang', ctx && ctx.lang === 'el' ? 'el' : SC.lang === 'el' ? 'el' : 'en');
       const card = el('div', { class: 'nm-card frame-card mp-frame city-frame' });
       const timers = [];

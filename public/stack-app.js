@@ -2502,3 +2502,5 @@ window.__haloWidth = () => (pinLabels[0] ? pinLabels[0].halo.scale.x : 0);
 
 tick();
 window.__embedReady = true;
+// A link from the Data Vortex (?solo=ev) opens the stack with that one sheet lifted out. Only a known sheet id is accepted.
+{ const want = Q.get('solo'); if (want && layerOf(want) && /^[a-z0-9]+$/.test(want)) { try { setSolo(want); } catch (e) { /* the stack still opens as usual */ } } }

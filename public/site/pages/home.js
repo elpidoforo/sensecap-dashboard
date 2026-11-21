@@ -105,7 +105,8 @@
       tiles: [
         { id: 'board', ic: 'board', n: T('City board', 'Πίνακας πόλης'), v: (S) => { const mx = Math.max(1, ...SCH.map((s) => (S.live && S.live[s.id] ? S.live[s.id].total : 0))); return P.columns(SCH.map((s) => { const i = S.live && S.live[s.id]; return i && i.total ? Math.max(0.15, i.on / mx) : 0.1; })); }, f: (S) => { const d = devOn(S); return d ? T(d.on + ' of ' + d.total + ' sensors online, a column at each school', d.on + ' από ' + d.total + ' αισθητήρες ενεργοί, μια στήλη σε κάθε σχολείο') : T('A light column at each school', 'Μια στήλη φωτός σε κάθε σχολείο'); } },
         { id: 'city3d', ic: 'globe', n: T('Cyprus 3D', 'Κύπρος 3D'), v: () => P.island(), f: () => T('Turn the island, switch layers', 'Γυρίστε το νησί, αλλάξτε επίπεδα') },
-        { id: 'stack', ic: 'layers', n: T('The data stack in 3D', 'Η στοίβα δεδομένων σε 3D'), v: () => P.island(), f: () => T('Every layer, with its source and its age', 'Κάθε στρώμα, με την πηγή και την ηλικία του') }] },
+        { id: 'stack', ic: 'layers', n: T('The data stack in 3D', 'Η στοίβα δεδομένων σε 3D'), v: () => P.island(), f: () => T('Every layer, with its source and its age', 'Κάθε στρώμα, με την πηγή και την ηλικία του') },
+        { id: 'vortex', ic: 'db', n: T('Data Vortex', 'Data Vortex'), v: () => P.stack(), f: () => T('Every record as one sphere, by data set', 'Κάθε εγγραφή ως σφαίρα, ανά σύνολο δεδομένων') }] },
     { c: '#A5B4FC', n: T('Schools and teams', 'Σχολεία και ομάδες'), d: T('The four schools and their teams, the districts and neighbourhoods, today’s desk and the projects that are running.', 'Τα τέσσερα σχολεία και οι ομάδες τους, οι επαρχίες και οι γειτονιές, το γραφείο της ημέρας και τα έργα που τρέχουν.'), s: T('Who is doing the work', 'Ποιος κάνει τη δουλειά'), tags: ['team'],
       bigs: [
         (S) => (S.schools ? [String(S.schools.length), T('schools', 'σχολεία')] : null),
