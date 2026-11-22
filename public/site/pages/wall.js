@@ -9,7 +9,7 @@
   SC.css('/site/pages/vortex.css'); SC.css('/site/pages/wall.css');
   const LIBS = ['/site/viz/kit.js', '/site/vortexdata.js', '/site/viz/sphere-data.js', '/site/viz/sphere.js', '/site/viz/tilegrid-data.js', '/site/viz/tilegrid.js', '/site/viz/wave-data.js', '/site/viz/wave.js',
     '/site/viz/heatmatrix-data.js', '/site/viz/heatmatrix.js', '/site/viz/pixelgrid-data.js', '/site/viz/pixelgrid.js', '/site/viz/nodelink-data.js', '/site/viz/nodelink.js', '/site/viz/counter-data.js', '/site/viz/counter.js', '/site/viz/hourstrip-data.js', '/site/viz/hourstrip.js', '/site/viz/scatter-data.js', '/site/viz/scatter.js',
-    '/site/viz/daybars-data.js', '/site/viz/daybars.js', '/site/viz/classtape-data.js', '/site/viz/classtape.js', '/site/viz/people-data.js', '/site/viz/people.js'];
+    '/site/viz/daybars-data.js', '/site/viz/daybars.js', '/site/viz/classtape-data.js', '/site/viz/classtape.js', '/site/viz/people-data.js', '/site/viz/people.js', '/site/viz/station-data.js', '/site/viz/station.js'];
   const SETS = ['all', 'ev', 'crossings', 'flood', 'quakes'];
   const SETNAME = { all: ['All data sets', 'Όλα τα συνόλα'], ev: ['EV charging', 'Φόρτιση EV'], crossings: ['Crossings', 'Διαβάσεις'], flood: ['Flood reaches', 'Ποτάμια'], quakes: ['Earthquakes', 'Σεισμοί'] };
 
@@ -112,6 +112,25 @@
       const h = keep(safe(() => SC.viz.people.mount(pe.host, m, { chooser: false, onPick: (r) => pe.say(r ? K.pair(r.label) : '') }), pe.host));
       if (h) pickOne(pe, m.choices, (c) => c.id, (c) => c.name, T('City', 'Πόλη'), (v) => { pe.rows(h.set({ city: v })); });
     });
+
+    // 6. weather and air, live: one station at a time, refreshed while the page is open
+    const fresh = (url) => fetch(url, { credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const liveStation = (sheet, title, hint) => {
+      const p = K.panel(wl, title, hint, 'dw-4');
+      K.tryJson('/api/stack/' + sheet).then((a) => {
+        if (!a) { nope(p); return; }
+        const m = SC.viz.stationData.build(a, {}, Date.now()); p.rows(m); p.aria(m); p.host.textContent = '';
+        const h = keep(safe(() => SC.viz.station.mount(p.host, m, { chooser: false, onPick: (r) => p.say(r ? K.pair(r.label) : '') }), p.host));
+        if (!h) return;
+        if (m.choices && m.choices.length > 1) pickOne(p, m.choices, (c) => c.id, (c) => c.name, T('Station', 'Σταθμός'), (v) => { p.rows(h.set({ station: v }) || h.model()); });
+        const every = Math.max(60, Math.min(900, a.refreshSeconds || 300)) * 1000;
+        const t = setInterval(() => { if (document.hidden) return; fresh('/api/stack/' + sheet).then((n) => { if (n) { try { p.rows(h.update(n, Date.now()) || h.model()); } catch (e) { /* keep the last reading */ } } }); }, every);
+        stops.push(() => clearInterval(t));
+      });
+    };
+    liveStation('met-stations', T('Weather stations, live', 'Μετεωρολογικοί σταθμοί, ζωντανά'), T('The latest reading of one Met Office station: wind, temperature, humidity and rain.', 'Η τελευταία μέτρηση ενός σταθμού της Μετεωρολογικής: άνεμος, θερμοκρασία, υγρασία και βροχή.'));
+    liveStation('airports', T('Airport weather, live', 'Καιρός αεροδρομίων, ζωντανά'), T('The latest weather report of one airport.', 'Η τελευταία αναφορά καιρού ενός αεροδρομίου.'));
+    liveStation('air-stations', T('Official air-quality stations, live', 'Επίσημοι σταθμοί ποιότητας αέρα, ζωντανά'), T('The latest hourly values of one official outdoor station. Not compared with our indoor sensors.', 'Οι τελευταίες ωριαίες τιμές ενός επίσημου εξωτερικού σταθμού. Δεν συγκρίνονται με τους εσωτερικούς αισθητήρες μας.'));
 
     wl.append(K.el('p', 'wl-foot', T('Sources and licences are on each data sheet. Drawn from our own answers only; a feed that cannot be loaded is shown as not available.', 'Οι πηγές και οι άδειες είναι σε κάθε φύλλο δεδομένων. Μόνο από δικά μας δεδομένα. Ένα δεδομένο που δεν φορτώνει δείχνεται ως μη διαθέσιμο.')));
     return () => stops.forEach((f) => { try { f(); } catch (e) { /* already gone */ } });
