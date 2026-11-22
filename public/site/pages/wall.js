@@ -8,7 +8,8 @@
   const T = SC.t;
   SC.css('/site/pages/vortex.css'); SC.css('/site/pages/wall.css');
   const LIBS = ['/site/viz/kit.js', '/site/vortexdata.js', '/site/viz/sphere-data.js', '/site/viz/sphere.js', '/site/viz/tilegrid-data.js', '/site/viz/tilegrid.js', '/site/viz/wave-data.js', '/site/viz/wave.js',
-    '/site/viz/heatmatrix-data.js', '/site/viz/heatmatrix.js', '/site/viz/pixelgrid-data.js', '/site/viz/pixelgrid.js', '/site/viz/nodelink-data.js', '/site/viz/nodelink.js'];
+    '/site/viz/heatmatrix-data.js', '/site/viz/heatmatrix.js', '/site/viz/pixelgrid-data.js', '/site/viz/pixelgrid.js', '/site/viz/nodelink-data.js', '/site/viz/nodelink.js', '/site/viz/counter-data.js', '/site/viz/counter.js', '/site/viz/hourstrip-data.js', '/site/viz/hourstrip.js', '/site/viz/scatter-data.js', '/site/viz/scatter.js',
+    '/site/viz/daybars-data.js', '/site/viz/daybars.js', '/site/viz/classtape-data.js', '/site/viz/classtape.js'];
   const SETS = ['all', 'ev', 'crossings', 'flood', 'quakes'];
   const SETNAME = { all: ['All data sets', 'Όλα τα συνόλα'], ev: ['EV charging', 'Φόρτιση EV'], crossings: ['Crossings', 'Διαβάσεις'], flood: ['Flood reaches', 'Ποτάμια'], quakes: ['Earthquakes', 'Σεισμοί'] };
 
@@ -64,6 +65,34 @@
       const pm = SC.viz.pixelgridData.build(ba); pg.rows(pm); pg.aria(pm); pg.host.textContent = '';
       keep(safe(() => SC.viz.pixelgrid.mount(pg.host, pm, { onPick: (c) => pg.say(c ? JSON.stringify(c).slice(0, 120) : '') }), pg.host));
     });
+
+
+    // 4. interactive items: counter, hour strip, dot cloud, day bars, class tape. Each reads one sheet and shows one place at a time.
+    const pickOne = (p, choices, idOf, nameOf, label, onSet) => { const sel = K.el('select'); sel.setAttribute('aria-label', label); (choices || []).forEach((c) => { const o = K.el('option', null, K.pair(nameOf(c))); o.value = idOf(c); sel.append(o); }); sel.onchange = () => onSet(sel.value); p.tools.append(sel); return sel; };
+    const btn = (p, text, fn) => { const b = K.el('button', null, text); b.type = 'button'; b.onclick = () => fn(b); p.tools.append(b); return b; };
+    const item = (name, sheet, p, start) => K.tryJson('/api/stack/' + sheet).then((a) => { if (!a) { nope(p); return; } const D = SC.viz[name + 'Data'], m = D.build(a); p.rows(m.view || m); p.aria(m); if (m.empty && !(m.choices && m.choices.length)) { K.note(p.host, K.pair(m.empty)); return; } p.host.textContent = ''; safe(() => start(m, D, a), p.host); });
+
+    const ct = K.panel(wl, T('Building permits in one month', 'Άδειες οικοδομής σε έναν μήνα'), T('Drag along the small line to move through the last 36 months. One district at a time.', 'Σύρετε πάνω στη μικρή γραμμή για να περάσετε τους τελευταίους 36 μήνες. Μία επαρχία τη φορά.'), 'dw-5');
+    item('counter', 'permits', ct, (m) => { const h = keep(SC.viz.counter.mount(ct.host, m, { onPick: (r) => ct.say(r ? K.pair(r.districtName) + ' · ' + K.pair(r.label) + ': ' + (r.value == null ? '–' : r.value) : '') }));
+      pickOne(ct, m.choices, (c) => c.code, (c) => c.name, T('District', 'Επαρχία'), (v) => { h.set({ district: v }); ct.rows(m.views[v]); }); });
+
+    const hs = K.panel(wl, T('One day of air, hour by hour', 'Μία μέρα αέρα, ώρα με την ώρα'), T('Press play to replay the day, or click an hour. A replay of a past day, not live. One station at a time.', 'Πατήστε αναπαραγωγή για να ξαναδείτε τη μέρα ή πατήστε μια ώρα. Επανάληψη παλιάς μέρας, όχι ζωντανά. Ένας σταθμός τη φορά.'), 'dw-7');
+    item('hourstrip', 'air-day', hs, (m) => { let h = null; const say = (r) => hs.say(r ? K.pair(r.stationName) + ' · ' + K.pair(r.label) : '');
+      h = keep(SC.viz.hourstrip.mount(hs.host, m, { autoplay: false, onHour: say, onChange: (v) => hs.rows(v), onState: (st) => { pb.textContent = st.playing ? T('Pause', 'Παύση') : T('Play', 'Αναπαραγωγή'); pb.setAttribute('aria-pressed', String(!!st.playing)); } }));
+      const pb = btn(hs, T('Play', 'Αναπαραγωγή'), () => h.toggle());
+      pickOne(hs, m.choices, (c) => c.id, (c) => c.name, T('Station', 'Σταθμός'), (v) => h.set({ station: v }));
+      pickOne(hs, m.pollutants, (c) => c.k, (c) => c.name, T('Pollutant', 'Ρύπος'), (v) => h.set({ pollutant: v })); });
+
+    const sc = K.panel(wl, T('Earthquakes: each dot is one event', 'Σεισμοί: κάθε τελεία είναι ένα γεγονός'), T('Click a dot to read it. Switch between magnitude and depth. A list of past events, not a forecast.', 'Πατήστε μια τελεία για να τη διαβάσετε. Αλλάξτε μεταξύ μεγέθους και βάθους. Λίστα παλιών γεγονότων, όχι πρόβλεψη.'), 'dw-6');
+    item('scatter', 'earthquakes', sc, (m) => { keep(SC.viz.scatter.mount(sc.host, m, { onPick: (r) => sc.say(r ? K.pair(r.label) : '') })); });
+
+    const db = K.panel(wl, T('Haze over one site, day by day', 'Αιθαλομίχλη πάνω από ένα σημείο, μέρα με τη μέρα'), T('One bar per day of July 2022. It describes the whole column of air, not the air at ground level.', 'Μία ράβδος για κάθε μέρα του Ιουλίου 2022. Περιγράφει όλη τη στήλη του αέρα, όχι τον αέρα στο έδαφος.'), 'dw-6');
+    item('daybars', 'aerosol-sites', db, (m, D, a) => { const h = keep(SC.viz.daybars.mount(db.host, m, { chooser: false, onPick: (r) => db.say(r ? K.pair(r.label) : '') }));
+      pickOne(db, m.choices, (c) => c.id, (c) => c.name, T('Site', 'Σημείο'), (v) => { db.rows(h.set({ site: v })); }); });
+
+    const tp = K.panel(wl, T('Farm drought classes through 2022', 'Κατηγορίες γεωργικής ξηρασίας μέσα στο 2022'), T('One cell per ten days, for one place. Classes are kinds, not a scale: no cell is taller than another.', 'Ένα κελί ανά δέκα μέρες, για ένα μέρος. Οι κατηγορίες είναι είδη, όχι κλίμακα: κανένα κελί δεν είναι ψηλότερο.'), 'wl-wide');
+    item('classtape', 'drought', tp, (m, D, a) => { const h = keep(SC.viz.classtape.mount(tp.host, m, { chooser: false, onPick: (r) => tp.say(r ? r.period + ' – ' + r.periodEnd + ': ' + K.pair(r.className) : '') }));
+      pickOne(tp, m.choices, (c) => c.id, (c) => c.name, T('Place', 'Μέρος'), (v) => { tp.rows(h.set({ place: v })); }); });
 
     wl.append(K.el('p', 'wl-foot', T('Sources and licences are on each data sheet. Drawn from our own answers only; a feed that cannot be loaded is shown as not available.', 'Οι πηγές και οι άδειες είναι σε κάθε φύλλο δεδομένων. Μόνο από δικά μας δεδομένα. Ένα δεδομένο που δεν φορτώνει δείχνεται ως μη διαθέσιμο.')));
     return () => stops.forEach((f) => { try { f(); } catch (e) { /* already gone */ } });
