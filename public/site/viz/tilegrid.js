@@ -27,6 +27,13 @@
     function layout() {
       cv.style.display = 'none'; const hostH = host.clientHeight, hostW = host.clientWidth; cv.style.display = 'block';
       const avail = Math.max(120, hostW || 320), inner = avail - 2 * PAD;
+      if (opts.compact) { // a strip of small cells: one cell per sheet, the name is in the tooltip and the page read-out
+        const g = 4, cols = Math.max(1, Math.floor((inner + g) / (62 + g))), tw = (inner - (cols - 1) * g) / cols, th = 46;
+        rects = []; let i = 0;
+        for (const b of m.bands) for (const t of b.tiles) { rects.push({ t, b, x: PAD + (i % cols) * (tw + g), y: PAD + Math.floor(i / cols) * (th + g), w: tw, h: th }); i++; }
+        layout.heads = [];
+        return { w: avail, h: PAD * 2 + Math.ceil(i / cols) * (th + g) - g };
+      }
       const cols = Math.max(1, Math.floor((inner + GAP) / (MIN_W + GAP)));
       const tw = (inner - (cols - 1) * GAP) / cols;
       let rows = 0; for (const b of m.bands) rows += Math.ceil(b.tiles.length / cols);
@@ -96,12 +103,25 @@
       }
       const order = rects.map((_, i) => i).sort((a, b) => hs[a] - hs[b]);
       for (const i of order) tile(rects[i], hs[i], now);
-      if (hover >= 0 && mouse) tip(rects[hover].t);
+      if (hover >= 0 && mouse && !opts.compact) tip(rects[hover].t);
     }
 
     function tile(r, h, now) {
       const t = r.t, c = COL[t.status] || CYAN, s = 1 + 0.045 * h;
       const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+      if (opts.compact) {
+        const glow = t.pulse ? (rmq.matches ? 0.5 : 0.5 + 0.5 * Math.sin(now / 1000 * 2 * Math.PI / 5.5)) : 0;
+        ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s); ctx.translate(-cx, -cy);
+        ctx.shadowColor = c; ctx.shadowBlur = (t.pulse ? 4 + 10 * glow : 0) + 8 * h;
+        ctx.fillStyle = 'rgba(12,22,40,0.96)'; rr(r.x, r.y, r.w, r.h, 3); ctx.fill(); ctx.shadowBlur = 0;
+        ctx.fillStyle = c; ctx.globalAlpha = t.status === 'unavailable' ? 0.16 : t.status === 'fixed' ? 0.2 : 0.3 + 0.1 * glow; rr(r.x, r.y, r.w, r.h, 3); ctx.fill();
+        ctx.globalAlpha = 0.6 + 0.4 * h; ctx.strokeStyle = c; ctx.lineWidth = 1 + 0.8 * h; if (t.status === 'unavailable') ctx.setLineDash([3, 3]);
+        rr(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, 3); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+        glyph(t.glyph, cx, r.y + 15, 5, c);
+        ctx.font = '600 9px ' + MONO; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#C9D8EA';
+        ctx.fillText(fit(tx(t.title), r.w - 6), cx, r.y + r.h - 8); ctx.textAlign = 'left';
+        ctx.restore(); return;
+      }
       ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s); ctx.translate(-cx, -cy);
       let glow = 0;
       if (t.pulse) glow = rmq.matches ? 0.5 : 0.5 + 0.5 * Math.sin(now / 1000 * 2 * Math.PI / 5.5);

@@ -19,14 +19,22 @@
     const keep = (h) => { if (h && h.destroy) stops.push(() => h.destroy()); return h; };
     const safe = (fn, host) => { try { return fn(); } catch (e) { K.note(host, T('This picture could not be drawn. The facts are in the text list below.', 'Η εικόνα δεν μπόρεσε να σχεδιαστεί. Τα στοιχεία είναι στη λίστα παρακάτω.')); return null; } };
 
+    // 0. the counter strip: three plain counts, filled in when the answers arrive
+    const strip = K.el('div', 'dw-strip'); wl.append(strip);
+    const still = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    const cell = (label) => { const sp0 = K.el('span'), b = K.el('b', null, '\u2013'); sp0.append(b, document.createTextNode(label)); strip.append(sp0); return (n) => { if (still || !(n > 0)) { b.textContent = String(n); return; } const t0 = performance.now(); const step = (t) => { const k = Math.min(1, (t - t0) / 700); b.textContent = String(Math.round(n * k)); if (k < 1 && b.isConnected) requestAnimationFrame(step); }; requestAnimationFrame(step); }; };
+    strip.append(K.el('span', 'dw-name', 'Kleanthis // Data Wall'));
+    const setRecords = cell(T('records as discs', 'εγγραφές ως δίσκοι')), setSheets = cell(T('data sheets', 'φύλλα δεδομένων')), setFeeds = cell(T('feeds that update', 'πηγές που ανανεώνονται'));
+    strip.append(K.el('span', 'dw-end', T('our own data, nothing invented', 'δικά μας δεδομένα, τίποτα επινοημένο')));
+    const tg = K.panel(wl, T('How old is each data set?', 'Πόσο παλιά είναι κάθε σύνολο;'), T('One cell per data sheet: point at a cell to read it. Sheets that never refresh are marked fixed by design and are never called old or fresh.', 'Ένα κελί ανά φύλλο δεδομένων: δείξτε ένα κελί για να το διαβάσετε. Τα φύλλα που δεν ανανεώνονται σημειώνονται ως σταθερά εξ σχεδίου και δεν λέγονται παλιά ή φρέσκα.'), 'wl-wide');
     // 1. the sphere: one disc per record
-    const sp = K.panel(wl, T('Every record as a disc', 'Κάθε εγγραφή ως δίσκος'), T('One disc is one real record. Drag to turn the sphere, click a disc to read it. Lines join discs of the same group only.', 'Κάθε δίσκος είναι μία πραγματική εγγραφή. Σύρετε για να γυρίσει η σφαίρα, πατήστε ένα δίσκο για να το διαβάσετε. Η γραμμές συνδέουν μόνο δίσκους της ίδιας ομάδας.'), 'wl-wide wl-tall');
+    const sp = K.panel(wl, T('Every record as a disc', 'Κάθε εγγραφή ως δίσκος'), T('One disc is one real record. Drag to turn the sphere, click a disc to read it. Lines join discs of the same group only.', 'Κάθε δίσκος είναι μία πραγματική εγγραφή. Σύρετε για να γυρίσει η σφαίρα, πατήστε ένα δίσκο για να το διαβάσετε. Η γραμμές συνδέουν μόνο δίσκους της ίδιας ομάδας.'), 'dw-8 wl-tall');
     let sph = null, spView = 'all'; const modelOf = (v) => (v === 'all' ? Promise.all(['ev', 'crossings', 'flood', 'quakes'].map((x) => K.tryJson('/api/stack/' + VD.SOURCE[x]).then((a) => (a ? VD.BUILD[x](a) : null)))).then(VD.allModel) : K.tryJson('/api/stack/' + VD.SOURCE[v]).then((a) => (a ? VD.BUILD[v](a) : null)));
     SETS.forEach((v) => { const b = K.el('button', null, K.pair(SETNAME[v])); b.type = 'button'; b.setAttribute('aria-pressed', String(v === spView)); b.onclick = () => { spView = v; sp.tools.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); drawSphere(); }; sp.tools.append(b); });
     function drawSphere() {
       modelOf(spView).then((m) => {
         if (!m || !m.items || !m.items.length) { K.note(sp.host, T('These records could not be loaded right now.', 'Οι εγγραφές δεν φόρτωσαν αυτή τη στιγμή.')); sp.rows(null); return; }
-        const sd = SC.viz.sphereData.build(m, null); sp.rows(sd); sp.aria(sd);
+        const sd = SC.viz.sphereData.build(m, null); sp.rows(sd); sp.aria(sd); if (spView === 'all' && !setRecords.done) { setRecords.done = true; setRecords(m.items.length); }
         if (sph) { sph.setModel(m); return; }
         sp.host.textContent = ''; sph = keep(safe(() => SC.viz.sphere.mount(sp.host, m, { onPick: (it) => sp.say(it ? (it.t || '') + ' · ' + (Array.isArray(it.sub) ? K.pair(it.sub) : it.sub || '') : '') }), sp.host));
       });
@@ -34,14 +42,14 @@
     drawSphere();
 
     // 2. freshness of every sheet
-    const tg = K.panel(wl, T('How old is each data set?', 'Πόσο παλιά είναι κάθε σύνολο;'), T('One tile per data sheet. Sheets that never refresh are marked fixed by design and are never called old or fresh.', 'Ένα κλειδί ανά φύλλο δεδομένων. Τα φύλλα που δεν ανανεώνονται σημειώνονται ως σταθερά εξ σχεδίου και δεν λέγονται παλιά ή φρέσκα.'), 'dw-6');
-    const nl = K.panel(wl, T('Where our data comes from', 'Από πού πέρνουμε τα δεδομένα'), T('Publishers on the left, the sheets built from them on the right. A moving line is a live feed.', 'Οι εκδότες αριστερά, τα φύλλα που χτίζονται από αυτούς δεξιά. Μια κινούμενη γραμμή είναι ζωντανή ροή.'), 'dw-6');
+    const nl = K.panel(wl, T('Where our data comes from', 'Από πού πέρνουμε τα δεδομένα'), T('Publishers on the left, the sheets built from them on the right. A moving line is a live feed.', 'Οι εκδότες αριστερά, τα φύλλα που χτίζονται από αυτούς δεξιά. Μια κινούμενη γραμμή είναι ζωντανή ροή.'), 'dw-4');
     K.tryJson('/api/stack').then((cat) => {
       if (!cat || !cat.sheets) { K.note(tg.host, T('The catalogue could not be loaded right now.', 'Ο κατάλογος δεν φόρτωσε αυτή τη στιγμή.')); K.note(nl.host, T('The catalogue could not be loaded right now.', 'Ο κατάλογος δεν φόρτωσε αυτή τη στιγμή.')); return; }
+      setSheets(cat.sheets.length); setFeeds(cat.sheets.filter((x) => x.live === true || x.kind === 'scheduled' || x.kind === 'delayed').length);
       Promise.all(cat.sheets.map((s) => K.tryJson('/api/stack/' + s.id).then((a) => [s.id, a]))).then((pairs) => {
         const det = {}; pairs.forEach(([id, a]) => { det[id] = a; });
         const tm = SC.viz.tilegridData.build(cat, det, now); tg.rows(tm); tg.aria(tm); tg.host.textContent = '';
-        keep(safe(() => SC.viz.tilegrid.mount(tg.host, tm, { onPick: (t) => tg.say(t ? K.pair(t.title) + ' · ' + K.pair(t.statusLabel) + (t.ageText ? ' · ' + K.pair(t.ageText) : '') : '') }), tg.host));
+        keep(safe(() => SC.viz.tilegrid.mount(tg.host, tm, { compact: true, onHover: (t) => tg.say(t ? K.pair(t.title) + ' \u00b7 ' + K.pair(t.statusLabel) + (t.ageText ? ' \u00b7 ' + K.pair(t.ageText) : '') + (t.source ? ' \u00b7 ' + K.pair(t.source) : '') : ''), onPick: (t) => tg.say(t ? K.pair(t.title) + ' · ' + K.pair(t.statusLabel) + (t.ageText ? ' · ' + K.pair(t.ageText) : '') : '') }), tg.host));
         const nm = SC.viz.nodelinkData.build(cat, det); nl.rows(nm); nl.aria(nm); nl.host.textContent = '';
         keep(safe(() => SC.viz.nodelink.mount(nl.host, nm, { onPick: (p) => nl.say(p ? p.type + ': ' + p.id : '') }), nl.host));
       });
