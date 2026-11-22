@@ -14,7 +14,7 @@
 
   function build(root) {
     const K = SC.viz.kit, VD = SC.vortexData, now = new Date(), stops = [];
-    const wl = K.el('div', 'wl'); root.append(wl);
+    const wl = K.el('div', 'dw'); root.append(wl);
     const keep = (h) => { if (h && h.destroy) stops.push(() => h.destroy()); return h; };
     const safe = (fn, host) => { try { return fn(); } catch (e) { K.note(host, T('This picture could not be drawn. The facts are in the text list below.', 'Η εικόνα δεν μπόρεσε να σχεδιαστεί. Τα στοιχεία είναι στη λίστα παρακάτω.')); return null; } };
 
@@ -33,8 +33,8 @@
     drawSphere();
 
     // 2. freshness of every sheet
-    const tg = K.panel(wl, T('How old is each data set?', 'Πόσο παλιά είναι κάθε σύνολο;'), T('One tile per data sheet. Sheets that never refresh are marked fixed by design and are never called old or fresh.', 'Ένα κλειδί ανά φύλλο δεδομένων. Τα φύλλα που δεν ανανεώνονται σημειώνονται ως σταθερά εξ σχεδίου και δεν λέγονται παλιά ή φρέσκα.'), 'wl-half');
-    const nl = K.panel(wl, T('Where our data comes from', 'Από πού πέρνουμε τα δεδομένα'), T('Publishers on the left, the sheets built from them on the right. A moving line is a live feed.', 'Οι εκδότες αριστερά, τα φύλλα που χτίζονται από αυτούς δεξιά. Μια κινούμενη γραμμή είναι ζωντανή ροή.'), 'wl-half');
+    const tg = K.panel(wl, T('How old is each data set?', 'Πόσο παλιά είναι κάθε σύνολο;'), T('One tile per data sheet. Sheets that never refresh are marked fixed by design and are never called old or fresh.', 'Ένα κλειδί ανά φύλλο δεδομένων. Τα φύλλα που δεν ανανεώνονται σημειώνονται ως σταθερά εξ σχεδίου και δεν λέγονται παλιά ή φρέσκα.'), 'dw-6');
+    const nl = K.panel(wl, T('Where our data comes from', 'Από πού πέρνουμε τα δεδομένα'), T('Publishers on the left, the sheets built from them on the right. A moving line is a live feed.', 'Οι εκδότες αριστερά, τα φύλλα που χτίζονται από αυτούς δεξιά. Μια κινούμενη γραμμή είναι ζωντανή ροή.'), 'dw-6');
     K.tryJson('/api/stack').then((cat) => {
       if (!cat || !cat.sheets) { K.note(tg.host, T('The catalogue could not be loaded right now.', 'Ο κατάλογος δεν φόρτωσε αυτή τη στιγμή.')); K.note(nl.host, T('The catalogue could not be loaded right now.', 'Ο κατάλογος δεν φόρτωσε αυτή τη στιγμή.')); return; }
       Promise.all(cat.sheets.map((s) => K.tryJson('/api/stack/' + s.id).then((a) => [s.id, a]))).then((pairs) => {
@@ -48,8 +48,8 @@
 
     // 3. permits: change against a year earlier, and years by district
     const wv = K.panel(wl, T('Building permits: more or fewer than a year before', 'Άδειες οικοδομής: περισσότερες ή λιγότερες από τον προηγούμενο χρόνο'), T('Each month against the same month a year earlier, for one district at a time. Up means more permits; it does not say why.', 'Κάθε μήνας σε σχέση με τον ίδιο μήνα του προηγούμενου έτους, μία επαρχία τη φορά. Πάνω σημαίνει περισσότερες άδειες, όχι γιατί.'), 'wl-wide');
-    const hm = K.panel(wl, T('Permits by year and district', 'Άδειες ανά έτος και επαρχία'), T('Each row is coloured against its own best year, so districts are never compared with each other.', 'Κάθε γραμμή χρωματίζεται από το δικό της καλύτερο έτος, άρα οι επαρχίες δεν συγκρίνονται μεταξύ τους.'), 'wl-half');
-    const pg = K.panel(wl, T('Built-up ground in the city centres', 'Δομημένο έδαφος στα κέντρα των πόλεων'), T('Pixels of the ground under buildings, one square per city, on one shared scale. Not a comparison of cities.', 'Πίξελ του εδάφους που καλύπτει κτίρια, ένα τετράγωνο ανά πόλη, σε μία κοινή κλίμακα. Όχι σύγκριση πόλεων.'), 'wl-half');
+    const hm = K.panel(wl, T('Permits by year and district', 'Άδειες ανά έτος και επαρχία'), T('Each row is coloured against its own best year, so districts are never compared with each other.', 'Κάθε γραμμή χρωματίζεται από το δικό της καλύτερο έτος, άρα οι επαρχίες δεν συγκρίνονται μεταξύ τους.'), 'dw-6');
+    const pg = K.panel(wl, T('Built-up ground in the city centres', 'Δομημένο έδαφος στα κέντρα των πόλεων'), T('Pixels of the ground under buildings, one square per city, on one shared scale. Not a comparison of cities.', 'Πίξελ του εδάφους που καλύπτει κτίρια, ένα τετράγωνο ανά πόλη, σε μία κοινή κλίμακα. Όχι σύγκριση πόλεων.'), 'dw-6');
     const nope = (p) => K.note(p.host, T('This data could not be loaded right now.', 'Τα δεδομένα δεν φόρτωσαν αυτή τη στιγμή.'));
     K.tryJson('/api/stack/permits').then((pa) => {
       if (!pa) { nope(wv); nope(hm); return; }

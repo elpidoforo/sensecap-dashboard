@@ -13,7 +13,7 @@
 
   function build(root) {
     const K = SC.viz.kit, VD = SC.vortexData, stops = [];
-    const wl = K.el('div', 'wl'); root.append(wl);
+    const wl = K.el('div', 'dw'); root.append(wl);
     const keep = (h) => { if (h && h.destroy) stops.push(() => h.destroy()); return h; };
     const nope = (p) => K.note(p.host, T(NOPE[0], NOPE[1]));
 
