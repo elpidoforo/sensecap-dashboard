@@ -9,7 +9,7 @@
   SC.css('/site/pages/vortex.css'); SC.css('/site/pages/wall.css');
   const LIBS = ['/site/viz/kit.js', '/site/vortexdata.js', '/site/viz/sphere-data.js', '/site/viz/sphere.js', '/site/viz/tilegrid-data.js', '/site/viz/tilegrid.js', '/site/viz/wave-data.js', '/site/viz/wave.js',
     '/site/viz/heatmatrix-data.js', '/site/viz/heatmatrix.js', '/site/viz/pixelgrid-data.js', '/site/viz/pixelgrid.js', '/site/viz/nodelink-data.js', '/site/viz/nodelink.js', '/site/viz/counter-data.js', '/site/viz/counter.js', '/site/viz/hourstrip-data.js', '/site/viz/hourstrip.js', '/site/viz/scatter-data.js', '/site/viz/scatter.js',
-    '/site/viz/daybars-data.js', '/site/viz/daybars.js', '/site/viz/classtape-data.js', '/site/viz/classtape.js'];
+    '/site/viz/daybars-data.js', '/site/viz/daybars.js', '/site/viz/classtape-data.js', '/site/viz/classtape.js', '/site/viz/people-data.js', '/site/viz/people.js'];
   const SETS = ['all', 'ev', 'crossings', 'flood', 'quakes'];
   const SETNAME = { all: ['All data sets', 'Όλα τα συνόλα'], ev: ['EV charging', 'Φόρτιση EV'], crossings: ['Crossings', 'Διαβάσεις'], flood: ['Flood reaches', 'Ποτάμια'], quakes: ['Earthquakes', 'Σεισμοί'] };
 
@@ -101,6 +101,17 @@
     const tp = K.panel(wl, T('Farm drought classes through 2022', 'Κατηγορίες γεωργικής ξηρασίας μέσα στο 2022'), T('One cell per ten days, for one place. Classes are kinds, not a scale: no cell is taller than another.', 'Ένα κελί ανά δέκα μέρες, για ένα μέρος. Οι κατηγορίες είναι είδη, όχι κλίμακα: κανένα κελί δεν είναι ψηλότερο.'), 'wl-wide');
     item('classtape', 'drought', tp, (m, D, a) => { const h = keep(SC.viz.classtape.mount(tp.host, m, { chooser: false, onPick: (r) => tp.say(r ? r.period + ' – ' + r.periodEnd + ': ' + K.pair(r.className) : '') }));
       pickOne(tp, m.choices, (c) => c.id, (c) => c.name, T('Place', 'Μέρος'), (v) => { tp.rows(h.set({ place: v })); }); });
+
+    // 5. residents and age of residents, one city at a time
+    const pe = K.panel(wl, T('Residents and their ages, one city at a time', 'Κάτοικοι και ηλικίες, μία πόλη τη φορά'), T('Blocks of residents and three age bands from the 2021 census, for the municipality. Point at a band to read it.', 'Τετράγωνα κατοίκων και τρεις ηλικιακές ομάδες από την απογραφή του 2021, για τον δήμο. Δείξτε μια ομάδα για να τη διαβάσετε.'), 'wl-wide');
+    Promise.all([K.tryJson('/api/stack/population'), K.tryJson('/api/stack/age')]).then(([po, ag]) => {
+      if (!po && !ag) { nope(pe); return; }
+      const m = SC.viz.peopleData.build({ population: po, age: ag }, {}); pe.rows(m); pe.aria(m);
+      if (m.empty && !(m.choices && m.choices.length)) { K.note(pe.host, K.pair(m.empty)); return; }
+      pe.host.textContent = '';
+      const h = keep(safe(() => SC.viz.people.mount(pe.host, m, { chooser: false, onPick: (r) => pe.say(r ? K.pair(r.label) : '') }), pe.host));
+      if (h) pickOne(pe, m.choices, (c) => c.id, (c) => c.name, T('City', 'Πόλη'), (v) => { pe.rows(h.set({ city: v })); });
+    });
 
     wl.append(K.el('p', 'wl-foot', T('Sources and licences are on each data sheet. Drawn from our own answers only; a feed that cannot be loaded is shown as not available.', 'Οι πηγές και οι άδειες είναι σε κάθε φύλλο δεδομένων. Μόνο από δικά μας δεδομένα. Ένα δεδομένο που δεν φορτώνει δείχνεται ως μη διαθέσιμο.')));
     return () => stops.forEach((f) => { try { f(); } catch (e) { /* already gone */ } });
