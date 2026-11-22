@@ -37,3 +37,6 @@
 .dw-log li { padding: 1px 0 1px 30px; text-indent: -30px; }
 .dw-log li::before { content: attr(data-n) '  '; color: #4a6585; }
 .dw-log li.on { color: #fff; background: rgba(125,211,252,.08); }
+
+.dw-find { font: 600 12px ui-monospace, Menlo, monospace; color: #EAF0F7; background: rgba(255,255,255,.04); border: 1px solid #4a6585; border-radius: 3px; padding: 5px 9px; min-height: 28px; max-width: 100%; }
+.dw-find:focus-visible { outline: 2px solid #FBBF24; outline-offset: 2px; }

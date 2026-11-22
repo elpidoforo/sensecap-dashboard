@@ -9,7 +9,7 @@
   SC.css('/site/pages/vortex.css'); SC.css('/site/pages/wall.css');
   const LIBS = ['/site/viz/kit.js', '/site/vortexdata.js', '/site/viz/sphere-data.js', '/site/viz/sphere.js', '/site/viz/tilegrid-data.js', '/site/viz/tilegrid.js', '/site/viz/wave-data.js', '/site/viz/wave.js',
     '/site/viz/heatmatrix-data.js', '/site/viz/heatmatrix.js', '/site/viz/pixelgrid-data.js', '/site/viz/pixelgrid.js', '/site/viz/nodelink-data.js', '/site/viz/nodelink.js', '/site/viz/counter-data.js', '/site/viz/counter.js', '/site/viz/hourstrip-data.js', '/site/viz/hourstrip.js', '/site/viz/scatter-data.js', '/site/viz/scatter.js',
-    '/site/viz/daybars-data.js', '/site/viz/daybars.js', '/site/viz/classtape-data.js', '/site/viz/classtape.js', '/site/viz/people-data.js', '/site/viz/people.js', '/site/viz/station-data.js', '/site/viz/station.js'];
+    '/site/viz/daybars-data.js', '/site/viz/daybars.js', '/site/viz/classtape-data.js', '/site/viz/classtape.js', '/site/viz/people-data.js', '/site/viz/people.js', '/site/viz/station-data.js', '/site/viz/station.js', '/site/viz/depthline-data.js', '/site/viz/depthline.js', '/site/viz/sitecells-data.js', '/site/viz/sitecells.js'];
   const SETS = ['all', 'ev', 'crossings', 'flood', 'quakes'];
   const SETNAME = { all: ['All data sets', 'Όλα τα συνόλα'], ev: ['EV charging', 'Φόρτιση EV'], crossings: ['Crossings', 'Διαβάσεις'], flood: ['Flood reaches', 'Ποτάμια'], quakes: ['Earthquakes', 'Σεισμοί'] };
 
@@ -131,6 +131,15 @@
     liveStation('met-stations', T('Weather stations, live', 'Μετεωρολογικοί σταθμοί, ζωντανά'), T('The latest reading of one Met Office station: wind, temperature, humidity and rain.', 'Η τελευταία μέτρηση ενός σταθμού της Μετεωρολογικής: άνεμος, θερμοκρασία, υγρασία και βροχή.'));
     liveStation('airports', T('Airport weather, live', 'Καιρός αεροδρομίων, ζωντανά'), T('The latest weather report of one airport.', 'Η τελευταία αναφορά καιρού ενός αεροδρομίου.'));
     liveStation('air-stations', T('Official air-quality stations, live', 'Επίσημοι σταθμοί ποιότητας αέρα, ζωντανά'), T('The latest hourly values of one official outdoor station. Not compared with our indoor sensors.', 'Οι τελευταίες ωριαίες τιμές ενός επίσημου εξωτερικού σταθμού. Δεν συγκρίνονται με τους εσωτερικούς αισθητήρες μας.'));
+
+    // 7. water: the seabed along one line, and one cell per bathing site
+    const dl = K.panel(wl, T('The seabed along one line', 'Ο βυθός κατά μήκος μιας γραμμής'), T('Slide along the line to read the depth. Each line starts offshore; hollow dots are values the seabed model marks as interpolated. Estimates, not soundings.', 'Σύρετε πάνω στη γραμμή για να διαβάσετε το βάθος. Κάθε γραμμή ξεκινά ανοιχτά της ακτής· οι κούφιες τελείες είναι τιμές που το μοντέλο βυθού σημειώνει ως παρεμβολή. Εκτιμήσεις, όχι βυθομετρήσεις.'), 'dw-6');
+    item('depthline', 'seabed-profiles', dl, (m) => { const h = keep(SC.viz.depthline.mount(dl.host, m, { chooser: false, onPick: (r) => dl.say(r ? K.pair(r.label) : '') }));
+      pickOne(dl, m.choices, (c) => c.id, (c) => c.name, T('Line', 'Γραμμή'), (v) => { dl.rows(h.set({ profile: v })); }); });
+    const bw = K.panel(wl, T('Bathing water: one cell per site', 'Νερά κολύμβησης: ένα κελί ανά σημείο'), T('Each cell is one bathing site with the class reported for the season. Type a name to find a site. No score is made from it.', 'Κάθε κελί είναι ένα σημείο κολύμβησης με την κατηγορία που αναφέρθηκε για την περίοδο. Γράψτε ένα όνομα για να βρείτε ένα σημείο. Δεν φτιάχνεται βαθμός.'), 'dw-6');
+    item('sitecells', 'bathing-water', bw, (m) => { const h = keep(SC.viz.sitecells.mount(bw.host, m, { onPick: (r) => bw.say(r ? r.name + ' \u00b7 ' + K.pair(r.labelText) : '') }));
+      const inp = K.el('input'); inp.type = 'search'; inp.setAttribute('aria-label', T('Find a bathing site by name', 'Βρείτε σημείο κολύμβησης με το όνομα')); inp.placeholder = T('Find a site', 'Βρείτε σημείο'); inp.className = 'dw-find';
+      inp.oninput = () => { const n = h.filter(inp.value); bw.say(inp.value ? n + ' ' + T('sites match', 'σημεία ταιριάζουν') : ''); }; bw.tools.append(inp); });
 
     wl.append(K.el('p', 'wl-foot', T('Sources and licences are on each data sheet. Drawn from our own answers only; a feed that cannot be loaded is shown as not available.', 'Οι πηγές και οι άδειες είναι σε κάθε φύλλο δεδομένων. Μόνο από δικά μας δεδομένα. Ένα δεδομένο που δεν φορτώνει δείχνεται ως μη διαθέσιμο.')));
     return () => stops.forEach((f) => { try { f(); } catch (e) { /* already gone */ } });
