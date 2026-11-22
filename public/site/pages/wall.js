@@ -9,7 +9,7 @@
   SC.css('/site/pages/vortex.css'); SC.css('/site/pages/wall.css');
   const LIBS = ['/site/viz/kit.js', '/site/vortexdata.js', '/site/viz/sphere-data.js', '/site/viz/sphere.js', '/site/viz/tilegrid-data.js', '/site/viz/tilegrid.js', '/site/viz/wave-data.js', '/site/viz/wave.js',
     '/site/viz/heatmatrix-data.js', '/site/viz/heatmatrix.js', '/site/viz/pixelgrid-data.js', '/site/viz/pixelgrid.js', '/site/viz/nodelink-data.js', '/site/viz/nodelink.js', '/site/viz/counter-data.js', '/site/viz/counter.js', '/site/viz/hourstrip-data.js', '/site/viz/hourstrip.js', '/site/viz/scatter-data.js', '/site/viz/scatter.js',
-    '/site/viz/daybars-data.js', '/site/viz/daybars.js', '/site/viz/classtape-data.js', '/site/viz/classtape.js', '/site/viz/people-data.js', '/site/viz/people.js', '/site/viz/station-data.js', '/site/viz/station.js', '/site/viz/depthline-data.js', '/site/viz/depthline.js', '/site/viz/sitecells-data.js', '/site/viz/sitecells.js'];
+    '/site/viz/daybars-data.js', '/site/viz/daybars.js', '/site/viz/classtape-data.js', '/site/viz/classtape.js', '/site/viz/people-data.js', '/site/viz/people.js', '/site/viz/station-data.js', '/site/viz/station.js', '/site/viz/depthline-data.js', '/site/viz/depthline.js', '/site/viz/sitecells-data.js', '/site/viz/sitecells.js', '/site/viz/forecast-data.js', '/site/viz/forecast.js', '/site/viz/countcards-data.js', '/site/viz/countcards.js'];
   const SETS = ['all', 'ev', 'crossings', 'flood', 'quakes'];
   const SETNAME = { all: ['All data sets', 'Όλα τα συνόλα'], ev: ['EV charging', 'Φόρτιση EV'], crossings: ['Crossings', 'Διαβάσεις'], flood: ['Flood reaches', 'Ποτάμια'], quakes: ['Earthquakes', 'Σεισμοί'] };
 
@@ -30,7 +30,7 @@
     // 1. the sphere: one disc per record
     const sp = K.panel(wl, T('Every record as a disc', 'Κάθε εγγραφή ως δίσκος'), T('One disc is one real record. Drag to turn the sphere, click a disc to read it. Lines join discs of the same group only.', 'Κάθε δίσκος είναι μία πραγματική εγγραφή. Σύρετε για να γυρίσει η σφαίρα, πατήστε ένα δίσκο για να το διαβάσετε. Η γραμμές συνδέουν μόνο δίσκους της ίδιας ομάδας.'), 'dw-8 wl-tall');
     let sph = null, spView = 'all'; const modelOf = (v) => (v === 'all' ? Promise.all(['ev', 'crossings', 'flood', 'quakes'].map((x) => K.tryJson('/api/stack/' + VD.SOURCE[x]).then((a) => (a ? VD.BUILD[x](a) : null)))).then(VD.allModel) : K.tryJson('/api/stack/' + VD.SOURCE[v]).then((a) => (a ? VD.BUILD[v](a) : null)));
-    SETS.forEach((v) => { const b = K.el('button', null, K.pair(SETNAME[v])); b.type = 'button'; b.setAttribute('aria-pressed', String(v === spView)); b.onclick = () => { spView = v; sp.tools.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); drawSphere(); }; sp.tools.append(b); });
+    SETS.forEach((v) => { const b = K.el('button', null, K.pair(SETNAME[v])); b.type = 'button'; b.dataset.view = v; b.setAttribute('aria-pressed', String(v === spView)); b.onclick = () => { spView = v; sp.tools.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); drawSphere(); }; sp.tools.append(b); });
     function drawSphere() {
       modelOf(spView).then((m) => {
         if (!m || !m.items || !m.items.length) { K.note(sp.host, T('These records could not be loaded right now.', 'Οι εγγραφές δεν φόρτωσαν αυτή τη στιγμή.')); sp.rows(null); return; }
@@ -140,6 +140,24 @@
     item('sitecells', 'bathing-water', bw, (m) => { const h = keep(SC.viz.sitecells.mount(bw.host, m, { onPick: (r) => bw.say(r ? r.name + ' \u00b7 ' + K.pair(r.labelText) : '') }));
       const inp = K.el('input'); inp.type = 'search'; inp.setAttribute('aria-label', T('Find a bathing site by name', 'Βρείτε σημείο κολύμβησης με το όνομα')); inp.placeholder = T('Find a site', 'Βρείτε σημείο'); inp.className = 'dw-find';
       inp.oninput = () => { const n = h.filter(inp.value); bw.say(inp.value ? n + ' ' + T('sites match', 'σημεία ταιριάζουν') : ''); }; bw.tools.append(inp); });
+
+    // 8. the forecast (a weather model, labelled so) and count cards for the sheets with no picture of their own
+    const fc = K.panel(wl, T('Weather forecast for the coming days', 'Πρόγνωση καιρού για τις επόμενες μέρες'), T('From a weather model, not a measurement. Slide across the days to read one.', 'Από μοντέλο καιρού, όχι μέτρηση. Σύρετε πάνω στις μέρες για να διαβάσετε μία.'), 'dw-6');
+    K.tryJson('/api/forecast').then((a) => { const m = SC.viz.forecastData.build(a && !a.error ? a : null, {}, Date.now()); fc.rows(m); fc.aria(m);
+      if (m.empty) { K.note(fc.host, K.pair(m.empty)); return; } fc.host.textContent = '';
+      keep(safe(() => SC.viz.forecast.mount(fc.host, m, { onPick: (r) => fc.say(r ? K.pair(r.label) : '') }), fc.host)); });
+
+    const CC = ['ev-charging', 'crossings', 'flood-reaches', 'bus-network', 'bus-now', 'own-vehicles', 'fire-hotspots', 'burnt-areas'];
+    const cc = K.panel(wl, T('Counts for the other data sheets', 'Αριθμοί για τα υπόλοιπα φύλλα δεδομένων'), T('How many records each sheet holds and how old the last fetch is. Vehicles show counts only, never positions. Click EV charging, crossings or flood reaches to see them in the sphere.', 'Πόσες εγγραφές έχει κάθε φύλλο και πόσο παλιά είναι η τελευταία λήψη. Τα οχήματα δείχνουν μόνο αριθμούς, ποτέ θέσεις. Πατήστε φόρτιση EV, διαβάσεις ή ποτάμια για να τα δείτε στη σφαίρα.'), 'dw-6');
+    K.tryJson('/api/stack').then((cat) => Promise.all(CC.map((id) => K.tryJson('/api/stack/' + id).then((a) => [id, a]))).then((pairs) => {
+      const sheets = {}; pairs.forEach(([id, a]) => { sheets[id] = a; });
+      const mk = () => SC.viz.countcardsData.build({ catalogue: cat, sheets, ids: CC }, Date.now());
+      const m = mk(); cc.rows(m); cc.aria(m); if (m.empty) { K.note(cc.host, K.pair(m.empty)); return; } cc.host.textContent = '';
+      const toView = {}; Object.keys(VD.SOURCE).forEach((v) => { toView[VD.SOURCE[v]] = v; });
+      const h = keep(safe(() => SC.viz.countcards.mount(cc.host, m, { onPick: (r) => cc.say(r ? K.pair(r.title) + ' \u00b7 ' + K.pair(r.status) + (r.count == null ? '' : ' \u00b7 ' + r.count) : ''),
+        onOpen: (id) => { const v = toView[id]; if (!v) return; const b = sp.tools.querySelector('button[data-view="' + v + '"]'); if (b) { b.click(); sp.box.scrollIntoView({ block: 'center' }); } } }), cc.host));
+      if (h) { const t = setInterval(() => { if (!document.hidden) { try { h.update(mk()); } catch (e) { /* keep the last picture */ } } }, 60000); stops.push(() => clearInterval(t)); }
+    }));
 
     wl.append(K.el('p', 'wl-foot', T('Sources and licences are on each data sheet. Drawn from our own answers only; a feed that cannot be loaded is shown as not available.', 'Οι πηγές και οι άδειες είναι σε κάθε φύλλο δεδομένων. Μόνο από δικά μας δεδομένα. Ένα δεδομένο που δεν φορτώνει δείχνεται ως μη διαθέσιμο.')));
     return () => stops.forEach((f) => { try { f(); } catch (e) { /* already gone */ } });
