@@ -8,3 +8,5 @@ node_modules/
 # Saved Met Office history (needs a volume on Railway)
 data/
 fieldwork/.seabedgrid-partial.json
+# Compact files for the Cyprus data page are part of the site
+!public/site/data/
