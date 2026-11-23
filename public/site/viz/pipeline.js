@@ -115,7 +115,11 @@
     }
 
     // Which sheet pill is lit: the hovered one, else a scripted rotation among sheets that have records.
+    // A page may drive the highlight itself (opts.scripted): step(i) lights source i and its sheet, ready(true) shows the finished mark.
+    const ext = { on: !!opts.scripted, active: -1, ready: false, at: 0 };
+    const hotSrc = (i) => (hover ? hover.kind === 'source' && hover.index === i : ext.on && !ext.ready && ext.active === i);
     function litSheet() {
+      if (!hover && ext.on) return ext.ready || ext.active < 0 || !model.sources[ext.active] ? -1 : model.sources[ext.active].sheetIndex;
       if (hover) return hover.kind === 'sheet' ? hover.index : model.sources[hover.index].sheetIndex;
       const live = []; model.sheets.forEach((s, i) => { if (s.records > 0) live.push(i); });
       return live.length ? live[Math.floor(t / 3.5) % live.length] : -1;
@@ -238,7 +242,7 @@
 
       // connecting lines (flowing)
       model.sources.forEach((s, i) => {
-        const a = cardOut(o, o.cards[i]), e = ringPt(o, o.a0, o.R), hot = (hover && hover.kind === 'source' && hover.index === i);
+        const a = cardOut(o, o.cards[i]), e = ringPt(o, o.a0, o.R), hot = hotSrc(i);
         flowLine(a, e, o, PAL[i % PAL.length], s.count ? (hot ? 0.9 : 0.35) : 0.1, s.count > 0, 1);
         const pi = s.sheetIndex, b = pillIn(o, o.pills[pi]), x = ringPt(o, o.a0 + 540, o.R * 0.42);
         flowLine(x, b, o, pi === lit ? AMBER : PAL[i % PAL.length], s.count ? (pi === lit ? 0.9 : 0.3) : 0.1, s.count > 0, 1);
@@ -274,6 +278,12 @@
       ctx.textAlign = 'center';
       ctx.font = f + 'px ' + MONO; ctx.fillStyle = AMBER;
       if (model.empty) { ctx.fillStyle = MUTED; wrap(ctx, model.empty[lg], o.R * 1.1, 4).forEach((ln, k) => ctx.fillText(ln, o.cx, o.cy - 10 + k * (f + 3))); }
+      else if (ext.on && ext.ready) { // the finished mark: a tick in a ring, as at the end of a run
+        const k = reduce.matches ? 1 : Math.min(1, (performance.now() - ext.at) / 350), r = Math.max(12, o.R * 0.2);
+        ctx.strokeStyle = CYAN; ctx.lineWidth = 2; ctx.globalAlpha = k; ctx.beginPath(); ctx.arc(o.cx, o.cy - 6, r, 0, 7); ctx.stroke();
+        ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(o.cx - r * 0.45, o.cy - 6); ctx.lineTo(o.cx - r * 0.1, o.cy - 6 + r * 0.35); ctx.lineTo(o.cx + r * 0.5, o.cy - 6 - r * 0.35); ctx.stroke(); ctx.lineCap = 'butt';
+        ctx.fillStyle = CYAN; ctx.fillText(lg ? 'ΕΤΟΙΜΟ' : 'READY', o.cx, o.cy + r + 12); ctx.globalAlpha = 1;
+      }
       else {
         ctx.fillText(model.strings.mode[lg].split(',')[0], o.cx, o.cy - 2);
         ctx.fillStyle = MUTED; ctx.font = (f - 1) + 'px ' + MONO;
@@ -282,7 +292,7 @@
       if (model.particles.label) { ctx.fillStyle = MUTED; ctx.font = (f - 1) + 'px ' + MONO; ctx.fillText(model.particles.label[lg], o.cx, o.cy + o.R + (o.wide ? 26 : 38)); }
       ctx.textAlign = 'left';
 
-      model.sources.forEach((s, i) => drawCard(o, i, tt, hover && hover.kind === 'source' && hover.index === i, lg));
+      model.sources.forEach((s, i) => drawCard(o, i, tt, hotSrc(i), lg));
       model.sheets.forEach((s, i) => drawPill(o, i, i === lit, lg));
       void mv;
     }
@@ -335,6 +345,8 @@
     size(); syncText(); kick();
 
     return {
+      step(i) { ext.active = i; ext.ready = false; ext.at = performance.now(); kick(); },
+      ready(on) { ext.ready = !!on; ext.at = performance.now(); kick(); },
       destroy() {
         dead = true; cancelAnimationFrame(raf); clearInterval(langTimer); if (ro) ro.disconnect();
         doc.removeEventListener('visibilitychange', onVis); if (reduce.removeEventListener) reduce.removeEventListener('change', onMq);

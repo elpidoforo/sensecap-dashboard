@@ -58,20 +58,43 @@
     const pick = (d, pin) => { if (pin) pinned = d; show(d || pinned); };
     show(null);
 
-    // the log
-    const lp = K.panel(wl, T('Log: the same facts, line by line', 'Ημερολόγιο: τα ίδια στοιχεία, γραμμή γραμμή'), T('A reading aid that walks through the facts. It is not a live log.', 'Βοήθημα ανάγνωσης που περνά τα στοιχεία ένα ένα. Δεν είναι ζωντανό ημερολόγιο.'), 'wl-wide');
+    // the run log: one line per step of the run, typed as the step happens (a scripted walk-through, labelled so)
+    const lp = K.panel(wl, T('Run log: one line per step', 'Ημερολόγιο: μία γραμμή ανά βήμα'), T('A scripted walk-through of the same facts, one source at a time. It is not a live log.', 'Προγραμματισμένη παρουσίαση των ίδιων στοιχείων, μία πηγή τη φορά. Δεν είναι ζωντανό ημερολόγιο.'), 'wl-wide');
     lp.box.querySelector('.wl-list').remove();
     const log = K.el('ol', 'dw-log'); lp.host.append(log); lp.host.style.minHeight = '0';
-    let at = -1, timer = 0, playing = false;
-    const mark = (i) => { const li = log.children; if (!li.length) return; at = (i + li.length) % li.length; for (let k = 0; k < li.length; k++) li[k].classList.toggle('on', k === at); const el = li[at]; if (el && log.scrollHeight > log.clientHeight) log.scrollTop = Math.max(0, el.offsetTop - log.clientHeight / 2); };
-    const setPlay = (on) => { playing = on && !still; clearInterval(timer); if (playing) timer = setInterval(() => { if (!document.hidden) mark(at + 1); }, 1800); pb.textContent = playing ? T('Pause', 'Παύση') : T('Play', 'Αναπαραγωγή'); pb.setAttribute('aria-pressed', String(playing)); };
+    // timings measured from the reference recording at 10 frames a second: a step every 1.8 s, the finished state held 3.7 s, 2.7 s to start over
+    const STEP = 1800, HOLD = 3700, RESET = 2700, TYPE = 600;
+    const run = { steps: [], i: -1, phase: 'idle', timer: 0, playing: false, type: 0, go: null };
     const mk = (text, fn) => { const b = K.el('button', null, text); b.type = 'button'; b.onclick = fn; lp.tools.append(b); return b; };
-    const pb = mk(T('Play', 'Αναπαραγωγή'), () => setPlay(!playing));
-    mk(T('Previous line', 'Προηγούμενη γραμμή'), () => { setPlay(false); mark(at - 1); });
-    mk(T('Next line', 'Επόμενη γραμμή'), () => { setPlay(false); mark(at + 1); });
+    const pb = mk(T('Play', 'Αναπαραγωγή'), () => setPlay(!run.playing));
+    mk(T('Next step', 'Επόμενο βήμα'), () => { setPlay(false); advance(); });
+    mk(T('Start over', 'Από την αρχή'), () => { setPlay(false); pinned = null; reset(); });
+    const stepLabel = K.el('span', 'wl-read'); stepLabel.style.margin = '0 0 0 8px'; lp.tools.append(stepLabel);
+    function typeLine(li, text) { clearInterval(run.type); if (still) { li.textContent = text; return; } let n = 0; const per = Math.max(1, Math.ceil(text.length / (TYPE / 30))); run.type = setInterval(() => { n = Math.min(text.length, n + per); li.textContent = text.slice(0, n); if (n >= text.length) clearInterval(run.type); }, 30); }
+    function show1(i) {
+      const st = run.steps[i]; run.i = i; run.phase = 'step'; if (run.go) run.go.step(i);
+      for (const li of log.children) li.classList.remove('on');
+      const li = K.el('li', 'on'); li.dataset.n = String(i + 1).padStart(2, '0'); log.append(li); typeLine(li, K.pair(st.line)); log.scrollTop = log.scrollHeight;
+      stepLabel.textContent = T('step', 'βήμα') + ' ' + (i + 1) + '/' + run.steps.length;
+      if (!pinned) show(st.card);
+    }
+    function finish() {
+      run.phase = 'ready'; if (run.go) run.go.ready(true); for (const li of log.children) li.classList.remove('on');
+      stepLabel.textContent = T('ready', 'έτοιμο') + ' ' + run.steps.length + '/' + run.steps.length;
+      if (!pinned) summary();
+    }
+    function reset() { clearInterval(run.type); run.phase = 'idle'; run.i = -1; log.textContent = ''; stepLabel.textContent = ''; if (run.go) { run.go.ready(false); run.go.step(-1); } if (!pinned) show(null); }
+    function advance() { if (!run.steps.length) return 0; if (run.phase === 'ready') { reset(); return RESET; } if (run.i + 1 < run.steps.length) { show1(run.i + 1); return STEP; } finish(); return HOLD; }
+    function tick() { clearTimeout(run.timer); if (!run.playing) return; const wait = document.hidden ? 1000 : advance(); run.timer = setTimeout(tick, wait || 1000); }
+    function setPlay(on) { run.playing = !!on && !still; clearTimeout(run.timer); pb.textContent = run.playing ? T('Pause', 'Παύση') : T('Play', 'Αναπαραγωγή'); pb.setAttribute('aria-pressed', String(run.playing)); if (run.playing) tick(); }
     if (still) pb.hidden = true;
-    stops.push(() => clearInterval(timer));
-    const fillLog = (rows) => { rows.forEach((r) => { const li = K.el('li', null, K.pair(r)); li.dataset.n = String(log.children.length + 1).padStart(2, '0'); log.append(li); }); if (at < 0 && log.children.length) { mark(0); setPlay(true); } };
+    stops.push(() => { clearTimeout(run.timer); clearInterval(run.type); });
+    function summary() {
+      card.textContent = ''; const tot = run.steps.reduce((a, st) => a + st.count, 0);
+      card.append(K.el('h3', null, tot + ' ' + T('records', 'εγγραφές') + ' \u00b7 ' + run.sheetsOut + ' ' + T('sheets', 'φύλλα')));
+      card.append(K.el('p', null, T('The run is finished: every source has reached its data sheet.', 'Η διαδρομή τελείωσε: κάθε πηγή έφτασε στο φύλλο της.')));
+      run.steps.forEach((st) => line(K.pair(st.title), st.count + ' ' + T('records', 'εγγραφές')));
+    }
 
     const rs = K.panel(wl, T('Feeds that update', 'Πηγές που ανανεώνονται'),
       T('One row per live, delayed or scheduled data sheet: when it was last fetched and how many records came. Click a row to read it in the card. Age shows freshness only, not quality.',
@@ -85,12 +108,19 @@
         if (!sources.length) { nope(pp); return; }
         const pm = SC.viz.pipelineData.build({ sources });
         setIn(pm.recordsIn); setOut(pm.sheetsOut);
-        pp.rows(pm); pp.aria(pm); pp.host.textContent = ''; fillLog(pm.textRows || []);
+        pp.rows(pm); pp.aria(pm); pp.host.textContent = '';
         const toCard = (p) => (!p ? null : p.kind === 'source'
           ? { title: p.title, sheetId: p.sheetId, kindText: T('A source of records', 'Πηγή εγγραφών'), lines: [[T('Records', 'Εγγραφές'), p.count], [T('Goes to the sheet', 'Πηγαίνει στο φύλλο'), K.pair(p.sheetTitle)]] }
           : { title: p.title, sheetId: p.id, kindText: T('A data sheet', 'Φύλλο δεδομένων'), lines: [[T('Records received', 'Εγγραφές που έλαβε'), p.records]] });
         let last = null;
-        keep(SC.viz.pipeline.mount(pp.host, pm, { onPick: (p) => { const d = toCard(p); if (d) last = d; pick(d, false); pp.say(p ? K.pair(p.title) : ''); } }));
+        run.go = keep(SC.viz.pipeline.mount(pp.host, pm, { scripted: true, onPick: (p) => { const d = toCard(p); if (d) last = d; pick(d, false); pp.say(p ? K.pair(p.title) : ''); } }));
+        run.sheetsOut = pm.sheetsOut;
+        run.steps = pm.sources.filter((x) => x.count > 0).map((x) => ({ title: x.title, count: x.count,
+          line: [x.title[0] + ': ' + x.count + ' records collected, checked, labelled and shown in the sheet "' + x.sheetTitle[0] + '"', x.title[1] + ': ' + x.count + ' εγγραφές συλλέχθηκαν, ελέγχθηκαν, πήραν ετικέτα και φαίνονται στο φύλλο "' + x.sheetTitle[1] + '"'],
+          card: toCard({ kind: 'source', title: x.title, sheetId: x.sheetId, count: x.count, sheetTitle: x.sheetTitle }) }));
+        run.steps.forEach((st, k) => { const src = pm.sources.indexOf(pm.sources.filter((x) => x.count > 0)[k]); st.index = src; });
+        const stepTo = run.go.step; run.go.step = (k) => stepTo(k < 0 ? -1 : run.steps[k].index);
+        setPlay(true);
         pp.host.addEventListener('click', () => { if (last) pick(last, true); });
       });
       if (!cat || !cat.sheets) { nope(rs); return; }
@@ -105,7 +135,6 @@
           if (h && h.update) { h.update(rm); return; }
           rs.host.textContent = '';
           h = keep(SC.viz.roster.mount(rs.host, rm, { onPick: (r) => { if (!r) { pick(null, false); return; } pick({ title: r.title, sheetId: r.id, kindText: T('A feed that updates', 'Πηγή που ανανεώνεται'), lines: [[T('Status', 'Κατάσταση'), K.pair(r.statusLabel)], [T('Last fetched', 'Τελευταία λήψη'), r.available ? K.pair(r.ageText) : ''], [T('Records in the last answer', 'Εγγραφές στην τελευταία απάντηση'), r.available ? r.count : '']] }, true); } }));
-          fillLog((rm.textRows || []));
         };
         draw();
         const t = setInterval(() => { try { const rm = SC.viz.rosterData.buildModel({ catalogue: cat, sheets }, Date.now(), {}); if (h && h.update) h.update(rm); } catch (e) { /* keep the last picture */ } }, 30000);
