@@ -1,0 +1,40 @@
+/* Live Board: panels around the wind map. Uses the dw board from wall.css. */
+.lv .dw-strip { order: 0; } .lv .lv-flow { order: 0; } .lv .lv-map { order: 1; } .lv .lv-cards { order: 2; } .lv .lv-side { order: 3; } .lv .lv-logp { order: 4; } .lv .wl-foot { order: 5; }
+@media (min-width: 1100px) { .lv .lv-cards { order: 1; } .lv .lv-map { order: 2; } }
+.lv-host { position: relative; background: #02060d; border-radius: 3px; overflow: hidden; }
+.lv-host canvas { display: block; width: 100%; }
+.lv-key, .lv-small { font: 11px/1.45 ui-monospace, Menlo, monospace; color: #9fb2cc; margin: 4px 0 0; display: block; }
+.lv-chip { font: 700 11px ui-monospace, Menlo, monospace; padding: 3px 8px; border-radius: 3px; margin-left: auto; align-self: center; }
+.lv-chip.live { color: #34D399; border: 1px solid #34D399; } .lv-chip.warn { color: #FBBF24; border: 1px solid #FBBF24; }
+.lv-btn { font: 600 11px ui-monospace, Menlo, monospace; color: #c6d3e6; background: rgba(255,255,255,.04); border: 1px solid #4a6585; border-radius: 3px; padding: 5px 9px; min-height: 28px; cursor: pointer; align-self: center; }
+.lv-btn:focus-visible { outline: 2px solid #FBBF24; outline-offset: 2px; }
+.lv-cardbox { display: grid; gap: 6px; }
+@media (min-width: 560px) and (max-width: 1099px) { .lv-cardbox { grid-template-columns: 1fr 1fr; } }
+.lv-card { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid rgba(125,211,252,.2); border-radius: 4px; background: rgba(255,255,255,.03); }
+.lv-card strong { display: block; font: 700 13px ui-monospace, Menlo, monospace; color: #EAF0F7; }
+.lv-card .lv-big { display: block; font: 700 34px/1.1 ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+.lv-card.old { opacity: .7; }
+.lv-card.hot { animation: lvhot 1.5s ease-out 1; }
+@keyframes lvhot { 0% { border-color: #FBBF24; background: rgba(251,191,36,.18); } 100% { border-color: rgba(125,211,252,.2); background: rgba(255,255,255,.03); } }
+.lv-card.hot .lv-big { animation: lvroll .5s ease-out 1; }
+@keyframes lvroll { 0% { transform: translateY(-14px); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.lv-dial { flex: none; width: 52px; height: 52px; border: 1px solid rgba(125,211,252,.35); border-radius: 50%; position: relative; align-self: center; }
+.lv-dial i { position: absolute; left: 8px; right: 8px; top: 50%; height: 2.5px; margin-top: -1.25px; background: #fff; border-radius: 2px; transition: transform .8s ease; }
+.lv-dial i::after { content: ''; position: absolute; right: -1px; top: -4px; border-left: 9px solid #fff; border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+.lv-rrow { display: grid; grid-template-columns: minmax(0, 1fr) 90px 34px; gap: 6px; align-items: center; font: 11px ui-monospace, Menlo, monospace; color: #c6d3e6; margin: 3px 0; }
+.lv-rrow span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .lv-rrow b { text-align: right; color: #EAF0F7; }
+.lv-bar { height: 12px; background: rgba(125,211,252,.12); position: relative; overflow: hidden; }
+.lv-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: #38BDF8; }
+.lv-bar.wet i { background-image: repeating-linear-gradient(180deg, rgba(255,255,255,.55) 0 2px, transparent 2px 7px); background-size: 100% 14px; animation: lvrain .5s linear infinite; background-color: #38BDF8; }
+@keyframes lvrain { to { background-position: 0 14px; } }
+.lv-h2 { margin-top: 12px; }
+.lv-why { list-style: none; margin: 0; padding: 0; font: 11px/1.5 ui-monospace, Menlo, monospace; color: #c6d3e6; }
+.lv-why i { display: inline-block; width: 9px; height: 9px; margin-right: 8px; }
+.lv-feeds b { color: #c6d3e6; font-weight: 600; }
+.lv-log { max-height: 190px; } .lv-log li.warn { color: #FBBF24; }
+@media (prefers-reduced-motion: reduce) { .lv-card.hot, .lv-card.hot .lv-big, .lv-bar.wet i { animation: none; } .lv-dial i { transition: none; } }
+
+.lv-player { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+.lv-scrub { flex: 1 1 180px; min-width: 120px; accent-color: #FBBF24; height: 28px; }
+.lv-scrub:focus-visible { outline: 2px solid #FBBF24; outline-offset: 2px; }
+.lv-time { margin: 0; min-width: 96px; text-align: right; }
