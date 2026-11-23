@@ -110,7 +110,8 @@
         { id: 'wall', ic: 'db', n: T('Data Wall', 'Data Wall'), v: () => P.stack(), f: () => T('Records, freshness, sources and permits on one wall', 'Εγγραφές, φρεσκάδα, πηγές και άδειες σε έναν τοίχο') },
         { id: 'flow', ic: 'db', n: T('Data Flow', 'Data Flow'), v: () => P.stack(), f: () => T('How records travel and which feeds answer now', 'Πώς ταξιδεύουν οι εγγραφές και ποιες πηγές απαντούν') },
         { id: 'pack', ic: 'db', n: T('Cyprus data', 'Δεδομένα Κύπρου'), v: () => T('historical', 'ιστορικά'), f: () => T('Neighbourhoods, air, sea, water, energy, tourism, transport', 'Γειτονιές, αέρας, θάλασσα, νερό, ενέργεια, τουρισμός, μεταφορές') },
-        { id: 'live', ic: 'db', n: T('Live Board', 'Live Board'), v: () => T('live', 'ζωντανά'), f: () => T('Wind, temperature and rain over Cyprus, moving now', 'Άνεμος, θερμοκρασία και βροχή πάνω από την Κύπρο, σε κίνηση τώρα') }] },
+        { id: 'live', ic: 'db', n: T('Live Board', 'Live Board'), v: () => T('live', 'ζωντανά'), f: () => T('Wind, temperature and rain over Cyprus, moving now', 'Άνεμος, θερμοκρασία και βροχή πάνω από την Κύπρο, σε κίνηση τώρα') },
+        { id: 'journey', ic: 'db', n: T('Data Journey', 'Data Journey'), v: () => P.stack(), f: () => T('From the publishers to the pages of this site', 'Από τους εκδότες ως τις σελίδες του ιστοτόπου') }] },
     { c: '#A5B4FC', n: T('Schools and teams', 'Σχολεία και ομάδες'), d: T('The four schools and their teams, the districts and neighbourhoods, today’s desk and the projects that are running.', 'Τα τέσσερα σχολεία και οι ομάδες τους, οι επαρχίες και οι γειτονιές, το γραφείο της ημέρας και τα έργα που τρέχουν.'), s: T('Who is doing the work', 'Ποιος κάνει τη δουλειά'), tags: ['team'],
       bigs: [
         (S) => (S.schools ? [String(S.schools.length), T('schools', 'σχολεία')] : null),
