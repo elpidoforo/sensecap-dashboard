@@ -1315,8 +1315,9 @@ const contextStore = require('./context').createContext({ root: __dirname, log: 
 const stackData = require('./stackdata').createStackData({ root: __dirname, demo: DEMO, mock: MOCK, priv, trailsFor, devices: () => rawDevices(), cityBuildings, gtfs: () => gtfs, eea: () => eea, satellite: () => satellite, context: contextStore, cydom, metar, log: (m) => console.error(m) });
 
 function startApp() {
+  const ai = require('./ai-route').pick(process.env);   // Anthropic, or OpenRouter when its key is set (see ai-route.js)
   const bot = createBot({
-    apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL,
+    apiKey: ai.apiKey, model: ai.model, baseUrl: ai.baseUrl,
     data: botData, log: (m) => console.error(m),
   });
   assistant = bot;
@@ -1334,15 +1335,15 @@ function startApp() {
     satellite = createSatellite({ root: __dirname, dataDir: DATA_DIR, log: (m) => console.error(m), demo: process.env.SATELLITE !== '0' && process.env.SATELLITE_DEMO === '1', off: process.env.SATELLITE === '0' || (MOCK && process.env.SATELLITE_LIVE !== '1'), offReason: process.env.SATELLITE === '0' ? 'switched off with SATELLITE=0' : 'test mode' });
     satellite.start();
   } catch (e) { console.error('Satellite feeds: not started (' + e.message + ')'); satellite = null; }
-  layers = createLayers({ root: __dirname, dataDir: DATA_DIR, appCore, data: botData, feeds, gtfs, satellite, context: contextStore, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });   // works without the student app too (only editing the mission needs a teacher sign-in)
+  layers = createLayers({ root: __dirname, dataDir: DATA_DIR, appCore, data: botData, feeds, gtfs, satellite, context: contextStore, apiKey: ai.apiKey, model: ai.model, baseUrl: ai.baseUrl, log: (m) => console.error(m) });   // works without the student app too (only editing the mission needs a teacher sign-in)
   if (!appCore.enabled) return console.error('Student app is off: ' + appCore.reason);
   feeds.attach(appCore);   // from now on the on/off switches of the feeds are kept in the student database
-  studio = createStudio({ appCore, notify: notifier, layers, classValid: (req) => classLogin.enabled && classLogin.valid(req), bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });
-  council = createCouncil({ appCore, bot, data: botData, apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, viewer: (req) => (studio && studio.viewer ? studio.viewer(req) : null), log: (m) => console.error(m) });
+  studio = createStudio({ appCore, notify: notifier, layers, classValid: (req) => classLogin.enabled && classLogin.valid(req), bot, data: botData, apiKey: ai.apiKey, model: ai.model, baseUrl: ai.baseUrl, log: (m) => console.error(m) });
+  council = createCouncil({ appCore, bot, data: botData, apiKey: ai.apiKey, model: ai.model, baseUrl: ai.baseUrl, viewer: (req) => (studio && studio.viewer ? studio.viewer(req) : null), log: (m) => console.error(m) });
   dataHealth = createDataHealth({ layers, root: __dirname, log: (m) => console.error(m) });
-  reports = createReports({ appCore, data: botData, assignmentsRev: () => (layers && layers.assignmentsRev ? layers.assignmentsRev() : null), apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.BOT_MODEL, baseUrl: process.env.ANTHROPIC_BASE_URL, log: (m) => console.error(m) });
+  reports = createReports({ appCore, data: botData, assignmentsRev: () => (layers && layers.assignmentsRev ? layers.assignmentsRev() : null), apiKey: ai.apiKey, model: ai.model, baseUrl: ai.baseUrl, log: (m) => console.error(m) });
   const st = bot.status();
-  console.log(`Student app ready (${appCore.info().users} accounts). Assistant ${st.configured ? 'on, model ' + st.model : 'off: set ANTHROPIC_API_KEY'}. Admin sign-up ${process.env.ADMIN_SETUP_CODE ? 'enabled' : 'disabled: set ADMIN_SETUP_CODE'}.`);
+  console.log(`Student app ready (${appCore.info().users} accounts). Assistant ${st.configured ? 'on, model ' + st.model + ', ' + require('./ai-route').describe(ai) : 'off: set ANTHROPIC_API_KEY or OPENROUTER_API_KEY'}. Admin sign-up ${process.env.ADMIN_SETUP_CODE ? 'enabled' : 'disabled: set ADMIN_SETUP_CODE'}.`);
 }
 
 /* ---------- sources, helpers, archive, operations map ----------

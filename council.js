@@ -20,6 +20,7 @@
  * `viewer(req)` is optional (studio.viewer): a class team with the class cookie is then shown as "Team X, School".
  * council.js also exports `kit`, the helpers that reports.js shares.
  */
+const aiRoute = require('./ai-route');   // Anthropic or OpenRouter: the address of a request is decided in one place
 const crypto = require('crypto');
 const { unsafeText } = require('./school');
 
@@ -271,8 +272,8 @@ function makeClaude({ apiKey, baseUrl }) {
       try {
         const r = await fetch(base + '/v1/messages', {
           method: 'POST',
-          headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-          body: JSON.stringify(sent),
+          headers: aiRoute.headers(apiKey, base),
+          body: JSON.stringify(aiRoute.wire(sent, base)),
           signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
         });
         if (r.ok) {

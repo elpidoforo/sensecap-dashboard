@@ -2,6 +2,7 @@
 /* The assistant: the Anthropic Messages API with read-only tools over the project's own data.
    The key comes from the ANTHROPIC_API_KEY variable and never reaches the browser. */
 
+const aiRoute = require('./ai-route');   // Anthropic or OpenRouter: the address of a request is decided in one place
 const TZ = 'Asia/Nicosia';
 const MAX_STEPS = 6;
 const GPS = ['4197', '4198'];
@@ -384,8 +385,8 @@ function createBot(cfg) {
       try {
         const r = await fetch(base + '/v1/messages', {
           method: 'POST',
-          headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-          body: JSON.stringify(body),
+          headers: aiRoute.headers(apiKey, base),
+          body: JSON.stringify(aiRoute.wire(body, base)),
           signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(70000)]) : AbortSignal.timeout(70000),
         });
         if (r.ok) return await r.json();

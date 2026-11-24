@@ -15,6 +15,7 @@
  * - Everything the assistant can read is the same read-only, public-view data the dashboard already uses (bot tools). This file never
  *   adds a coordinate to any answer, and get_vehicle_series refuses the GPS measurements.
  */
+const aiRoute = require('./ai-route');   // Anthropic or OpenRouter: the address of a request is decided in one place
 const crypto = require('crypto');
 const { unsafeText, normCode, nameKey } = require('./school');
 const knowledge = require('./knowledge');
@@ -983,7 +984,7 @@ function createStudio(opts) {
   }
 
   async function callClaude(body, signal) {
-    const r = await fetch(base + '/v1/messages', { method: 'POST', signal, headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' }, body: JSON.stringify(body) });
+    const r = await fetch(base + '/v1/messages', { method: 'POST', signal, headers: aiRoute.headers(apiKey, base), body: JSON.stringify(aiRoute.wire(body, base)) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error((j.error && j.error.message) || 'HTTP ' + r.status);
     return j;
