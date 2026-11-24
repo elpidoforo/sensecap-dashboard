@@ -1,7 +1,7 @@
 {
  "id": "checks",
- "recorded": "2026-11-24T05:16:22.082Z",
- "commit": "c649616",
+ "recorded": "2026-11-24T05:16:41.824Z",
+ "commit": "024398f",
  "scope": [
   "The widget tests in tests/viz. Other tests of the site (pages in a real browser, the guide, the server) are not part of this file.",
   "Οι έλεγχοι των γραφικών στο tests/viz. Άλλοι έλεγχοι του ιστοτόπου (σελίδες σε πραγματικό φυλλομετρητή, ο οδηγός, ο διακομιστής) δεν είναι σε αυτό το αρχείο."
