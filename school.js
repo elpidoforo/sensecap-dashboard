@@ -744,7 +744,7 @@ function createApp(opts = {}) {
     if (!g || typeof g !== 'object' || Array.isArray(g)) return null;
     const page = String(g.page || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 30);
     const seen = new Set(), targets = [];
-    for (const t of (Array.isArray(g.targets) ? g.targets : []).slice(0, 60)) {
+    for (const t of (Array.isArray(g.targets) ? g.targets : []).slice(0, 120)) {   // the menu links come first (about 70) and up to 28 buttons of the page after them
       const id = String((t && t.id) || ''), label = guideLabel(t && t.label);
       if (!GUIDE_ID.test(id) || seen.has(id) || !label) continue;
       seen.add(id); targets.push({ id, label });

@@ -114,6 +114,8 @@
         { id: 'journey', ic: 'db', n: T('Data Journey', 'Data Journey'), v: () => P.stack(), f: () => T('From the publishers to the pages of this site', 'Από τους εκδότες ως τις σελίδες του ιστοτόπου') },
         { id: 'sitemap', ic: 'globe', n: T('Site map', 'Χάρτης ιστοτόπου'), v: () => T('all pages', 'όλες οι σελίδες'), f: () => T('Every page as a map that builds itself', 'Κάθε σελίδα ως χάρτης που χτίζεται μόνος του') }] },
         { id: 'checkrun', ic: 'db', n: T('Check run', 'Εκτέλεση ελέγχων'), v: () => T('recorded', 'καταγραφή'), f: () => T('How the site checks itself, one dot per check', 'Πώς ο ιστότοπος ελέγχει τον εαυτό του, μία τελεία ανά έλεγχο') },
+        { id: 'gates', ic: 'db', n: T('Data gates', 'Πύλες δεδομένων'), v: () => T('checks', 'έλεγχοι'), f: () => T('Every source through every check, gate by gate', 'Κάθε πηγή από κάθε έλεγχο, πύλη προς πύλη') },
+        { id: 'crew', ic: 'db', n: T('AI at work', 'Η ΤΝ στη δουλειά'), v: () => T('walk-through', 'περιήγηση'), f: () => T('What the AI helpers do and who checks them', 'Τι κάνουν οι βοηθοί ΤΝ και ποιος τους ελέγχει') },
     { c: '#A5B4FC', n: T('Schools and teams', 'Σχολεία και ομάδες'), d: T('The four schools and their teams, the districts and neighbourhoods, today’s desk and the projects that are running.', 'Τα τέσσερα σχολεία και οι ομάδες τους, οι επαρχίες και οι γειτονιές, το γραφείο της ημέρας και τα έργα που τρέχουν.'), s: T('Who is doing the work', 'Ποιος κάνει τη δουλειά'), tags: ['team'],
       bigs: [
         (S) => (S.schools ? [String(S.schools.length), T('schools', 'σχολεία')] : null),

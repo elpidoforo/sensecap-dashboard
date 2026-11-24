@@ -1,7 +1,7 @@
 {
  "id": "checks",
- "recorded": "2026-11-24T05:16:41.824Z",
- "commit": "024398f",
+ "recorded": "2026-11-24T05:43:34.072Z",
+ "commit": "94e0da3",
  "scope": [
   "The widget tests in tests/viz. Other tests of the site (pages in a real browser, the guide, the server) are not part of this file.",
   "Οι έλεγχοι των γραφικών στο tests/viz. Άλλοι έλεγχοι του ιστοτόπου (σελίδες σε πραγματικό φυλλομετρητή, ο οδηγός, ο διακομιστής) δεν είναι σε αυτό το αρχείο."
@@ -48,6 +48,14 @@
    "failures": []
   },
   {
+   "id": "crew",
+   "file": "tests/viz/crew_test.js",
+   "passed": 26,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
    "id": "daybars",
    "file": "tests/viz/daybars_test.js",
    "passed": 51,
@@ -83,6 +91,14 @@
    "id": "freight",
    "file": "tests/viz/freight_test.js",
    "passed": 32,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "gates",
+   "file": "tests/viz/gates_test.js",
+   "passed": 17,
    "failed": 0,
    "exit": 0,
    "failures": []
