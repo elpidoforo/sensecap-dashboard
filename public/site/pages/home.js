@@ -113,6 +113,7 @@
         { id: 'live', ic: 'db', n: T('Live Board', 'Live Board'), v: () => T('live', 'ζωντανά'), f: () => T('Wind, temperature and rain over Cyprus, moving now', 'Άνεμος, θερμοκρασία και βροχή πάνω από την Κύπρο, σε κίνηση τώρα') },
         { id: 'journey', ic: 'db', n: T('Data Journey', 'Data Journey'), v: () => P.stack(), f: () => T('From the publishers to the pages of this site', 'Από τους εκδότες ως τις σελίδες του ιστοτόπου') },
         { id: 'sitemap', ic: 'globe', n: T('Site map', 'Χάρτης ιστοτόπου'), v: () => T('all pages', 'όλες οι σελίδες'), f: () => T('Every page as a map that builds itself', 'Κάθε σελίδα ως χάρτης που χτίζεται μόνος του') }] },
+        { id: 'checkrun', ic: 'db', n: T('Check run', 'Εκτέλεση ελέγχων'), v: () => T('recorded', 'καταγραφή'), f: () => T('How the site checks itself, one dot per check', 'Πώς ο ιστότοπος ελέγχει τον εαυτό του, μία τελεία ανά έλεγχο') },
     { c: '#A5B4FC', n: T('Schools and teams', 'Σχολεία και ομάδες'), d: T('The four schools and their teams, the districts and neighbourhoods, today’s desk and the projects that are running.', 'Τα τέσσερα σχολεία και οι ομάδες τους, οι επαρχίες και οι γειτονιές, το γραφείο της ημέρας και τα έργα που τρέχουν.'), s: T('Who is doing the work', 'Ποιος κάνει τη δουλειά'), tags: ['team'],
       bigs: [
         (S) => (S.schools ? [String(S.schools.length), T('schools', 'σχολεία')] : null),

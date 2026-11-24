@@ -1,0 +1,283 @@
+{
+ "id": "checks",
+ "recorded": "2026-11-24T05:16:22.082Z",
+ "commit": "c649616",
+ "scope": [
+  "The widget tests in tests/viz. Other tests of the site (pages in a real browser, the guide, the server) are not part of this file.",
+  "Οι έλεγχοι των γραφικών στο tests/viz. Άλλοι έλεγχοι του ιστοτόπου (σελίδες σε πραγματικό φυλλομετρητή, ο οδηγός, ο διακομιστής) δεν είναι σε αυτό το αρχείο."
+ ],
+ "runs": [
+  {
+   "id": "argo",
+   "file": "tests/viz/argo_test.js",
+   "passed": 39,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "checkrun",
+   "file": "tests/viz/checkrun_test.js",
+   "passed": 13,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "classtape",
+   "file": "tests/viz/classtape_test.js",
+   "passed": 56,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "countcards",
+   "file": "tests/viz/countcards_test.js",
+   "passed": 76,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "counter",
+   "file": "tests/viz/counter_test.js",
+   "passed": 108,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "daybars",
+   "file": "tests/viz/daybars_test.js",
+   "passed": 51,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "depthline",
+   "file": "tests/viz/depthline_test.js",
+   "passed": 57,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "flights",
+   "file": "tests/viz/flights_test.js",
+   "passed": 34,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "forecast",
+   "file": "tests/viz/forecast_test.js",
+   "passed": 56,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "freight",
+   "file": "tests/viz/freight_test.js",
+   "passed": 32,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "gridmap",
+   "file": "tests/viz/gridmap_test.js",
+   "passed": 57,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "heatmatrix",
+   "file": "tests/viz/heatmatrix_test.js",
+   "passed": 47,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "hourstrip",
+   "file": "tests/viz/hourstrip_test.js",
+   "passed": 70,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "inflow",
+   "file": "tests/viz/inflow_test.js",
+   "passed": 38,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "journey",
+   "file": "tests/viz/journey_test.js",
+   "passed": 36,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "lidar",
+   "file": "tests/viz/lidar_test.js",
+   "passed": 28,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "live",
+   "file": "tests/viz/live_test.js",
+   "passed": 24,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "liveflow",
+   "file": "tests/viz/liveflow_test.js",
+   "passed": 15,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "nodelink",
+   "file": "tests/viz/nodelink_test.js",
+   "passed": 60,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "people",
+   "file": "tests/viz/people_test.js",
+   "passed": 63,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "pipeline",
+   "file": "tests/viz/pipeline_test.js",
+   "passed": 165,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "pixelgrid",
+   "file": "tests/viz/pixelgrid_test.js",
+   "passed": 97,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "pmpair",
+   "file": "tests/viz/pmpair_test.js",
+   "passed": 33,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "quarters",
+   "file": "tests/viz/quarters_test.js",
+   "passed": 22,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "roster",
+   "file": "tests/viz/roster_test.js",
+   "passed": 63,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "scatter",
+   "file": "tests/viz/scatter_test.js",
+   "passed": 176,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "season",
+   "file": "tests/viz/season_test.js",
+   "passed": 31,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "sitecells",
+   "file": "tests/viz/sitecells_test.js",
+   "passed": 53,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "sitemap",
+   "file": "tests/viz/sitemap_test.js",
+   "passed": 12,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "sphere",
+   "file": "tests/viz/sphere_test.js",
+   "passed": 119,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "station",
+   "file": "tests/viz/station_test.js",
+   "passed": 75,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "stay",
+   "file": "tests/viz/stay_test.js",
+   "passed": 39,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "tilegrid",
+   "file": "tests/viz/tilegrid_test.js",
+   "passed": 58,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "wave",
+   "file": "tests/viz/wave_test.js",
+   "passed": 88,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  }
+ ]
+}

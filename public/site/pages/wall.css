@@ -40,3 +40,6 @@
 
 .dw-find { font: 600 12px ui-monospace, Menlo, monospace; color: #EAF0F7; background: rgba(255,255,255,.04); border: 1px solid #4a6585; border-radius: 3px; padding: 5px 9px; min-height: 28px; max-width: 100%; }
 .dw-find:focus-visible { outline: 2px solid #FBBF24; outline-offset: 2px; }
+.wl-list table { border-collapse: collapse; margin-top: 6px; display: block; overflow-x: auto; max-width: 100%; }
+.wl-list th, .wl-list td { padding: 2px 12px 2px 0; text-align: left; font: 11px ui-monospace, Menlo, monospace; white-space: nowrap; }
+.wl-list th { color: #6f8fb3; font-weight: 600; }
