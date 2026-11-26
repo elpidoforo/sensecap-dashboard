@@ -1,0 +1,43 @@
+{
+  "id": "drought",
+  "source": ["Department of Meteorology, Republic of Cyprus: monthly SPI results by hydrological region", "Τμήμα Μετεωρολογίας, Κυπριακή Δημοκρατία: μηνιαία αποτελέσματα SPI ανά υδρολογική περιοχή"],
+  "sourceUrl": "https://www.dom.org.cy/CLIMATOLOGY/English/Standardized%20Precipitation%20Index%20SPI",
+  "method": ["Area averages from rain gauges, scored against the same months of 1971 to 2010.", "Μέσοι όροι περιοχής από βροχόμετρα, σε σύγκριση με τους ίδιους μήνες του 1971 έως 2010."],
+  "reference": "1971-2010",
+  "retrieved": "2026-11-26",
+  "confirmed": false,
+  "confirmNote": ["The numbers were read from the Department's result sheets (PDF) by a text tool and have not yet been checked against the Department's own data file.", "Οι αριθμοί διαβάστηκαν από τα φύλλα αποτελεσμάτων (PDF) του Τμήματος με εργαλείο κειμένου και δεν έχουν ακόμη ελεγχθεί με το αρχείο δεδομένων του Τμήματος."],
+  "windows": [1, 3, 6, 9, 12, 24, 36, 48, 60],
+  "regions": [
+    {"id": "1", "name": ["Pafos", "Πάφος"]}, {"id": "2", "name": ["Polis", "Πόλις"]}, {"id": "3", "name": ["Morfou", "Μόρφου"]}, {"id": "6", "name": ["Lefkosia", "Λευκωσία"]},
+    {"id": "7", "name": ["Kokkinochoria", "Κοκκινοχώρια"]}, {"id": "8", "name": ["Larnaka", "Λάρνακα"]}, {"id": "9", "name": ["Lemesos", "Λεμεσός"]}
+  ],
+  "sheets": [
+    {"ym": "2025-09", "waterYearFrom": "2024-10",
+     "url": "https://www.dom.org.cy/CLIMATOLOGY/English/Standardized%20Precipitation%20Index%20SPI/Oct2024_Sep2025/2025_09/1_SPI-n_Results_2025_09.pdf",
+     "cumulativeMm": 312.0, "cumulativeNormalMm": 466.4,
+     "cyprus": [-0.57, -1.51, -0.54, -2.74, -1.53, -1.65, -1.41, -1.12, -1.81],
+     "byRegion": {
+       "1": [-0.23, -1.04, -0.30, -2.52, -1.32, -1.62, -1.37, -1.00, -1.61],
+       "2": [-0.35, -1.06, -0.22, -2.50, -1.51, -1.73, -1.44, -1.14, -1.60],
+       "3": [-0.01, -1.06, -0.68, -2.34, -1.86, -2.04, -1.74, -1.60, -2.02],
+       "6": [-0.16, -0.78, -0.62, -1.97, -1.61, -1.02, -0.59, -0.29, -0.72],
+       "7": null,
+       "8": [-0.46, -1.11, -0.47, -2.62, -1.55, -1.26, -1.16, -0.81, -1.57],
+       "9": [-0.24, -0.98, -0.66, -2.90, -1.17, -1.59, -1.50, -1.22, -1.99]},
+     "flags": {"7": ["Marked \"unreliable result\" by the Department; the values could not be read with certainty and are not shown.", "Με σημείωση \"αναξιόπιστο αποτέλεσμα\" από το Τμήμα· οι τιμές δεν διαβάστηκαν με βεβαιότητα και δεν εμφανίζονται."]}},
+    {"ym": "2026-04", "waterYearFrom": "2025-10",
+     "url": "https://www.dom.org.cy/CLIMATOLOGY/English/Standardized%20Precipitation%20Index%20SPI/Oct2025_Sep2026/2026_04/1_SPI-n_Results_2026_04.pdf",
+     "cumulativeMm": 522.7, "cumulativeNormalMm": 431.4,
+     "cyprus": [1.30, 1.46, 0.93, 0.74, 0.66, -0.32, -0.85, -1.00, -0.79],
+     "byRegion": {
+       "1": [0.94, 1.40, 0.80, 0.71, 0.66, -0.33, -0.90, -1.01, -0.73],
+       "2": [0.71, 1.30, 1.28, 1.15, 1.07, -0.09, -0.71, -0.79, -0.57],
+       "3": [1.05, 1.43, 1.16, 0.93, 0.79, -0.38, -0.93, -1.11, -1.02],
+       "6": [0.82, 0.59, 0.61, 0.33, 0.21, -0.64, -0.47, -0.42, -0.11],
+       "7": [1.43, 1.13, 1.16, 1.01, 0.95, -0.15, -0.57, -0.21, -0.43],
+       "8": [1.90, 1.16, 0.84, 0.67, 0.57, -0.23, -0.48, -0.81, -0.53],
+       "9": [1.61, 1.81, 0.74, 0.58, 0.50, -0.21, -0.96, -1.18, -1.04]},
+     "flags": {}}
+  ]
+}

@@ -1,7 +1,7 @@
 {
  "id": "checks",
- "recorded": "2026-11-24T11:55:07.885Z",
- "commit": "5f17a44",
+ "recorded": "2026-11-26T10:39:25.139Z",
+ "commit": "0d7aee0",
  "scope": [
   "The widget tests in tests/viz. Other tests of the site (pages in a real browser, the guide, the server) are not part of this file.",
   "Οι έλεγχοι των γραφικών στο tests/viz. Άλλοι έλεγχοι του ιστοτόπου (σελίδες σε πραγματικό φυλλομετρητή, ο οδηγός, ο διακομιστής) δεν είναι σε αυτό το αρχείο."
@@ -26,7 +26,7 @@
   {
    "id": "classtape",
    "file": "tests/viz/classtape_test.js",
-   "passed": 56,
+   "passed": 38,
    "failed": 0,
    "exit": 0,
    "failures": []
@@ -34,7 +34,7 @@
   {
    "id": "countcards",
    "file": "tests/viz/countcards_test.js",
-   "passed": 76,
+   "passed": 50,
    "failed": 0,
    "exit": 0,
    "failures": []
@@ -58,7 +58,7 @@
   {
    "id": "daybars",
    "file": "tests/viz/daybars_test.js",
-   "passed": 51,
+   "passed": 36,
    "failed": 0,
    "exit": 0,
    "failures": []
@@ -66,7 +66,15 @@
   {
    "id": "depthline",
    "file": "tests/viz/depthline_test.js",
-   "passed": 57,
+   "passed": 43,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "drought",
+   "file": "tests/viz/drought_test.js",
+   "passed": 26,
    "failed": 0,
    "exit": 0,
    "failures": []
@@ -82,7 +90,7 @@
   {
    "id": "forecast",
    "file": "tests/viz/forecast_test.js",
-   "passed": 56,
+   "passed": 49,
    "failed": 0,
    "exit": 0,
    "failures": []
@@ -122,7 +130,7 @@
   {
    "id": "hourstrip",
    "file": "tests/viz/hourstrip_test.js",
-   "passed": 70,
+   "passed": 55,
    "failed": 0,
    "exit": 0,
    "failures": []
@@ -178,7 +186,7 @@
   {
    "id": "people",
    "file": "tests/viz/people_test.js",
-   "passed": 63,
+   "passed": 47,
    "failed": 0,
    "exit": 0,
    "failures": []
@@ -226,7 +234,7 @@
   {
    "id": "scatter",
    "file": "tests/viz/scatter_test.js",
-   "passed": 176,
+   "passed": 111,
    "failed": 0,
    "exit": 0,
    "failures": []
@@ -242,7 +250,7 @@
   {
    "id": "sitecells",
    "file": "tests/viz/sitecells_test.js",
-   "passed": 53,
+   "passed": 39,
    "failed": 0,
    "exit": 0,
    "failures": []
@@ -266,7 +274,7 @@
   {
    "id": "station",
    "file": "tests/viz/station_test.js",
-   "passed": 75,
+   "passed": 57,
    "failed": 0,
    "exit": 0,
    "failures": []
