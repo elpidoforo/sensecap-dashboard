@@ -1,7 +1,7 @@
 {
  "id": "checks",
- "recorded": "2026-11-26T10:39:25.139Z",
- "commit": "0d7aee0",
+ "recorded": "2026-11-26T13:06:45.365Z",
+ "commit": "1c5f116",
  "scope": [
   "The widget tests in tests/viz. Other tests of the site (pages in a real browser, the guide, the server) are not part of this file.",
   "Οι έλεγχοι των γραφικών στο tests/viz. Άλλοι έλεγχοι του ιστοτόπου (σελίδες σε πραγματικό φυλλομετρητή, ο οδηγός, ο διακομιστής) δεν είναι σε αυτό το αρχείο."
@@ -267,6 +267,14 @@
    "id": "sphere",
    "file": "tests/viz/sphere_test.js",
    "passed": 119,
+   "failed": 0,
+   "exit": 0,
+   "failures": []
+  },
+  {
+   "id": "spilab",
+   "file": "tests/viz/spilab_test.js",
+   "passed": 25,
    "failed": 0,
    "exit": 0,
    "failures": []

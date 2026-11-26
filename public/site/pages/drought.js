@@ -11,7 +11,7 @@
   'use strict';
   const T = SC.t;
   SC.css('/site/pages/vortex.css'); SC.css('/site/pages/wall.css'); SC.css('/site/pages/live.css'); SC.css('/site/pages/drought.css');
-  const LIBS = ['/site/viz/drought-data.js'];
+  const LIBS = ['/site/viz/drought-data.js', '/site/viz/spilab-data.js'];
   const MONO = 'ui-monospace, Menlo, Consolas, monospace';
   const COL = { xdry: '#b4532a', sdry: '#d98a3a', mdry: '#e8c36a', normal: '#3a4a66', mwet: '#6fb7d9', vwet: '#3f8fd0', xwet: '#2a5fb4' };
   const BANDS = [[-3, -2, 'xdry'], [-2, -1.5, 'sdry'], [-1.5, -1, 'mdry'], [-1, 1, 'normal'], [1, 1.5, 'mwet'], [1.5, 2, 'vwet'], [2, 3, 'xwet']];
@@ -41,6 +41,34 @@
     const foot = el('p', 'dr-foot'); foot.append(document.createTextNode(T('Source: ', 'Πηγή: ') + P2(m.source) + '. ' + (m.method ? P2(m.method) + ' ' : '') + T('Read on ', 'Ανάγνωση στις ') + m.retrieved + '. ' + T('Historical data, not live. SPI describes rain only. The dams also depend on earlier years, on inflow and on how much water is taken out, so a wet index and low dams can be true together.', 'Ιστορικά δεδομένα, όχι ζωντανά. Ο SPI περιγράφει μόνο τη βροχή. Τα φράγματα εξαρτώνται και από προηγούμενα χρόνια, από την εισροή και από το πόσο νερό αντλείται, άρα υγρός δείκτης και χαμηλά φράγματα μπορούν να ισχύουν μαζί.') + ' '));
     if (m.sourceUrl) { const a = el('a', null, T('The Department\'s SPI sheets', 'Τα φύλλα SPI του Τμήματος')); a.href = m.sourceUrl; a.target = '_blank'; a.rel = 'noopener'; foot.append(a); } root.append(foot);
 
+    // ---- two learning tools
+    const LB = SC.viz.spilabData;
+    // tool: which window answers my question?
+    const c4 = el('section', 'dr-card dr-wide'); grid.append(c4); const h4 = el('h2', null, T('Which window answers my question?', 'Ποιο παράθυρο απαντά στην ερώτησή μου;')); const tag4 = el('span', 'dr-tag'); h4.append(tag4); c4.append(h4);
+    c4.append(el('p', 'dr-hint', T('The index is published for nine lengths of time. Pick a question and see which lengths are usually read for it.', 'Ο δείκτης δημοσιεύεται για εννέα χρονικά μήκη. Διαλέξτε μια ερώτηση και δείτε ποια μήκη διαβάζονται συνήθως γι\' αυτήν.')));
+    const chips = el('div', 'dr-tabs'); chips.setAttribute('role', 'group'); chips.setAttribute('aria-label', T('Questions', 'Ερωτήσεις')); const win = el('div', 'dr-win'); const say4 = el('div', 'dr-say'); say4.setAttribute('aria-live', 'polite'); const lim4 = el('p', 'dr-lim'); c4.append(chips, win, say4, lim4);
+    let qid = 'reservoirs';
+    function drawReader() { const r = LB.reader(m, cur, qid); tag4.textContent = T('published values, ', 'δημοσιευμένες τιμές, ') + (r.label ? P2(r.label) : '');
+      chips.textContent = ''; r.questions.forEach((q) => { const b = el('button', 'dr-tab', P2(q.q)); b.type = 'button'; b.setAttribute('aria-pressed', String(q.id === r.question.id)); b.onclick = () => { qid = q.id; drawReader(); }; chips.append(b); });
+      win.textContent = ''; r.on.forEach((x) => { const d = el('div', x.lit ? 'on' : null); d.append(el('span', null, x.window + (x.window === 1 ? T(' month', ' μήνας') : T(' months', ' μήνες')))); d.append(el('b', null, fmt(x.value))); d.append(el('span', null, x.cls ? P2(x.cls.n) : T('no value', 'χωρίς τιμή'))); const i = el('i'); i.style.background = x.cls ? COL[x.cls.id] : 'transparent'; d.append(i); win.append(d); });
+      say4.textContent = P2(r.say); lim4.textContent = r.limit ? T('Limit: ', 'Όριο: ') + P2(r.limit) : ''; }
+    // tool: build the index by hand (practice numbers)
+    const c5 = el('section', 'dr-card dr-wide'); grid.append(c5); const h5 = el('h2', null, T('Build the index by hand', 'Φτιάξτε τον δείκτη με το χέρι')); h5.append(el('span', 'dr-tag warn', T('practice numbers, not real data', 'αριθμοί εξάσκησης, όχι πραγματικά δεδομένα'))); c5.append(h5);
+    c5.append(el('p', 'dr-hint', T('The dots are thirty practice winters of rain. Move the slider to choose this winter\'s rain and see where it lands among them.', 'Οι τελείες είναι τριάντα χειμώνες εξάσκησης. Μετακινήστε τον δείκτη για να διαλέξετε τη βροχή αυτού του χειμώνα και δείτε πού πέφτει ανάμεσά τους.')));
+    const lab = el('div', 'dr-lab'); c5.append(lab); const lcol = el('div'), rcol = el('div'); lab.append(lcol, rcol); const cv5 = el('canvas'); cv5.setAttribute('aria-hidden', 'true');
+    const sl = el('input', 'dr-slider'); sl.type = 'range'; const L0 = LB.lab(210); sl.min = String(L0.min); sl.max = String(L0.max); sl.step = '5'; sl.value = '210'; sl.setAttribute('aria-label', T('This winter\'s rain in millimetres', 'Η βροχή αυτού του χειμώνα σε χιλιοστά')); lcol.append(cv5, sl);
+    const mmBig = el('div', 'dr-big'); rcol.append(el('div', 'dr-sub', T('this winter', 'αυτός ο χειμώνας')), mmBig); const steps = el('div', 'dr-steps'); rcol.append(steps); const say5 = el('div', 'dr-say'); say5.setAttribute('aria-live', 'polite'); rcol.append(say5); c5.append(el('p', 'dr-lim', P2(L0.note)));
+    function drawLab() { const r = LB.lab(Number(sl.value)), w = Math.max(260, cv5.clientWidth || 280), H = 230, base = 170, dpr = Math.min(2, window.devicePixelRatio || 1); cv5.width = Math.round(w * dpr); cv5.height = Math.round(H * dpr); cv5.style.height = H + 'px'; const c = cv5.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const x = (mm) => 10 + (Math.max(r.min, Math.min(r.max, mm)) - r.min) / (r.max - r.min) * (w - 20), ids = ['xdry', 'sdry', 'mdry', 'normal', 'mwet', 'vwet', 'xwet']; let prev = r.min;
+      ids.forEach((id, i) => { const hi = i < 6 ? r.edges[i].mm : r.max; c.fillStyle = COL[id]; c.globalAlpha = 0.3; c.fillRect(x(prev), 18, Math.max(0, x(hi) - x(prev)), base - 18); c.globalAlpha = 1; prev = Math.max(prev, hi); });
+      let top = 0; for (let mm = r.min; mm <= r.max; mm += 5) top = Math.max(top, r.density(mm)); c.beginPath(); for (let mm = r.min; mm <= r.max; mm += 5) { const y = base - r.density(mm) / top * (base - 40); if (mm === r.min) c.moveTo(x(mm), y); else c.lineTo(x(mm), y); } c.strokeStyle = '#EAF0F7'; c.lineWidth = 1.5; c.stroke();
+      r.practice.forEach((p, i) => { c.beginPath(); c.arc(x(p), base + 12 + (i % 3) * 7, 3.2, 0, 7); c.fillStyle = p < r.mm ? '#8fa3c0' : '#5fd4ff'; c.fill(); });
+      c.strokeStyle = '#fff'; c.lineWidth = 2; c.beginPath(); c.moveTo(x(r.mm), 12); c.lineTo(x(r.mm), base + 32); c.stroke();
+      c.fillStyle = '#8fa3c0'; c.font = '10px ' + MONO; c.textAlign = 'center'; [100, 300, 500, 700, 900].forEach((mm) => { c.textAlign = mm === 900 ? 'right' : mm === 100 ? 'left' : 'center'; c.fillText(mm + ' mm', x(mm), H - 4); });
+      mmBig.textContent = r.mm + ' mm'; steps.textContent = '';
+      [[T('1. wetter winters', '1. πιο υγροί χειμώνες'), r.pctWetter + '%', T('of winters on the curve had more rain', 'των χειμώνων της καμπύλης είχαν περισσότερη βροχή'), null], [T('2. the index', '2. ο δείκτης'), fmt(r.spi), T('steps from the usual amount', 'βήματα από τη συνηθισμένη ποσότητα'), null], [T('3. the class', '3. η κατηγορία'), P2(r.cls.n), T('by the WMO table', 'κατά τον πίνακα του WMO'), r.cls.id === 'normal' ? null : COL[r.cls.id]]].forEach((s) => { const d = el('div'); d.append(el('span', 'dr-sub', s[0])); const b = el('b', null, s[1]); if (s[3]) b.style.color = s[3]; d.append(b); d.append(el('span', 'dr-sub', s[2])); steps.append(d); });
+      say5.textContent = P2(r.say); sl.setAttribute('aria-valuetext', r.mm + ' mm, ' + P2(r.cls.n)); }
+    sl.oninput = drawLab;
     let cur = m.sheets.length - 1, anim = null, raf = 0, dead = false, t0 = 0, Tm = 0;   // anim: { a, b } while the walk plays
     const canWalk = m.sheets.length >= 2;
     function drawLadder(state) {
@@ -84,16 +112,16 @@
     }
     function setTabs() { tabs.textContent = ''; m.sheets.forEach((s, i) => { const b = el('button', 'dr-tab', P2(s.label)); b.type = 'button'; b.setAttribute('aria-pressed', String(!anim && i === cur)); b.onclick = () => { stop(); cur = i; show(); }; tabs.append(b); });
       if (canWalk && !reduce.matches) { const b = el('button', 'dr-tab', anim ? T('Stop', 'Διακοπή') : T('Play the change', 'Αναπαραγωγή της αλλαγής')); b.type = 'button'; b.setAttribute('aria-pressed', String(!!anim)); b.onclick = () => { if (anim) { stop(); show(); } else play(); }; tabs.append(b); } }
-    function show() { setTabs(); fill(cur); drawLadder(staticState(cur)); }
+    function show() { setTabs(); fill(cur); drawLadder(staticState(cur)); drawReader(); }
     function stop() { anim = null; if (raf) cancelAnimationFrame(raf); raf = 0; }
     function frame(now) {
       raf = 0; if (dead || !anim) return; if (!t0) t0 = now; Tm = now - t0; const st = D.move(m, anim.a, anim.b, Tm), A = m.sheets[anim.a], B = m.sheets[anim.b];
       st.ghost = true; st.title = st.phase === 'a' ? P2(A.label) : st.phase === 'moving' ? T('from ' + A.label[0] + ' to ' + B.label[0] + ': two published sheets, the months between are not shown', 'από ' + A.label[1] + ' έως ' + B.label[1] + ': δύο δημοσιευμένα φύλλα, οι ενδιάμεσοι μήνες δεν φαίνονται') : P2(B.label) + T('  (rings: ' + A.label[0] + ')', '  (δακτύλιοι: ' + A.label[1] + ')');
       drawLadder(st); if (st.done) { anim = null; cur = m.sheets.length - 1; setTabs(); if (B.say) say.textContent = P2(B.say); return; } raf = requestAnimationFrame(frame);
     }
-    function play() { if (!canWalk || reduce.matches) return; stop(); anim = { a: m.sheets.length - 2, b: m.sheets.length - 1 }; cur = anim.b; t0 = 0; setTabs(); fill(cur); say.textContent = T('Watch the nine dots move from ' + m.sheets[anim.a].label[0] + ' to ' + m.sheets[anim.b].label[0] + '. The short windows move far; the long ones barely move.', 'Δείτε τις εννέα τελείες να μετακινούνται από ' + m.sheets[anim.a].label[1] + ' σε ' + m.sheets[anim.b].label[1] + '. Τα σύντομα παράθυρα μετακινούνται πολύ· τα μακριά ελάχιστα.'); raf = requestAnimationFrame(frame); }
-    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(() => { if (!anim) { drawLadder(staticState(cur)); drawRegions(m.sheets[cur]); } }) : null; if (ro) { ro.observe(cv); }
-    show(); if (canWalk && !reduce.matches) play();
+    function play() { if (!canWalk || reduce.matches) return; stop(); anim = { a: m.sheets.length - 2, b: m.sheets.length - 1 }; cur = anim.b; t0 = 0; setTabs(); fill(cur); drawReader(); say.textContent = T('Watch the nine dots move from ' + m.sheets[anim.a].label[0] + ' to ' + m.sheets[anim.b].label[0] + '. The short windows move far; the long ones barely move.', 'Δείτε τις εννέα τελείες να μετακινούνται από ' + m.sheets[anim.a].label[1] + ' σε ' + m.sheets[anim.b].label[1] + '. Τα σύντομα παράθυρα μετακινούνται πολύ· τα μακριά ελάχιστα.'); raf = requestAnimationFrame(frame); }
+    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(() => { if (!anim) { drawLadder(staticState(cur)); drawRegions(m.sheets[cur]); } drawLab(); }) : null; if (ro) { ro.observe(cv); }
+    show(); drawLab(); if (canWalk && !reduce.matches) play();
     return () => { dead = true; stop(); if (ro) ro.disconnect(); };
   }
 

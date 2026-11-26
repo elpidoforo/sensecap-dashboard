@@ -27,3 +27,20 @@
 .dr-note { border: 1px solid #FBBF24; color: #fde9b0; background: rgba(251, 191, 36, .08); border-radius: 10px; padding: 9px 12px; margin: 0 0 14px; font-size: 13px; }
 .dr-foot { color: #8fa3c0; font-size: 12.5px; margin-top: 14px; max-width: 90ch; }
 .dr-foot a { color: #9bdcff; }
+
+/* the two learning tools */
+.dr-win { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; }
+.dr-win > div { border: 1px solid rgba(125, 211, 252, .14); border-radius: 10px; padding: 8px 4px; text-align: center; background: rgba(14, 26, 51, .9); opacity: .45; min-width: 0; }
+.dr-win > div.on { opacity: 1; border-color: #5fd4ff; box-shadow: 0 0 0 1px #5fd4ff inset; }
+.dr-win b { display: block; font: 700 15px ui-monospace, Menlo, monospace; }
+.dr-win span { display: block; font: 10.5px ui-monospace, Menlo, monospace; color: #a9b8cf; overflow-wrap: anywhere; }
+.dr-win i { display: block; height: 6px; border-radius: 3px; margin: 6px 4px 0; }
+.dr-lim { color: #fde9b0; font-size: 12.5px; margin: 8px 0 0; }
+.dr-lab { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 14px; }
+.dr-slider { width: 100%; accent-color: #5fd4ff; margin-top: 4px; }
+.dr-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.dr-steps > div { background: rgba(14, 26, 51, .9); border: 1px solid rgba(125, 211, 252, .14); border-radius: 10px; padding: 9px; min-width: 0; }
+.dr-steps b { display: block; font: 700 17px ui-monospace, Menlo, monospace; overflow-wrap: anywhere; }
+.dr-steps span { display: block; }
+@media (max-width: 820px) { .dr-lab { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) { .dr-win { grid-template-columns: repeat(3, minmax(0, 1fr)); } .dr-steps { grid-template-columns: minmax(0, 1fr); } }
