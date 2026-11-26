@@ -116,7 +116,8 @@
         { id: 'checkrun', ic: 'db', n: T('Check run', 'Εκτέλεση ελέγχων'), v: () => T('recorded', 'καταγραφή'), f: () => T('How the site checks itself, one dot per check', 'Πώς ο ιστότοπος ελέγχει τον εαυτό του, μία τελεία ανά έλεγχο') },
         { id: 'gates', ic: 'db', n: T('Data gates', 'Πύλες δεδομένων'), v: () => T('checks', 'έλεγχοι'), f: () => T('Every source through every check, gate by gate', 'Κάθε πηγή από κάθε έλεγχο, πύλη προς πύλη') },
         { id: 'crew', ic: 'db', n: T('AI at work', 'Η ΤΝ στη δουλειά'), v: () => T('walk-through', 'περιήγηση'), f: () => T('What the AI helpers do and who checks them', 'Τι κάνουν οι βοηθοί ΤΝ και ποιος τους ελέγχει') },
-        { id: 'drought', ic: 'db', n: T('Drought watch', 'Παρακολούθηση ξηρασίας'), v: () => T('rain index', 'δείκτης βροχής'), f: () => T('The published drought index for Cyprus, nine time windows', 'Ο δημοσιευμένος δείκτης ξηρασίας για την Κύπρο, εννέα χρονικά παράθυρα') }] },
+        { id: 'drought', ic: 'db', n: T('Drought watch', 'Παρακολούθηση ξηρασίας'), v: () => T('rain index', 'δείκτης βροχής'), f: () => T('The published drought index for Cyprus, nine time windows', 'Ο δημοσιευμένος δείκτης ξηρασίας για την Κύπρο, εννέα χρονικά παράθυρα') },
+        { id: 'signals', ic: 'globe', n: T('Signals over Cyprus', 'Σήματα πάνω από την Κύπρο'), v: () => T('live', 'ζωντανά'), f: () => T('Every live record lands on the island as light', 'Κάθε ζωντανή εγγραφή πέφτει στο νησί ως φως') }] },
     { c: '#A5B4FC', n: T('Schools and teams', 'Σχολεία και ομάδες'), d: T('The four schools and their teams, the districts and neighbourhoods, today’s desk and the projects that are running.', 'Τα τέσσερα σχολεία και οι ομάδες τους, οι επαρχίες και οι γειτονιές, το γραφείο της ημέρας και τα έργα που τρέχουν.'), s: T('Who is doing the work', 'Ποιος κάνει τη δουλειά'), tags: ['team'],
       bigs: [
         (S) => (S.schools ? [String(S.schools.length), T('schools', 'σχολεία')] : null),
